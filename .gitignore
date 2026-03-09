@@ -1,0 +1,27 @@
+# Godot 4+ specific
+.godot/
+*.translation
+export_presets.cfg
+*.import
+
+# Godot-specific (keep .gdignore files)
+*.import.bak
+
+# Build / export
+builds/
+exports/
+*.pck
+*.zip
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-*
+
+# Optional: uncomment if you use local override configs
+# override.cfg

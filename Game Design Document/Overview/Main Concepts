@@ -1,0 +1,144 @@
+# Main Concepts
+
+**Status**: Draft  
+**Last Updated**: 2026-02-09  
+**Purpose**: High-level overview of how Simple War is structured so designers and developers can reason about Campaigns, Armies, and Battles and begin implementing a barebones battle.
+
+---
+
+## 1. Big picture
+
+Simple War is about **Players** fielding **Armies** and fighting **Battles** that are organized into a larger **Campaign**.
+
+- Players build and maintain **Rosters** of Armies.
+- Armies are made from **Units** (and ultimately **Models** and equipment; see `Terminology`).
+- Battles are fought between opposing Armies on a **Battlefield**.
+- Campaigns tie together Rosters, Battles, and other activities into a structured experience with an opening, activities, and a conclusion.
+
+For the initial digital prototype, our focus is:
+
+- A **single Battle** between two Armies of similar Army value.
+- A minimal **Roster** and Army selection flow.
+- A basic **Engagement** stage with a Turn system that can be expanded later.
+- A flexible **Campaign** layer that can modify how Battles are played without changing the core engine.
+
+---
+
+## 2. Campaigns
+
+A **Campaign** is how gameplay is organized over time. It defines *what activities happen* and *in what order*.
+
+Every Campaign has at least:
+
+- **Opening** – determine the terms of the Campaign:
+  - Number and composition of activities (for example: 3 Battles, or 2 Battles and 1 narrative event).
+  - Objectives that Players should try to achieve.
+- **Activities** – the things Players do during the Campaign:
+  - In the most basic case, each Player builds an Army, then fights in a Battle against the other Player.
+  - More complex Campaigns may add, remove, or modify activities (extra Battles, narrative events, strategic map moves, etc.).
+- **Conclusion** – determine the victor of the Campaign based on its objectives and results.
+
+Campaign rules can modify how Battles work without changing the core Battle rules. Examples include:
+
+- Enforcing a maximum turn count.
+- Adding rules that affect a given Battle stage.
+- Adding or tightening Army participation restrictions.
+- Changing Battle victory conditions.
+
+For the first digital prototype, we assume a **Generic Campaign** that:
+
+- Uses a default Roster with no special restrictions.
+- Has a single Battle as its only activity.
+- Uses straightforward “most victory points / wipeout” style victory conditions.
+
+---
+
+## 3. Rosters and Armies
+
+**Building an Army** is how a Player prepares for a Battle.
+
+- A Player selects and configures **Units** to fill out an **Army List** until the Player is satisfied and (optionally) meets Campaign or Roster requirements.
+- Armies are organized by a **Roster** system:
+  - A **Roster** is a collection of Armies the Player has made.
+  - A Roster may have its own restrictions on how an Army is built in order for that Army to qualify to be listed.
+  - The **default Roster** has no restrictions.
+
+At this overview level:
+
+- An **Army** is “the set of Units a Player brings to a Battle”.
+- Each Army has an **Army value** that summarizes its overall strength for pairing and balancing Battles.
+- Campaigns and formats can define additional Roster types with stricter requirements.
+
+For the barebones implementation, we only need:
+
+- A way to define and store a small number of Armies per Player.
+- A simple validation step that checks “Army can be used in this Battle / Campaign”.
+
+---
+
+## 4. Battles
+
+**Fighting a Battle** involves Players participating in four ordered stages:
+
+1. **Planning**
+2. **Deployment**
+3. **Engagement**
+4. **Consolidation**
+
+A Battle is generally:
+
+- Fought between **two opposing Armies** of similar Army value.
+- Played on a **single Battlefield**.
+- Fought until one Army has been wiped out or another victory condition is met.
+
+Each stage may have additional steps provided by the Campaign or by rules in a Player’s Army.
+
+Campaigns can also modify how Players engage in Battle, such as (non-comprehensive list):
+
+- Enforcing a different turn count.
+- Including rules that affect a given stage.
+- Adding or tightening Army participation restrictions.
+- Changing victory conditions or scoring.
+
+---
+
+## 5. Battle stages (high level)
+
+At a high level, each stage of a Battle looks like this:
+
+- **Planning stage**
+  - Players select an Army from a Roster to participate in the Battle.
+  - Faction relationships and other pre-Battle information can be revealed here.
+
+- **Deployment stage**
+  - Players deploy their Armies to the Battlefield according to the Battle or Campaign rules.
+
+- **Engagement stage**
+  - Players command their Armies in a repeating cycle of **phases** called **Turns**.
+  - Simple War uses a **true simultaneous turn** system (see `Terminology – Fighting a Battle` for more detail).
+  - This is where movement, attacks, reactions, and other actions happen.
+
+- **Consolidation stage**
+  - Players determine the victor of the Battle.
+  - Casualties, objectives scored, and other outcomes are recorded for use by the Campaign (for example: updating Rosters or future activities).
+
+For the barebones digital Battle, we primarily need:
+
+- A Battlefield where two Armies can be deployed.
+- A minimal Turn and phase structure in the Engagement stage.
+- A simple Consolidation step that declares a winner and records high-level results for the Campaign layer.
+
+---
+
+### Legacy draft
+
+Players field Armies and fight battles. Armies are kept in a roster, and battles are fought on a battlefield. These activities combine to become a Campaign. 
+
+A Campaign is a way of organizing gameplay. There are two activities that each campaign must have: an opening and a conclusion. The opening of a campaign involves determining the terms of the campaign, such as the number and composition of activities, and any objectives that players should try to achieve. This is followed by participating in those activities; in the most basic case, a campaign will have each player build an army, then fight in a battle against each other. Finally, players conclude a campaign, which involves determining the victor. More complex campaigns may add, remove, or modify activities. 
+
+Building an army involves selecting and configuring units to fill out an army list until the player is satisfied. Armies are organized by a roster system. Rosters are lists of armies the player has made. A roster may have its own restrictions on how the army is built in order for an army to qualify for it. The default roster has no restrictions. 
+
+Fighting a battle involves players participating in four stages: planning, deployment, engagement, and consolidation. A battle is generally fought between two opposing armies of similar army value, on a single battlefield, until one army has been wiped out. Each stage may have additional steps provided by the campaign, or rules in a player's army. Similarly, a campaign can modify how players engage in battle, such as (not comprehensive) by enforcing a turn count, including rules that affect a given stage, adding army participation restrictions, or changing victory conditions.
+
+In the planning stage, players select an army from a roster to participate in the battle. In the deployment stage, players deploy their armies to the battlefield. In the engagement stage, players command their armies in a repeating cycle of phases called turns. In the consolidation stage, players determine the victor of the battle.
+
