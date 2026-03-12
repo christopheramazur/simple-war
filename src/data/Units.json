@@ -1,0 +1,194 @@
+{
+    "units": [
+        {
+            "id": "human_riflemen",
+            "display_name": "Riflemen",
+            "faction_keywords": ["Human"],
+            "unit_keywords": ["Infantry", "Riflemen"],
+            "endurance": 10,
+            "durability": 10,
+            "morale": 10,
+            "speed": 10,
+            "reflex": 10,
+            "value": 100,
+            "description": "A basic infantry unit trained to fight on the front lines.",
+            "abilities": ["Objective Secured", "Forward Positions"],
+            "weapon_skill": {
+                "rifle": 8,
+                "launcher": 5,
+                "melee": 6,
+                "magic": 2
+            },
+            "composition": [
+                {
+                    "count": 10,
+                    "model_id": "human_riflemen_model_default"
+                }
+            ],
+            "model_options": [
+                {
+                    "option_id": "human_riflemen_reinforcements",
+                    "model_id": "human_riflemen_model_default",
+                    "count": 10,
+                    "value": 100,
+                    "replacement_model_id": "",
+                    "required": false
+                }
+            ],
+            "item_options": [
+                {
+                    "item_id": "human_riflemen_optional_rocket_launcher",
+                    "count": 1,
+                    "value": 20,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "human_riflemen_default_rifle",
+                    "required": false
+                },
+                {
+                    "item_id": "human_riflemen_optional_rocket_launcher",
+                    "count": 1,
+                    "value": 20,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "human_riflemen_default_rifle",
+                    "requirements": [{ "unit_size": 20 }],
+                    "required": false
+                },
+                {
+                    "item_id": "human_riflemen_optional_power_shield",
+                    "count": 1,
+                    "value": 5,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "human_riflemen_default_melee_weapon",
+                    "required": false
+                },
+                {
+                    "item_id": "human_riflemen_optional_power_shield",
+                    "count": 1,
+                    "value": 5,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "human_riflemen_default_melee_weapon",
+                    "requirements": [{ "unit_size": 20 }],
+                    "required": false
+                },
+                {
+                    "item_id": "human_riflemen_optional_breaching_charge",
+                    "count": 1,
+                    "value": 10,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "",
+                    "required": false
+                },
+                {
+                    "item_id": "human_riflemen_optional_experimental_rifle",
+                    "count": 10,
+                    "value": 50,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "human_riflemen_default_rifle",
+                    "required": false
+                },
+                {
+                    "item_id": "human_riflemen_optional_experimental_rifle",
+                    "count": 20,
+                    "value": 100,
+                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_item_id": "human_riflemen_default_rifle",
+                    "required": false
+                }
+            ]
+        },
+        {
+            "id": "iron_bastion",
+            "display_name": "Iron Bastion",
+            "faction_keywords": ["Human"],
+            "unit_keywords": ["Vehicle", "Warmachine"],
+            "endurance": 20,
+            "durability": 80,
+            "morale": 15,
+            "speed": 4,
+            "reflex": 3,
+            "value": 400,
+            "description": "A heavily armoured siege engine that brings devastating long-range firepower to the battlefield.",
+            "abilities": [],
+            "weapon_skill": {
+                "launcher": 8,
+                "melee": 5
+            },
+            "composition": [
+                { "count": 1, "model_id": "iron_bastion_model_default" }
+            ],
+            "model_options": [],
+            "item_options": []
+        },
+        {
+            "id": "maw_fiend",
+            "display_name": "Maw Fiend",
+            "faction_keywords": ["Xenos"],
+            "unit_keywords": ["Monster", "Bioterror"],
+            "endurance": 15,
+            "durability": 100,
+            "morale": 20,
+            "speed": 8,
+            "reflex": 12,
+            "value": 450,
+            "description": "A nightmarish bio-organic predator that closes distance terrifyingly fast and tears apart anything in reach.",
+            "abilities": [],
+            "weapon_skill": {
+                "natural_melee": 9,
+                "natural_ranged": 6
+            },
+            "composition": [
+                { "count": 1, "model_id": "maw_fiend_model_default" }
+            ],
+            "model_options": [],
+            "item_options": []
+        },
+        {
+            "id": "arcanists",
+            "display_name": "Arcanists",
+            "faction_keywords": ["Human"],
+            "unit_keywords": ["Infantry", "Mage"],
+            "endurance": 8,
+            "durability": 6,
+            "morale": 12,
+            "speed": 6,
+            "reflex": 8,
+            "value": 200,
+            "description": "A small squad of battle-mages who channel destructive arcane energy across the battlefield.",
+            "abilities": [],
+            "weapon_skill": {
+                "magic": 8,
+                "melee": 4,
+                "rifle": 3
+            },
+            "composition": [
+                { "count": 5, "model_id": "arcanists_model_default" }
+            ],
+            "model_options": [],
+            "item_options": []
+        },
+        {
+            "id": "swarm_cultists",
+            "display_name": "Swarm Cultists",
+            "faction_keywords": ["Chaos"],
+            "unit_keywords": ["Infantry", "Horde"],
+            "endurance": 6,
+            "durability": 4,
+            "morale": 4,
+            "speed": 8,
+            "reflex": 5,
+            "value": 60,
+            "description": "A frenzied mob of poorly equipped fanatics who overwhelm the enemy through sheer numbers.",
+            "abilities": [],
+            "weapon_skill": {
+                "melee": 4,
+                "rifle": 2,
+                "launcher": 1
+            },
+            "composition": [
+                { "count": 20, "model_id": "swarm_cultists_model_default" }
+            ],
+            "model_options": [],
+            "item_options": []
+        }
+    ]
+}

@@ -8,11 +8,36 @@
 
 ## 1. Big picture
 
-Simple War is about **Players** fielding **Armies** and fighting **Battles** that are organized into a larger **Campaign**.
+Simple War is about **Players** using **Commanders** to lead **Armies** on a **Campaign**. Campaigns take place across a **Sector Map**. A Campaign might have many **Activities** such as **Armybuilding** to rally forces, **Battle** to establish dominance in a sector, **Travel** to bring forces where they need to be, **Trade** to acquire equipment or offload excess, and more. A Campaign concludes for the Player when they have either achieved its **Objectives**, or when they can no longer participate in any Activities. The Conclusion of a Campaign results in a **Score** which determines the ultimate victor, even if all a Player's Commanders and Armies have been lost. 
 
-- Players build and maintain **Rosters** of Armies.
-- Armies are made from **Units** (and ultimately **Models** and equipment; see `Terminology`).
-- Battles are fought between opposing Armies on a **Battlefield**.
+- Players build and maintain **Armies** which are led by **Commanders**.
+  - This is similar to Heroes of Might and Magic. A Commander might appear as a powerful warrior on the field, or may be a strategist orchstrating events from afar, or anything in between.
+  - Commanders may be able to wield equipment or other items and enhancements, influence the Campaign outside of Battles, and provide other passive or active benefits for the Player.
+  - There may be cases where multiple Commanders lead an army. A Player's Armies and Battleforces must always be let by at least one Commander at the start of a Battle.
+
+- Armies are composed of **Units** (and ultimately the **Models** and **Equipment** those Units are composed of; see `Terminology`).
+  - An Army doesn't have any innate limits on size or composition. Instead, the Campaign will impose different restrictions based on narrative or balance that will influence what Units are allowed to be in an Army, and how large it can or must be. 
+
+- **Rosters** determine the restrictions in place for **Battleforces** involved in a Battle. 
+  - These may be restrictions on total Battleforce value, limits to the allowed factions or units, or other filtering restrictions. 
+  - Thematically, Rosters exist because of The Law, which allows for violence -- but only on its terms. 
+
+- **Battleforces** are drafted from a Commander's Army to fight in Battle.
+
+
+
+- Commanders navigate the **Sector Map** with their Armies to participate in **Activities**
+  - Commanders will traverse the Sector Map in various ways depending on the type of Campaign and the Commanders involved.
+    - e.g. a Human commander might travel over land via marching or ATV, or across worlds in a human spaceship. A Lawbringer may simply teleport. The Bloom might march, but could pathfind via Eleventh Thought. The Kraken simply shifts its focus to where the fighting is at, already present. 
+
+- Activities are represented on the Sector Map by **Plots**, points of itnerest to a Commander. 
+  - Not all Plots are accessible to all Commanders, and not all Commanders are interested in all Plots.
+  - The generic Activities which are almost always accessible are Armybuilding and Battle activities, but faction loyalties can play a factor even for those in a heavily narrative campaign.
+
+- Battles are fought between opposing Battleforces on a **Battlefield**. 
+  - A Commander must be leading the Battleforces but does not need to be present on the Battlefield.
+  - Like Heroes of Might and Magic, there may be opportunities to retreat, or resolve a battle diplomatically, or accept the surrender of an opponent in exchange for Campaign-specific resources.
+
 - Campaigns tie together Rosters, Battles, and other activities into a structured experience with an opening, activities, and a conclusion.
 
 For the initial digital prototype, our focus is:
