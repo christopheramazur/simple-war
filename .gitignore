@@ -26,3 +26,11 @@ Thumbs.db
 
 # Optional: uncomment if you use local override configs
 # override.cfg
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
+
+# Ralph TUI
+.ralph-tui/iterations/
+.ralph-tui/progress.md
