@@ -1,0 +1,18 @@
+# Ralph TUI - conservative settings for Cursor plan / token awareness
+tracker = "beads"
+maxIterations = 5
+iterationDelay = 2000
+autoCommit = false
+
+[trackerOptions]
+beadsDir = ".beads"
+
+[errorHandling]
+strategy = "skip"
+maxRetries = 2
+retryDelayMs = 5000
+
+[rateLimitHandling]
+enabled = true
+maxRetries = 2
+baseBackoffMs = 10000
