@@ -1,8 +1,8 @@
 class_name CombatEvent
 extends RefCounted
 
-## One attack attempt: hit or miss. Produced by AttackResolver for every roll.
-## Used by TurnLog and the combat log UI for transparent display.
+## One attack attempt: hit or miss. Produced by the Attack Pipeline for
+## every roll. Used by TurnLog and the combat log UI for transparency.
 
 var attacker_name: String = ""
 var attacker_unit_name: String = ""

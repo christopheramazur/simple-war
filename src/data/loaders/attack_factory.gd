@@ -1,8 +1,10 @@
 class_name AttackFactory
 extends RefCounted
 
-## Loads base attack archetypes from Attacks.json and resolves weapon
-## attack references (attack_id + overrides) into runtime AttackProfiles.
+## Loads base AttackProfileComponent definitions from Attacks.json and
+## resolves weapon attack references (attack_id + per-Item overrides)
+## into runtime AttackProfile instances for the Combat System's
+## Attack Pipeline.
 ##
 ## Items define weapons that reference a base attack by id and optionally
 ## override any field. Unoverridden fields are inherited from the base.

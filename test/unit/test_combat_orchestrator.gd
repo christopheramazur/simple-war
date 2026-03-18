@@ -34,7 +34,7 @@ func _make_simple_model(
 	var item := ItemData.new()
 	item.id = "weapon_%d" % randi()
 	item.attack_profiles = [profile] as Array[AttackProfile]
-	m.items.append(item)
+	m.equipped_items.append(item)
 
 	return m
 
@@ -132,7 +132,7 @@ func test_high_armour_unit_resists_weak_attacks() -> void:
 	var armour_item := ItemData.new()
 	armour_item.id = "heavy_armour"
 	armour_item.armour = armour
-	armoured_unit.models[0].items.append(armour_item)
+	armoured_unit.models[0].equipped_items.append(armour_item)
 
 	var result := orchestrator.resolve_battle(
 		[weak_attackers] as Array[UnitData],

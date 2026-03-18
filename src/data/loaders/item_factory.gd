@@ -1,9 +1,13 @@
 class_name ItemFactory
 extends RefCounted
 
-## Builds runtime item representations from raw JSON dictionaries.
-## Items are indexed by id for O(1) lookup by model and unit factories.
-## Weapon attack profiles are resolved through AttackFactory (base + overrides).
+## Builds runtime Item archetype Entity instances from Items.json.
+## Items are indexed by id for O(1) lookup when populating
+## EquippedItemsComponent on Model Entities.
+##
+## Weapon entries are resolved through AttackFactory (base attack +
+## per-item overrides) into AttackProfileComponent instances.
+## Armour entries become ArmourComponent instances.
 
 var _items: Dictionary = {}  # id -> ItemData
 var _attack_factory: AttackFactory = null
@@ -40,6 +44,7 @@ func _parse_item(entry: Dictionary) -> ItemData:
 	item.display_name = entry.get("display_name", "")
 	item.description = entry.get("description", "")
 
+	# ItemTypeComponent classifications
 	var item_types: Array = entry.get("item_types", [])
 	for it: Dictionary in item_types:
 		if it.has("weapon"):

@@ -1,7 +1,13 @@
 class_name ItemData
 extends RefCounted
 
-## Runtime representation of an item loaded from Items.json.
+## Runtime representation of an Item archetype Entity (rule 220.1).
+##
+## Components mapped:
+##   ItemTypeComponent – implicit from the presence of weapon/armour/consumable data
+##   AttackProfileComponent – attack_profiles (one per weapon attack)
+##   ArmourComponent – armour
+##   ConsumableComponent – consumable
 
 var id: String = ""
 var display_name: String = ""

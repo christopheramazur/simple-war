@@ -1,7 +1,7 @@
 extends Control
 
-## Battlefield scene: displays units as colored circles, resolves combat
-## turn-by-turn using the combat engine, shows results.
+## Battlefield scene: displays Unit Entities as colored circles, resolves
+## combat turn-by-turn using the Combat System pipeline, shows results.
 
 const FIELD_WIDTH := 200.0
 const FIELD_HEIGHT := 100.0

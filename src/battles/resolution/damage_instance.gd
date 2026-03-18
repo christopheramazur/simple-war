@@ -1,8 +1,9 @@
 class_name DamageInstance
 extends RefCounted
 
-## A single instance of damage produced by an attack hitting its target.
-## Consumed by the defense resolver to determine model survival.
+## A Damage Instance produced by the Attack Pipeline on a successful hit.
+## Consumed by the Defense Pipeline to apply ArmourComponent mitigation
+## and update the target Model Entity's DestructionStateComponent.
 
 var damage_value: int = 0
 var damage_type: String = "kinetic"

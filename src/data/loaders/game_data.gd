@@ -1,7 +1,11 @@
 extends Node
 
 ## GameData autoload: loads all JSON data at startup and provides
-## typed access to factories for the rest of the game.
+## factory access for constructing ECS archetype Entity instances.
+## Load order respects Component dependencies:
+##   AttackFactory (AttackProfileComponents) →
+##   ItemFactory (Item Entities) →
+##   UnitFactory (Unit + Model Entities).
 
 var attack_factory := AttackFactory.new()
 var item_factory := ItemFactory.new()

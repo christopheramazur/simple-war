@@ -1,33 +1,46 @@
 class_name UnitData
 extends RefCounted
 
-## Runtime representation of a unit during combat.
-## Contains live model instances with mutable state.
+## Runtime representation of a Unit archetype Entity (rule 240.1).
+## Contains live Model Entity instances with mutable Component state.
+##
+## Components mapped:
+##   StatlineComponent – endurance, durability, morale, speed, reflex
+##   FactionKeywordsComponent – faction_keywords (marker Components)
+##   UnitKeywordsComponent – unit_keywords (marker Components)
+##   ValueComponent – value
+##   WeaponSkillComponent – weapon_skill (prototype extension)
+##   PositionComponent – position (from Movement Rules 300-series)
+##   CompositionComponent – models (expanded into Model Entity instances)
 
 var id: String = ""
 var display_name: String = ""
 var faction_keywords: Array[String] = []
 var unit_keywords: Array[String] = []
 
+# StatlineComponent fields
 var endurance: int = 0
 var durability: int = 0
 var morale: int = 0
 var speed: int = 0
 var reflex: int = 0
+
+# ValueComponent
 var value: int = 0
 
+# Expanded CompositionComponent – live Model Entity instances
 var models: Array[ModelData] = []
 
-# Spatial position on the battlefield (center of the unit)
+# PositionComponent – spatial position on the Battlefield Entity
 var position: Vector2 = Vector2.ZERO
 
-# Order for this turn: "attack", "move_closer", "move_away". Only one action per turn.
+# Current Order for this Turn (set by the Battle System during Order Phase)
 var order: String = "move_closer"
 
-# Weapon competence defaults for this unit (copied to models on creation)
+# WeaponSkillComponent defaults (copied to Model Entities on creation)
 var weapon_skill: Dictionary = {}
 
-# Distance moved this turn (world units), used for movement-based evasion.
+# Movement System state – distance moved this Turn, used for evasion
 var distance_moved_this_turn: float = 0.0
 
 

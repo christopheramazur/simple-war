@@ -3,7 +3,7 @@
         {
             "id": "human_riflemen_model_default",
             "display_name": "Rifleman",
-            "items": [
+            "equipped_items": [
                 { "id": "human_riflemen_default_rifle", "count": 1 },
                 { "id": "human_riflemen_default_armour", "count": 1 },
                 { "id": "human_riflemen_default_melee_weapon", "count": 1 },
@@ -13,7 +13,7 @@
         {
             "id": "iron_bastion_model_default",
             "display_name": "Iron Bastion Hull",
-            "items": [
+            "equipped_items": [
                 { "id": "iron_bastion_siege_cannon", "count": 1 },
                 { "id": "iron_bastion_heavy_plating", "count": 1 },
                 { "id": "iron_bastion_hull_ram", "count": 1 }
@@ -22,7 +22,7 @@
         {
             "id": "maw_fiend_model_default",
             "display_name": "Maw Fiend",
-            "items": [
+            "equipped_items": [
                 { "id": "maw_fiend_rending_claws", "count": 1 },
                 { "id": "maw_fiend_toxic_spit", "count": 1 }
             ]
@@ -30,7 +30,7 @@
         {
             "id": "arcanists_model_default",
             "display_name": "Arcanist",
-            "items": [
+            "equipped_items": [
                 { "id": "arcanists_arcane_staff", "count": 1 },
                 { "id": "arcanists_warded_robes", "count": 1 }
             ]
@@ -38,7 +38,7 @@
         {
             "id": "swarm_cultists_model_default",
             "display_name": "Cultist",
-            "items": [
+            "equipped_items": [
                 { "id": "swarm_cultists_crude_blade", "count": 1 },
                 { "id": "swarm_cultists_scrap_armour", "count": 1 }
             ]

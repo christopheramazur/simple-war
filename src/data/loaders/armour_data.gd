@@ -1,7 +1,8 @@
 class_name ArmourData
 extends RefCounted
 
-## Runtime representation of an armour component from an item.
+## Runtime representation of an ArmourComponent (rule 220.6).
+## Read by the Combat System's Defense Pipeline to mitigate Damage Instances.
 
 var value: int = 0
 var type: String = "none"

@@ -1,8 +1,9 @@
 class_name ScenarioRunner
 extends RefCounted
 
-## Loads scenarios from JSON, runs them N times, and reports statistics.
-## Primary iteration tool for balancing combat resolution.
+## Loads scenarios from JSON, constructs Unit archetype Entity instances
+## for each side, runs the Combat System N times, and reports statistics.
+## Primary iteration tool for balancing the Combat System pipeline.
 
 var _attack_factory := AttackFactory.new()
 var _item_factory := ItemFactory.new()

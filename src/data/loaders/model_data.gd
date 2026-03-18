@@ -1,26 +1,33 @@
 class_name ModelData
 extends RefCounted
 
-## Runtime representation of a single model instance during combat.
-## Tracks mutable state (current durability, damage taken) separately
-## from the template data.
+## Runtime representation of a Model archetype Entity instance (rule 230.1).
+##
+## Components mapped:
+##   StatlineComponent  – endurance, durability, morale, speed, reflex
+##   EquippedItemsComponent – equipped_items (list of ItemData)
+##   DamageTakenComponent – damage_taken
+##   DestructionStateComponent – is_destroyed
+##   WeaponSkillComponent – weapon_skill (prototype extension; per-category
+##       skill values used by the Combat System's Attack Pipeline)
 
 var id: String = ""
 var display_name: String = ""
-var items: Array[ItemData] = []
+var equipped_items: Array[ItemData] = []
 
-# Stats inherited from the parent unit definition
+# StatlineComponent fields
 var endurance: int = 0
 var durability: int = 0
 var morale: int = 0
 var speed: int = 0
 var reflex: int = 0
 
-# Weapon competence per category, e.g. { "rifle": 8, "launcher": 4 }
+# WeaponSkillComponent – per category, e.g. { "rifle": 8, "launcher": 4 }
 var weapon_skill: Dictionary = {}
 
-# Mutable combat state
+# DamageTakenComponent
 var damage_taken: int = 0
+# DestructionStateComponent
 var is_destroyed: bool = false
 
 
@@ -30,28 +37,28 @@ func get_remaining_durability() -> int:
 
 func get_all_attack_profiles() -> Array[AttackProfile]:
 	var profiles: Array[AttackProfile] = []
-	for item in items:
+	for item in equipped_items:
 		profiles.append_array(item.attack_profiles)
 	return profiles
 
 
 func get_ranged_profiles() -> Array[AttackProfile]:
 	var profiles: Array[AttackProfile] = []
-	for item in items:
+	for item in equipped_items:
 		profiles.append_array(item.get_ranged_profiles())
 	return profiles
 
 
 func get_melee_profiles() -> Array[AttackProfile]:
 	var profiles: Array[AttackProfile] = []
-	for item in items:
+	for item in equipped_items:
 		profiles.append_array(item.get_melee_profiles())
 	return profiles
 
 
 func get_total_armour_value(damage_type: String) -> int:
 	var total := 0
-	for item in items:
+	for item in equipped_items:
 		if item.has_armour():
 			total += item.armour.get_effective_value(damage_type)
 	return total
@@ -59,7 +66,7 @@ func get_total_armour_value(damage_type: String) -> int:
 
 func get_hit_modifier_for_profile(profile: AttackProfile) -> float:
 	var total_mod := 0.0
-	for item in items:
+	for item in equipped_items:
 		if not item.has_armour():
 			continue
 		var mods: Dictionary = item.armour.hit_modifiers

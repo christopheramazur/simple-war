@@ -1,10 +1,10 @@
 class_name DefenseResolver
 extends RefCounted
 
-## "Being Attacked" process.
-## Receives DamageInstance objects and applies armour mitigation against
-## the target model. Determines if the model survives. Does not know
-## about how the attack was generated.
+## Combat System Defense Pipeline (rule 220.6).
+## Receives Damage Instances and applies ArmourComponent mitigation against
+## the target Model Entity. Updates DamageTakenComponent and
+## DestructionStateComponent. Does not know about the Attack Pipeline.
 
 
 func resolve_damage(dmg: DamageInstance, target: ModelData) -> DamageInstance:

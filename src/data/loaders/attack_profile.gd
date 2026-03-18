@@ -1,12 +1,14 @@
 class_name AttackProfile
 extends RefCounted
 
-## A single attack capability of a weapon item.
+## Runtime representation of an AttackProfileComponent (rule 220.4).
+## Produced by the Combat System's Attack Pipeline from base attack
+## definitions merged with per-Item overrides.
 
 var id: String = ""
 var display_name: String = ""
 var category: String = "melee"  # "melee" or "ranged"
-var skill_category: String = ""  # used to look up attacker weapon_skill
+var skill_category: String = ""  # used to look up WeaponSkillComponent value
 
 var range_min: int = 0
 var range_short: int = 0

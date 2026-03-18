@@ -23,6 +23,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.sublime-*
+simple-war.code-workspace
 
 # Optional: uncomment if you use local override configs
 # override.cfg
@@ -34,3 +35,6 @@ Thumbs.db
 # Ralph TUI
 .ralph-tui/iterations/
 .ralph-tui/progress.md
+.ralph-tui/ralph.lock
+.ralph-tui/session-meta.json
+.ralph-tui/session.json

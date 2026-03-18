@@ -1,9 +1,11 @@
 class_name AttackResolver
 extends RefCounted
 
-## "Making Attacks" process.
-## Each model selects an attack profile, picks a target, resolves the hit,
-## and emits CombatEvent objects (one per attempt, hit or miss). Does not know about armour or defense.
+## Combat System Attack Pipeline (rule 220.4).
+## Each Model Entity selects an AttackProfileComponent, picks a target,
+## resolves the hit using StatlineComponent and WeaponSkillComponent data,
+## and produces CombatEvent objects (one per attempt). Outputs Damage
+## Instances for the Defense Pipeline. Does not know about ArmourComponents.
 
 const HIT_FLOOR := 0.05
 const HIT_CEILING := 0.95

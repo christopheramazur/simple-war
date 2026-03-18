@@ -100,7 +100,7 @@ func test_resolve_returns_combat_events() -> void:
 	var attacker := _make_model(20, 5, 5)
 	var profile := _make_ranged_profile(5)
 	var item := _make_item_with_profiles([profile] as Array[AttackProfile])
-	attacker.items.append(item)
+	attacker.equipped_items.append(item)
 
 	var target := _make_model(10, 1, 1)
 	var atk_unit := _make_unit(attacker)
@@ -109,7 +109,7 @@ func test_resolve_returns_combat_events() -> void:
 	seed(42)
 	var total_hits := 0
 	for _i in range(100):
-		attacker.items = [item]
+		attacker.equipped_items = [item]
 		var events: Array[CombatEvent] = resolver.resolve_model_attacks(attacker, atk_unit, target, def_unit, 15.0)
 		for evt in events:
 			if evt.hit:
@@ -123,7 +123,7 @@ func test_damage_instance_carries_correct_metadata() -> void:
 	var attacker := _make_model(20, 5, 5)
 	var profile := _make_ranged_profile(7)
 	var item := _make_item_with_profiles([profile] as Array[AttackProfile])
-	attacker.items.append(item)
+	attacker.equipped_items.append(item)
 
 	var target := _make_model(10, 1, 1)
 	var atk_unit := _make_unit(attacker)
@@ -134,7 +134,7 @@ func test_damage_instance_carries_correct_metadata() -> void:
 	seed(1)
 	var hit_evt: CombatEvent = null
 	for _i in range(50):
-		attacker.items = [item]
+		attacker.equipped_items = [item]
 		var events: Array[CombatEvent] = resolver.resolve_model_attacks(attacker, atk_unit, target, def_unit, 15.0)
 		for evt in events:
 			if evt.hit and evt.damage_instance != null:
@@ -158,7 +158,7 @@ func test_out_of_range_produces_no_events() -> void:
 	var attacker := _make_model(20, 5, 5)
 	var profile := _make_ranged_profile(5, 40)
 	var item := _make_item_with_profiles([profile] as Array[AttackProfile])
-	attacker.items.append(item)
+	attacker.equipped_items.append(item)
 
 	var target := _make_model(10, 5, 5)
 	var atk_unit := _make_unit(attacker)
@@ -173,7 +173,7 @@ func test_every_attempt_produces_one_event() -> void:
 	var profile := _make_ranged_profile(3)
 	profile.damage_count = 4
 	var item := _make_item_with_profiles([profile] as Array[AttackProfile])
-	attacker.items.append(item)
+	attacker.equipped_items.append(item)
 
 	var target := _make_model(10, 1, 1)
 	var atk_unit := _make_unit(attacker)
@@ -187,7 +187,7 @@ func test_miss_events_have_no_damage_instance() -> void:
 	var attacker := _make_model(1, 1, 1)
 	var profile := _make_ranged_profile(5)
 	var item := _make_item_with_profiles([profile] as Array[AttackProfile])
-	attacker.items.append(item)
+	attacker.equipped_items.append(item)
 
 	var target := _make_model(20, 20, 20)
 	var atk_unit := _make_unit(attacker)
@@ -206,7 +206,7 @@ func test_events_record_hit_chance() -> void:
 	var attacker := _make_model(10, 5, 5)
 	var profile := _make_ranged_profile(3)
 	var item := _make_item_with_profiles([profile] as Array[AttackProfile])
-	attacker.items.append(item)
+	attacker.equipped_items.append(item)
 
 	var target := _make_model(10, 5, 5)
 	var atk_unit := _make_unit(attacker)

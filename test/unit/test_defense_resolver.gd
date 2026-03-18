@@ -76,7 +76,7 @@ func test_damage_equal_to_durability_destroys_model() -> void:
 func test_armour_reduces_damage() -> void:
 	var model := _make_model(10)
 	var armour := _make_armour(5)
-	model.items.append(_make_armour_item(armour))
+	model.equipped_items.append(_make_armour_item(armour))
 	var dmg := _make_damage(8)
 
 	resolver.resolve_damage(dmg, model)
@@ -89,7 +89,7 @@ func test_armour_reduces_damage() -> void:
 func test_armour_resistance_modifies_effective_armour() -> void:
 	var model := _make_model(10)
 	var armour := _make_armour(5, {"concussive": -2})
-	model.items.append(_make_armour_item(armour))
+	model.equipped_items.append(_make_armour_item(armour))
 	var dmg := _make_damage(6, "concussive")
 
 	resolver.resolve_damage(dmg, model)
@@ -102,7 +102,7 @@ func test_armour_resistance_modifies_effective_armour() -> void:
 func test_armour_cannot_go_below_zero() -> void:
 	var model := _make_model(10)
 	var armour := _make_armour(2, {"energy": -5})
-	model.items.append(_make_armour_item(armour))
+	model.equipped_items.append(_make_armour_item(armour))
 	var dmg := _make_damage(4, "energy")
 
 	resolver.resolve_damage(dmg, model)
@@ -134,7 +134,7 @@ func test_sub_lethal_damage_accumulates() -> void:
 func test_zero_damage_after_armour_does_nothing() -> void:
 	var model := _make_model(10)
 	var armour := _make_armour(10)
-	model.items.append(_make_armour_item(armour))
+	model.equipped_items.append(_make_armour_item(armour))
 	var dmg := _make_damage(5)
 
 	resolver.resolve_damage(dmg, model)

@@ -1,12 +1,13 @@
 class_name CombatOrchestrator
 extends RefCounted
 
-## Coordinates a full combat exchange between two forces.
-## Distributes attacking models to closest target models,
-## runs the attack and defense resolvers, and collects results.
+## Combat System orchestrator — coordinates full combat exchanges
+## between two Battleforce sides. Distributes attacking Model Entities
+## to closest target Model Entities, runs the Attack Pipeline and
+## Defense Pipeline, and collects results.
 ##
-## This is the only class that knows about both attack_resolver and
-## defense_resolver. They remain decoupled from each other.
+## This is the only class that bridges both pipeline stages.
+## AttackResolver and DefenseResolver remain decoupled from each other.
 
 const MAX_TURNS := 20
 
