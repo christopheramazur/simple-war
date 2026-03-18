@@ -1,0 +1,72 @@
+# Iteration 5 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.7
+- **Task Title**: GDD: Draft Campaign Rules
+- **Description**: Write Campaign rules covering sector map structure, activities (Armybuilding, Battle, Narrative Events), objectives, scoring, and how campaigns modify battles.
+
+## Context
+Grounded in Main Concepts, P...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-17T07:51:42.399Z
+- **Ended At**: 2026-03-17T07:58:23.319Z
+- **Duration**: 6m 40s
+- **Input Tokens**: 14
+- **Output Tokens**: 16406
+- **Total Tokens**: 16420
+- **Agent**: cursor
+- **Model**: composer-1.5
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me read the remaining key documents for full context.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me also read the Entity System Rules and narrative documents for context, plus the documentation standard skill.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me read the Narrative Elements for context on how campaigns tie into the narrative.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+I now have full context on the project. Let me draft the Campaign Rules document. The existing rule numbering uses 100-series for Battle Rules and 200-series for Entity System, so Campaign Rules will use the 800-series (Variants and Scenarios) since campaigns define how scenarios are structured.
+[94m[unknown][0m
+Now let me self-validate the document by running a quick consistency check, then close the bead and update progress.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+All work is complete. Here's a summary of what was delivered:
+
+**Campaign Rules** (`Game Design Document/Gameplay Rules/Campaign Rules.md`) — 800-series, covering:
+
+- **800 Campaign** — Campaign definition, three stages (Opening, Active Play, Conclusion), 6 Conclusion Conditions
+- **810 Sector Map** — Plots, Connections (with travel costs & requirements), Commander Movement, Plot Control, map validity constraints
+- **820–825 Activities** — Five activity types:
+  - **821 Armybuilding** — Unit pool restrictions, value caps, resource costs, progression gates
+  - **822 Battle** — Three initiation types (Voluntary, Mandatory, Scripted), Battle results processing, 5 casualty persistence rules
+  - **823 Narrative Event** — Branching choices with conditions and 9 effect types
+  - **824 Travel** — Events triggered during movement between Plots
+  - **825 Trade** — Campaign resource economy
+- **830 Objectives** — 4 types (Primary, Secondary, Hidden, Bonus), 3 assignee scopes, evaluation triggers
+- **840 Scoring** — 6 score sources, 4 Battle Score integration methods, tiebreaking
+- **850 Campaign Modifiers** — How campaigns alter Battles (Roster, Turn Limits, Deployment, Battlefield, Victory Conditions, Additional Rules) with precedence rules
+- **860 Campaign Templates** — Generic, Quickplay, Skirmish, Story, Multiplayer (Freeplay/Unranked/Ranked)
+- **40+ glossary entries**, full implementation state requirements, and cross-references to Battle Rules and Entity System Rules
+
+Changes are uncommitted for manual review as requested.
+
+<promise>COMPLETE</promise>

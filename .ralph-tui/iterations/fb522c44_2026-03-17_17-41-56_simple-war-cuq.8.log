@@ -1,0 +1,91 @@
+# Iteration 4 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.8
+- **Task Title**: GDD: Draft Entity System rules
+- **Description**: Formalize rules for Commanders, Units, Models, Items, Characteristics, Tags, and Abilities, turning terminology into numbered rules that are ready for validation and future codegen.
+
+## Context
+Use Ga...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-17T07:41:56.095Z
+- **Ended At**: 2026-03-17T07:51:35.244Z
+- **Duration**: 9m 39s
+- **Input Tokens**: 23
+- **Output Tokens**: 20956
+- **Total Tokens**: 20979
+- **Agent**: cursor
+- **Model**: composer-1.5
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[unknown][0m
+Let me start by gathering all the context I need.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me check for existing data files and the Battle Rules document, plus read the skills.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me read all the data JSON files to understand the existing entity data structures.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me check if there's already an Entity System rules file.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+I now have a thorough understanding of the full context. Let me draft the Entity System rules document, following the documentation standard for the 200-range section.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me self-validate the document against the rules validator criteria, then update progress.md.
+[94m[unknown][0m
+Good — 2 errors and several warnings. Let me fix the errors and address the key warnings.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me also add the Statline-inheritance pattern to the Codebase Patterns section since it's a significant gotcha.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+<promise>COMPLETE</promise>
+
+## Summary
+
+**Created**: `Game Design Document/Gameplay Rules/Entity System Rules.md` — a comprehensive 200-series rules document formalizing the Entity System.
+
+### What was drafted (42 rules across 8 sections):
+
+| Section | Rules | Covers |
+|---|---|---|
+| **200 Entities & Tags** | 200.1–200.3 | Entity definition, Tag categories, Object References (Own/Other/Any, Faction Relationships) |
+| **210 Characteristics** | 210.1–210.7c | Statline (Endurance, Durability, Morale, Speed, Reflex), Morale state machine, derived Characteristics (Baseline Competence, Evasion Rating, Armour Value) |
+| **220 Items** | 220.1–220.10 | Items, Item Types, Weapons, Attack Profiles, Range Brackets, Armour, Armour Resistances, Damage Types, Modifiers, Consumables |
+| **230 Models** | 230.1–230.2 | Model definition, Bearer relationship |
+| **240 Units** | 240.1–240.6 | Unit definition, Composition, Tag/State Inheritance, Datasheets, Unit Value |
+| **250 Abilities** | 250.1–250.4 | Ability definition, Passive/Active/Surge types with rule statement templates |
+| **260 Commanders** | 260.1–260.2 | Commander definition, Commander–Army relationship |
+| **270 Armies & Battleforces** | 270.1–270.3 | Army, Battleforce, Rosters |
+
+### Validation
+
+Ran self-validation against the Rules Validator criteria. Fixed 2 errors (vague Damage Type descriptions, capitalization inconsistency) and addressed 5 warnings (removed "typically"/"some"/"most", clarified Surge triggers). Remaining warnings are intentional forward references to the not-yet-drafted Combat Resolution rules (400-series).
+
+### Key learning
+
+The `weapon_skill` field in `Units.json` has no counterpart in the terminology — it needs reconciliation when Combat Resolution rules are drafted.

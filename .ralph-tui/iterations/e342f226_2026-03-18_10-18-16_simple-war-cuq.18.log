@@ -1,0 +1,76 @@
+# Iteration 9 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.18
+- **Task Title**: ECS: Update Main Concepts overview
+- **Description**: Update Game Design Document/Overview/Main Concepts to describe the game in terms of the new ECS architecture (entities as IDs, components as data, systems as behavior), while preserving the player-fac...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-18T00:18:16.201Z
+- **Ended At**: 2026-03-18T00:23:25.402Z
+- **Duration**: 5m 9s
+- **Input Tokens**: 21
+- **Output Tokens**: 11749
+- **Total Tokens**: 11770
+- **Agent**: cursor
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me study the key ECS documents to understand the architecture vocabulary I need to integrate.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me check the deleted diagram file and the Campaign Rules for context on Campaign-level ECS concepts.
+[94m[unknown][0m
+[94m[unknown][0m
+Now I have a comprehensive understanding of the current state. Let me plan and implement the changes.
+[94m[unknown][0m
+Let me verify a few cross-references before writing.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Good, the rule numbers are confirmed. Now I'll write the updated Main Concepts document. The key changes: add a new section 2 introducing ECS architecture, update sections 1 and 4-8 to use ECS framing, and keep section 3 (UX) player-facing.
+[94m[unknown][0m
+[94m[unknown][0m
+Let me verify that all the cross-references I used actually exist in the target documents.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+All cross-references check out. Let me also verify the Movement Rules reference I used.
+[94m[unknown][0m
+Let me check where the Battlefield Entity and its spatial Components are actually defined — I want to make sure I reference the right rule.
+[94m[unknown][0m
+The Battlefield geometry section starts at 300 and the spatial Components are defined across 300.1–300.5. My references to "rule 300.1 in Movement and Positioning Rules" are appropriate for pointing readers to that section. Let me update the two references to point more broadly to "section 300 in Movement and Positioning Rules" since the Battlefield Entity concept spans multiple rules there.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update progress.md with learnings.
+[94m[unknown][0m
+[94m[unknown][0m
+Now close the bead.
+[94m[unknown][0m
+[94m[unknown][0m
+Done. Here's a summary of what was changed:
+
+**File changed**: `Game Design Document/Overview/Main Concepts`
+
+**Key changes**:
+- **New section 2** — "Architecture: Entity–Component–System" introduces ECS with an archetype table (8 archetypes with key Components) and a System table (8 core Systems), bridging the player-facing overview to the detailed Entity System Rules
+- **Section numbering shifted** — old sections 2–8 became 3–9 to accommodate the new architecture section
+- **Player Activities** (section 3) — Commanders, Armies, Battles, Reinforcements, and Campaign restrictions all described using archetype/Component/System vocabulary; Campaign restrictions reframed as Campaign Modifiers (Component modifications + System parameter overrides)
+- **Campaigns** (section 5) — Campaign is now described as an Entity; Modifiers given concrete Component examples (TurnLimitComponent, VictoryConditionsComponent, BattlefieldDimensionsComponent)
+- **Battles and Battle Stages** (sections 7–8) — Battle Entity's characteristic Components referenced; each Stage attributes operations to specific Systems (Zone System validates, Deployment System places, Battle System delegates to Combat/Movement/Morale/Ability Systems)
+- **Unit Editor** — "Datasheet Editor" renamed to "Component Editor" (Datasheets are a tabletop holdover)
+- **UX sections** preserved intact — player-facing screen descriptions unchanged except for tightened terminology
+
+All changes are uncommitted for manual review.
+
+<promise>COMPLETE</promise>

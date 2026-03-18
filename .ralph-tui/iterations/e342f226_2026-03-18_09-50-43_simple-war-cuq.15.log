@@ -1,0 +1,171 @@
+# Iteration 6 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.15
+- **Task Title**: ECS: Update Battle Rules
+- **Description**: Update Gameplay Rules/Battle Rules.md to align with ECS: replace 'entity with the Battle tag' patterns with ECS archetype language; change state tracking to refer to components; review simultaneous re...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-17T23:50:43.641Z
+- **Ended At**: 2026-03-18T00:02:39.862Z
+- **Duration**: 11m 56s
+- **Input Tokens**: 90
+- **Output Tokens**: 28717
+- **Total Tokens**: 28807
+- **Agent**: cursor
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me also read the Terminology documents and the Movement Rules to see the ECS patterns used in recently updated documents.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Starting the ECS update of Battle Rules. I'll work section by section with targeted replacements.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now rewriting 100.1 as a proper archetype definition with Components.
+[94m[unknown][0m
+Now updating 100.2 Battle Stages — replace "the engine" with Battle System.
+[94m[unknown][0m
+[94m[unknown][0m
+Now replacing all remaining "the engine" references with appropriate System names throughout the document. Let me find them all first.
+[94m[unknown][0m
+Now I'll replace each "the engine" reference with the appropriate System name. Let me do them in order.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Good. Now let me handle the remaining "the engine" references in sections 133.5, 140.x, and the Implementation Notes.
+[94m[unknown][0m
+Good — the remaining ones are all in Implementation Notes, which I'll rewrite entirely later. Now let me do the tag-to-marker-Component replacements.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update the Zone and state references throughout (todo #6). Let me find zone references that need updating.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update the remaining zone/state references in section 140 and the simultaneous resolution section.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update section 140 more thoroughly — entity references and other state language.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now updating the Simultaneous Resolution section and some remaining sections. Let me also update the 133.5 section for full Combat System pipeline language.
+[94m[unknown][0m
+Let me update section 133.5 for more explicit Combat System pipeline language, and the movement section for Movement System language.
+[94m[unknown][0m
+[94m[unknown][0m
+Now update the Simultaneous Resolution design rationale section.
+[94m[unknown][0m
+[94m[unknown][0m
+Now updating the Glossary entries. Let me read the current glossary section.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now rewriting the Implementation Notes section with Component definitions and System reads/writes table, matching the format used in Entity System Rules and Movement Rules.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me review the document for tabletop holdovers and create follow-up beads. Let me re-read the full document to do a final review.
+[94m[unknown][0m
+Let me review for tabletop holdovers and flag them. Let me also check a few more sections I haven't fully reviewed.
+[94m[unknown][0m
+I've identified several tabletop holdovers. Let me create follow-up beads for them.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me also update some sections I noticed still have minor non-ECS language. Let me do a final pass to catch a few more things before updating the version history.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update the 120 Deployment section to use ECS System language where appropriate.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me also update a couple more references — the Morale examples and other minor spots.
+[94m[unknown][0m
+[94m[unknown][0m
+Also update some key section 132 references to use Component language where appropriate.
+[94m[unknown][0m
+Now update the version history.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me do a final verification pass — check for any remaining "the engine", lowercase "entity" where "Entity" is meant, or other inconsistencies.
+[94m[unknown][0m
+Good — "the engine" only appears in the version history changelog text, which is describing what was changed. Let me check for other loose ends.
+[94m[unknown][0m
+Good — no lowercase "entity" remaining. Let me also check for the old "weapon profiles" phrasing that should be "Attack Profile Components".
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me also check for "Morale characteristic" which should be "Morale Characteristic" (capitalized).
+[94m[unknown][0m
+Good. Let me verify the full document is coherent by reading key sections.
+[94m[unknown][0m
+[94m[unknown][0m
+The document looks solid. Now let me close the bead and update progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+Now append learnings to progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me add the new codebase pattern discovered to the top of progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+All tasks complete. Here's a summary of what was done:
+
+**Battle Rules ECS Update (simple-war-cuq.15) — Complete**
+
+**Changes to `Game Design Document/Gameplay Rules/Battle Rules.md`:**
+
+1. **Defined Battle archetype** (rule 100.1) with 12 characteristic Components — BattleStageComponent, TurnCounterComponent, PhaseComponent, BattlefieldRefComponent, BattleforceRefsComponent, VictoryConditionsComponent, ScoringComponent, TurnLimitComponent, OrderQueueComponent, ReactionQueueComponent, CasualtyReportComponent, RandomSeedComponent.
+
+2. **Replaced all 15+ "the engine" references** with specific System names — Battle System (orchestration), Combat System (attack resolution), Morale System (Morale Tests/recovery), Movement System (movement resolution), Deployment System (Unit placement), Zone System (Roster validation, Zone transitions).
+
+3. **Updated tag references** to marker Component language — `Transport` marker Component, `Vanguard` marker Component, `Dug In` marker Component (Status Tag).
+
+4. **Updated state tracking** to reference Components throughout — Zone Components, Morale State Components, Destruction State Components, Endurance Remaining Components, PositionComponents, etc.
+
+5. **Rewrote simultaneous resolution** section with ECS pipeline language — explicit snapshot of Component state, Movement System and Combat System calculating independently, Attack Pipeline and Defense Pipeline labeled in rule 133.5.
+
+6. **Expanded Glossary** with ~15 new ECS-aware entries (Battle System, Battle archetype, Component definitions, etc.).
+
+7. **Rewrote Implementation Notes** with Component definition table, Order/Reaction struct definitions, and a Battle System reads/writes table showing which Systems operate in which Phases.
+
+8. **Flagged 3 tabletop holdovers** as follow-up beads:
+   - `simple-war-tva` — Formalize Melee as ECS Component or Zone
+   - `simple-war-xzd` — Define Line of Sight rules for digital
+   - `simple-war-beo` — Formalize Pre-Engagement Movement as Ability Component
+
+All changes are uncommitted for manual review.
+
+<promise>COMPLETE</promise>

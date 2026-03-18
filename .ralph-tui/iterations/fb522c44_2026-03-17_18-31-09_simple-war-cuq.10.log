@@ -1,0 +1,85 @@
+# Iteration 9 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.10
+- **Task Title**: GDD: Run rules validator pass
+- **Description**: Use the Simple War Rules Validator skill on the completed rules sections (battle, movement, campaign, entities) to check logic, computability, and conflicts.
+
+## Context
+This is the final quality gate...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-17T08:31:09.203Z
+- **Ended At**: 2026-03-17T08:39:09.042Z
+- **Duration**: 7m 59s
+- **Input Tokens**: 18
+- **Output Tokens**: 18254
+- **Total Tokens**: 18272
+- **Agent**: cursor
+- **Model**: composer-1.5
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+I'll start by reading the Rules Validator skill, the progress file, and the rules documents in parallel.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Good. Now let me read all four rules documents that need validation.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me also read the Terminology document for cross-referencing.
+[94m[unknown][0m
+Now I have all four rules documents and the terminology reference. Let me perform the systematic validation across all six categories. I'll work through this thoroughly.
+[94m[unknown][0m
+Now let me write the full validation report and file issues as beads. First, checking what issues already exist.
+[94m[unknown][0m
+[94m[unknown][0m
+Good. Now I'll write the full validation report and file discovered issues as beads. Let me write the report first.
+[94m[unknown][0m
+Now let me file the key errors as beads issues. I'll batch them in groups.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me update progress.md and close the bead.
+[94m[unknown][0m
+[94m[unknown][0m
+Now close the bead.
+[94m[unknown][0m
+[94m[unknown][0m
+<promise>COMPLETE</promise>
+
+## Summary
+
+Ran the full Rules Validator pass across all four completed rules documents (~120 rules). Here's what I found:
+
+**10 Errors** (must fix before implementation):
+- **E01**: Combat Resolution derivations undefined — Baseline Competence and Evasion Rating formulas don't exist yet (biggest blocker)
+- **E02**: Sub-lethal damage accumulation never resolved
+- **E03**: Melee state ambiguity (tag vs spatial condition)
+- **E04**: Endurance scope mismatch (Model characteristic vs Unit-level tracking)
+- **E05**: Melee participation after ranged attack — Units can't defend in melee if they already attacked
+- **E06**: Attack distribution tiebreaker missing for equidistant Models
+- **E07**: Temporary tag expiry mechanism undefined
+- **E08**: Campaign Partial Recovery fractional rounding undefined
+- **E09**: Reposition Reaction has no Endurance gate (0 Endurance Units can still Reposition)
+- **E10**: Footprint "may shrink" ambiguity
+
+**14 Warnings** including forward references to unwritten 400/500/600 series, floating-point precision concerns, terminology inconsistencies (Evasiveness vs Evasion Rating), and Fall Back tiebreaker.
+
+**4 High Complexity Rules** flagged for extra testing: Resolve Attacks (133.5), Resolve Combat Phase (134.1), Battle Activity (822), and Obstruction Pathfinding (310.5).
+
+All 10 errors filed as beads linked via `discovered-from:simple-war-cuq.10`. Full report at `Game Design Document/Gameplay Rules/Rules Validation Report.md`. The top priority next step is drafting Combat Resolution (400-series) to unblock E01 and E02.

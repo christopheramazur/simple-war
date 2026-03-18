@@ -1,0 +1,81 @@
+# Iteration 3 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.1
+- **Task Title**: GDD: Reconcile Terminology documents
+- **Description**: Merge/deduplicate Overview/Terminology.md and Gameplay Rules/Terminology.md into a single authoritative terminology source. Ensure rule terms, entities, and phases are consistent and ready for documen...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-17T07:37:53.632Z
+- **Ended At**: 2026-03-17T07:41:48.908Z
+- **Duration**: 3m 55s
+- **Input Tokens**: 16
+- **Output Tokens**: 6283
+- **Total Tokens**: 6299
+- **Agent**: cursor
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me read both terminology files plus the GDD readme for context.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me check what references these terminology files and also read the Battle Rules for context on terminology usage.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Here's what I found from comparing the two documents:
+
+**Gameplay Rules/Terminology.md is a strict superset** of Overview/Terminology.md. Every section in the Overview version exists in the Gameplay Rules version, usually with improvements. The Gameplay Rules version adds:
+
+- **Commanders** and **Battleforces** sections (the Army hierarchy Battle Rules depends on)
+- **Weapon Characteristics** with Attack Profiles, Damage, and Modifiers subsections
+- **Combat Resolution** section (model-level combat)
+- Fixes the truncated sentence in Weapons and Armour
+- Uses "Battleforces" consistently (Overview still says "Armies" in Rosters)
+- Uses "distance units" instead of "tiles" for Speed
+- Statline clarifies model-level resolution (Overview incorrectly implied unit-level "best value")
+
+**Plan**: Make `Gameplay Rules/Terminology.md` the single authoritative source (with a header), and replace `Overview/Terminology.md` with a short redirect.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me add an authoritative header to the Gameplay Rules version to mark it as the canonical source.
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me close the bead and update progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Let me do a quick verification that both files look correct.
+[94m[unknown][0m
+[94m[unknown][0m
+Everything looks good. Here's a summary of what was done:
+
+**Completed: simple-war-cuq.1 — Reconcile Terminology Documents**
+
+**Analysis**: The two Terminology files had diverged significantly. `Gameplay Rules/Terminology.md` was a strict superset of `Overview/Terminology.md`, containing additional sections (Commanders, Battleforces, Combat Resolution, Weapon Characteristics) and fixes to several conflicts:
+
+| Conflict | Overview said | Gameplay Rules said (kept) |
+|---|---|---|
+| Rosters zone | "Armies" | "Battleforces" |
+| Army definition | "units a player has chosen" | "all the units a player's commander has rallied" |
+| Stat resolution | unit-level ("best value") | model-level (each model's own values) |
+| Distance unit | "tiles" | "distance units" |
+| Weapons & Armour | truncated mid-sentence | complete + Attack Profiles subsections |
+
+**Changes made**:
+- `Overview/Terminology.md` — replaced with a redirect to the canonical source
+- `Gameplay Rules/Terminology.md` — added authoritative-source header
+- `.ralph-tui/progress.md` — added codebase pattern + session log
+
+All changes are uncommitted for manual review.
+
+<promise>COMPLETE</promise>

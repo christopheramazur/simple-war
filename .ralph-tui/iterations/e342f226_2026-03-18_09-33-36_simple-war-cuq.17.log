@@ -1,0 +1,115 @@
+# Iteration 4 Log
+
+## Metadata
+
+- **Task ID**: simple-war-cuq.17
+- **Task Title**: ECS: Update Movement & Positioning Rules
+- **Description**: Update Gameplay Rules/Movement and Positioning Rules.md for ECS: replace tag-based terrain references with terrain components; align movement and footprint logic with ECS entities/components; review f...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-03-17T23:33:36.129Z
+- **Ended At**: 2026-03-17T23:42:11.289Z
+- **Duration**: 8m 35s
+- **Input Tokens**: 53
+- **Output Tokens**: 21189
+- **Total Tokens**: 21242
+- **Agent**: cursor
+- **Epic**: simple-war-cuq
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me also check the Terminology documents and Battle Rules for cross-reference context.
+[94m[unknown][0m
+[94m[unknown][0m
+Let me check `bd` for the bead details and any related work.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Starting with the header, overview, and Battlefield Geometry section. I'll update the Purpose line to reflect ECS framing and weave Component/System language into the Overview.
+[94m[unknown][0m
+Now update section 300 — the Battlefield Geometry section. The Battlefield itself should be framed as an Entity with Components.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now updating Section 310 — Movement. This is the biggest section with tag-based terrain references.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now update 310.7b — the key tag-to-Component change for terrain:
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now Section 320 — footprint, cohesion, and formations. Aligning with ECS Components and replacing keyword references.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now Section 330 — Facing and Pivoting. Framing facing as Component data.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now Section 340 — Deployment Positioning and Reinforcements.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now Section 350 — Movement Restrictions. Referencing the correct Components.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now the Glossary, Implementation Notes, and Dependencies. This is the largest section to update — I need to reframe the glossary entries with Component terminology, restructure Implementation Notes as Component definitions, and update Dependencies.
+[94m[unknown][0m
+Now update the Implementation Notes to use ECS Component definitions format, consistent with Entity System Rules.
+[94m[unknown][0m
+Now update the Dependencies section:
+[94m[unknown][0m
+Update the Version History:
+[94m[unknown][0m
+[94m[unknown][0m
+Now let me do a final review of the document to verify the changes are consistent, then assess for tabletop holdovers that need follow-up issues.
+[94m[unknown][0m
+The document reads well. Now let me review for tabletop holdovers and create follow-up issues as needed.
+[94m[unknown][0m
+[94m[unknown][0m
+Good — I can see there are relevant beads but nothing specifically tracking the Terrain rules (600-series) or formation system expansion. Let me create follow-up issues for the tabletop holdovers I identified during review.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+Now close the bead and update progress.md.
+[94m[unknown][0m
+Now append to progress.md.
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+[94m[unknown][0m
+All work is complete. Here's a summary of what was done:
+
+**Bead simple-war-cuq.17 — ECS: Update Movement & Positioning Rules** is closed.
+
+### Changes made to `Movement and Positioning Rules.md`:
+
+1. **Tag → marker Component**: All references to `Blocking tag`, `Flying tag`, `Grounded tag`, `Infantry-keyword`, `Vehicle-keyword`, `Vanguard tag` replaced with their ECS equivalents (`Blocking` marker Component on terrain Entities, `Flying` marker Component on Unit Entities, etc.)
+
+2. **New spatial Components introduced**: PositionComponent, FacingComponent, FootprintComponent, FormationComponent (Unit-level); RelativePositionComponent (Model-level); BattlefieldDimensionsComponent, DeploymentZonesComponent, ReinforcementEdgesComponent, TerrainIndexComponent (Battlefield Entity)
+
+3. **Systems as actors**: All "the engine does X" references replaced with the specific System responsible — Movement System for path computation/position updates, Deployment System for initial placement and reinforcement entry
+
+4. **Implementation Notes restructured**: From per-entity state lists to Component definition tables and System reads/writes tables matching Entity System Rules format
+
+5. **Glossary expanded**: 19 entries updated/added with Component/System terminology
+
+### Follow-up issues created:
+- **simple-war-ox9**: Draft Terrain Rules (600-series) for terrain Entity archetypes and Components
+- **simple-war-smx**: Expand FormationComponent beyond rectangular_block for digital-native alternatives
+
+<promise>COMPLETE</promise>
