@@ -1,247 +1,265 @@
-# Players
-Players are the acting participants in the game. This will typically be you and your opponents, but may occasionally include other actors.
+# Simple War Terminology
 
-# Entities
-An entity is any object that has tags attached to it. Entities can have names and other rules, or not – the only requirement to be an entity is that they are a tagged object. 
+> **Status**: Authoritative Source
+> **Last Updated**: 2026-03-18
+>
+> This is the single canonical terminology reference for Simple War. All GDD sections, rule documents, and implementation code should reference terms as defined here. The Overview folder contains a redirect pointing here.
+
+---
+
+# Players
+Players are the acting participants in the game. A Player is any participant — the owning participant and all opposing participants. Other actors may also be Players in certain contexts. In ECS terms, a Player is an Entity with Player-related Components (Faction, Relationships, owned Armies).
+
+# Architecture: Entity–Component–System (ECS)
+
+Simple War uses an Entity–Component–System architecture. Understanding these three concepts is essential for reading all rules and implementation documents.
+
+- **Entity**: A unique identifier (ID) in the game world. An Entity has no inherent data or behavior — all of its properties, capabilities, and state are defined by the Components attached to it.
+- **Component**: A data structure attached to an Entity. Components hold state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex). An Entity's set of Components determines what it is and how it participates in the game.
+- **System**: A unit of logic that operates on Entities that have a specific set of Components. Systems read Component data, perform calculations, and write results back to Components. For example, the Combat System reads Attack Profile and Statline Components to produce Damage Instances, and the Zone System manages transitions between Zones.
+
+An **archetype** is a common combination of Components that defines a category of Entity. Units, Models, Items, Commanders, Armies, and Battleforces are all archetypes — each has a characteristic set of Components described in the Entity System Rules (section 200–270).
 
 ## Examples of Entities and Non-Entity Objects
-A campaign is an entity. The battlefield is an entity. Armies are entities. Units are entities. Models, weapons, and most unit interactions are entities. The roster system is not an entity. Score is not an entity. Deployment is not an entity. Players are entities with the Player tag.
+A Campaign is an Entity. The Battlefield is an Entity. Armies are Entities. Units are Entities. Models, Weapons, and most Unit interactions are Entities. The Roster system is not an Entity. Score is not an Entity. Deployment (the process) is not an Entity.
 
 # Tags
-Tags are metadata attached to objects that provide keywords. Keywords are used to group and differentiate entities when determining whether rules affect them or not.
 
-## Referencing Objects
-Sometimes we need to refer to something without tags. The most usual case for this is when that reference relies on an object's perspective. The following reference terminology is used in these cases:
+Tags are **marker Components** — Components that carry no data beyond their presence. Tags are attached to Entities to provide keywords that group and differentiate Entities when determining whether rules affect them.
 
-Own is used to indicate objects that belong to the reference object.
-Other is used to indicate objects that don't belong to the reference object.
-Any is used to indicate all objects.
+Tags are classified into the following categories (see rule 200.3 in Entity System Rules):
 
-Terms involving faction relationships such as friendly, allied, enemy, neutral, etc. are used to indicate objects that belong to the faction relationships of the faction the reference object belongs to. Faction relationships are not bilateral; you may be an enemy of a faction you deem friendly. Faction relationships are revealed to all players in the Planning stage of a battle. Some rules may allow faction relationships to update during the engagement stage; these rules will dictate how and when this is done and revealed, and how other players are allowed to react. 
+- **Entity Tags** identify what is inherent to an Entity, such as an Infantry Model having the Infantry Tag.
+- **Status Tags** identify effects which are not inherent to an Entity, communicating events such as "This Entity was ordered to Run" or "This Entity is on fire."
+
+Rules that reference a Tag always specify the exact Tag name. A rule that says "Units with the Infantry tag" affects only Entities that have the `Infantry` marker Component.
+
+## Referencing Entities
+When a rule needs to describe relationships between Entities from a particular Entity's perspective, the following reference terminology is used (see rule 200.6 in Entity System Rules):
+
+**Own** is used to indicate Entities that belong to the reference Entity.
+**Other** is used to indicate Entities that do not belong to the reference Entity.
+**Any** is used to indicate all Entities.
+
+Terms involving Faction Relationships such as Friendly, Allied, Enemy, Neutral are used to indicate Entities that belong to the Faction Relationships of the Faction the reference Entity belongs to. Faction Relationships are not bilateral; a Player may be an Enemy of a Faction that Player deems Friendly. Faction Relationships are revealed to all Players in the Planning Stage of a Battle (see rule 110.6 in Battle Rules). Some rules may allow Faction Relationships to update during the Engagement Stage; those rules dictate how and when this is done and revealed, and how other Players are allowed to react.
 
 # Zones
-Zones are used like Tags to help group and differentiate entities. Entities are added to or removed from zones to indicate something about their state having changed in ways that players should be aware of. Example zones may be "on the battlefield" or "in a transport".
+
+A Zone is a state Component on an Entity that identifies where the Entity exists in the game's logical space. The **Zone System** manages transitions between Zones, enforcing state-change rules and notifying other Systems when an Entity's Zone changes. Entities are added to or removed from Zones to indicate something about their state having changed in ways that Players should be aware of. Example Zones include "on the Battlefield" and "in a Transport".
 
 ## In Play
-Being in play is the base state for all objects participating in a campaign. When players begin a campaign, they are in play, that campaign is in play, the rosters and armies they are adding to the campaign are added in play. Objects in play are able to reference and be referenced by other objects and rules. 
+Being In Play is the base Zone state for all Entities participating in a Campaign. When Players begin a Campaign, they are In Play, that Campaign is In Play, the Rosters and Armies they are adding to the Campaign are added In Play. Entities In Play are able to reference and be referenced by other Entities and rules.
 
 ## Removed from Play
-When an object is removed from play, it may no longer reference objects or rules, including itself and its own rules. It can never change zones. If an object was removed from play during a battle, after that battle's consolidation, remove references to the object from all objects and zones. 
+When an Entity is Removed from Play, the Zone System strips it of the ability to reference other Entities or rules, including itself and its own rules. Its Zone Component can never change again. If an Entity was Removed from Play during a Battle, after that Battle's Consolidation, the Zone System removes all references to the Entity from all Entities and Zones.
 
 ## Battlefield
-The primary zone where most of a player's time will be spent. This zone is referenced with language such as "on the battlefield".
+The primary Zone where most of a Player's time will be spent. When an Entity's Zone Component is set to Battlefield, that Entity is said to be "on the Battlefield".
 
 ## Reserves
-Objects that are waiting to enter the battlefield are said to be "in reserves". There are different reserves rules that further inform players how and when units in reserves will enter the battlefield. 
+Entities whose Zone Component is set to Reserves are waiting to enter the Battlefield. Different Reserves rules further inform Players how and when Units in Reserves will enter the Battlefield.
 
 ## Embarked
-Objects that are embarked are typically within another object that is a transport or fortification of some sort. Objects embarked in an object that is in reserves are also in reserves, but objects that are embarked elsewhere are handled case by case. An example of this is that objects embarked within an object on the battlefield are still simply embarked, not on the battlefield. Typically, objects can only disembark if they are embarked, and if the object they are embarked in is on the battlefield. Explicit rules for the process of embarking and disembarking will cover this, as well as the case for disembarking from an object that has been destroyed or removed from play.
+Entities whose Zone Component is set to Embarked are within another Entity that is a Transport or fortification. Entities Embarked in an Entity that is in Reserves are also in Reserves, but Entities that are Embarked elsewhere are handled case by case. An example of this is that Entities Embarked within an Entity on the Battlefield are still simply Embarked, not on the Battlefield. Entities can only disembark if they are Embarked, and if the Entity they are Embarked in is on the Battlefield. Explicit rules for the process of embarking and disembarking will cover this, as well as the case for disembarking from an Entity that has been destroyed or Removed from Play.
 
 ## Casualty Report
-When objects are destroyed, they are recorded in the casualty report. The way an object is destroyed can contribute to the state they are recorded in, which can affect how they are returned to action. Many objects have methods of returning to the battlefield or reserves from the casualty report. If an object enters the casualty report during a battle, after the battle's consolidation, there are typically rules for addressing that unit's continued service. 
+When Entities are destroyed, the Zone System transitions them to the Casualty Report. The way an Entity is destroyed can contribute to the state it is recorded in, which can affect how it is returned to action. Many Entities have methods of returning to the Battlefield or Reserves from the Casualty Report. If an Entity enters the Casualty Report during a Battle, after that Battle's Consolidation, Campaign-level rules address that Unit's continued service (see rule 822.5 in Campaign Rules).
 
 ## Confirmed KIA
-When objects are confirmed KIA, they can no longer reference other objects or rules. They have not necessarily been removed from play, but can only be removed from this zone by a small number of rules. 
+When Entities are Confirmed KIA, they can no longer reference other Entities or rules. They have not necessarily been Removed from Play, but the Zone System permits transition out of this Zone only by a small number of rules.
 
 ## Rosters
-Rosters are a certain type of zone that help to organize Battleforces. Battleforces can be listed in a roster if they meet that roster's requirements. A Battleforce can be listed in as many rosters as it meets the criteria for. The default roster has no requirements. Campaigns, tournaments, and companion rules may add rosters with specific requirements and restrictions that Battleforces must be validated against in order to be listed in.
+Rosters are Zones that organize Battleforces. The Zone System validates Battleforces against Roster requirements; a Battleforce can be listed in any Roster whose requirements it meets. The default Roster has no requirements. Campaigns, tournaments, and companion rules may add Rosters with specific requirements and restrictions that Battleforces must be validated against in order to be listed in (see rule 270.3 in Entity System Rules).
 
 ## Zones and State
-Zones validate state. If a unit becomes destroyed, part of the rules involved in that state change will list that unit in the casualty report. If a unit is not destroyed, it shouldn't be listed in the casualty report. Exceptions to this management of state will be explicit and specific. 
+The Zone System enforces state consistency. If a Unit becomes destroyed, the Zone System transitions that Unit to the Casualty Report. If a Unit is not destroyed, it should not be in the Casualty Report. Exceptions to this management of state will be explicit and specific.
 
 # Commanders
-Players attach armies to Commanders in order to participate in different Campaign Activities. In Simple War, Commanders are used like in Heroes of Might and Magic; the Player accesses a Battleforce through the Commander that is leading that army. Commanders move on the Sector Map based on their own characteristics in order to engage in activities. The player can have multiple Commanders, and Commanders can have access to a large army from which to field Battleforces.
+Commanders are Entities of the Commander archetype — their Components include a Statline, Equipment, Abilities, and an Army reference. Players attach Armies to Commanders in order to participate in different Campaign Activities. In Simple War, Commanders are used like in Heroes of Might and Magic; the Player accesses a Battleforce through the Commander that is leading that Army. Commanders move on the Sector Map based on their own Characteristics in order to engage in Activities (see rule 260.1 in Entity System Rules). A Player can have multiple Commanders, and each Commander can have access to a large Army from which to field Battleforces.
 
 # Armies
-Armies are entities that keep track of all the units a player's commander has rallied. Armies inherit all of the tags of the units in them.
+Armies are Entities of the Army archetype — their Components include a Commander reference and a list of Unit references. Armies keep track of all the Units a Player's Commander has rallied. Armies inherit all of the Tags (marker Components) of the Units in them (see rule 270.1 in Entity System Rules).
 
 # Battleforces
-Armies are broken into battleforces for specific engagements. If the Army is all of the units available to a commander, the battleforce is what they field for a given battle.
+Battleforces are Entities of the Battleforce archetype — a subset of an Army's Units selected for a specific Battle. If the Army is all of the Units available to a Commander, the Battleforce is what the Commander fields for a given Battle (see rule 270.2 in Entity System Rules).
 
 # Units
-Units are entities that group models, providing the interface that defines how those models collectively engage with zones and other entities. Units inherit all of the tags of the models in them. Units can also inherit states from models, if all of the models in that unit are in that state. An example of this is "destroyed" -- a unit is not destroyed until every model in that unit is destroyed. 
+Units are Entities of the Unit archetype — their Components include a Statline, Faction Keywords, Unit Keywords, Composition, Abilities, Value, and a Zone Component. Units group Models, providing the interface that defines how those Models collectively engage with Zones and other Entities. Units inherit all of the Tags (marker Components) of the Models in them. Units can also inherit states from Models, if all of the Models in that Unit are in that state. An example of this is "destroyed" — a Unit is not destroyed until every Model in that Unit is destroyed (see rule 240.1 in Entity System Rules).
 
 ## Statline
-The statline is composed of the basic characteristics shared by models in a unit: Endurance, Durability, Morale, Speed, and Reflex. These characteristics are typically innate to each model. Models in a unit may have different values for these; combat resolution operates at the model level, using each individual model's own values.
+The Statline Component holds the basic Characteristics shared by Models in a Unit: Endurance, Durability, Morale, Speed, and Reflex. These Characteristics are innate to each Model (see rule 210.1 in Entity System Rules). Models in a Unit may have different values for these; the Combat System operates at the Model level, using each individual Model's own Statline values.
 
-The statline can be affected by items, abilities, and rules affecting the model or its unit. The statline is used in combination with keywords and abilities to inform the game of a model's capabilities. An example might be movement speed; a model with a speed of 6 might normally move 6 distance units, but if it has access to jet packs, that speed of 6 is not fully indicative of its maneuverability. Similarly, a model with low endurance but powerful armour may take a long time to destroy.
+The Statline can be modified by Item Components, Ability Components, and rules affecting the Model or the Model's Unit. The Statline is used in combination with Tags (marker Components) and Abilities to inform Systems of a Model's capabilities. An example: a Model with a Speed of 6 moves 6 distance units under a standard Advance Order, but if the Model has access to jet packs, that Speed of 6 is not fully indicative of the Model's manoeuvrability. Similarly, a Model with low Endurance but powerful Armour may take a long time to destroy.
 
 ### Endurance
-During an engagement, units take actions which may tax their endurance. Running for multiple turns in a row, fighting a prolonged melee, digging tunnels, and other acts of extreme exertion reduce a unit's endurance. When a unit has no remaining endurance, they can no longer perform actions that would tax it. Endurance recovers when units take actions that do not tax it.
+During an Engagement, Units take actions which may tax their Endurance. Running for multiple Turns in a row, fighting a prolonged Melee, digging tunnels, and other acts of extreme exertion reduce a Unit's Endurance. When a Unit has no remaining Endurance, that Unit can no longer perform actions that would tax it. Endurance recovers when Units take actions that do not tax it (see rule 210.2 in Entity System Rules).
 
 ### Durability
-When a unit takes an instance of damage, keep track of it against the model closest to the source of the damage. When the damage matches or exceeds that model's durability, that model is destroyed. A single instance of damage can only destroy one model from a unit, even if it greatly exceeds that model's durability.
+When a Unit takes an instance of damage, the Combat System tracks it against the Model closest to the source of the damage. When the damage matches or exceeds that Model's Durability, that Model is destroyed. A single instance of damage can only destroy one Model from a Unit, even if it greatly exceeds that Model's Durability (see rule 210.3 in Entity System Rules).
 
 ### Morale
-A combination of characteristic and state. The state of a unit's morale affects its ability to take part in certain battle activities. When a unit's morale is tested against the characteristic, its can worsen, stay neutral, or improve. The states are broken, poor, neutral, good, and surging. The morale characteristic determines how well it handles these tests. Units with broken morale can typically never take part in capturing objectives, making charges, performing surges, etc., while units with high morale typically function better at all of those activities. A surging unit can be prompted to perform one such activity for free. Morale moves one stage toward the unit's listed baseline each turn, and resets after a surge.
+A combination of Characteristic (in the Statline Component) and state (a separate Morale State Component). The **Morale System** manages state transitions: when a Unit's Morale is tested against the Characteristic, the state can worsen, stay Neutral, or improve. The states are Broken, Poor, Neutral, Good, and Surging. The Morale Characteristic determines how well a Unit handles these tests. Units with Broken Morale may not Charge, capture Objectives, or perform Surge Actions (see rule 132.4 in Battle Rules). Units with Good or Surging Morale perform better at those activities. A Surging Unit can be prompted to perform a Surge Action. The Morale System moves state one stage toward the Unit's Morale Baseline each Turn, and resets after a Surge (see rule 210.4 in Entity System Rules).
 
 ### Speed
-The typical movement a unit is capable of maintaining without taxing endurance. Moving at high speeds contributes to evasiveness.
+The standard movement distance a Unit can maintain without taxing Endurance. The Movement System reads Speed from the Statline Component. Moving at high Speeds contributes to Evasion Rating (see rule 210.5 in Entity System Rules).
 
 ### Reflex
-Used when reacting, or responding to events out of sequence. Determines how effective evasiveness is. 
+Used when reacting, or responding to events out of sequence. Determines how effective Evasion Rating is (see rule 210.6 in Entity System Rules).
 
-### Evasiveness
-While not a characteristic on its own, many innate traits of units and models, including their characteristics, affect a unit's evasiveness. Evasion allows a unit to make an out of sequence movement reaction, limited by how evasive the unit is, and how successful their reaction is. 
+### Evasion Rating
+A derived value computed by the Combat System from a Model's Reflex, Speed, and situational modifiers. Evasion allows a Unit to make an out-of-sequence movement Reaction, limited by how evasive the Unit is, and how successful the Reaction is (see rule 210.7b in Entity System Rules).
 
 ## Unit Abilities
-One of the defining characteristics of a unit is that they are more than the sum of their parts. This is expressed through unit abilities. Typically, a unit has a passive or innate ability, an active ability, and a surge ability. Some units may have more or less, or have abilities accessible by purchasing items or being in certain configurations of army. 
+One of the defining features of a Unit is that Units are more than the sum of their parts. This is expressed through Ability Components attached to the Unit. A Unit has a Passive Ability, an Active Ability, and a Surge Ability. Some Units may have more or fewer, or have Abilities accessible by purchasing Items or being in certain configurations of Army. The **Ability System** evaluates Ability Components during the appropriate timing windows (see rule 250.1 in Entity System Rules).
 
 ## Unit Composition
-Units are composed of models, which have items. The models that can be in a unit, and the items those models can be configured with, are defined along with the values of those items in its composition.
+The Composition Component defines which Models make up a Unit and in what quantities. The Models that can be in a Unit, and the Items those Models can be configured with, are defined along with the values of those Items in the Unit's Composition (see rule 240.2 in Entity System Rules).
 
 ## Datasheets
-Comprehensive Unit reference for player convenience. Contains information about the unit's composition options, characteristics, value, availability, equipment, abilities, and restrictions. 
+Comprehensive Unit reference for Player convenience. Contains information about the Unit's Composition options, Characteristics, Value, availability, equipment, Abilities, and restrictions (see rule 240.5 in Entity System Rules). 
 
 # Models
-Models are used to define how a unit's baseline capability declines as it takes casualties. Each model represents and contributes to the unit's ability to affect an engagement. They are the most configurable components of a unit.
+Models are Entities of the Model archetype — their Components include a Statline, Equipped Items, and destruction state. Models define how a Unit's baseline capability declines as it takes casualties. Each Model represents and contributes to the Unit's ability to affect an Engagement. Models are the most granular interactive Entities in Simple War (see rule 230.1 in Entity System Rules).
 
 ## Equipping Items
-Items are entities that provide additional rules by being equipped to a model. Models can be equipped with more than one item, but equipment categories may prevent them from equipping all of the items available to them at any given time. When a model is equipped with an item, it is said to be that item's bearer. Models do not gain the keywords of items they're equipped with innately, though some items can confer keywords to their bearer or bearer's unit.
+Items are Entities of the Item archetype — their Components include Item Type, and optionally Attack Profile, Armour, Consumable charges, or Equipment modifiers. Items provide additional rules by being equipped to a Model. Models can be equipped with more than one Item, but equipment categories may prevent a Model from equipping all of the Items available to it at any given time. When a Model is equipped with an Item, that Model is said to be that Item's Bearer. Models do not gain the Tags (marker Components) of Items they are equipped with innately, though some Items can confer Tags to their Bearer or Bearer's Unit (see rule 230.2 in Entity System Rules).
 
 ## Weapons and Armour
-Some of the most important items a model can equip. Weapons and armour interact to determine how effective the unit is during combat resolution. Typically, models in a unit will be equipped with the same weapons and armour, but it is not uncommon to encounter variety in loadouts. 
+Some of the most important Item archetypes a Model can equip. Weapon Components provide Attack Profiles to the Combat System; Armour Components provide damage reduction through the Defense Pipeline. In most cases, Models in a Unit will be equipped with the same Weapons and Armour, but it is not uncommon to encounter variety in loadouts (see rules 220.3 and 220.6 in Entity System Rules).
 
 ### Weapon Characteristics
-Weapons provide attack profiles to the models that equip them. A single weapon can provide multiple attack profiles (for example, a rifle may have both a ranged "Fire" profile and a melee "Bayonet" profile). Each attack profile defines its own category, range, damage value, and damage type.
+Weapons provide Attack Profile Components to the Models that equip them. A single Weapon can provide multiple Attack Profiles (for example, a rifle may have both a ranged "Fire" profile and a melee "Bayonet" profile). Each Attack Profile Component defines its own Category, Range, Damage Value, and Damage Type (see rule 220.3 in Entity System Rules).
 
 #### Attack Profiles
-An attack profile describes a single way a weapon can be used. It includes:
-- **Category**: melee or ranged, determining which engagement contexts it can be used in.
-- **Range**: for ranged attacks, expressed as min, short, long, max. The range between short and long is the effective range, which does not incur a range-based penalty. The ranges between min and short, and between long and max, are given penalties. Attacks cannot target models within min or beyond max range. For melee attacks, range is limited to close proximity.
-- **Damage**: the base damage value produced on a successful hit.
-- **Damage Type**: the category of damage (kinetic, concussive, energy, etc.), which interacts with armour resistances.
+An Attack Profile Component describes a single way a Weapon can be used. It includes:
+- **Category**: melee or ranged, determining which engagement contexts the Attack Profile can be used in.
+- **Range**: for ranged attacks, expressed as Min, Short, Long, Max. The range between Short and Long is the Effective Range, which does not incur a range-based penalty. The ranges between Min and Short, and between Long and Max, incur penalties. Attacks cannot target Models within Min or beyond Max range. For melee attacks, Range is limited to close proximity.
+- **Damage Value**: the base damage produced on a successful hit.
+- **Damage Type**: the category of damage (Kinetic, Concussive, Energy, etc.), which interacts with Armour Resistances.
 - **Modifiers**: optional flat or multiplicative adjustments to damage or hit probability.
 
+See rule 220.4 in Entity System Rules.
+
 #### Damage
-Each successful attack produces a damage instance with a value and a type. Damage instances are resolved individually against the target model.
+Each successful attack produces a Damage Instance — an intermediate data object with a value and a type. The Combat System resolves Damage Instances individually against the target Model through the Defense Pipeline.
 
 #### Modifiers
-Attack profiles and items can carry modifiers that adjust hit probability, damage value, or armour interaction. Modifiers are applied during the relevant step of combat resolution.
-
-
-
+Attack Profile Components and Item Components can carry Modifier data that adjusts hit probability, Damage Value, or Armour interaction. The Combat System applies Modifiers during the relevant step of the pipeline (see rule 220.9 in Entity System Rules).
 
 # Timings
 
-Timings describe **when** things happen in Simple War and in what order. At this level we care about the order of Stages, Phases, and Turns rather than the detailed rules of each action.
+Timings describe **when** things happen in Simple War and in what order. At this level the focus is on the order of Stages, Phases, and Turns rather than the detailed rules of each action.
 
-- **Stage**: A large section of a Battle (Planning, Deployment, Engagement, Consolidation). Stages always happen in this order.
-- **Turn**: A repeating slice of time inside the Engagement stage. Each Turn is resolved using the true simultaneous turn system.
-- **Phase**: A sub-part of a Turn (for example: Rally, Issue Orders, Execute, Resolve Combat). Phases give structure to what Players can do on each Turn.
+- **Stage**: A large section of a Battle (Planning, Deployment, Engagement, Consolidation). Stages always happen in this order (see rule 100.2 in Battle Rules).
+- **Turn**: A repeating slice of time inside the Engagement Stage. Each Turn is resolved using the true simultaneous turn system (see rule 130.2 in Battle Rules).
+- **Phase**: A sub-part of a Turn (for example: Rally, Issue Orders, Execute, Resolve Combat). Phases give structure to what Players can do on each Turn (see rule 130.3 in Battle Rules).
 
-In the barebones implementation, the engine needs to:
+In the barebones implementation, the engine's **Battle System** needs to:
 
-- Know which Stage the Battle is in.
+- Track which Stage the Battle is in (as a Component on the Battle Entity).
 - Advance from one Stage to the next in order.
-- Run a simple Turn loop during Engagement, with a fixed set of Phases that we can refine later.
+- Run a Turn loop during Engagement, with a fixed set of Phases processed by the relevant Systems.
 
 # Armybuilding
 
-Armybuilding is the process of assembling a legal force that a Player can bring to a Battle or Campaign. This section stays high level; detailed construction rules live in the Army and faction documents.
+Armybuilding is the process of assembling a legal force that a Player can bring to a Battle or Campaign. This section stays high level; detailed construction rules live in the Army and Faction documents.
 
 ## Faction Keywords
-Faction Keywords identify which broad force or allegiance a Unit belongs to (for example: a political bloc, species, or military organization). They are used to enforce roster restrictions, determine which rules apply, and connect Units to specific Campaigns or scenarios.
+Faction Keywords are marker Components that identify which broad force or allegiance a Unit belongs to (for example: a political bloc, species, or military organization). They are used to enforce Roster restrictions, determine which rules apply, and connect Units to specific Campaigns or scenarios.
 
 ## Characters
-Characters are special Units or Models that represent leaders, heroes, or key specialists. They often unlock additional rules, modify other Units, or serve as focal points for objectives. Roster and Campaign rules can require or limit Characters.
+Characters are special Units or Models that represent leaders, heroes, or key specialists. They often unlock additional rules, modify other Units, or serve as focal points for Objectives. Roster and Campaign rules can require or limit Characters.
 
 ## Unit Keywords
-Unit Keywords describe battlefield roles and capabilities (for example: Infantry, Vehicle, Artillery, Recon). They help rules target the right Units and give structure to how different forces are composed without hard-coding specific factions.
+Unit Keywords are marker Components that describe battlefield roles and capabilities (for example: Infantry, Vehicle, Artillery, Recon). They help Systems target the right Units and give structure to how different forces are composed without hard-coding specific factions.
 
 ## Model Keywords
-Model Keywords capture more granular traits at the Model level (for example: Heavy Weapon, Medic, Pilot). They modify how Models interact with their Unit, equipment, and battlefield actions while still rolling up into the Unit’s overall behavior.
+Model Keywords are marker Components that capture more granular traits at the Model level (for example: Heavy Weapon, Medic, Pilot). They modify how Models interact with their Unit, equipment, and battlefield actions while still rolling up into the Unit’s overall behavior.
 
 ## Equipment Costs
-Equipment Costs express how much it “costs” to equip Models and Units with weapons, armour, and other gear when building an Army. At this overview level it is enough to know that:
+Equipment Costs express how much it “costs” to equip Models and Units with Weapons, Armour, and other gear when building an Army. At this overview level it is enough to know that:
 
 - Each option has an associated cost.
 - Battleforces and Rosters can impose caps or bands on total cost.
 - The system is designed so different Campaigns can reinterpret or tweak costs without changing the underlying data structures.
 
 # Combat Resolution
-Simple War simulates combat at the model level. Individual models make attacks against individual target models, with the engine resolving each interaction transparently. Units serve as groupings that determine which models attack which targets (closest models in the target unit), but resolution happens model-by-model.
+The **Combat System** simulates combat at the Model level. Individual Models make attacks against individual target Models, with the Combat System resolving each interaction transparently. Units serve as groupings that determine which Models attack which targets (closest Models in the target Unit), but the Combat System processes resolution Model-by-Model.
 
-The combat resolution process is separated into two independent stages: **Making Attacks** and **Being Attacked**. The attack side produces damage instances; the defense side consumes them. Morale, abilities, and other reactive effects observe combat results externally and are not part of the core resolution pipeline.
+The Combat System pipeline is separated into two independent stages: **Making Attacks** and **Being Attacked**. The attack stage reads attacker Components (Statline, Attack Profiles, Modifiers) and produces Damage Instances as intermediate data. The defense stage reads target Components (Statline, Armour, Resistances) and consumes those Damage Instances. The Morale System, Ability System, and other reactive Systems observe combat results downstream and are not part of the core Combat System pipeline.
 
-A model's datasheet shows its baseline combat characteristics, determined by its default items before any options are chosen for it.
+A Model's Datasheet shows its baseline combat Characteristics, determined by its default Items before any options are chosen for it.
 
 ## Combat Characteristics
 
-- **Baseline Competence**: derived from Endurance. Represents the model's general effectiveness when making attacks.
-- **Evasion Rating**: derived from Reflex, Speed, and situational modifiers. Represents how difficult the model is to hit.
-- **Armour Value**: provided by equipped armour items. Reduces incoming damage after a hit is confirmed.
-- **Armour Resistances**: per-damage-type modifiers on armour (for example, composite armour may resist kinetic damage but be weak to concussive).
+These values are derived by the Combat System from Component data; they are not stored as Components themselves but computed on demand:
 
-## Making Attacks
+- **Baseline Competence**: derived from the Statline Component's Endurance. Represents the Model's general effectiveness when making attacks (see rule 210.7a in Entity System Rules).
+- **Evasion Rating**: derived from the Statline Component's Reflex and Speed, plus situational modifiers (Status Tags, terrain). Represents how difficult the Model is to hit (see rule 210.7b in Entity System Rules).
+- **Armour Value**: derived from equipped Armour Item Components. Reduces incoming damage after a hit is confirmed (see rule 210.7c in Entity System Rules).
+- **Armour Resistances**: per-Damage-Type modifiers on Armour Components (for example, composite Armour may resist Kinetic damage but be weak to Concussive). See rule 220.7 in Entity System Rules.
 
-Each attacking model resolves its attacks individually:
+## Making Attacks (Attack Pipeline)
 
-1. The model selects an attack profile from its equipped weapon(s) based on context (range to target, attack category).
-2. The engine distributes the model's attacks to target models in the target unit, closest first.
-3. For each attack, hit probability is computed: attacker's baseline competence + weapon modifiers - target's evasion rating. Hit probability has a floor of 5% and a ceiling of 95%, ensuring unlikely outcomes are always possible.
-4. On a successful hit, a **damage instance** is produced containing the damage value, damage type, and source metadata.
+The Combat System reads attacker Components and produces Damage Instances. Each attacking Model resolves its attacks individually:
 
-## Being Attacked
+1. The Combat System selects an Attack Profile Component from the Model's equipped Weapon(s) based on context (range to target, Attack Category).
+2. The Combat System distributes the Model's attacks to target Models in the target Unit, closest first.
+3. For each attack, hit probability is computed from Component data: attacker's Baseline Competence (derived from Statline) + Weapon Modifiers − target's Evasion Rating (derived from Statline and situational modifiers). Hit probability has a floor of 5% and a ceiling of 95%, ensuring unlikely outcomes are always possible.
+4. On a successful hit, the Combat System produces a **Damage Instance** — an intermediate data object containing the Damage Value, Damage Type, and source metadata.
 
-Each target model resolves incoming damage individually:
+See rule 133.5 in Battle Rules.
 
-1. The model receives one or more damage instances.
-2. Each instance is mitigated by the model's armour value, adjusted by the armour's resistance to the damage type.
-3. If mitigated damage meets or exceeds the model's durability, the model is destroyed.
-4. A single damage instance can only destroy one model; overkill does not carry over to the next model.
-5. Sub-lethal damage is tracked on the model for future resolution.
+## Being Attacked (Defense Pipeline)
+
+The Combat System reads target Components and consumes Damage Instances. Each target Model resolves incoming damage individually:
+
+1. The Model receives one or more Damage Instances from the Attack Pipeline.
+2. Each instance is mitigated by the Model's Armour Value Component, adjusted by the Armour's Resistance to the Damage Type.
+3. If mitigated damage meets or exceeds the Model's Durability (from the Statline Component), that Model is destroyed.
+4. A single Damage Instance can only destroy one Model; overkill does not carry over to the next Model.
+5. Sub-lethal damage is tracked on the Model's damage Component for future resolution.
 
 ## Damage Types
 
-Damage types describe the nature of the damage and interact with armour resistances:
+Damage Types categorize the nature of damage produced by the Attack Pipeline and interact with Armour Resistance Components in the Defense Pipeline:
 
-- **Kinetic**: physical impact damage (bullets, blades). Interacts neutrally with most armour.
-- **Concussive**: blast and shockwave damage (explosions, grenades). May partially bypass armour.
-- **Energy**: directed energy damage (arcane blasts, plasma). May be fully resisted by specialized armour or bypass conventional armour.
+- **Kinetic**: physical impact damage (bullets, blades). Armour with Resistance 0 for Kinetic provides its full Armour Value.
+- **Concussive**: blast and shockwave damage (explosions, grenades). Many Armour types have negative Resistance to Concussive, reducing effective protection.
+- **Energy**: directed energy damage (arcane blasts, plasma). Armour Resistance to Energy varies widely: some Armour types are highly resistant, others are vulnerable.
 
-Additional damage types can be introduced as needed. Each armour type defines its resistance modifier per damage type.
+Additional Damage Types can be introduced as needed. Each Armour Component defines its Resistance modifier per Damage Type (see rule 220.8 in Entity System Rules).
 
 # Fighting a Battle
 
-Fighting a Battle is how Simple War resolves direct conflict between Armies. The Battle is divided into Stages (Planning, Deployment, Engagement, Consolidation), and within Engagement into Turns and Phases.
+Fighting a Battle is how Simple War resolves direct conflict between Armies. The Battle is divided into Stages (Planning, Deployment, Engagement, Consolidation), and within Engagement into Turns and Phases. See Battle Rules (rules 100.1–150.1) for full details.
 
 ## Planning
-### Composing Units
-### Transports
-### Reserves
-### Vanguard
+Composing Battleforces, designating Transports, Reserves, and Vanguard, and revealing Faction Relationships. See rules 110.1–110.6 in Battle Rules.
+
 ## Deployment
-### Hidden Areas
-### Redeploying
-### Pre-Engagement Moves
+Placing Units on the Battlefield within Deployment Zones, including Vanguard deployment and Pre-Engagement Moves. See rules 120.1–120.4 in Battle Rules.
+
 ## Engagement
+The core of a Battle. Players command Units through a repeating cycle of Turns using the true simultaneous turn system. See rules 130.1–134.1 in Battle Rules.
+
 ### The Turn System
-#### Rally
-#### Issue Orders
-#### Execute
-#### Resolve Combat
+Each Turn proceeds through four Phases: Rally, Issue Orders, Execute, Resolve Combat (see rule 130.3 in Battle Rules).
 
 ### The Order System
 
-Simple War uses a **true simultaneous turn** system. During the appropriate Phase, Players give hidden Orders to their Units, then reveal and resolve those Orders together. This keeps Battles dynamic and reduces “I-go-you-go” downtime while remaining deterministic and computable for the digital engine.
+Simple War uses a **true simultaneous turn** system. During the Issue Orders Phase, Players give hidden Orders to their Units, then reveal and resolve those Orders together. This keeps Battles dynamic and reduces “I-go-you-go” downtime while remaining deterministic and computable for the digital engine. See rules 132.1–132.4 in Battle Rules.
 
-#### Basic Actions
-##### Movement
-##### Making Attacks
-##### Activating 
-#### Reactions
-##### Reposition
-##### Evade
-##### Return Fire
-#### Surging
-#### Surge Actions
+### Reactions
+After Orders are revealed, eligible Units may declare Reactions: Reposition, Evade, or Return Fire. See rules 133.3a–133.3c in Battle Rules.
+
+### Surge Actions
+A Unit with Surging Morale may perform a Surge Action. See rule 132.2h in Battle Rules.
+
 ## Consolidation
-### Scoring
-### Casualties
+Determining the Victor, processing Scoring, handling Casualties. See rules 140.1–140.5 in Battle Rules.
 
 # The Generic Campaign
-## Roster Requirements
-### Commander
+The minimal Campaign template: default Roster, configurable Activities, Campaign-defined Objectives and Scoring. See rule 860.1 in Campaign Rules.
 
 

@@ -1,0 +1,5 @@
+configVersion = "2.1"
+agent = "cursor"
+command = "agent"
+tracker = "beads"
+maxIterations = 25

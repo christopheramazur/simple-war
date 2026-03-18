@@ -1,0 +1,5 @@
+Simple War is intended to be a heavily simulationist approach to fictional war games when compared to existing alternatives. The game bases its resolution mechanics around the capabilities of a squad of average human soldiers, with the goal of allowing for massive aliens and advanced technologies to feel truly devastating, while still being vulnerable to heroic pluckiness and the occasional inhaled hand grenade. 
+
+Simple War is a modular system built to provide players meaningful strategic and tactical options at every stage of the game. Army management at the strategic level involves simultaneous decisions made by both players. Tactical encounters are built around the combat resolution system, allowing the individual strengths of the units involved to shine.
+
+The core game, core rules, and faction rules will always be digital, free, and open source.

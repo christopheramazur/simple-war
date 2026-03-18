@@ -1,0 +1,64 @@
+{
+    "scenarios": [
+        {
+            "id": "mirror_match",
+            "display_name": "Riflemen vs Riflemen",
+            "description": "A standard infantry engagement between two evenly matched squads.",
+            "forces": [
+                { "side": "attacker", "units": [{ "unit_id": "human_riflemen", "count": 1 }] },
+                { "side": "defender", "units": [{ "unit_id": "human_riflemen", "count": 1 }] }
+            ]
+        },
+        {
+            "id": "horde_vs_warmachine",
+            "display_name": "Swarm Cultists vs Iron Bastion",
+            "description": "Can a tide of fanatics overwhelm a siege engine?",
+            "forces": [
+                { "side": "attacker", "units": [{ "unit_id": "swarm_cultists", "count": 2 }] },
+                { "side": "defender", "units": [{ "unit_id": "iron_bastion", "count": 1 }] }
+            ]
+        },
+        {
+            "id": "infantry_vs_bioterror",
+            "display_name": "Riflemen vs Maw Fiend",
+            "description": "Three squads of riflemen attempt to bring down a nightmarish predator.",
+            "forces": [
+                { "side": "attacker", "units": [{ "unit_id": "human_riflemen", "count": 3 }] },
+                { "side": "defender", "units": [{ "unit_id": "maw_fiend", "count": 1 }] }
+            ]
+        },
+        {
+            "id": "mage_vs_horde",
+            "display_name": "Arcanists vs Swarm Cultists",
+            "description": "Arcane firepower meets overwhelming numbers.",
+            "forces": [
+                { "side": "attacker", "units": [{ "unit_id": "arcanists", "count": 1 }] },
+                { "side": "defender", "units": [{ "unit_id": "swarm_cultists", "count": 3 }] }
+            ]
+        },
+        {
+            "id": "warmachine_vs_bioterror",
+            "display_name": "Iron Bastion vs Maw Fiend",
+            "description": "Heavy firepower versus unstoppable predator.",
+            "forces": [
+                { "side": "attacker", "units": [{ "unit_id": "iron_bastion", "count": 1 }] },
+                { "side": "defender", "units": [{ "unit_id": "maw_fiend", "count": 1 }] }
+            ]
+        },
+        {
+            "id": "combined_arms",
+            "display_name": "Combined Arms vs Mixed Force",
+            "description": "Riflemen and an Iron Bastion face Arcanists backed by a Maw Fiend.",
+            "forces": [
+                { "side": "attacker", "units": [
+                    { "unit_id": "human_riflemen", "count": 2 },
+                    { "unit_id": "iron_bastion", "count": 1 }
+                ]},
+                { "side": "defender", "units": [
+                    { "unit_id": "arcanists", "count": 1 },
+                    { "unit_id": "maw_fiend", "count": 1 }
+                ]}
+            ]
+        }
+    ]
+}

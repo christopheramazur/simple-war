@@ -1,0 +1,103 @@
+{
+    "attacks": [
+        {
+            "id": "small_arms_kinetic",
+            "display_name": "Kinetic Gunfire",
+            "description": "A standard burst of kinetic projectiles from a personal firearm.",
+            "category": "ranged",
+            "skill_category": "rifle",
+            "range": { "min": 5, "short": 10, "long": 30, "max": 40 },
+            "damage": { "type": "kinetic", "value": 3, "count": 1 }
+        },
+        {
+            "id": "small_arms_energy",
+            "display_name": "Energy Shot",
+            "description": "A focused energy discharge from a personal weapon.",
+            "category": "ranged",
+            "skill_category": "rifle",
+            "range": { "min": 5, "short": 10, "long": 30, "max": 40 },
+            "damage": { "type": "energy", "value": 4, "count": 1 }
+        },
+        {
+            "id": "heavy_ordnance",
+            "display_name": "Heavy Ordnance",
+            "description": "A powerful concussive projectile from a heavy weapon platform.",
+            "category": "ranged",
+            "skill_category": "launcher",
+            "range": { "min": 10, "short": 15, "long": 40, "max": 50 },
+            "damage": { "type": "concussive", "value": 10, "count": 1, "splash": { "close": 2, "medium": 4, "far": 6 } }
+        },
+        {
+            "id": "thrown_explosive",
+            "display_name": "Thrown Explosive",
+            "description": "A hand-thrown explosive device with area effect.",
+            "category": "ranged",
+            "skill_category": "launcher",
+            "range": { "min": 2, "short": 3, "long": 8, "max": 10 },
+            "damage": { "type": "concussive", "value": 5, "count": 1, "splash": { "close": 3, "medium": 5, "far": 7 } }
+        },
+        {
+            "id": "placed_explosive",
+            "display_name": "Placed Explosive",
+            "description": "A contact-detonated explosive charge for point-blank destruction.",
+            "category": "melee",
+            "skill_category": "launcher",
+            "range": { "max": 1 },
+            "damage": { "type": "concussive", "value": 12, "count": 1 }
+        },
+        {
+            "id": "energy_blast",
+            "display_name": "Energy Blast",
+            "description": "A focused discharge of energy with area effect.",
+            "category": "ranged",
+            "skill_category": "magic",
+            "range": { "min": 3, "short": 8, "long": 20, "max": 25 },
+            "damage": { "type": "energy", "value": 5, "count": 1, "splash": { "close": 2, "medium": 4, "far": 6 } }
+        },
+        {
+            "id": "combat_blade",
+            "display_name": "Blade Strike",
+            "description": "A close-quarters slashing or stabbing attack with a bladed weapon.",
+            "category": "melee",
+            "skill_category": "melee",
+            "range": { "max": 1 },
+            "damage": { "type": "kinetic", "value": 2, "count": 1 }
+        },
+        {
+            "id": "blunt_melee",
+            "display_name": "Blunt Strike",
+            "description": "A bludgeoning close-quarters attack.",
+            "category": "melee",
+            "skill_category": "melee",
+            "range": { "max": 1 },
+            "damage": { "type": "kinetic", "value": 3, "count": 1 }
+        },
+        {
+            "id": "heavy_melee",
+            "display_name": "Heavy Strike",
+            "description": "A devastating close-quarters blow from a heavy weapon or appendage.",
+            "category": "melee",
+            "skill_category": "melee",
+            "range": { "max": 2 },
+            "damage": { "type": "kinetic", "value": 15, "count": 1 }
+        },
+        {
+            "id": "natural_weapon_melee",
+            "display_name": "Natural Weapon",
+            "description": "Biological close-combat appendage — claws, fangs, or similar.",
+            "category": "melee",
+            "skill_category": "natural_melee",
+            "range": { "max": 2 },
+            "damage": { "type": "kinetic", "value": 6, "count": 2 }
+        },
+        {
+            "id": "natural_weapon_ranged",
+            "display_name": "Natural Ranged Attack",
+            "description": "A biological ranged attack — acid spit, spines, or similar.",
+            "category": "ranged",
+            "skill_category": "natural_ranged",
+            "range": { "min": 2, "short": 5, "long": 12, "max": 15 },
+            "damage": { "type": "energy", "value": 5, "count": 1 }
+        }
+    ]
+}
