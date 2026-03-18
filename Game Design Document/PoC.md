@@ -65,15 +65,17 @@ The initial digital prototype will focus on presenting the gameplay flow to the 
           - as they zoom out the markers should be replaced by 3-unit and 6-unit grid markers, and vice versa
           - The player should not be able to zoom in further than a 6x6 grid of 1-unit markers, or further out than being able to see the entire battlefield and 6 units of surrounding grey area
       - The Army that the player selected should be available to the side in the grey
-        - 5 units of "riflemen", each consisting of 10 circles, arranged in a rectangle. 
-          - For now, these circles simply maintain their position within the unit's rectangle.
+        - 5 units of "Riflemen", each consisting of 10 circles, arranged in a rectangle. 
+          - For now, these circles simply maintain their position within the unit's rectangle. However, we want to make sure that the implementation we choose leaves room to extend movement, pathfinding, and formation functionality. 
         - allow the player to click and drag, multi-select-and-drag, and drop the units onto the battlefield, but only wholly within their deployment zone
-        - once they have done so, a button on the bottom right that says "Engage Enemy" becomes available to click
+        - once they have done so, a button on the top middle that says "Engage Enemy" becomes available to click
           - The player can also hit enter, or right-click the battlefield for a context menu that should include "Engage Enemy"
-        - The Deployment activity is complete, and now the battle begins. The deployment zone indicators go away and the game displays the text, "Engagement Stage: Turn 1" which fades after 3 seconds.
+        - The Deployment activity is complete, and now the engagement stage begins. The deployment zone indicators go away and the game displays the text, "Engagement Stage: Turn 1" which fades after 3 seconds.
         - The player should be able to plan the movement and pivoting of their units with click and drag movement controls
           - display the plans using a translucent copy of the unit at the end of a dotted-line path
         - Once the player has given unit an order, they can issue by clicking "Execute Orders" in the bottom right
           - if a unit doesn't have an order, the player can still execute orders, but they should be prompted to review their remaining units without orders
-
-# the rest of this is just going through turns of battle. There should be basic enemy behaviors, such as deploying their premade army on the line, moving it forward, and attacking the closest enemy to them when they are in effective range.
+        - the rest of this is just going through turns of battle. There should be basic enemy behaviors, such as deploying their premade army on the line, moving it forward, and attacking the closest enemy to them when they are in effective range.
+        - Once all enemy units are destroyed, the game should move to the Consolidation stage, and statistics about the battle should appear
+          - For now, simply list units and models destroyed for each player, with the value of units destroyed as the score.
+          - We want to ensure that almost anything done during the battle can be used to score, so we should work out a detailed battle audit system we can use to check back on anything that may have happened. This will also help with player statistics and savefiles so it's important to begin working with it early.
