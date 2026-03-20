@@ -1,0 +1,48 @@
+{
+    "campaigns": [
+        {
+            "id": "poc_campaign",
+            "display_name": "Campaign PoC",
+            "display_image": "poc_campaign_display_image.png",
+            "description": "The Campaign for the PoC. Select a pre-determined Army and Battle against an AI-controlled Commander.",
+            "opening": {
+                "player_options": {
+
+                },
+                "config_options": {
+                    "commander_options": [],
+                    "faction_options": [],
+                    "army_options": [],
+                    "sector_map_options": [
+                        "poc_sector_map"
+                    ],
+                    "roster_options": [],
+                    "casualty_options": [],
+                    "objective_options": [],
+                    "scoring_options": [],
+                    "conclusion_options": []
+                }
+            },
+            "active_play": {
+                "player_options": {
+                    
+                },
+                "config_options": {
+                    "activity_options": [],
+                    "scoring_options": [],
+                    "pathing_options": []
+                }
+            },
+            "conclusion": {
+                "player_options": {
+                    
+                },
+                "config_options": {
+                    "scoring_options": [],
+                    "conclusion_options": []
+                }
+            }
+        }
+
+    ]
+}

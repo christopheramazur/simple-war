@@ -1,301 +1,293 @@
 extends Control
 
-## Battlefield scene: displays Unit Entities as colored circles, resolves
-## combat turn-by-turn using the Combat System pipeline, shows results.
+const BATTLEFIELD_WIDTH: float = 200.0
+const BATTLEFIELD_HEIGHT: float = 100.0
+const WORLD_SCALE: float = 5.0
+const BATTLE_STATE_SCRIPT := preload("res://src/battle/runtime/battle_state.gd")
+const MOVEMENT_SYSTEM_SCRIPT := preload("res://src/battle/systems/movement_system.gd")
+const DEPLOYMENT_SYSTEM_SCRIPT := preload("res://src/battle/systems/deployment_system.gd")
+const COMBAT_SYSTEM_SCRIPT := preload("res://src/battle/systems/combat_system_minimal.gd")
+const UNIT_RUNTIME_SCRIPT := preload("res://src/battle/runtime/unit_runtime.gd")
+const MENU_OVERLAY_SCRIPT := preload("res://src/ui/menu_overlay.gd")
 
-const FIELD_WIDTH := 200.0
-const FIELD_HEIGHT := 100.0
-const DEPLOY_ZONE_DEPTH := 20.0
-const PIXELS_PER_UNIT := 5.0
+var battle_state = BATTLE_STATE_SCRIPT.new()
+var movement_system = MOVEMENT_SYSTEM_SCRIPT.new()
+var deployment_system = DEPLOYMENT_SYSTEM_SCRIPT.new()
+var combat_system = COMBAT_SYSTEM_SCRIPT.new()
 
-var _scenario_id: String = ""
-var _attacker_units: Array[UnitData] = []
-var _defender_units: Array[UnitData] = []
-var _orchestrator := CombatOrchestrator.new()
-var _bot := SimpleBot.new()
-var _current_turn := 0
-var _battle_over := false
+var player_units: Array = []
+var enemy_units: Array = []
+var selected_units: Array = []
 
-@onready var field_panel: Panel = %FieldPanel
-@onready var turn_label: Label = %TurnLabel
-@onready var status_label: Label = %StatusLabel
-@onready var engage_btn: Button = %EngageButton
-@onready var next_turn_btn: Button = %NextTurnButton
-@onready var back_btn: Button = %BackButton
-@onready var unit_display: Control = %UnitDisplay
-@onready var combat_log_label: RichTextLabel = %CombatLogLabel
-@onready var combat_log_scroll: ScrollContainer = %ScrollContainer
-@onready var unit_status_bar: HBoxContainer = %UnitStatusBar
-@onready var orders_label: Label = %OrdersLabel
-@onready var move_closer_btn: Button = %MoveCloserButton
-@onready var move_away_btn: Button = %MoveAwayButton
-@onready var attack_btn: Button = %AttackButton
-
-var _attacker_order_override: String = ""  # "move_closer", "move_away", "attack", or "" for auto
-
+var camera_zoom_level: int = 0 # 0 => 1, 1 => 3, 2 => 6
+var order_info: Label
+var engage_button: Button
+var execute_button: Button
+var battle_resolved_emitted: bool = false
 
 func _ready() -> void:
-	_scenario_id = GameData.selected_scenario_id if not GameData.selected_scenario_id.is_empty() else "mirror_match"
-	engage_btn.pressed.connect(_on_engage)
-	next_turn_btn.pressed.connect(_on_next_turn)
-	back_btn.pressed.connect(_on_back)
-	move_closer_btn.pressed.connect(_on_order_move_closer)
-	move_away_btn.pressed.connect(_on_order_move_away)
-	attack_btn.pressed.connect(_on_order_attack)
-	next_turn_btn.visible = false
-	orders_label.visible = false
-	move_closer_btn.visible = false
-	move_away_btn.visible = false
-	attack_btn.visible = false
+	add_child(MENU_OVERLAY_SCRIPT.new())
+	_create_ui()
+	_spawn_poc_units()
+	_refresh_buttons()
 
-	_setup_battle()
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if battle_state.stage == BATTLE_STATE_SCRIPT.Stage.DEPLOYMENT:
+			_handle_deployment_click(event.position)
+		elif battle_state.stage == BATTLE_STATE_SCRIPT.Stage.ENGAGEMENT:
+			_handle_engagement_click(event.position)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+		camera_zoom_level = max(0, camera_zoom_level - 1)
+		queue_redraw()
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+		camera_zoom_level = min(2, camera_zoom_level + 1)
+		queue_redraw()
 
+func _draw() -> void:
+	var board_rect := Rect2(Vector2(100, 80), Vector2(BATTLEFIELD_WIDTH * WORLD_SCALE, BATTLEFIELD_HEIGHT * WORLD_SCALE))
+	draw_rect(board_rect, Color(0.18, 0.32, 0.18), true)
+	if battle_state.stage == BATTLE_STATE_SCRIPT.Stage.DEPLOYMENT:
+		_draw_deployment_zones(board_rect)
+	_draw_grid(board_rect)
+	_draw_units(board_rect)
+	_draw_previews(board_rect)
 
-func _setup_battle() -> void:
-	var raw := DataLoader.load_scenarios()
-	var scenarios: Array = raw.get("scenarios", [])
-	var scenario_def: Dictionary = {}
-	for s: Dictionary in scenarios:
-		if s.get("id", "") == _scenario_id:
-			scenario_def = s
-			break
+func _create_ui() -> void:
+	order_info = Label.new()
+	order_info.position = Vector2(100, 20)
+	order_info.size = Vector2(900, 50)
+	add_child(order_info)
 
-	if scenario_def.is_empty():
-		status_label.text = "Scenario not found: %s" % _scenario_id
-		return
+	engage_button = Button.new()
+	engage_button.text = "Engage Enemy"
+	engage_button.position = Vector2(560, 20)
+	engage_button.pressed.connect(_on_engage_pressed)
+	add_child(engage_button)
 
-	_attacker_units = _build_force(scenario_def, "attacker")
-	_defender_units = _build_force(scenario_def, "defender")
+	execute_button = Button.new()
+	execute_button.text = "Execute Orders"
+	execute_button.position = Vector2(1020, 660)
+	execute_button.pressed.connect(_on_execute_pressed)
+	add_child(execute_button)
 
-	_bot.deploy_units(_defender_units, DEPLOY_ZONE_DEPTH / 2.0, FIELD_WIDTH)
-	status_label.text = "Deploy and Engage!"
-	turn_label.text = "Deployment"
-	combat_log_label.text = "[color=gray]Deploy and press Engage to start combat.[/color]"
-	_update_display()
+func _spawn_poc_units() -> void:
+	player_units.clear()
+	enemy_units.clear()
+	selected_units.clear()
+	battle_resolved_emitted = false
+	for i in range(5):
+		var unit = UNIT_RUNTIME_SCRIPT.new(
+			"player_riflemen_%d" % i,
+			"Riflemen %d" % (i + 1),
+			"Human",
+			10.0,
+			10,
+			10,
+			Vector2(10 + (i * 8), 8)
+		)
+		player_units.append(unit)
+	for i in range(5):
+		var enemy = UNIT_RUNTIME_SCRIPT.new(
+			"enemy_riflemen_%d" % i,
+			"Enemy %d" % (i + 1),
+			"Chaos",
+			10.0,
+			10,
+			10,
+			Vector2(30 + (i * 8), 92)
+		)
+		enemy_units.append(enemy)
+	_update_status_label()
 
-
-func _build_force(scenario_def: Dictionary, side: String) -> Array[UnitData]:
-	var units: Array[UnitData] = []
-	var forces: Array = scenario_def.get("forces", [])
-	var y_base := FIELD_HEIGHT - DEPLOY_ZONE_DEPTH / 2.0 if side == "attacker" else DEPLOY_ZONE_DEPTH / 2.0
-	for force: Dictionary in forces:
-		if force.get("side", "") != side:
-			continue
-		for entry: Dictionary in force.get("units", []):
-			var unit_id: String = entry.get("unit_id", "")
-			var count: int = int(entry.get("count", 1))
-			for _j in range(count):
-				var unit := GameData.unit_factory.create_unit(unit_id)
-				if unit != null:
-					unit.position = Vector2(
-						40.0 + units.size() * 30.0,
-						y_base
-					)
-					units.append(unit)
-	return units
-
-
-func _on_engage() -> void:
-	engage_btn.visible = false
-	next_turn_btn.visible = true
-	orders_label.visible = true
-	move_closer_btn.visible = true
-	move_away_btn.visible = true
-	attack_btn.visible = true
-	_current_turn = 1
-	turn_label.text = "Engagement: Turn %d" % _current_turn
-	status_label.text = "Choose orders (or leave auto), then Next Turn"
-
-
-func _on_next_turn() -> void:
-	if _battle_over:
-		return
-
-	# Reset per-turn movement tracking
-	for u in _attacker_units:
-		u.distance_moved_this_turn = 0.0
-	for u in _defender_units:
-		u.distance_moved_this_turn = 0.0
-
-	# Set orders: defender uses auto (attack if in range else move_closer)
-	_bot.set_orders(_defender_units, _attacker_units)
-	# Attacker: use player override if set, else auto
-	if _attacker_order_override.is_empty():
-		_bot.set_orders(_attacker_units, _defender_units)
-	else:
-		for u in _attacker_units:
-			if not u.is_destroyed():
-				u.order = _attacker_order_override
-
-	# Move only units that chose move_closer (not attacking)
-	_bot.advance_units(_attacker_units, _defender_units, 3.0)
-	_bot.advance_units(_defender_units, _attacker_units, 3.0)
-
-	# Resolve attacks for units that chose attack (uses actual unit positions for range)
-	var turn_result := _orchestrator.resolve_single_exchange(
-		_attacker_units, _defender_units, 0.0
+func _world_to_screen(board_rect: Rect2, world_position: Vector2) -> Vector2:
+	return Vector2(
+		board_rect.position.x + (world_position.x * WORLD_SCALE),
+		board_rect.position.y + ((BATTLEFIELD_HEIGHT - world_position.y) * WORLD_SCALE)
 	)
 
-	var atk_alive := 0
-	for u in _attacker_units:
-		atk_alive += u.get_alive_count()
-	var def_alive := 0
-	for u in _defender_units:
-		def_alive += u.get_alive_count()
+func _screen_to_world(board_rect: Rect2, screen_position: Vector2) -> Vector2:
+	return Vector2(
+		(screen_position.x - board_rect.position.x) / WORLD_SCALE,
+		BATTLEFIELD_HEIGHT - ((screen_position.y - board_rect.position.y) / WORLD_SCALE)
+	)
 
-	status_label.text = "Turn %d: Attacker %d models | Defender %d models | Dmg dealt: %d" % [
-		_current_turn, atk_alive, def_alive, turn_result.total_damage_dealt
-	]
+func _draw_deployment_zones(board_rect: Rect2) -> void:
+	var bottom_zone := Rect2(
+		board_rect.position + Vector2(0, board_rect.size.y - (20.0 * WORLD_SCALE)),
+		Vector2(board_rect.size.x, 20.0 * WORLD_SCALE)
+	)
+	var top_zone := Rect2(board_rect.position, Vector2(board_rect.size.x, 20.0 * WORLD_SCALE))
+	draw_rect(bottom_zone, Color(0.15, 0.22, 0.55, 0.35), true)
+	draw_rect(top_zone, Color(0.55, 0.15, 0.15, 0.35), true)
 
-	if atk_alive <= 0 or def_alive <= 0:
-		_battle_over = true
-		next_turn_btn.visible = false
-		var winner := "Attacker" if def_alive <= 0 else "Defender"
-		if atk_alive <= 0 and def_alive <= 0:
-			winner = "Draw"
-		turn_label.text = "Battle Over - %s Wins!" % winner
-		status_label.text = "Attacker lost %d models | Defender lost %d models" % [
-			turn_result.attacker_models_lost, turn_result.defender_models_lost
-		]
-	else:
-		_current_turn += 1
-		turn_label.text = "Engagement: Turn %d" % _current_turn
+func _draw_grid(board_rect: Rect2) -> void:
+	var spacing_values: Array[float] = [1.0, 3.0, 6.0]
+	var spacing: float = spacing_values[camera_zoom_level]
+	var px: float = spacing * WORLD_SCALE
+	var x := board_rect.position.x
+	while x <= board_rect.end.x:
+		draw_line(Vector2(x, board_rect.position.y), Vector2(x, board_rect.end.y), Color(0.55, 0.55, 0.55, 0.2), 1.0)
+		x += px
+	var y := board_rect.position.y
+	while y <= board_rect.end.y:
+		draw_line(Vector2(board_rect.position.x, y), Vector2(board_rect.end.x, y), Color(0.55, 0.55, 0.55, 0.2), 1.0)
+		y += px
 
-	for turn_log in turn_result.turn_logs:
-		_append_turn_log(turn_log)
-	_scroll_combat_log_to_bottom()
-	_update_display()
+func _draw_units(board_rect: Rect2) -> void:
+	for unit in player_units:
+		if not unit.alive:
+			continue
+		var pos := _world_to_screen(board_rect, unit.position)
+		var color := Color(0.3, 0.65, 1.0) if unit.selected else Color(0.15, 0.45, 0.9)
+		draw_rect(Rect2(pos - Vector2(18, 12), Vector2(36, 24)), color, true)
+	for unit in enemy_units:
+		if not unit.alive:
+			continue
+		var pos := _world_to_screen(board_rect, unit.position)
+		draw_rect(Rect2(pos - Vector2(18, 12), Vector2(36, 24)), Color(0.85, 0.25, 0.25), true)
 
-
-func _update_display() -> void:
-	for child in unit_display.get_children():
-		child.queue_free()
-
-	_draw_units(_attacker_units, Color(0.2, 0.4, 0.8, 0.8))
-	_draw_units(_defender_units, Color(0.8, 0.2, 0.2, 0.8))
-	_update_unit_status_bar()
-
-
-func _draw_units(units: Array[UnitData], color: Color) -> void:
-	for unit in units:
-		var alive := unit.get_alive_models()
-		var cols := ceili(sqrt(float(alive.size())))
-		for i in range(alive.size()):
-			var row: int = i / maxi(cols, 1)
-			var col: int = i % maxi(cols, 1)
-			var circle := ColorRect.new()
-			circle.size = Vector2(6, 6)
-			circle.color = color
-			circle.position = Vector2(
-				unit.position.x * PIXELS_PER_UNIT + col * 8,
-				unit.position.y * PIXELS_PER_UNIT + row * 8
-			)
-			unit_display.add_child(circle)
-
-
-func _append_turn_log(turn_log: TurnLog) -> void:
-	var lines: PackedStringArray = []
-	lines.append("[b]--- Turn %d ---[/b]" % turn_log.turn_number)
-
-	for evt in turn_log.events:
-		var base_pct := int(roundf(evt.base_hit_chance * 100.0))
-		var range_pct := int(roundf(evt.range_modifier * 100.0))
-		var evasion_pct := int(roundf(evt.evasion_factor * 100.0))
-		var final_pct := int(roundf(evt.hit_chance * 100.0))
-		var move_pct := int(roundf(evt.movement_factor * 100.0))
-		var range_str := ""
-		if range_pct >= 0:
-			range_str = "+%d%%" % range_pct
-		else:
-			range_str = "%d%%" % range_pct
-
-		var line := "[%s] %s → %s \"%s\" (%d%% base %s range - %d%% evasion) × %d%% move = %d%% hit) — " % [
-			evt.attacker_unit_name, evt.attacker_name, evt.target_name, evt.attack_name,
-			base_pct, range_str, evasion_pct, move_pct, final_pct
-		]
-		if evt.hit and evt.damage_instance != null:
-			var dmg: DamageInstance = evt.damage_instance
-			line += "[color=#aaffaa]HIT: %d %s[/color]" % [dmg.damage_value, dmg.damage_type]
-			if dmg.armour_applied > 0:
-				line += ", [color=yellow]%d mitigated[/color] → %d applied" % [dmg.armour_applied, dmg.mitigated_value]
-			else:
-				line += " → %d applied" % dmg.mitigated_value
-			if dmg.resulted_in_kill:
-				line += " [color=red][b]*** KILLED ***[/b][/color]"
-		else:
-			line += "[color=gray]MISS[/color]"
-		lines.append(line)
-
-	if turn_log.attacker_summary != null:
-		var atk_s: TurnLog.TurnLogSideSummary = turn_log.attacker_summary
-		lines.append("")
-		lines.append("[color=#88aaff]Attacker: %d attacks, %d hits, %d miss | %d dmg dealt | %d kills[/color]" % [
-			atk_s.attacks_made, atk_s.hits, atk_s.misses, atk_s.total_damage_dealt, atk_s.models_killed
-		])
-	if turn_log.defender_summary != null:
-		var def_s: TurnLog.TurnLogSideSummary = turn_log.defender_summary
-		lines.append("[color=#ff8888]Defender: %d attacks, %d hits, %d miss | %d dmg dealt | %d kills[/color]" % [
-			def_s.attacks_made, def_s.hits, def_s.misses, def_s.total_damage_dealt, def_s.models_killed
-		])
-	lines.append("")
-
-	combat_log_label.text += "\n".join(lines)
-
-
-func _scroll_combat_log_to_bottom() -> void:
-	await get_tree().process_frame
-	var vbar := combat_log_scroll.get_v_scroll_bar()
-	if vbar != null:
-		combat_log_scroll.set_deferred("scroll_vertical", int(vbar.max_value))
-
-
-func _update_unit_status_bar() -> void:
-	for child in unit_status_bar.get_children():
-		child.queue_free()
-
-	for unit in _attacker_units:
-		unit_status_bar.add_child(_make_unit_status_card(unit, Color(0.2, 0.4, 0.8)))
-	for unit in _defender_units:
-		unit_status_bar.add_child(_make_unit_status_card(unit, Color(0.8, 0.2, 0.2)))
-
-
-func _make_unit_status_card(unit: UnitData, color: Color) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var label := Label.new()
-	var alive := unit.get_alive_count()
-	var total := unit.get_total_models()
-	var hp_pool := 0
-	for model in unit.get_alive_models():
-		hp_pool += model.get_remaining_durability()
-	var name_str := unit.display_name if unit.display_name else unit.id
-	label.text = "%s: %d/%d models | %d HP" % [name_str, alive, total, hp_pool]
-	label.add_theme_color_override("font_color", color if alive > 0 else Color(0.4, 0.4, 0.4))
-	panel.add_child(label)
-	return panel
-
-
-func _on_order_move_closer() -> void:
-	_attacker_order_override = "move_closer"
-	_apply_attacker_order_override()
-
-
-func _on_order_move_away() -> void:
-	_attacker_order_override = "move_away"
-	_apply_attacker_order_override()
-
-
-func _on_order_attack() -> void:
-	_attacker_order_override = "attack"
-	_apply_attacker_order_override()
-
-
-func _apply_attacker_order_override() -> void:
-	if _attacker_order_override.is_empty():
+func _draw_previews(board_rect: Rect2) -> void:
+	if battle_state.stage != BATTLE_STATE_SCRIPT.Stage.ENGAGEMENT:
 		return
-	for u in _attacker_units:
-		if not u.is_destroyed():
-			u.order = _attacker_order_override
+	for unit in selected_units:
+		if not unit.alive or not unit.has_order:
+			continue
+		var a := _world_to_screen(board_rect, unit.position)
+		var b := _world_to_screen(board_rect, unit.destination)
+		draw_line(a, b, Color(1.0, 1.0, 0.5, 0.7), 2.0)
+		draw_rect(Rect2(b - Vector2(18, 12), Vector2(36, 24)), Color(1.0, 1.0, 1.0, 0.3), true)
 
+func _handle_deployment_click(screen_position: Vector2) -> void:
+	var board_rect := Rect2(Vector2(100, 80), Vector2(BATTLEFIELD_WIDTH * WORLD_SCALE, BATTLEFIELD_HEIGHT * WORLD_SCALE))
+	if not board_rect.has_point(screen_position):
+		return
+	var world := _screen_to_world(board_rect, screen_position)
+	var snapped := movement_system.snap_to_grid(world, 1.0)
+	for unit in player_units:
+		if unit.alive:
+			unit.position = movement_system.clamp_to_battlefield(snapped, BATTLEFIELD_WIDTH, BATTLEFIELD_HEIGHT)
+			break
+	_refresh_buttons()
+	queue_redraw()
 
-func _on_back() -> void:
-	get_tree().change_scene_to_file("res://src/ui/scenario_select.tscn")
+func _handle_engagement_click(screen_position: Vector2) -> void:
+	var board_rect := Rect2(Vector2(100, 80), Vector2(BATTLEFIELD_WIDTH * WORLD_SCALE, BATTLEFIELD_HEIGHT * WORLD_SCALE))
+	if not board_rect.has_point(screen_position):
+		return
+	var clicked_unit = _pick_player_unit_at(board_rect, screen_position)
+	if clicked_unit != null:
+		_clear_selection()
+		clicked_unit.selected = true
+		selected_units = [clicked_unit]
+		queue_redraw()
+		return
+	if selected_units.is_empty():
+		return
+	var world := _screen_to_world(board_rect, screen_position)
+	var spacing_values: Array[float] = [1.0, 3.0, 6.0]
+	var spacing: float = spacing_values[camera_zoom_level]
+	var snapped := movement_system.snap_to_grid(world, spacing)
+	for unit in selected_units:
+		unit.destination = movement_system.clamp_to_battlefield(snapped, BATTLEFIELD_WIDTH, BATTLEFIELD_HEIGHT)
+		unit.has_order = true
+	_refresh_buttons()
+	queue_redraw()
+
+func _pick_player_unit_at(board_rect: Rect2, screen_position: Vector2):
+	for unit in player_units:
+		if not unit.alive:
+			continue
+		var pos := _world_to_screen(board_rect, unit.position)
+		var rect := Rect2(pos - Vector2(20, 14), Vector2(40, 28))
+		if rect.has_point(screen_position):
+			return unit
+	return null
+
+func _on_engage_pressed() -> void:
+	battle_state.start_engagement()
+	GameState.engagement_turn = 1
+	_update_status_label()
+	_refresh_buttons()
+	queue_redraw()
+
+func _on_execute_pressed() -> void:
+	if battle_state.stage != BATTLE_STATE_SCRIPT.Stage.ENGAGEMENT:
+		return
+	var units_without_orders := 0
+	for unit in player_units:
+		if unit.alive and not unit.has_order:
+			units_without_orders += 1
+	for unit in player_units:
+		if not unit.alive:
+			continue
+		if unit.has_order:
+			unit.position = movement_system.move_toward_with_budget(unit.position, unit.destination, unit.speed)
+		unit.has_order = false
+	for unit in enemy_units:
+		if not unit.alive:
+			continue
+		var closest = combat_system.pick_closest_enemy(unit.position, player_units)
+		if closest != null:
+			unit.position = movement_system.move_toward_with_budget(unit.position, closest.position, unit.speed)
+	_resolve_combat_step()
+	battle_state.next_turn()
+	GameState.engagement_turn = battle_state.turn
+	if _all_dead(enemy_units) or _all_dead(player_units):
+		battle_state.move_to_consolidation()
+		_emit_battle_resolved_once()
+	_update_status_label(units_without_orders)
+	_refresh_buttons()
+	queue_redraw()
+
+func _emit_battle_resolved_once() -> void:
+	if battle_resolved_emitted:
+		return
+	battle_resolved_emitted = true
+	CampaignRuntime.submit_intent(
+		"battle.resolve",
+		{
+			"player_units_destroyed": GameState.player_units_destroyed,
+			"enemy_units_destroyed": GameState.enemy_units_destroyed
+		}
+	)
+
+func _resolve_combat_step() -> void:
+	for unit in player_units:
+		if not unit.alive:
+			continue
+		var target = combat_system.pick_closest_enemy(unit.position, enemy_units)
+		if combat_system.resolve_attack(unit, target):
+			GameState.enemy_units_destroyed += 1
+	for unit in enemy_units:
+		if not unit.alive:
+			continue
+		var target = combat_system.pick_closest_enemy(unit.position, player_units)
+		if combat_system.resolve_attack(unit, target):
+			GameState.player_units_destroyed += 1
+
+func _all_dead(units: Array) -> bool:
+	for unit in units:
+		if unit.alive:
+			return false
+	return true
+
+func _clear_selection() -> void:
+	for unit in player_units:
+		unit.selected = false
+	selected_units.clear()
+
+func _update_status_label(units_without_orders: int = -1) -> void:
+	if battle_state.stage == BATTLE_STATE_SCRIPT.Stage.DEPLOYMENT:
+		order_info.text = "Deployment Stage: place units wholly in your zone, then Engage Enemy."
+	elif battle_state.stage == BATTLE_STATE_SCRIPT.Stage.ENGAGEMENT:
+		var warning := ""
+		if units_without_orders > 0:
+			warning = " (%d units had no order)" % units_without_orders
+		order_info.text = "Engagement Stage: Turn %d%s" % [battle_state.turn, warning]
+	else:
+		order_info.text = "Consolidation: Player destroyed %d, Enemy destroyed %d" % [GameState.enemy_units_destroyed, GameState.player_units_destroyed]
+
+func _refresh_buttons() -> void:
+	engage_button.visible = battle_state.stage == BATTLE_STATE_SCRIPT.Stage.DEPLOYMENT
+	execute_button.visible = battle_state.stage == BATTLE_STATE_SCRIPT.Stage.ENGAGEMENT

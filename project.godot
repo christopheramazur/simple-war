@@ -19,6 +19,11 @@ config/description="High-narrative simulationist tabletop wargame. Digital table
 run/main_scene="res://src/ui/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
+[autoload]
+
+CampaignRuntime="*res://src/autoload/campaign_runtime.gd"
+GameState="*res://src/autoload/game_state.gd"
+
 [display]
 
 window/size/viewport_width=1280

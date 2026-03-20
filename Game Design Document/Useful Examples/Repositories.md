@@ -1,34 +1,100 @@
-# ECS
+# Useful Repositories
 
-## https://github.com/nilpunch/massive-ecs
-Using and ECS is the most straight-forward and reliable method of creating modular, component-driven actors and behaviors. We should look at alternatives if there are any but many projects reference this.
+This document tracks external tools and examples we are intentionally using to build a scalable Simple War foundation.
 
-# RTS
+## Core Foundation Addons
 
-## https://github.com/beyond-all-reason/Beyond-All-Reason
-There may be useful structural or organizational information for structuring largescale battles with many moving units. 
+### ECS - https://github.com/csprance/gecs
+**Why**: We want production-ready ECS patterns, query systems, relationships, and editor-facing workflows instead of maintaining a custom ECS runtime.
 
-## https://github.com/lampe-games/godot-open-rts
-There may be useful structural or organizational information specific to godot.
+**How we use it**:
+- Sector Map entities (plots, commanders, armies, links) become GECS entities/components.
+- Campaign systems become GECS systems (path requirements, activity availability, event/audit emission).
+- Relationship components model followers, ownership, and dependencies.
 
-# Movement 
+**Decision**: Primary ECS foundation for campaign and battle layers.
 
-## https://github.com/LeProfesseurStagiaire/rtsSelectionMoveDemo
-This demo repo shows off unit selection and movement in a way that would be very useful to adapt to Simple War. The formations and pathfinding especially lend themselves to the style of simultaneous-turnbased game we're trying to create. 
+### Unit Testing - https://github.com/bitwes/Gut
+**Why**: We need reliable regression coverage while building systemic campaign logic and battle resolution.
 
-Unlike a realtime example, Simple War is turn based, but from the demo video in this repo, this code should be able very desirable in our processes determining where the models and units will end up, their facing, their formation, and their pathfinding, especially if we can also use it to show movement previews. And just because simple war is turn based doesnt mean the resolution of its turns and functions cant have animations. 
+**How we use it**:
+- Unit tests for component/system behavior and campaign rule evaluators.
+- Integration smoke tests for PoC gameplay flow.
+- Event log replay tests to lock save/replay behavior.
 
-# Projectiles
+### Input Management - https://github.com/godotneers/G.U.I.D.E
+**Why**: Input prompts and mappings must support keyboard/mouse, gamepad, touchscreen/mobile, and future rebinding.
 
-## https://github.com/nikoladevelops/godot-blast-bullets-2d
-Emphasis on performance, if we end up using any sort of real collision/accuracy for projectiles and other interactive elements, this may be useful.
+**How we use it**:
+- Abstract input actions behind context-aware bindings.
+- Use prompt/icon capabilities for UI hints and accessibility.
+- Keep gameplay code independent from raw input devices.
 
-# Multiplayer
+### Graph Authoring - https://github.com/tehelka-gamedev/godot-custom-graph-editor
+**Why**: Sector maps are graph-based. Authoring, editing, and validating directed/undirected graph content benefits from dedicated graph tooling.
 
-## https://github.com/tatisgordon/Godot-Lobby
-A simple multiplayer lobby. May be able to work on top of or around this to implement our own multiplayer.
+**How we use it**:
+- Mapmaker workflow to author node/link topology and metadata.
+- Export/import graph data for campaign JSON pipelines.
+- Optional editor-side validation for invalid links or missing node metadata.
 
-# Modding
+### Scene Flow - https://github.com/esdg/GodotSceneManager
+**Why**: Campaigns and battles involve branching scene transitions that become harder to manage with manual path wiring alone.
 
-## https://github.com/KoBeWi/Godot-Universal-Mod-Manager
-Unsure if this is how we will want to approach modding or not. Asset and content creation is not high on PoC priority list but it should be considered.
+**How we use it**:
+- Visualize and maintain global scene transition graph.
+- Reduce hardcoded scene change logic in UI scripts.
+
+### Behavior Trees - https://github.com/bitbrain/beehave
+**Why**: Campaign AI and tactical battle decision logic benefit from modular, inspectable behavior trees.
+
+**How we use it**:
+- Commander/NPC strategic behavior in campaign activities.
+- Battle AI decision loops for movement, targeting, and order priorities.
+
+### Dialogue/Narrative Events - https://github.com/nathanhoad/godot_dialogue_manager
+**Why**: Campaign events and branching narrative choices should be data-driven and maintainable.
+
+**How we use it**:
+- Narrative activity plots and event nodes.
+- Choice/result branching with condition checks tied to campaign state.
+
+### Optional Physics Upgrade - https://github.com/appsinacup/godot-rapier-physics
+**Why**: Potentially useful if deterministic and serialized collision-heavy simulation becomes central in battle order resolution.
+
+**How we use it**:
+- Evaluate only if native physics limits deterministic replay requirements.
+- Keep as optional until battle collision depth justifies adoption.
+
+## Genre and Pattern References
+
+### RTS Selection/Movement - https://github.com/LeProfesseurStagiaire/rtsSelectionMoveDemo
+**Why**: Good reference for unit selection, movement previews, formation-facing controls.
+
+**How we use it**:
+- Sector map and battle movement preview UX (ghost/path visuals).
+- Selection model and drag interaction patterns.
+
+### Real-time Strategy Structure - https://github.com/philipbeaucamp/godot-rts-entity-controller
+**Why**: Useful architecture references for entity-heavy battlefield control loops.
+
+**How we use it**:
+- Reuse patterns for unit orchestration and system separation from UI.
+
+### Idle/Battlefield Hybrid - https://github.com/hhy0111/-territory-conquest-idle
+**Why**: Useful reference for automated progression and map/battlefield state loops.
+
+**How we use it**:
+- Event cadence ideas and passive progression patterns for campaign flow options.
+
+### Godot Official Demos - https://github.com/godotengine/godot-demo-projects/tree/master/2d
+**Why**: Canonical Godot implementation patterns for 2D systems, UI, navigation, and architecture.
+
+**How we use it**:
+- Targeted implementation references for specific subsystems.
+
+### RPG Architecture Reference - https://github.com/gdquest-demos/godot-open-rpg
+**Why**: Mature Godot project organization for content-heavy gameplay loops.
+
+**How we use it**:
+- Patterns for data-driven content, scene separation, and gameplay state management.
