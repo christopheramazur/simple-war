@@ -12,6 +12,7 @@ var destination: Vector2
 var selected: bool = false
 var has_order: bool = false
 var alive: bool = true
+var deployed: bool = false
 
 func _init(
 	p_id: String,

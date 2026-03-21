@@ -2,10 +2,14 @@
 extends EditorPlugin
 
 var gecs_editor_debugger = preload("res://addons/gecs/debug/gecs_editor_debugger.gd").new()
+var _ecs_autoload_added := false
 
 
 func _enter_tree():
-	add_autoload_singleton("ECS", "res://addons/gecs/ecs/ecs.gd")
+	# Avoid duplicating/removing an ECS autoload that the project may already define.
+	if not ProjectSettings.has_setting("autoload/ECS"):
+		add_autoload_singleton("ECS", "res://addons/gecs/ecs/ecs.gd")
+		_ecs_autoload_added = true
 	# Pass editor interface to debugger so it can select nodes
 	gecs_editor_debugger.editor_interface = get_editor_interface()
 	add_debugger_plugin(gecs_editor_debugger)
@@ -13,7 +17,8 @@ func _enter_tree():
 
 
 func _exit_tree():
-	remove_autoload_singleton("ECS")
+	if _ecs_autoload_added:
+		remove_autoload_singleton("ECS")
 	remove_debugger_plugin(gecs_editor_debugger)
 	# remove_gecs_project_setings()
 

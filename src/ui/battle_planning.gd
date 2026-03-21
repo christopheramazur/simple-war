@@ -31,7 +31,7 @@ func _ready() -> void:
 
 	deploy_button = Button.new()
 	deploy_button.text = "Deploy"
-	deploy_button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://src/ui/battlefield.tscn"))
+	deploy_button.pressed.connect(_on_deploy_pressed)
 	layout.add_child(deploy_button)
 	_update_deploy_state(army_button.button_pressed)
 
@@ -40,3 +40,8 @@ func _on_army_toggled(button: Button) -> void:
 
 func _update_deploy_state(selected: bool) -> void:
 	deploy_button.disabled = not selected
+
+func _on_deploy_pressed() -> void:
+	var result: Dictionary = CampaignRuntime.submit_intent("battleplanning.start")
+	if result.get("ok", false):
+		get_tree().change_scene_to_file("res://src/ui/battlefield.tscn")

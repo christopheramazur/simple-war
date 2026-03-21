@@ -19,7 +19,7 @@ func pick_closest_enemy(origin, enemies: Array) -> Variant:
 func resolve_attack(attacker, target) -> bool:
 	if attacker == null or target == null:
 		return false
-	var in_range: bool = attacker.position.distance_squared_to(target.position) <= (EFFECTIVE_RANGE * EFFECTIVE_RANGE)
+	var in_range: bool = is_in_range(attacker, target)
 	if not in_range:
 		return false
 	target.durability -= BASE_DAMAGE
@@ -27,3 +27,13 @@ func resolve_attack(attacker, target) -> bool:
 		target.alive = false
 		return true
 	return false
+
+func is_in_range(attacker, target) -> bool:
+	if attacker == null or target == null:
+		return false
+	return attacker.position.distance_squared_to(target.position) <= (EFFECTIVE_RANGE * EFFECTIVE_RANGE)
+
+func queued_damage(attacker, target) -> int:
+	if not is_in_range(attacker, target):
+		return 0
+	return BASE_DAMAGE
