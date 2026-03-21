@@ -5,6 +5,7 @@ const MENU_OVERLAY_SCRIPT := preload("res://src/ui/menu_overlay.gd")
 const BattlefieldLayout := preload("res://src/battle/runtime/battlefield_layout.gd")
 const BattlefieldCoordinateMapper := preload("res://src/battle/runtime/battlefield_coordinate_mapper.gd")
 const BattlefieldSimulation := preload("res://src/battle/runtime/battlefield_simulation.gd")
+const BattleWorldHost := preload("res://src/battle/runtime/battle_world_host.gd")
 
 var _mapper: BattlefieldCoordinateMapper = BattlefieldCoordinateMapper.new()
 ## Exposed for tests and tooling; prefer API on this Control for gameplay.
@@ -18,6 +19,7 @@ var execute_button: Button
 
 func _ready() -> void:
 	CampaignRuntime.reset_battle_session()
+	add_child(BattleWorldHost.new())
 	sim = BattlefieldSimulation.new(_mapper)
 	sim.camera_zoom_level = camera_zoom_level
 	sim.state_changed.connect(_on_sim_state_changed)
