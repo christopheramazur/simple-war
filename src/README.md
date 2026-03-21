@@ -4,7 +4,7 @@ This directory now hosts a rebuilt PoC baseline aligned with the latest ECS and 
 
 ## Layout
 
-- `autoload/` global game session state (`GameState`)
+- `autoload/` campaign session (`CampaignRuntime`) and GECS world bootstrap (`EcsWorldBootstrap`)
 - `battle/runtime/` battle state and unit runtime wrappers
 - `battle/systems/` movement, deployment, and minimal combat systems
 - `ui/` scene flow: main menu -> campaign planning -> sector map -> armybuilding -> battle planning -> battlefield

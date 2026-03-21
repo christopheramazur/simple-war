@@ -1,8 +1,9 @@
 extends Control
 
-const ARMYBUILDING_POINT := Vector2(320, 360)
-const BATTLE_POINT := Vector2(900, 220)
 const MENU_OVERLAY_SCRIPT := preload("res://src/ui/menu_overlay.gd")
+const SectorMapData := preload("res://src/campaign/sector_map_data.gd")
+
+var _map_data: Dictionary = {}
 
 var note_label: Label
 var commander_marker: ColorRect
@@ -12,32 +13,46 @@ var move_button: Button
 var start_battle_button: Button
 
 func _ready() -> void:
+	_map_data = SectorMapData.load_map_by_id(SectorMapData.POC_MAP_ID)
 	_create_canvas()
 	add_child(MENU_OVERLAY_SCRIPT.new())
 	_refresh_ui()
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.05), true)
-	draw_circle(ARMYBUILDING_POINT, 40.0, Color(0.2, 0.4, 0.8, 0.3))
-	draw_circle(BATTLE_POINT, 40.0, Color(0.8, 0.2, 0.2, 0.3))
-	draw_line(ARMYBUILDING_POINT, BATTLE_POINT, Color(0.7, 0.7, 0.8), 2.0, true)
+	var nodes: Dictionary = _map_data.get("nodes", {})
+	for plot_id: Variant in nodes.keys():
+		var pos: Vector2 = nodes[plot_id]
+		var meta: Dictionary = _map_data.get("node_meta", {}).get(plot_id, {})
+		var act: String = str(meta.get("activity_type", ""))
+		var fill: Color = Color(0.2, 0.4, 0.8, 0.3) if act == "armybuilding" else Color(0.8, 0.2, 0.2, 0.3)
+		draw_circle(pos, 40.0, fill)
+	for conn: Variant in _map_data.get("connections", []):
+		if typeof(conn) != TYPE_DICTIONARY:
+			continue
+		var from_id: String = str(conn.get("from", ""))
+		var to_id: String = str(conn.get("to", ""))
+		var p1: Vector2 = nodes.get(from_id, Vector2.ZERO)
+		var p2: Vector2 = nodes.get(to_id, Vector2.ZERO)
+		draw_line(p1, p2, Color(0.7, 0.7, 0.8), 2.0, true)
 
 func _create_canvas() -> void:
+	var map_title: String = str(_map_data.get("display_name", "Sector Map"))
 	var title: Label = Label.new()
-	title.text = "Sector Map"
+	title.text = map_title
 	title.position = Vector2(24, 16)
 	title.add_theme_font_size_override("font_size", 32)
 	add_child(title)
 
-	var army_label: Label = Label.new()
-	army_label.text = "Armybuilding"
-	army_label.position = ARMYBUILDING_POINT + Vector2(-45, 50)
-	add_child(army_label)
-
-	var battle_label: Label = Label.new()
-	battle_label.text = "Battle"
-	battle_label.position = BATTLE_POINT + Vector2(-20, 50)
-	add_child(battle_label)
+	var nodes: Dictionary = _map_data.get("nodes", {})
+	var meta: Dictionary = _map_data.get("node_meta", {})
+	for plot_id: Variant in nodes.keys():
+		var pos: Vector2 = nodes[plot_id]
+		var plot_label: Label = Label.new()
+		var nm: Dictionary = meta.get(plot_id, {})
+		plot_label.text = str(nm.get("title", str(plot_id)))
+		plot_label.position = pos + Vector2(-60, 50)
+		add_child(plot_label)
 
 	commander_marker = ColorRect.new()
 	commander_marker.color = Color(1.0, 0.85, 0.35)
@@ -77,9 +92,10 @@ func _create_canvas() -> void:
 
 func _refresh_ui() -> void:
 	var projection: Dictionary = CampaignRuntime.get_sector_projection()
-	var commander_at_battle: bool = projection.get("moved_to_battle_plot", false)
 	var army_selected: bool = projection.get("army_selected", false)
-	var commander_position: Vector2 = BATTLE_POINT if commander_at_battle else ARMYBUILDING_POINT
+	var plot_id: String = str(projection.get("current_plot_id", "armybuilding"))
+	var nodes: Dictionary = _map_data.get("nodes", {})
+	var commander_position: Vector2 = nodes.get(plot_id, Vector2.ZERO)
 	commander_marker.position = commander_position - (commander_marker.size * 0.5)
 	army_marker.visible = army_selected
 	army_marker.position = commander_position + Vector2(14, -4)
@@ -99,6 +115,4 @@ func _on_move_pressed() -> void:
 		_refresh_ui()
 
 func _on_start_battle_pressed() -> void:
-	var result: Dictionary = CampaignRuntime.submit_intent("battleplanning.start")
-	if result.get("ok", false):
-		get_tree().change_scene_to_file("res://src/ui/battle_planning.tscn")
+	get_tree().change_scene_to_file("res://src/ui/battle_planning.tscn")

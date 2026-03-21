@@ -31,7 +31,6 @@ func _ready() -> void:
 	root.add_child(quit_game)
 
 func _on_quick_play_pressed() -> void:
-	GameState.reset_quick_play()
 	CampaignRuntime.start_quickplay()
 	get_tree().change_scene_to_file("res://src/ui/campaign_planning.tscn")
 

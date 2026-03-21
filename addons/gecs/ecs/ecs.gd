@@ -44,8 +44,11 @@ var world: World:
 		world = value
 		if world:
 			if not world.is_inside_tree():
-				# Add the world to the tree if it is not already
-				get_tree().root.get_node("./Root").add_child(world)
+				# Prefer legacy "Root" host if present; otherwise parent to the window root (persists across change_scene).
+				var host: Node = get_tree().root.get_node_or_null("./Root")
+				if host == null:
+					host = get_tree().root
+				host.add_child(world)
 			if not world.is_connected("tree_exited", _on_world_exited):
 				world.connect("tree_exited", _on_world_exited)
 			
@@ -81,6 +84,8 @@ var wildcard = null
 ## Example:
 ## 	[codeblock]ECS.world.process(world, 'my-system-group')[/codeblock]
 func process(delta: float, group: String = "") -> void:
+	if world == null:
+		return
 	world.process(delta, group)
 
 

@@ -9,6 +9,11 @@ var campaign_entity: Dictionary = {}
 var commander_entity: Dictionary = {}
 var validator := VALIDATOR_SCRIPT.new()
 
+## Current engagement battle stats (single source of truth; UI reads these during consolidation).
+var engagement_turn: int = 1
+var player_units_destroyed: int = 0
+var enemy_units_destroyed: int = 0
+
 func _ready() -> void:
 	start_quickplay()
 
@@ -20,8 +25,14 @@ func start_quickplay() -> void:
 	commander_entity = {
 		"commander": COMMANDER_COMPONENT.new()
 	}
+	reset_battle_session()
 	_append_event("campaign.started", {})
 	_rebuild_projection()
+
+func reset_battle_session() -> void:
+	engagement_turn = 1
+	player_units_destroyed = 0
+	enemy_units_destroyed = 0
 
 func submit_intent(intent_type: String, payload: Dictionary = {}) -> Dictionary:
 	var validation: Dictionary = validator.validate(intent_type, commander_entity, campaign_entity)
@@ -37,6 +48,7 @@ func get_sector_projection() -> Dictionary:
 	return {
 		"army_selected": commander.army_selected,
 		"moved_to_battle_plot": commander.moved_to_battle_plot,
+		"current_plot_id": commander.current_plot_id,
 		"can_begin_activity": not commander.army_selected,
 		"can_move": commander.army_selected and not commander.moved_to_battle_plot,
 		"can_start_battle": commander.moved_to_battle_plot,
@@ -69,14 +81,15 @@ func _apply_intent(intent_type: String, payload: Dictionary) -> void:
 			_append_event("sector.commander.moved", {"to_plot": "battle"})
 		"battleplanning.start":
 			commander.battle_planning_ready = true
+			reset_battle_session()
 			_append_event("battleplanning.started", {"army_name": commander.selected_army_name})
 			_append_event("battle.started", {})
 		"battle.resolve":
-			var player_units_destroyed: int = int(payload.get("player_units_destroyed", 0))
-			var enemy_units_destroyed: int = int(payload.get("enemy_units_destroyed", 0))
+			var p_lost: int = int(payload.get("player_units_destroyed", self.player_units_destroyed))
+			var e_lost: int = int(payload.get("enemy_units_destroyed", self.enemy_units_destroyed))
 			_append_event("battle.resolved", {
-				"player_units_destroyed": player_units_destroyed,
-				"enemy_units_destroyed": enemy_units_destroyed
+				"player_units_destroyed": p_lost,
+				"enemy_units_destroyed": e_lost
 			})
 		_:
 			push_warning("CampaignRuntime ignored unknown intent: %s" % intent_type)
