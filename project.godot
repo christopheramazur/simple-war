@@ -24,6 +24,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 CampaignRuntime="*res://src/autoload/campaign_runtime.gd"
 ECS="*res://addons/gecs/ecs/ecs.gd"
 EcsWorldBootstrap="*res://src/autoload/ecs_world_bootstrap.gd"
+GUIDE="*res://addons/guide/guide.gd"
 
 [debug]
 

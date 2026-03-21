@@ -6,8 +6,11 @@ const BattlefieldLayout := preload("res://src/battle/runtime/battlefield_layout.
 const BattlefieldCoordinateMapper := preload("res://src/battle/runtime/battlefield_coordinate_mapper.gd")
 const BattlefieldSimulation := preload("res://src/battle/runtime/battlefield_simulation.gd")
 const BattleWorldHost := preload("res://src/battle/runtime/battle_world_host.gd")
+const BattlefieldGuideBindings := preload("res://src/input/battlefield_guide_bindings.gd")
 
 var _mapper: BattlefieldCoordinateMapper = BattlefieldCoordinateMapper.new()
+var _guide: Node
+var _guide_bindings: BattlefieldGuideBindings
 ## Exposed for tests and tooling; prefer API on this Control for gameplay.
 var sim: BattlefieldSimulation
 
@@ -18,6 +21,7 @@ var engage_button: Button
 var execute_button: Button
 
 func _ready() -> void:
+	_guide = get_node("/root/GUIDE")
 	CampaignRuntime.reset_battle_session()
 	add_child(BattleWorldHost.new())
 	sim = BattlefieldSimulation.new(_mapper)
@@ -26,6 +30,7 @@ func _ready() -> void:
 	sim.notice.connect(_on_sim_notice)
 	add_child(MENU_OVERLAY_SCRIPT.new())
 	_create_ui()
+	_setup_guide_input()
 	sim.spawn_poc_units()
 	_refresh_from_sim()
 
@@ -45,31 +50,50 @@ func _refresh_from_sim(_units_without_orders: int = -1) -> void:
 	engage_button.disabled = sim.engage_button_disabled()
 	execute_button.visible = sim.execute_button_visible()
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion:
-		if event.button_mask & MOUSE_BUTTON_MASK_LEFT:
-			sim.handle_left_drag(event.position)
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			sim.handle_left_press(event.position)
-		else:
-			sim.handle_left_release(event.position)
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-		_show_stage_context_menu()
-	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
-			if sim.battle_state.stage == BattleState.Stage.DEPLOYMENT:
-				_on_engage_pressed()
-			elif sim.battle_state.stage == BattleState.Stage.ENGAGEMENT:
-				_on_execute_pressed()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
-		camera_zoom_level = max(0, camera_zoom_level - 1)
-		sim.camera_zoom_level = camera_zoom_level
-		queue_redraw()
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
-		camera_zoom_level = min(2, camera_zoom_level + 1)
-		sim.camera_zoom_level = camera_zoom_level
-		queue_redraw()
+func _exit_tree() -> void:
+	if _guide_bindings != null and _guide != null:
+		_guide.disable_mapping_context(_guide_bindings.mapping_context)
+
+func _process(_delta: float) -> void:
+	if _guide_bindings == null:
+		return
+	if _guide_bindings.primary_click.is_triggered():
+		sim.handle_left_drag(get_viewport().get_mouse_position())
+
+func _setup_guide_input() -> void:
+	_guide_bindings = BattlefieldGuideBindings.new()
+	_guide.enable_mapping_context(_guide_bindings.mapping_context, true, 0)
+	_guide_bindings.primary_click.just_triggered.connect(_on_guide_primary_pressed)
+	_guide_bindings.primary_click.completed.connect(_on_guide_primary_completed)
+	_guide_bindings.secondary_click.just_triggered.connect(_on_guide_secondary)
+	_guide_bindings.wheel_up.just_triggered.connect(_on_guide_wheel_up)
+	_guide_bindings.wheel_down.just_triggered.connect(_on_guide_wheel_down)
+	_guide_bindings.confirm.just_triggered.connect(_on_guide_confirm)
+
+func _on_guide_primary_pressed() -> void:
+	sim.handle_left_press(get_viewport().get_mouse_position())
+
+func _on_guide_primary_completed() -> void:
+	sim.handle_left_release(get_viewport().get_mouse_position())
+
+func _on_guide_secondary() -> void:
+	_show_stage_context_menu()
+
+func _on_guide_wheel_up() -> void:
+	camera_zoom_level = max(0, camera_zoom_level - 1)
+	sim.camera_zoom_level = camera_zoom_level
+	queue_redraw()
+
+func _on_guide_wheel_down() -> void:
+	camera_zoom_level = min(2, camera_zoom_level + 1)
+	sim.camera_zoom_level = camera_zoom_level
+	queue_redraw()
+
+func _on_guide_confirm() -> void:
+	if sim.battle_state.stage == BattleState.Stage.DEPLOYMENT:
+		_on_engage_pressed()
+	elif sim.battle_state.stage == BattleState.Stage.ENGAGEMENT:
+		_on_execute_pressed()
 
 func _draw() -> void:
 	var board_rect := _mapper.board_rect()
@@ -138,30 +162,35 @@ func _draw_deployment_reserves(_board_rect: Rect2) -> void:
 		var selected := sim.selected_reserve_units.has(unit)
 		draw_rect(rect, Color(0.25, 0.7, 1.0, 0.35 if selected else 0.2), true)
 		draw_rect(rect, Color(0.95, 0.95, 0.4, 1.0) if selected else Color(0.25, 0.7, 1.0, 0.85), false)
-		_draw_mini_formation(rect.position + rect.size * 0.5, 0.45, true)
-
-func _formation_offsets_world() -> Array[Vector2]:
-	var out: Array[Vector2] = []
-	for rank in range(BattlefieldLayout.FORMATION_RANKS):
-		for file in range(BattlefieldLayout.FORMATION_FILES):
-			var fx := (float(file) - 2.0) * BattlefieldLayout.MODEL_DIAMETER_WORLD
-			var fy := (0.5 - float(rank)) * BattlefieldLayout.MODEL_DIAMETER_WORLD
-			out.append(Vector2(fx, fy))
-	return out
+		_draw_mini_formation(rect.position + rect.size * 0.5, 0.45, true, unit)
 
 func _formation_offsets_for_unit(unit) -> Array[Vector2]:
-	var all := _formation_offsets_world()
-	var n: int = mini(unit.model_count, all.size())
+	var files: int = unit.formation_files
+	var ranks: int = unit.formation_ranks
+	var d: float = unit.model_diameter_world
+	var mid_file := (float(files) - 1.0) * 0.5
 	var out: Array[Vector2] = []
+	for rank in range(ranks):
+		for file in range(files):
+			var fx := (float(file) - mid_file) * d
+			var fy := (0.5 - float(rank)) * d
+			out.append(Vector2(fx, fy))
+	var n: int = mini(unit.model_count, out.size())
+	var trimmed: Array[Vector2] = []
 	for i in range(n):
-		out.append(all[i])
-	return out
+		trimmed.append(out[i])
+	return trimmed
 
-func _draw_mini_formation(center: Vector2, half_span: float, is_player: bool) -> void:
+func _draw_mini_formation(center: Vector2, half_span: float, is_player: bool, unit) -> void:
 	var col := Color(0.35, 0.75, 1.0) if is_player else Color(1.0, 0.45, 0.45)
-	for rank in range(BattlefieldLayout.FORMATION_RANKS):
-		for file in range(BattlefieldLayout.FORMATION_FILES):
-			var lx := (float(file) - 2.0) / 2.0 * half_span
+	var files: int = unit.formation_files
+	var ranks: int = unit.formation_ranks
+	var mid_file := (float(files) - 1.0) * 0.5
+	for rank in range(ranks):
+		for file in range(files):
+			var lx := 0.0
+			if files > 1:
+				lx = (float(file) - mid_file) / mid_file * half_span
 			var ly := (0.5 - float(rank)) * 3.5
 			draw_circle(center + Vector2(lx, ly), 1.4, col)
 
@@ -186,7 +215,7 @@ func _draw_unit_models(_board_rect: Rect2, unit, base_world: Vector2, is_player:
 		base_col.a = 0.28
 	else:
 		base_col.a = 0.92
-	var r_screen := (BattlefieldLayout.MODEL_DIAMETER_WORLD * 0.5) * BattlefieldLayout.WORLD_SCALE * 0.92
+	var r_screen: float = (unit.model_diameter_world * 0.5) * BattlefieldLayout.WORLD_SCALE * 0.92
 	for off in _formation_offsets_for_unit(unit):
 		var s := _mapper.world_to_screen(base_world + off)
 		draw_circle(s, r_screen, base_col)
