@@ -1,7 +1,7 @@
 # Tooling Suitability Matrix
 
 **Status**: Draft  
-**Last Updated**: 2026-03-20  
+**Last Updated**: 2026-03-21  
 **Purpose**: Discovery output for `simple-war-uuh.1` covering adoption decisions for core tools/addons.
 
 ---
@@ -24,7 +24,7 @@
 | godot-custom-graph-editor | Medium-high | Medium | Medium | Evaluate prototype first | Strong map-authoring fit, but needs validation against campaign data pipeline |
 | Beehave | High | Medium | Medium | Adopt soon | Good fit for scalable AI behavior trees in campaign and battle |
 | Dialogue Manager | High | Low-medium | Low-medium | Adopt soon | Good fit for branching narrative events and campaign choices |
-| GodotSceneManager | Medium | Medium | Medium | Evaluate prototype first | Useful for scene flow, but may overlap with lightweight custom flow management |
+| GodotSceneManager | Medium | Medium | Medium | Evaluate prototype first | Useful for scene flow, but may overlap with lightweight custom flow management. **Spike**: [Scene_Routing_Spike.md](./Scene_Routing_Spike.md) — defer plugin until branching/transitions justify it; prefer thin in-repo path helper first. |
 | Rapier Physics | Low-medium (current scope) | Medium | Medium-high | Hold for later | Not needed for current campaign map foundation; revisit for deterministic collision-heavy simulation |
 | rtsSelectionMoveDemo | Medium (reference) | Low | Low | Reference-only | Useful movement/selection patterns and visual preview ideas |
 | godot-rts-entity-controller | Medium (reference) | Medium | Low | Reference-only | Useful architecture ideas for entity-heavy control loops |
@@ -45,7 +45,7 @@
 
 ### Phase 3 (prototype validation)
 1. Build small spike for graph authoring workflow with custom graph editor.
-2. Build small spike for Scene Manager if scene branching complexity grows.
+2. Scene routing: [Scene_Routing_Spike.md](./Scene_Routing_Spike.md) documents GodotSceneManager vs in-repo router; prototype **GodotSceneManager** only if branching/transitions outgrow thin helpers.
 
 ### Phase 4 (conditional)
 1. Evaluate Rapier if deterministic physics serialization becomes a hard requirement.
