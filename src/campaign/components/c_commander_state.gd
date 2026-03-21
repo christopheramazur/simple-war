@@ -1,5 +1,5 @@
 class_name C_CommanderState
-extends RefCounted
+extends Component
 
 @export var current_plot_id: String = "armybuilding"
 @export var army_selected: bool = false

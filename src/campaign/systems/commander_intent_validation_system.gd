@@ -1,12 +1,12 @@
 class_name CommanderIntentValidationSystem
 extends RefCounted
 
-const FLOW_COMPONENT := preload("res://src/campaign/components/c_campaign_flow.gd")
-const COMMANDER_COMPONENT := preload("res://src/campaign/components/c_commander_state.gd")
+const SCRIPT_FLOW := "res://src/campaign/components/c_campaign_flow.gd"
+const SCRIPT_COMMANDER := "res://src/campaign/components/c_commander_state.gd"
 
-func validate(intent_type: String, commander_entity: Dictionary, campaign_entity: Dictionary) -> Dictionary:
-	var flow = campaign_entity.get("flow")
-	var commander = commander_entity.get("commander")
+func validate(intent_type: String, commander_e: Entity, campaign_e: Entity) -> Dictionary:
+	var flow: C_CampaignFlow = campaign_e.components.get(SCRIPT_FLOW) as C_CampaignFlow
+	var commander: C_CommanderState = commander_e.components.get(SCRIPT_COMMANDER) as C_CommanderState
 	match intent_type:
 		"armybuilding.select":
 			return {"ok": true}

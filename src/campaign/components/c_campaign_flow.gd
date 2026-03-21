@@ -1,5 +1,5 @@
 class_name C_CampaignFlow
-extends RefCounted
+extends Component
 
 @export var phase: String = "Opening"
 @export var route_target: String = "res://src/ui/campaign_planning.tscn"

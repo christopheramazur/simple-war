@@ -1,41 +1,95 @@
 extends Node
 
-const FLOW_COMPONENT := preload("res://src/campaign/components/c_campaign_flow.gd")
-const COMMANDER_COMPONENT := preload("res://src/campaign/components/c_commander_state.gd")
-const AUDIT_COMPONENT := preload("res://src/campaign/components/c_audit_log.gd")
 const VALIDATOR_SCRIPT := preload("res://src/campaign/systems/commander_intent_validation_system.gd")
+const SCRIPT_FLOW := "res://src/campaign/components/c_campaign_flow.gd"
+const SCRIPT_AUDIT := "res://src/campaign/components/c_audit_log.gd"
+const SCRIPT_COMMANDER := "res://src/campaign/components/c_commander_state.gd"
+const SCRIPT_BATTLE := "res://src/campaign/components/c_battle_session.gd"
+const CompBattle := preload("res://src/campaign/components/c_battle_session.gd")
 
-var campaign_entity: Dictionary = {}
-var commander_entity: Dictionary = {}
+var _campaign_entity: Entity = null
+var _commander_entity: Entity = null
 var validator := VALIDATOR_SCRIPT.new()
 
-## Current engagement battle stats (single source of truth; UI reads these during consolidation).
-var engagement_turn: int = 1
-var player_units_destroyed: int = 0
-var enemy_units_destroyed: int = 0
+## Mirrors battle session component for UI and battlefield (single source: ECS component).
+var engagement_turn: int:
+	get:
+		var b: Variant = _battle_session()
+		return b.engagement_turn if b else 1
+	set(value):
+		var b: Variant = _battle_session()
+		if b:
+			b.engagement_turn = value as int
+
+var player_units_destroyed: int:
+	get:
+		var b: Variant = _battle_session()
+		return b.player_units_destroyed if b else 0
+	set(value):
+		var b: Variant = _battle_session()
+		if b:
+			b.player_units_destroyed = value as int
+
+var enemy_units_destroyed: int:
+	get:
+		var b: Variant = _battle_session()
+		return b.enemy_units_destroyed if b else 0
+	set(value):
+		var b: Variant = _battle_session()
+		if b:
+			b.enemy_units_destroyed = value as int
 
 func _ready() -> void:
+	if ECS.world != null:
+		start_quickplay()
+	else:
+		ECS.world_changed.connect(_on_world_ready, CONNECT_ONE_SHOT)
+
+func _on_world_ready(_world: World) -> void:
 	start_quickplay()
 
 func start_quickplay() -> void:
-	campaign_entity = {
-		"flow": FLOW_COMPONENT.new(),
-		"audit": AUDIT_COMPONENT.new()
-	}
-	commander_entity = {
-		"commander": COMMANDER_COMPONENT.new()
-	}
+	if ECS.world == null:
+		push_error("CampaignRuntime.start_quickplay: ECS.world is null")
+		return
+	_cleanup_campaign_entities()
+	var c_ent := Entity.new()
+	c_ent.name = "Campaign"
+	c_ent.add_component(C_CampaignFlow.new())
+	c_ent.add_component(C_AuditLog.new())
+	c_ent.add_component(CompBattle.new())
+	ECS.world.add_entity(c_ent)
+	var cmd_ent := Entity.new()
+	cmd_ent.name = "Commander"
+	cmd_ent.add_component(C_CommanderState.new())
+	ECS.world.add_entity(cmd_ent)
+	_campaign_entity = c_ent
+	_commander_entity = cmd_ent
 	reset_battle_session()
 	_append_event("campaign.started", {})
 	_rebuild_projection()
 
+func _cleanup_campaign_entities() -> void:
+	if ECS.world == null:
+		return
+	if is_instance_valid(_commander_entity):
+		ECS.world.remove_entity(_commander_entity)
+		_commander_entity = null
+	if is_instance_valid(_campaign_entity):
+		ECS.world.remove_entity(_campaign_entity)
+		_campaign_entity = null
+
 func reset_battle_session() -> void:
-	engagement_turn = 1
-	player_units_destroyed = 0
-	enemy_units_destroyed = 0
+	var b: Variant = _battle_session()
+	if b:
+		b.engagement_turn = 1
+		b.player_units_destroyed = 0
+		b.enemy_units_destroyed = 0
 
 func submit_intent(intent_type: String, payload: Dictionary = {}) -> Dictionary:
-	var validation: Dictionary = validator.validate(intent_type, commander_entity, campaign_entity)
+	if not is_instance_valid(_commander_entity) or not is_instance_valid(_campaign_entity):
+		return {"ok": false, "reason": "Campaign not initialized"}
+	var validation: Dictionary = validator.validate(intent_type, _commander_entity, _campaign_entity)
 	if not validation.get("ok", false):
 		return validation
 	_apply_intent(intent_type, payload)
@@ -43,8 +97,19 @@ func submit_intent(intent_type: String, payload: Dictionary = {}) -> Dictionary:
 	return {"ok": true}
 
 func get_sector_projection() -> Dictionary:
-	var commander = commander_entity.get("commander")
-	var flow = campaign_entity.get("flow")
+	var commander: C_CommanderState = _commander()
+	var flow: C_CampaignFlow = _flow()
+	if commander == null or flow == null:
+		return {
+			"army_selected": false,
+			"moved_to_battle_plot": false,
+			"current_plot_id": "armybuilding",
+			"can_begin_activity": true,
+			"can_move": false,
+			"can_start_battle": false,
+			"route_target": "res://src/ui/armybuilding.tscn",
+			"note_text": "Loading…"
+		}
 	return {
 		"army_selected": commander.army_selected,
 		"moved_to_battle_plot": commander.moved_to_battle_plot,
@@ -57,15 +122,35 @@ func get_sector_projection() -> Dictionary:
 	}
 
 func get_selected_army_name() -> String:
-	var commander = commander_entity.get("commander")
-	return commander.selected_army_name
+	var c: C_CommanderState = _commander()
+	return c.selected_army_name if c else ""
 
 func get_event_count() -> int:
-	var log = campaign_entity.get("audit")
-	return log.events.size()
+	var a: C_AuditLog = _audit()
+	return a.events.size() if a else 0
+
+func _flow() -> C_CampaignFlow:
+	if not is_instance_valid(_campaign_entity):
+		return null
+	return _campaign_entity.components.get(SCRIPT_FLOW) as C_CampaignFlow
+
+func _commander() -> C_CommanderState:
+	if not is_instance_valid(_commander_entity):
+		return null
+	return _commander_entity.components.get(SCRIPT_COMMANDER) as C_CommanderState
+
+func _audit() -> C_AuditLog:
+	if not is_instance_valid(_campaign_entity):
+		return null
+	return _campaign_entity.components.get(SCRIPT_AUDIT) as C_AuditLog
+
+func _battle_session() -> Variant:
+	if not is_instance_valid(_campaign_entity):
+		return null
+	return _campaign_entity.components.get(SCRIPT_BATTLE)
 
 func _apply_intent(intent_type: String, payload: Dictionary) -> void:
-	var commander = commander_entity.get("commander")
+	var commander: C_CommanderState = _commander()
 	match intent_type:
 		"campaign.embark":
 			_append_event("campaign.embarked", {})
@@ -95,8 +180,8 @@ func _apply_intent(intent_type: String, payload: Dictionary) -> void:
 			push_warning("CampaignRuntime ignored unknown intent: %s" % intent_type)
 
 func _rebuild_projection() -> void:
-	var flow = campaign_entity.get("flow")
-	var commander = commander_entity.get("commander")
+	var flow: C_CampaignFlow = _flow()
+	var commander: C_CommanderState = _commander()
 	if not commander.army_selected:
 		flow.phase = "Opening"
 		flow.route_target = "res://src/ui/armybuilding.tscn"
@@ -115,11 +200,11 @@ func _rebuild_projection() -> void:
 		flow.note_text = "Battle engaged."
 
 func _append_event(event_type: String, payload: Dictionary) -> void:
-	var log = campaign_entity.get("audit")
+	var audit_log: C_AuditLog = _audit()
 	var event_payload: Dictionary = {
-		"seq": log.next_seq,
+		"seq": audit_log.next_seq,
 		"type": event_type,
 		"payload": payload.duplicate(true)
 	}
-	log.events.append(event_payload)
-	log.next_seq += 1
+	audit_log.events.append(event_payload)
+	audit_log.next_seq += 1
