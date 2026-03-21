@@ -72,7 +72,7 @@ func _refresh_ui() -> void:
 
 func _on_begin_activity_pressed() -> void:
 	var projection: Dictionary = CampaignRuntime.get_sector_projection()
-	get_tree().change_scene_to_file(str(projection.get("route_target", "res://src/ui/armybuilding.tscn")))
+	SceneRoutes.go(get_tree(), str(projection.get("route_target", SceneRoutes.ARMYBUILDING)))
 
 func _on_move_pressed() -> void:
 	var result: Dictionary = CampaignRuntime.submit_intent("sector.move_to_battle")
@@ -80,4 +80,4 @@ func _on_move_pressed() -> void:
 		_refresh_ui()
 
 func _on_start_battle_pressed() -> void:
-	get_tree().change_scene_to_file("res://src/ui/battle_planning.tscn")
+	SceneRoutes.go_to_battle_planning(get_tree())

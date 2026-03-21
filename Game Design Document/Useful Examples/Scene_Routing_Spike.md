@@ -86,7 +86,7 @@ Community “scene manager” addons (e.g. glass-brick Scene-Manager, YASM, fade
 
 | Item | Trigger |
 |------|--------|
-| Introduce `SceneRoutes` / thin router | Third duplicate path or second bug from typo |
+| Introduce `SceneRoutes` / thin router | **Done** — `res://src/scene_routes.gd` (`class_name SceneRoutes`), UI uses `SceneRoutes.go_*` / `go`. |
 | Prototype GodotSceneManager in a branch | Designer-driven transition graph + >~10–12 distinct screen hops |
 | Document scene + intent matrix | When `battleplanning.start` and siblings multiply |
 

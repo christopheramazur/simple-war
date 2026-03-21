@@ -32,7 +32,7 @@ func _show_menu(anchor_node: Node) -> void:
 func _on_menu_item_pressed(id: int) -> void:
 	match id:
 		1:
-			get_tree().change_scene_to_file("res://src/ui/main_menu.tscn")
+			SceneRoutes.go_to_main_menu(get_tree())
 		2:
 			push_warning("Settings are not implemented in PoC yet.")
 		3:

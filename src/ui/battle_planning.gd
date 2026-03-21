@@ -23,4 +23,4 @@ func _update_deploy_state(selected: bool) -> void:
 func _on_deploy_pressed() -> void:
 	var result: Dictionary = CampaignRuntime.submit_intent("battleplanning.start")
 	if result.get("ok", false):
-		get_tree().change_scene_to_file("res://src/ui/battlefield.tscn")
+		SceneRoutes.go_to_battlefield(get_tree())

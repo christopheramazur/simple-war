@@ -11,8 +11,8 @@ func _ready() -> void:
 	back_button.pressed.connect(_on_back_pressed)
 
 func _on_back_pressed() -> void:
-	get_tree().change_scene_to_file("res://src/ui/sector_map.tscn")
+	SceneRoutes.go_to_sector_map(get_tree())
 
 func _on_militia_selected() -> void:
 	CampaignRuntime.submit_intent("armybuilding.select", {"army_name": "Militia"})
-	get_tree().change_scene_to_file("res://src/ui/sector_map.tscn")
+	SceneRoutes.go_to_sector_map(get_tree())

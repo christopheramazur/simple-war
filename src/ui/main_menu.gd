@@ -32,7 +32,7 @@ func _ready() -> void:
 
 func _on_quick_play_pressed() -> void:
 	CampaignRuntime.start_quickplay()
-	get_tree().change_scene_to_file("res://src/ui/campaign_planning.tscn")
+	SceneRoutes.go_to_campaign_planning(get_tree())
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()

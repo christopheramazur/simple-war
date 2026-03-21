@@ -32,13 +32,13 @@ func _ready() -> void:
 
 	var back_button: Button = Button.new()
 	back_button.text = "Back"
-	back_button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://src/ui/main_menu.tscn"))
+	back_button.pressed.connect(func() -> void: SceneRoutes.go_to_main_menu(get_tree()))
 	button_row.add_child(back_button)
 
 	var embark_button: Button = Button.new()
 	embark_button.text = "Embark"
 	embark_button.pressed.connect(func() -> void:
 		CampaignRuntime.submit_intent("campaign.embark")
-		get_tree().change_scene_to_file("res://src/ui/sector_map.tscn")
+		SceneRoutes.go_to_sector_map(get_tree())
 	)
 	button_row.add_child(embark_button)

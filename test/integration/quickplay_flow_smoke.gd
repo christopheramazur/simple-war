@@ -1,17 +1,9 @@
 extends SceneTree
 
-const FLOW_SCENES := [
-	"res://src/ui/main_menu.tscn",
-	"res://src/ui/campaign_planning.tscn",
-	"res://src/ui/sector_map.tscn",
-	"res://src/ui/armybuilding.tscn",
-	"res://src/ui/sector_map.tscn",
-	"res://src/ui/battle_planning.tscn",
-	"res://src/ui/battlefield.tscn"
-]
+const _SceneRoutes := preload("res://src/scene_routes.gd")
 
 func _initialize() -> void:
-	for scene_path in FLOW_SCENES:
+	for scene_path: String in _SceneRoutes.QUICKPLAY_SMOKE_FLOW:
 		var packed: PackedScene = load(scene_path)
 		if packed == null:
 			push_error("Failed to load scene: %s" % scene_path)
