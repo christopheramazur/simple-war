@@ -8,11 +8,7 @@ This document tracks external tools and examples we are intentionally using to b
 **Why**: We want production-ready ECS patterns, query systems, relationships, and editor-facing workflows instead of maintaining a custom ECS runtime.
 
 **How we use it**:
-- Sector Map entities (plots, commanders, armies, links) become GECS entities/components.
-- Campaign systems become GECS systems (path requirements, activity availability, event/audit emission).
-- Relationship components model followers, ownership, and dependencies.
-
-**Decision**: Primary ECS foundation for campaign and battle layers.
+We want composition to heavily replace inheritance patterns, and to prioritize ensuring entities have the appropriate context and listening/emitting capabilities to manage the game state. Instead of a CampaignBattleList with CampaignBattles that have CampaignBattleBattlefields and CampaignBattleScores, all of which have to have their configuration and behavior be built beforehand, we build the Battle when it's appropriate, and give it the components it needs as it needs them such as the battlefield, and it tells everything that is listening for it that a battle is ready to take place on it. 
 
 ### Unit Testing - https://github.com/bitwes/Gut
 **Why**: We need reliable regression coverage while building systemic campaign logic and battle resolution.
@@ -98,3 +94,34 @@ This document tracks external tools and examples we are intentionally using to b
 
 **How we use it**:
 - Patterns for data-driven content, scene separation, and gameplay state management.
+
+### Godot Game Template - https://github.com/nezvers/Godot-GameTemplate/blob/master/addons/top_down
+**Why**: Mature Godot project template for a variety of feature implementations.
+Menu system
+Full Screen
+Audio (Master, Music, Sounds)
+Button state style tweaning
+Pausing system
+Input Rebinding
+Frame by frame debug pausing (P - pause and advance, [ + P to unpause)
+Scene transition using shader on a screenshot
+precompile (Shader, CanvasMaterial, ParticleProcessMaterial) and preload scenes boot_load.tscn
+Node reference managment ReferenceNodeResource
+Easy instancing with configuration callbacks and dynamic instance pooling InstanceResource
+Static functions for threaded loading ThreadUtility
+Sound effect system SoundResource with autoloaded SoundManager
+Resource saving SaveableResource
+Data transmission system used for damage, pickups, obstacles AreaTransmitter
+Scene central data collection ResourceNode
+Enemy AI Astar grid path finding
+Enemy wave spawning
+
+**How we use it**:
+- Patterns for features.
+
+
+### Battle for Wesnoth - https://github.com/wesnoth/wesnoth/tree/master/src
+**Why** While not a godot game, Battle for Wesnoth is a fully mature game with many of the features we want.
+
+**How we use it**: 
+- Feature mining, structural inspiration

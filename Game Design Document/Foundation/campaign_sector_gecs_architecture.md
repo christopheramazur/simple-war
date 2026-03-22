@@ -8,17 +8,11 @@
 
 ## Overview
 
-The current Quickplay flow is functional but mostly scene-driven:
-
-- Scene transitions are triggered directly by UI scripts.
-- Progression is tracked through `GameState` flags such as `armybuilding_complete` and `commander_at_battle`.
-- Battle outcomes write summary counters directly to `GameState`.
-
-This design introduces a GECS runtime where:
+This design outlines a GECS implementation where:
 
 - Game state is represented by Entities and Components.
-- Progression is computed by Systems from component data, not button visibility conditions.
-- Every mutating action produces an append-only Event record for audit and replay.
+- Changes to the state are computed by Systems using component data. 
+- Every action produces an append-only Event record for audit and replay.
 
 ---
 

@@ -1,12 +1,17 @@
-# PoC
+# Foundation
 
 **Status**: Draft  
 **Last Updated**: 2026-02-14  
-**Purpose**: High-level overview of PoC intent
+**Purpose**: High-level overview of game foundation. 
 
 ---
 
 ## 1. Big picture
+
+Simple War is a turn-based strategy game. This genre is plagued with many repeat issues that turn players away. This means the foundation of our game must not only innovate, but avoid replicating these issues.
+
+### Gamepaly Innovation
+The main thing that we want to emphasize in Simple War to set it apart from other turn-based games is the simultaneous resolution for battles and combats. We aim to avoid the high technical and physical precision required for realtime strategy gameplay. 
 
 Players embark on Campaigns. Campaigns are composed of activities on a sector map. The Player takes on the narrative role of various Commanders during a Campaign. Each Commander has access to its own army and tracks its own position and influence on the sector map. 
 

@@ -18,6 +18,7 @@ alwaysApply: true
 - Prefer composition over inheritance where possible
 - Use signals for loose coupling between nodes
 - Follow Godot's node naming conventions (PascalCase for nodes, snake_case for methods)
+- Simulation state is first class; presentation interface has simple defaults
 
 ## Code Style
 

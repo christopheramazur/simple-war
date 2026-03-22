@@ -15,16 +15,14 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Simple War"
-config/description="High-narrative simulationist tabletop wargame. Digital tabletop version — simplified unit formations from a top-down strategic view."
+config/description="High-narrative simulationist turn-based strategy. 2D Exploration, 3D combat, all taking place simultaneously in a living campaign."
 run/main_scene="res://src/ui/main_menu.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
 [autoload]
 
-CampaignRuntime="*res://src/autoload/campaign_runtime.gd"
 ECS="*res://addons/gecs/ecs/ecs.gd"
-EcsWorldBootstrap="*res://src/autoload/ecs_world_bootstrap.gd"
-GUIDE="*res://addons/guide/guide.gd"
+GUIDE="*uid://p2jwrgjcbexr"
 
 [debug]
 
@@ -36,6 +34,10 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/custom_graph_editor/addons/custom_graph_editor/plugin.cfg", "res://addons/gecs/plugin.cfg", "res://addons/guide/plugin.cfg", "res://addons/gut/plugin.cfg")
 
 [rendering]
 
