@@ -1,0 +1,76 @@
+{
+  "maps": [
+    {
+      "id": "poc_sector_map",
+      "display_name": "Campaign PoC Sector",
+      "graph": {
+        "nodes": [
+          {
+            "id": "armybuilding",
+            "title": "Armybuilding",
+            "activity_type": "armybuilding",
+            "position": { "x": 320.0, "y": 360.0 },
+            "tags": ["activity_plot", "starter"]
+          },
+          {
+            "id": "battle",
+            "title": "Battle",
+            "activity_type": "battle",
+            "position": { "x": 900.0, "y": 220.0 },
+            "tags": ["activity_plot", "battle"]
+          }
+        ],
+        "connections": [
+          {
+            "id": "plot_path_1",
+            "from": "armybuilding",
+            "to": "battle",
+            "direction": "one_way",
+            "requirements": [
+              {
+                "type": "component_value",
+                "entity_ref": "player_commander_1",
+                "component": "army",
+                "path": "has_army",
+                "operator": "==",
+                "value": true
+              }
+            ],
+            "ui": {
+              "hint": "Requirements for travel: Build an army!"
+            }
+          }
+        ]
+      },
+      "entities": [
+        {
+          "id": "player_commander_1",
+          "type": "commander",
+          "components": {
+            "graph_node": { "node_id": "armybuilding" },
+            "commander": {
+              "display_name": "Commander",
+              "owner": "player_1",
+              "faction": "Concord"
+            },
+            "army": {
+              "has_army": false,
+              "roster_ref": "militia_roster"
+            }
+          }
+        },
+        {
+          "id": "player_army_1",
+          "type": "army_representation",
+          "components": {
+            "follows": { "entity_id": "player_commander_1" },
+            "army": {
+              "display_name": "Militia",
+              "owner": "player_1"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
