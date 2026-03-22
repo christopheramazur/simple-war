@@ -2,7 +2,13 @@
 alwaysApply: true
 ---
 
-# Godot 4.4 Game Development .cursorrules
+# Godot 4.* Game Development .cursorrules
+
+## Entity Component System (GECS)
+
+- **Stack:** [GECS](https://github.com/csprance/gecs) (`addons/gecs/`), autoload `ECS` in `project.godot`.
+- **Before implementing or refactoring gameplay simulation** (units, combat, campaign entities, AI, movement, resource/sim state, save/load of play entities): read and apply the project skill **`.cursor/skills/simple-war-gecs/SKILL.md`** so logic stays in **Systems**, state in **Components**, and entities go through **`ECS.world`** with GECS naming and export/`_init` rules.
+- **UI, menus, and thin presentation layers** may stay ordinary Godot nodes; they should consume ECS state rather than reimplement simulation data in node scripts.
 
 ## Core Development Guidelines
 
@@ -17,7 +23,7 @@ alwaysApply: true
 
 - Use type hints for all variables and function parameters
 - Document complex functions with docstrings
-- Keep methods focused and under 30 lines when possible
+- Keep methods focused
 - Use meaningful variable and function names
 - Group related properties and methods together
 
@@ -34,8 +40,8 @@ alwaysApply: true
 
 ## Scene Organization
 
-- Keep scene tree depth minimal for better performance
-- Use scene inheritance for reusable components
+- Keep scene tree depth minimal when it would improve performance
+- Use node and scene inheritance for reusable components
 - Implement proper scene cleanup on queue_free()
 - Use SubViewport nodes carefully due to performance impact
 - Provide step-by-step instructions to create Godot scene(s) instead of providing scene source code
@@ -73,10 +79,7 @@ alwaysApply: true
 - Log errors appropriately in production builds
 - Handle network errors gracefully in multiplayer games
 
-## TileMap Implementation
+## Audit and Replay
 
-- TileMap node is deprecated - use multiple TileMapLayer nodes instead
-- Convert existing TileMaps using the TileMap bottom panel toolbox option "Extract TileMap layers"
-- Access TileMap layers through TileMapLayer nodes
-- Update navigation code to use TileMapLayer.get_navigation_map()
-- Store layer-specific properties on individual TileMapLayer nodes
+- Every action produces an append-only Event record for audit and replay
+- We should be able to recreate a user session and game state deterministically from these audits
