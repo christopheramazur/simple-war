@@ -22,7 +22,7 @@ This document builds bottom-up: foundational concepts first (Entities, Component
 
 An Entity is a unique identifier (ID) in the game world. An Entity has no inherent data or behavior — all of its properties, capabilities, and state are defined by the Components attached to it. Being an Entity is the only prerequisite for an object to participate in the rules system — to be referenced by rules, to occupy Zones, and to interact with other Entities.
 
-Objects that are not Entities do not have Components and do not participate in the rules system. Examples of non-Entity objects: the Roster system, Score, Deployment (the process). These objects serve structural or bookkeeping roles but do not participate directly in the rules system.
+Objects that are not Entities do not have Components and do not participate in the rules system. Examples of non-Entity objects: the Roster system, Score, Deployment (the process). These objects serve structural or bookkeeping roles but do not participate directly in the rules system as Entities.
 
 ### 200.2 Components
 
@@ -31,9 +31,19 @@ A Component is a data structure attached to an Entity. An Entity's set of Compon
 Components are classified into the following categories:
 
 - **Data Components** hold structured state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex; an Attack Profile Component holds Category, Range, Damage Value, Damage Type).
-- **Marker Components (Tags)** carry no data beyond their presence. They are attached to Entities to provide keywords that group and differentiate Entities when determining whether rules affect them. A marker Component is a string identifier. Marker Components are case-sensitive.
+- **Marker Components (Tags)** carry no data beyond their presence. They are attached to Entities to provide keywords that group and differentiate Entities when determining whether rules affect them. At the rules level, a marker Component is a presence-only identifier attached to an Entity. Marker Components are case-sensitive.
 
 An Entity may have any number of Components, including zero or more marker Components. Adding or removing a Component from an Entity changes which rules and Systems apply to that Entity.
+
+**Implementation notes (Godot ECS patterns)**  
+The following are implementation strategies, not additional rules concepts. Rules continue to speak in terms of marker Components and their presence.
+
+- **Godot ECS add-on implementations** (such as frameworks that use `ECSComponent` or `ECSDataComponent`) typically represent a marker Component as a class that extends the framework's base Component type and declares no additional fields (or a single boolean flag used only for editor convenience). For example, an `InfantryTag` marker Component may be implemented as an empty GDScript class that extends `ECSComponent` and is attached to all Entities that should have the `Infantry` marker Component.
+- **Manual node-based ECS implementations** in Godot may represent a marker Component as either:
+  - A simple child Node attached to the Entity's root Node (e.g., an `InfantryTag` Node); Systems check for presence with a structural query such as `has_node("InfantryTag")`, or
+  - A string stored in a `MarkerComponents` set on the Entity (e.g., `markers = {"Infantry", "Human"}`); Systems check for presence with `markers.has("Infantry")`.
+
+Both patterns are valid as long as they preserve the rules-level behavior that marker Components are presence-only identifiers attached to Entities and are compared using case-sensitive string equality.
 
 ### 200.3 Marker Components (Tags)
 

@@ -27,12 +27,12 @@ A Battle is an Entity of the **Battle archetype** — a Campaign Activity in whi
 | BattleforceRefsComponent | Data | References to participating Battleforce Entities |
 | VictoryConditionsComponent | Data | Conditions that end the Engagement Stage (see rule 150.1) |
 | ScoringComponent | Data | Scoring rules and per-Player score accumulators |
-| TurnLimitComponent | Data | Optional maximum Turn count; null if no limit applies |
-| OrderQueueComponent | Data | Map of Unit ID → Order struct, hidden per Player until Execute Phase |
-| ReactionQueueComponent | Data | Map of Unit ID → Reaction struct, hidden per Player until resolution |
-| CasualtyReportComponent | Data | Ordered list of destroyed Unit references with metadata (Turn, cause, remaining Models) |
+| TurnLimitComponent | Data | Optional maximum Turn count; -1 if no limit applies |
+| OrderQueueComponent | Data | Map of Unit ID → Order struct, hidden per Player until an event reveals them, generally by starting the Execute Phase |
+| ReactionQueueComponent | Data | Map of Unit ID → Reaction struct, hidden per Player until an event reveals thhem, generally by starting the resolution Phase |
+| AuditComponent | Data | Reference log of all activity during a Battle, with timestamps and metadata |
 
-Each Battle must have one and only one Battlefield Entity referenced by its BattlefieldRefComponent at any given time, but that reference does not have to point to the same Battlefield Entity at all times. The Battle System advances the BattleStageComponent through exactly four Stages in fixed order: Planning, Deployment, Engagement, Consolidation. No Stage may be skipped. A Battle ends when the Consolidation Stage completes and the Battle System sets BattleStageComponent to Complete.
+Each Battle must have one and only one Battlefield Entity referenced by its BattlefieldRefComponent at any given time, but that reference does not have to point to the same Battlefield Entity at all times. The Battle System advances the BattleStageComponent through exactly four Stages in fixed order: Planning, Deployment, Engagement, Consolidation. No Stage may be skipped, though some Battles may be using rules that force a Stage into a certain preset configuration, such as an Ambush scenario. A Battle ends when the Consolidation Stage completes and the Battle System sets BattleStageComponent to Complete.
 
 ### Dependencies
 - **Requires**: Commander archetype (see rule 260.1 in Entity System Rules), Battleforce archetype (see rule 270.2 in Entity System Rules), Battlefield Entity (see rule 300.1 in Movement and Positioning Rules), Campaign Activity archetype (see rule 820.1 in Campaign Rules)
@@ -43,7 +43,7 @@ Each Battle must have one and only one Battlefield Entity referenced by its Batt
 
 A Battle proceeds through the following Stages in strict sequential order:
 
-1. **Planning** — Players compose Battleforces, designate Reserves and Vanguard, and reveal Faction Relationships.
+1. **Planning** — Players compose Battleforces, designate Reserves and Vanguard, and receive information about Faction Relationships for the involved Commanders.
 2. **Deployment** — Players place Units from their Battleforces onto the Battlefield within designated Deployment Zones.
 3. **Engagement** — Players command their Units through a repeating cycle of Turns until a Battle End Condition is met.
 4. **Consolidation** — The Battle's outcome is determined, scoring is resolved, and casualties are processed.
@@ -54,7 +54,7 @@ The Battle System tracks the current Stage in the Battle Entity's BattleStageCom
 
 #### Example 1: Minimal Battle Flow
 **Setup**: Two Commanders, each with a pre-built Battleforce.
-**Flow**: Planning (select Battleforces) → Deployment (place Units) → Engagement (issue Orders, fight) → Consolidation (score, process casualties).
+**Flow**: Planning (select Battleforces) → Deployment (place Units) → Engagement (issue Orders, execute orders, resolve combats) → Consolidation (score, process casualties).
 **Result**: Battle completes after Consolidation.
 
 ---
@@ -75,7 +75,7 @@ The Planning Stage completes when all participating Players have finished all st
 
 ### 110.2 Composing Battleforces
 
-Each Commander selects Units from the Commander's Army to form a Battleforce for the Battle. The Battleforce must satisfy the Roster requirements specified by the Battle or Campaign. A Unit may belong to at most one Battleforce at a time. All Units in the Battleforce begin with their Zone Component set to Reserves.
+Each Commander selects Units from that Commander's Army to form a Battleforce for the Battle. The Battleforce must satisfy the Battle's Roster requirements. All Units in the Battleforce begin the Planning with their Zone Component set to Reserves.
 
 ### 110.3 Designating Transports
 
