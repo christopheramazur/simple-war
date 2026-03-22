@@ -5,7 +5,7 @@ description: >-
   Document/Useful Examples/Repositories.md, with documentation links, local addon
   paths, and study examples. Use when implementing features tied to those tools,
   onboarding, or when the user asks about GUT, G.U.I.D.E, custom graph editor,
-  Scene Manager, Beehave, Dialogue Manager, Rapier, or genre reference repos.
+  Scene Manager, Beehave, Dialogic, Rapier, or genre reference repos.
 ---
 
 # Simple War — external repository guides
@@ -24,7 +24,7 @@ This skill is a **hub**: each tool has a dedicated reference file with doc URLs,
 | Godot Custom Graph Editor | [reference-custom-graph-editor.md](reference-custom-graph-editor.md) |
 | Godot Scene Manager | [reference-scene-manager.md](reference-scene-manager.md) |
 | Beehave | [reference-beehave.md](reference-beehave.md) |
-| Dialogue Manager | [reference-dialogue-manager.md](reference-dialogue-manager.md) |
+| Dialogic | [reference-dialogic.md](reference-dialogic.md) |
 | Godot Rapier Physics | [reference-godot-rapier.md](reference-godot-rapier.md) |
 
 ## Genre and pattern references (not vendored)

@@ -48,12 +48,13 @@ We want composition to heavily replace inheritance patterns, and to prioritize e
 - Commander/NPC strategic behavior in campaign activities.
 - Battle AI decision loops for movement, targeting, and order priorities.
 
-### Dialogue/Narrative Events - https://github.com/nathanhoad/godot_dialogue_manager
-**Why**: Campaign events and branching narrative choices should be data-driven and maintainable.
+### Dialogue/Narrative Events - https://github.com/dialogic-godot/dialogic
+**Why**: Campaign events and branching narrative choices should be data-driven, authorable in-editor, and maintainable (timelines, characters, events).
 
 **How we use it**:
-- Narrative activity plots and event nodes.
-- Choice/result branching with condition checks tied to campaign state.
+- Narrative activity plots as Dialogic timelines (visual or text editor).
+- Choice/result branching with variables, conditions, and signals tied to campaign state.
+- Character/portrait management where it fits campaign presentation; extend with custom events when rule hooks are needed.
 
 ### Optional Physics Upgrade - https://github.com/appsinacup/godot-rapier-physics
 **Why**: Potentially useful if deterministic and serialized collision-heavy simulation becomes central in battle order resolution.

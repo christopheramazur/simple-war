@@ -9,7 +9,7 @@
 ## 1. Decision Summary
 
 - **Adopt now**: GECS, GUT, GUIDE
-- **Adopt soon (phase-gated)**: Dialogue Manager, Beehave
+- **Adopt soon (phase-gated)**: Dialogic, Beehave
 - **Evaluate prototype first**: Custom Graph Editor, Scene Manager
 - **Hold for later**: Rapier Physics
 - **Reference-only**: RTS/Open RPG/demo repositories
@@ -23,7 +23,7 @@
 | GUIDE | High | Medium | Medium | Adopt now | Future-proofs input for KBM/gamepad/touch and prompt abstraction |
 | godot-custom-graph-editor | Medium-high | Medium | Medium | Evaluate prototype first | Strong map-authoring fit, but needs validation against campaign data pipeline |
 | Beehave | High | Medium | Medium | Adopt soon | Good fit for scalable AI behavior trees in campaign and battle |
-| Dialogue Manager | High | Low-medium | Low-medium | Adopt soon | Good fit for branching narrative events and campaign choices |
+| Dialogic | High | Low-medium | Low-medium | Adopt soon | Good fit for branching narrative, timelines, characters, and campaign event authoring |
 | GodotSceneManager | Medium | Medium | Medium | Evaluate prototype first | Useful for scene flow, but may overlap with lightweight custom flow management. **Spike**: [Scene_Routing_Spike.md](./Scene_Routing_Spike.md) — defer plugin until branching/transitions justify it; prefer thin in-repo path helper first. |
 | Rapier Physics | Low-medium (current scope) | Medium | Medium-high | Hold for later | Not needed for current campaign map foundation; revisit for deterministic collision-heavy simulation |
 | rtsSelectionMoveDemo | Medium (reference) | Low | Low | Reference-only | Useful movement/selection patterns and visual preview ideas |
@@ -40,7 +40,7 @@
 3. Integrate GUIDE and route key gameplay inputs through abstraction layer.
 
 ### Phase 2 (after GECS baseline stable)
-1. Add Dialogue Manager for campaign event activities.
+1. Add Dialogic for campaign event activities and narrative timelines.
 2. Add Beehave for strategic commander/battle AI behavior authoring.
 
 ### Phase 3 (prototype validation)
