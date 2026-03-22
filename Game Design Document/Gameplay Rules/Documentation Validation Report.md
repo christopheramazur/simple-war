@@ -93,7 +93,7 @@
 - Section 7: Battle Stages (was "5")
 - Section 8: Digital Prototype (was "3")
 
-**Files changed**: `Game Design Document/Overview/Main Concepts`
+**Files changed**: `Game Design Document/Overview/Main Concepts.md`
 
 ### 8. Main Concepts — Typos (AUTO-FIXED)
 
@@ -105,7 +105,7 @@
 - "itnerest" → "interest"
 - "influecnce" → "influence"
 
-**Files changed**: `Game Design Document/Overview/Main Concepts`
+**Files changed**: `Game Design Document/Overview/Main Concepts.md`
 
 ### 9. Stale Cross-References — "to be drafted" (AUTO-FIXED)
 
