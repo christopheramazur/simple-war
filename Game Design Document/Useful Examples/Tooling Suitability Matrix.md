@@ -54,7 +54,7 @@
 
 - Project currently targets Godot `4.6` in `project.godot`, aligning with GECS and GUT current Godot 4.x support.
 - Keep plugin integrations modular and optional where possible (feature flags or integration wrappers).
-- Do not couple core campaign data model to plugin-specific runtime types.
+- Do not couple core campaign data unit to plugin-specific runtime types.
 
 ## 5. Discovery Exit Criteria
 

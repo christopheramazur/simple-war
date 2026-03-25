@@ -21,7 +21,7 @@
 
 ### 1. Terminology.md — Game Term Capitalization (AUTO-FIXED)
 
-**Issue**: All game terms (Entity, Tag, Unit, Model, Item, Army, Battleforce, Commander, Zone, Characteristic, etc.) were lowercase throughout the canonical Terminology document, contradicting the style guide and every rules document.
+**Issue**: All game terms (Entity, Tag, Squad, Unit, Item, Army, Battleforce, Commander, Zone, Characteristic, etc.) were lowercase throughout the canonical Terminology document, contradicting the style guide and every rules document.
 
 **Fix**: Capitalized ~150 instances of game terms across the entire document. All sections from Players through The Generic Campaign now use consistent capitalization matching the rules documents.
 
@@ -36,7 +36,7 @@
 - "typically within another object" → "within another object"
 - "Typically, objects can only disembark" → "Objects can only disembark"
 - "typically rules for addressing" → "Campaign-level rules address" (with cross-reference to rule 822.5)
-- "Typically, a unit has a passive..." → "A Unit has a Passive Ability, an Active Ability, and a Surge Ability"
+- "Typically, a squad has a passive..." → "A Squad has a Passive Ability, an Active Ability, and a Surge Ability"
 
 **Files changed**: `Game Design Document/Gameplay Rules/Terminology.md`
 
@@ -60,7 +60,7 @@
 
 ### 5. Terminology.md — Empty Stub Sections Filled (AUTO-FIXED)
 
-**Issue**: The "Fighting a Battle" section contained 20+ empty stub headers (### Composing Units, ### Transports, ### Hidden Areas, ### Redeploying, #### Rally, #### Issue Orders, etc.) with no content.
+**Issue**: The "Fighting a Battle" section contained 20+ empty stub headers (### Composing Squads, ### Transports, ### Hidden Areas, ### Redeploying, #### Rally, #### Issue Orders, etc.) with no content.
 
 **Fix**: Replaced all empty stubs with brief summaries and cross-references to the corresponding Battle Rules sections. Empty individual headers collapsed into parent descriptions with rule number ranges.
 
@@ -73,7 +73,7 @@
 **Fix**: Added 25+ cross-references in the format "see rule XXX.Y in [Document]" throughout the document. Key additions:
 - Zones: Rosters → rule 270.3, Casualty Report → rule 822.5
 - Commanders → rule 260.1, Armies → rule 270.1, Battleforces → rule 270.2
-- Units → rule 240.1, Statline → rule 210.1, Composition → rule 240.2
+- Squads → rule 240.1, Statline → rule 210.1, Composition → rule 240.2
 - All five Characteristics → corresponding 210.x rules
 - Combat Resolution sections → rules 133.5, 220.x
 - Fighting a Battle stages → rules 100–150
@@ -137,7 +137,7 @@
 **Severity**: ERROR
 **Issue**: The Lawmakers General Overview contains a truncated sentence: "lost touch with ." — the object of "with" is missing.
 **Impact**: The document is incomplete and cannot be validated.
-**Recommendation**: The original author should complete the sentence. Context suggests something like "lost touch with their individuality" or "lost touch with the broader Gardener community" based on the surrounding text about isolating routine and mandatory training.
+**Recommendation**: The original author should complete the sentence. Context suggests something like "lost touch with their individuality" or "lost touch with the broader Gardener commsquady" based on the surrounding text about isolating routine and mandatory training.
 **Follow-up**: File as a separate bead.
 
 ### WARNINGS

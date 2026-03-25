@@ -15,8 +15,8 @@
    - Top/bottom deployment zones visible in Deployment stage
    - Grid spacing changes with mouse wheel zoom (1/3/6)
 10. Click `Engage Enemy`.
-11. Select a player unit, click destination, and verify movement preview.
-12. Click `Execute Orders`; verify unit movement, enemy movement, and simple combat resolution.
+11. Select a player squad, click destination, and verify movement preview.
+12. Click `Execute Orders`; verify squad movement, enemy movement, and simple combat resolution.
 13. Continue until one side is eliminated and verify Consolidation status text.
 
 ## Automated Smoke Script

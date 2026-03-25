@@ -10,7 +10,7 @@
 
 Simple War is about **Players** using **Commanders** to lead **Armies** on a **Campaign**. Campaigns take place across a **Sector Map**. A Campaign might have many **Activities** such as **Armybuilding** to rally forces, **Battle** to establish dominance in a sector, **Travel** to bring forces where they need to be, **Trade** to acquire equipment or offload excess, and more. A Campaign concludes for the Player when they have either achieved its **Objectives**, or when they can no longer participate in any Activities. The Conclusion of a Campaign results in a **Score** which determines the ultimate victor, even if all a Player's Commanders and Armies have been lost.
 
-Under the hood, every game object — every Campaign, Commander, Army, Unit, Model, Item, Battlefield, and Battle — is an **Entity** in an **Entity–Component–System (ECS)** architecture. What an Entity *is* comes from its **Components** (data). What an Entity *does* is determined by **Systems** (logic). The next section introduces this architecture; all subsequent sections use its vocabulary.
+Under the hood, every game object — every Campaign, Commander, Army, Squad, Unit, Item, Battlefield, and Battle — is an **Entity** in an **Entity–Component–System (ECS)** architecture. What an Entity *is* comes from its **Components** (data). What an Entity *does* is determined by **Systems** (logic). The next section introduces this architecture; all subsequent sections use its vocabulary.
 
 ---
 
@@ -20,18 +20,18 @@ Simple War uses an ECS architecture throughout. Understanding three concepts is 
 
 - **Entity** — A unique identifier (ID). An Entity has no inherent data or behavior; everything about it comes from Components.
 - **Component** — A data structure attached to an Entity. Components hold state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex). **Marker Components** (Tags) carry no data beyond their presence and serve as keywords for grouping and filtering (e.g., `Infantry`, `Vehicle`).
-- **System** — A unit of logic that operates on Entities possessing a specific set of Components. Systems read Components, perform calculations, and write results back to Components. All game logic lives in Systems.
+- **System** — A squad of logic that operates on Entities possessing a specific set of Components. Systems read Components, perform calculations, and write results back to Components. All game logic lives in Systems.
 
 An **archetype** is a common combination of Components that defines a category of Entity. The standard archetypes are:
 
 | Archetype | What It Represents | Key Components |
 |---|---|---|
-| Model | An individual figure | Statline, Equipped Items, Destruction State |
-| Unit | A group of Models | Statline, Faction Keywords, Unit Keywords, Composition, Abilities, Value, Zone, Morale State |
+| Unit | An individual figure | Statline, Equipped Items, Destruction State |
+| Squad | A group of Units | Statline, Faction Keywords, Squad Keywords, Composition, Abilities, Value, Zone, Morale State |
 | Item | Equipment or consumable | Item Type; optionally Attack Profile, Armour |
 | Commander | A leader of an Army | Statline, Equipment, Abilities, Army Reference |
-| Army | All Units under a Commander | Commander Reference, Unit References |
-| Battleforce | Units selected for a Battle | Army Reference, Unit References, Total Value |
+| Army | All Squads under a Commander | Commander Reference, Squad References |
+| Battleforce | Squads selected for a Battle | Army Reference, Squad References, Total Value |
 | Battle | A structured conflict | BattleStageComponent, TurnCounterComponent, PhaseComponent, VictoryConditionsComponent, and others (see rule 100.1 in Battle Rules) |
 | Campaign | The top-level game structure | CampaignStageComponent, SectorMapRefComponent, Objectives, Scoring Rules (see rule 800.1 in Campaign Rules) |
 
@@ -44,7 +44,7 @@ The core **Systems** that drive gameplay:
 | Combat System | Resolves attacks via the Attack Pipeline and Defense Pipeline |
 | Zone System | Manages Entity Zone transitions (Battlefield, Reserves, Casualty Report, etc.) |
 | Movement System | Reads spatial Components, resolves movement Orders |
-| Deployment System | Places Units on the Battlefield within Deployment Zones |
+| Deployment System | Places Squads on the Battlefield within Deployment Zones |
 | Morale System | Manages Morale state transitions based on test results |
 | Ability System | Evaluates Ability conditions and effects during timing windows |
 
@@ -59,32 +59,32 @@ Not everything is an Entity. The Roster validation process, Score calculation, a
   - Commanders are Entities of the Commander archetype — their Components include a Statline, Equipment, Abilities, and an Army reference (see rule 260.1 in Entity System Rules).
   - There may be cases where multiple Commanders lead an army. A Player's Armies and Battleforces must always be led by at least one Commander at the start of a Battle.
 
-- Armies are composed of **Units** (and ultimately the **Models** and **Items** those Units are composed of; see `Terminology`).
-  - An Army doesn't have any innate limits on size or composition. Instead, the Campaign will impose different restrictions through **Campaign Modifiers** — Component modifications and System parameter overrides — that influence what Units are allowed in an Army and how large it can or must be (see rule 850.1 in Campaign Rules).
-  - Unlike Heroes of Might and Magic, not all the Models in a Unit are uniform. Some may have **Abilities**, Items, or **Characteristics** that set them apart.
+- Armies are composed of **Squads** (and ultimately the **Units** and **Items** those Squads are composed of; see `Terminology`).
+  - An Army doesn't have any innate limits on size or composition. Instead, the Campaign will impose different restrictions through **Campaign Modifiers** — Component modifications and System parameter overrides — that influence what Squads are allowed in an Army and how large it can or must be (see rule 850.1 in Campaign Rules).
+  - Unlike Heroes of Might and Magic, not all the Units in a Squad are uniform. Some may have **Abilities**, Items, or **Characteristics** that set them apart.
 
 - **Rosters** determine the restrictions in place for **Battleforces** involved in a Battle.
-  - These may be restrictions on total Battleforce value, limits to the allowed **Factions** or Units, or other filtering restrictions.
+  - These may be restrictions on total Battleforce value, limits to the allowed **Factions** or Squads, or other filtering restrictions.
   - The Zone System validates Battleforces against Roster requirements (see rule 270.3 in Entity System Rules).
   - Thematically, Rosters are imposed on largescale violent conflict by The Law and its remnant Enforcers, as they try to prevent the Galaxy from descending into despotism.
 
 - Battles are fought between opposing Battleforces on a **Battlefield**.
   - A Battle is an Entity of the Battle archetype. The Battle System orchestrates its four Stages: Planning, Deployment, Engagement, and Consolidation (see rule 100.1 in Battle Rules).
   - A Commander must be leading each Battleforce, but does not need to be present on the Battlefield.
-  - Like Heroes of Might and Magic, there may be opportunities to retreat, or resolve a battle diplomatically, or accept the surrender of an opponent in exchange for Campaign-specific resources.
+  - Like Heroes of Might and Magic, there may be opportsquadies to retreat, or resolve a battle diplomatically, or accept the surrender of an opponent in exchange for Campaign-specific resources.
 
 - A Battle consists of 4 primary **Stages**: **Planning**, **Deployment**, **Engagement**, and **Consolidation**.
-  - Planning is where Players determine which of their Commanders and Battleforces will be involved in the Battle, how the Units in those Battleforces will be Deployed and Composed, and which other strategic assets or resources they will commit.
+  - Planning is where Players determine which of their Commanders and Battleforces will be involved in the Battle, how the Squads in those Battleforces will be Deployed and Composed, and which other strategic assets or resources they will commit.
   - Engagement is the primary resolution stage. It consists of a repeating cycle of **Turns**, each broken into **Phases** (Rally, Issue Orders, Execute, Resolve Combat) tracked by the Battle Entity's PhaseComponent.
-    - Players simultaneously issue **Orders** to their Units in secret. Once all Players are finished giving out Orders, there will be a chance to issue Reactions. Once all of the Orders and Reactions are issued, the Battle System delegates to the Combat System, Movement System, and other Systems to resolve them.
+    - Players simultaneously issue **Orders** to their Squads in secret. Once all Players are finished giving out Orders, there will be a chance to issue Reactions. Once all of the Orders and Reactions are issued, the Battle System delegates to the Combat System, Movement System, and other Systems to resolve them.
 
-- Battleforces are drafted from Units in a Commander's Army and **Deployed** to Battlefields.
+- Battleforces are drafted from Squads in a Commander's Army and **Deployed** to Battlefields.
   - Players Deploy their Battleforces at the same time, hidden from each other.
-  - Units are set up on the Battlefield in formation, similar to Total War style games. The Deployment System handles Unit placement within Deployment Zones defined by the Battlefield Entity's DeploymentZonesComponent (see section 300 in Movement and Positioning Rules).
-  - Commanders, Abilities, and Campaign Modifiers can all influence how and where Units can be set up.
+  - Squads are set up on the Battlefield in formation, similar to Total War style games. The Deployment System handles Squad placement within Deployment Zones defined by the Battlefield Entity's DeploymentZonesComponent (see section 300 in Movement and Positioning Rules).
+  - Commanders, Abilities, and Campaign Modifiers can all influence how and where Squads can be set up.
 
-- **Reinforcements** are Units from a Battleforce whose Zone Component is set to Reserves rather than Battlefield at the start of a Battle.
-  - Reinforcements are instead Deployed to the Battlefield through other methods, such as hidden infiltrators waiting in ambush; outflanking cavalry ready to arrive where and when they're least expected; teleporting reserves awaiting the perfect opportunity to turn the tides; and more.
+- **Reinforcements** are Squads from a Battleforce whose Zone Component is set to Reserves rather than Battlefield at the start of a Battle.
+  - Reinforcements are instead Deployed to the Battlefield through other methods, such as hidden infiltrators waiting in ambush; outflanking cavalry ready to arrive where and when they're least expected; teleporting reserves awaiting the perfect opportsquady to turn the tides; and more.
   - Commanders, Abilities, and Campaign Modifiers can all influence how and where Reinforcements can be set up.
 
 - Commanders navigate the **Sector Map** with their Armies to participate in **Activities**.
@@ -98,7 +98,7 @@ Not everything is an Entity. The Roster validation process, Score calculation, a
   - Commanders, Abilities, Campaign Modifiers, and Factions involved can all influence how a Player interacts with Plots.
 
 - Campaigns tie together Rosters, Battles, and other activities into a structured experience with an **Opening** and a **Conclusion**.
-  - The Opening consists of gameplay choices such as your Faction, **Allegiances**, where you wish to place your initial Commanders on the Sector Map, what Unit selections will be in your initial Armies, and other configurations on a per-Campaign basis.
+  - The Opening consists of gameplay choices such as your Faction, **Allegiances**, where you wish to place your initial Commanders on the Sector Map, what Squad selections will be in your initial Armies, and other configurations on a per-Campaign basis.
   - The Conclusion is where Players receive their final scores and the overall victor is determined.
 
 ---
@@ -112,7 +112,7 @@ Simple War has a number of gameplay or gameplay adjacent options to select from 
 - Multiplayer
 - Armybuilding
 - Campaign Editor
-- Unit Editor
+- Squad Editor
 - Settings
 - Exit Game
 
@@ -149,11 +149,11 @@ Multiplayer provides the option for Players to engage in Campaigns with other Pl
 
 There are multiple Multiplayer game modes: Freeplay, Unranked, and Ranked.
 
-Freeplay allows Players to choose any Campaign, including custom Campaigns, and use any custom Factions or Units they want.
+Freeplay allows Players to choose any Campaign, including custom Campaigns, and use any custom Factions or Squads they want.
 
-Unranked allows Players to use only the official Simple War Campaign and Unit data, and does not track or affect a Player's Ranked performance.
+Unranked allows Players to use only the official Simple War Campaign and Squad data, and does not track or affect a Player's Ranked performance.
 
-Ranked allows Players to use a curated Competitive Campaign set, with only the official Simple War Unit data. Wins, Losses, and metadata about a Player's gameplay such as Faction and Commander choices, score, and more are all tracked to provide comprehensive Player Rankings.
+Ranked allows Players to use a curated Competitive Campaign set, with only the official Simple War Squad data. Wins, Losses, and metadata about a Player's gameplay such as Faction and Commander choices, score, and more are all tracked to provide comprehensive Player Rankings.
 
 There is also the option to load an existing Multiplayer saved game from this scene. Players who join the game are able to select their positions, e.g. if Player 1 and Player 2 were playing, saved the game, and then at a later point loaded it, the accounts associated with Player 1 and Player 2 are not locked to resuming as those positions — they could swap, or be entirely different players.
 
@@ -165,8 +165,8 @@ The Armybuilding Screen presents two main areas:
   - Displays all of the Player's saved Armies, with a searchbar and filters for Faction, Commander, and Army value range.
   - Each entry shows the Army's name, Commander, Faction, total Army value, and validation status (whether the Army meets any Roster requirements it is listed against).
 - Army Editor Panel
-  - When an Army is selected, the editor opens with the full Army composition: Commander, Units, Models, and equipped Items.
-  - Players can add or remove Units from the Army, change Unit composition (swapping Models or equipment), and rename the Army.
+  - When an Army is selected, the editor opens with the full Army composition: Commander, Squads, Units, and equipped Items.
+  - Players can add or remove Squads from the Army, change Squad composition (swapping Units or equipment), and rename the Army.
   - A running Army value total updates live as changes are made.
   - Validation warnings appear inline when a change would violate a Roster the Army is currently listed against.
 
@@ -177,7 +177,7 @@ Campaign Editor allows Players to create, edit, and share custom Campaigns. A Ca
 
 The Campaign Editor Screen is divided into three main areas:
 - Campaign Browser
-  - Lists the Player's custom Campaigns alongside installed community Campaigns, with search and filter options.
+  - Lists the Player's custom Campaigns alongside installed commsquady Campaigns, with search and filter options.
   - Each entry shows the Campaign name, author, Player count, estimated duration, and publication status (Draft, Published, or Archived).
 - Sector Map Canvas
   - A visual editor for placing and connecting Plots on the Sector Map. Players drag-and-drop Plot nodes, draw travel connections between them, and assign Activities (Armybuilding, Battle, Narrative Event, Trade, etc.) to each Plot.
@@ -188,22 +188,22 @@ The Campaign Editor Screen is divided into three main areas:
 
 Custom Campaigns can be exported and shared with other Players. The editor validates that the Campaign graph is completable (no unreachable Plots, at least one valid path from Opening to Conclusion) before allowing publication.
 
-### Unit Editor
-Unit Editor allows Players to create, edit, and share custom Units for use in custom Campaigns and Freeplay Multiplayer. Official Campaigns and Ranked Multiplayer use only the official Unit data and do not permit custom Units.
+### Squad Editor
+Squad Editor allows Players to create, edit, and share custom Squads for use in custom Campaigns and Freeplay Multiplayer. Official Campaigns and Ranked Multiplayer use only the official Squad data and do not permit custom Squads.
 
-The Unit Editor Screen presents:
-- Unit Browser
-  - Lists the Player's custom Units alongside official Units (read-only) for reference. Filters for Faction Keywords, Unit Keywords, and value range are available.
-  - Players can duplicate an official Unit as a starting point for a custom variant.
+The Squad Editor Screen presents:
+- Squad Browser
+  - Lists the Player's custom Squads alongside official Squads (read-only) for reference. Filters for Faction Keywords, Squad Keywords, and value range are available.
+  - Players can duplicate an official Squad as a starting point for a custom variant.
 - Component Editor
-  - The primary editing surface, structured around the Unit archetype's Components: name, Faction Keywords (marker Components), Unit Keywords (marker Components), Composition (Models and their equipped Items), Statline Component (Endurance, Durability, Morale, Speed, Reflex), Abilities, and Value.
-  - Model slots can be added or removed. Each Model slot defines its Statline Component values, default Items, and available equipment options with associated Equipment Costs.
+  - The primary editing surface, structured around the Squad archetype's Components: name, Faction Keywords (marker Components), Squad Keywords (marker Components), Composition (Units and their equipped Items), Statline Component (Endurance, Durability, Morale, Speed, Reflex), Abilities, and Value.
+  - Unit slots can be added or removed. Each Unit slot defines its Statline Component values, default Items, and available equipment options with associated Equipment Costs.
   - Attack Profile Components for weapons are edited inline, specifying category, range brackets, damage, damage type, and modifiers.
 - Validation Panel
-  - Provides live feedback on the Unit's internal consistency: missing Characteristics, orphaned Keywords, cost imbalances, and Abilities that reference undefined rules.
-  - A balance estimate gives a rough comparison of the custom Unit's value against official Units with similar roles.
+  - Provides live feedback on the Squad's internal consistency: missing Characteristics, orphaned Keywords, cost imbalances, and Abilities that reference undefined rules.
+  - A balance estimate gives a rough comparison of the custom Squad's value against official Squads with similar roles.
 
-Custom Units can be exported and shared. The editor enforces structural validity (every Model has a Statline Component, every weapon has at least one Attack Profile Component) but does not enforce balance; that responsibility falls to the Campaign's Roster system.
+Custom Squads can be exported and shared. The editor enforces structural validity (every Unit has a Statline Component, every weapon has at least one Attack Profile Component) but does not enforce balance; that responsibility falls to the Campaign's Roster system.
 
 ### Settings
 Settings provides access to all game configuration options. Changes apply globally and persist across sessions.
@@ -212,7 +212,7 @@ The Settings Screen is organized into tabbed categories:
 - Gameplay
   - Turn timer defaults, auto-save frequency, tooltip verbosity, confirmation prompts for destructive actions (Concede, Exit), and difficulty presets for AI opponents.
 - Controls
-  - Rebindable Hotkeys (including the Menu Hotkey, default F10), mouse sensitivity, scroll speed, camera inversion, and drag thresholds for multi-select and unit movement.
+  - Rebindable Hotkeys (including the Menu Hotkey, default F10), mouse sensitivity, scroll speed, camera inversion, and drag thresholds for multi-select and squad movement.
 - Video
   - Resolution, display mode (windowed, borderless, fullscreen), frame rate cap, VSync, quality presets (Low, Medium, High, Ultra), and individual toggles for shadows, anti-aliasing, particle density, and grid marker visibility.
 - Audio
@@ -260,15 +260,15 @@ For the first digital prototype, we assume a **Generic Campaign** that:
 
 **Building an Army** is how a Player prepares for a Battle.
 
-- A Player selects and configures **Units** (Entities of the Unit archetype) to fill out an **Army** (an Entity of the Army archetype) until the Player is satisfied and (optionally) meets Campaign or Roster requirements.
+- A Player selects and configures **Squads** (Entities of the Squad archetype) to fill out an **Army** (an Entity of the Army archetype) until the Player is satisfied and (optionally) meets Campaign or Roster requirements.
 - Armies are organized by a **Roster** system:
   - A **Roster** is a Zone that organizes Battleforces. The Zone System validates Battleforces against Roster requirements; a Battleforce can be listed in any Roster whose requirements it meets (see rule 270.3 in Entity System Rules).
   - The **default Roster** has no restrictions.
 
 At this overview level:
 
-- An **Army** is "the set of Unit Entities a Player brings to a Battle".
-- Each Army has a total **Value** (via its Units' Value Components) that summarizes its overall strength for pairing and balancing Battles.
+- An **Army** is "the set of Squad Entities a Player brings to a Battle".
+- Each Army has a total **Value** (via its Squads' Value Components) that summarizes its overall strength for pairing and balancing Battles.
 - Campaigns and formats can define additional Roster types with stricter requirements through Campaign Modifiers.
 
 For the barebones implementation, we only need:
@@ -306,15 +306,15 @@ Campaign Modifiers can also modify how Players engage in Battle by overriding Co
 At a high level, each Stage of a Battle looks like this. The Battle System advances through these Stages in strict order, delegating to specialized Systems during each Stage:
 
 - **Planning Stage**
-  - Players select Units from an Army to compose a Battleforce. The Zone System validates each Battleforce against Roster requirements.
+  - Players select Squads from an Army to compose a Battleforce. The Zone System validates each Battleforce against Roster requirements.
   - Faction Relationships and other pre-Battle information are revealed.
 
 - **Deployment Stage**
-  - The Deployment System places Units from each Battleforce onto the Battlefield within designated Deployment Zones according to the Battle or Campaign rules.
-  - Units not designated for initial Deployment have their Zone Component set to Reserves.
+  - The Deployment System places Squads from each Battleforce onto the Battlefield within designated Deployment Zones according to the Battle or Campaign rules.
+  - Squads not designated for initial Deployment have their Zone Component set to Reserves.
 
 - **Engagement Stage**
-  - Players command their Units in a repeating cycle of **Turns**, each broken into **Phases** tracked by the Battle Entity's PhaseComponent: Rally, Issue Orders, Execute, Resolve Combat.
+  - Players command their Squads in a repeating cycle of **Turns**, each broken into **Phases** tracked by the Battle Entity's PhaseComponent: Rally, Issue Orders, Execute, Resolve Combat.
   - Simple War uses a **true simultaneous turn** system (see `Terminology – Fighting a Battle` for more detail).
   - During Execute and Resolve Combat, the Battle System delegates to the Movement System, Combat System, Morale System, Zone System, and Ability System to resolve Orders and their consequences.
 
@@ -341,14 +341,14 @@ For the initial digital prototype, our focus is on a quickplay user experience s
 
 - Quickplay launches to a simple Campaign (a Campaign Entity with the `Quickplay` marker Component)
   - A Sector Map with two Activities: Armybuilding, Battle.
-    - Armybuilding here allows the Player to add a pre-built selection of Units to their Commander's Army
-    - Battle here has a single Roster that allows the Player to use every Unit from their Army as a Battleforce
+    - Armybuilding here allows the Player to add a pre-built selection of Squads to their Commander's Army
+    - Battle here has a single Roster that allows the Player to use every Squad from their Army as a Battleforce
     - The Battle will be against an identical Battleforce led by an identical Commander
 
   - The Player has one Commander
     - A generic Commander Entity with no special Abilities
-    - Deployable to the Battlefield as its own Unit
-    - Generic "slightly better than a regular Unit" Statline Component and equipped Items
+    - Deployable to the Battlefield as its own Squad
+    - Generic "slightly better than a regular Squad" Statline Component and equipped Items
     - The Commander begins on the Armybuilding Plot and must complete that Activity to move to the Battle Plot
 
 - A basic **Engagement** Stage with a Turn system driven by the Battle System that can be expanded later.

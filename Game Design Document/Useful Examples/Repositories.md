@@ -10,11 +10,11 @@ This document tracks external tools and examples we are intentionally using to b
 **How we use it**:
 We want composition to heavily replace inheritance patterns, and to prioritize ensuring entities have the appropriate context and listening/emitting capabilities to manage the game state. Instead of a CampaignBattleList with CampaignBattles that have CampaignBattleBattlefields and CampaignBattleScores, all of which have to have their configuration and behavior be built beforehand, we build the Battle when it's appropriate, and give it the components it needs as it needs them such as the battlefield, and it tells everything that is listening for it that a battle is ready to take place on it. 
 
-### Unit Testing - https://github.com/bitwes/Gut
+### Squad Testing - https://github.com/bitwes/Gut
 **Why**: We need reliable regression coverage while building systemic campaign logic and battle resolution.
 
 **How we use it**:
-- Unit tests for component/system behavior and campaign rule evaluators.
+- Squad tests for component/system behavior and campaign rule evaluators.
 - Integration smoke tests for PoC gameplay flow.
 - Event log replay tests to lock save/replay behavior.
 
@@ -66,17 +66,17 @@ We want composition to heavily replace inheritance patterns, and to prioritize e
 ## Genre and Pattern References
 
 ### RTS Selection/Movement - https://github.com/LeProfesseurStagiaire/rtsSelectionMoveDemo
-**Why**: Good reference for unit selection, movement previews, formation-facing controls.
+**Why**: Good reference for squad selection, movement previews, formation-facing controls.
 
 **How we use it**:
 - Sector map and battle movement preview UX (ghost/path visuals).
-- Selection model and drag interaction patterns.
+- Selection unit and drag interaction patterns.
 
 ### Real-time Strategy Structure - https://github.com/philipbeaucamp/godot-rts-entity-controller
 **Why**: Useful architecture references for entity-heavy battlefield control loops.
 
 **How we use it**:
-- Reuse patterns for unit orchestration and system separation from UI.
+- Reuse patterns for squad orchestration and system separation from UI.
 
 ### Idle/Battlefield Hybrid - https://github.com/hhy0111/-territory-conquest-idle
 **Why**: Useful reference for automated progression and map/battlefield state loops.

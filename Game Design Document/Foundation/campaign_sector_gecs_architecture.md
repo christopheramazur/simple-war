@@ -160,7 +160,7 @@ The Campaign Runtime is the source of truth for flow gating and campaign progres
 - `EventCaptureSystem`
   - writes append-only Audit Event entities for all accepted intents and all state mutations
 - `EventProjectionSystem`
-  - builds read models for UI (button enabled state, note text, current route)
+  - builds read units for UI (button enabled state, note text, current route)
 - `ReplaySystem`
   - rebuilds campaign state by replaying event sequence from checkpoint + tail
 - `AuditIntegritySystem`
@@ -168,7 +168,7 @@ The Campaign Runtime is the source of truth for flow gating and campaign progres
 
 ---
 
-## Deterministic Event Model
+## Deterministic Event Unit
 
 ### Event Contract
 
@@ -207,11 +207,11 @@ Each campaign mutation produces one event with:
 | `src/autoload/game_state.gd` `armybuilding_complete` | Global bool toggled in UI callback | `CommanderProgressFlagsComponent.army_selected` + `armybuilding.selected` event | Add component and event write in Armybuilding completion path, then remove bool reads |
 | `src/autoload/game_state.gd` `commander_at_battle` | Global bool toggled in Sector Map button | `CurrentPlotRefComponent` + `sector.commander.moved` event | Replace `Move Here` bool write with move intent dispatch |
 | `src/autoload/game_state.gd` `selected_army_name` | Global string selected in Armybuilding | `ArmySelectionComponent` on Commander and activity outcome event | Move selection into activity result projection |
-| `src/ui/sector_map.gd` `_refresh_ui` | Button visibility from global flags | `EventProjectionSystem` read model (`can_begin_activity`, `can_move`, `can_start_battle`) | Query projection to render controls |
+| `src/ui/sector_map.gd` `_refresh_ui` | Button visibility from global flags | `EventProjectionSystem` read unit (`can_begin_activity`, `can_move`, `can_start_battle`) | Query projection to render controls |
 | `src/ui/sector_map.gd` `_on_move_pressed` | Direct state mutation | Intent submit -> `CommanderIntentValidationSystem` -> `SectorTraversalSystem` | Route all actions through systems |
 | `src/ui/campaign_planning.gd` | Direct scene transition to sector | `SceneRouteSystem` route update after `campaign.started` | Replace direct route logic with route projection |
 | `src/ui/armybuilding.gd` | Direct `GameState` writes and return | `ActivityLifecycleSystem` for Armybuilding activity | Complete activity through system and emit outcome |
-| `src/ui/battle_planning.gd` | Reads global selected army and toggles Deploy | Projection of activity outcome + gate result | Use read model for selected force and deploy enabled |
+| `src/ui/battle_planning.gd` | Reads global selected army and toggles Deploy | Projection of activity outcome + gate result | Use read unit for selected force and deploy enabled |
 | `src/ui/battlefield.gd` counters in `GameState` | Writes destroyed counters globally | `battle.resolved` payload and campaign projection update | Keep battle runtime, project result into campaign event |
 
 ---
@@ -251,4 +251,4 @@ Each campaign mutation produces one event with:
 
 | Version | Date | Changes |
 |---|---|---|
-| 0.1 | 2026-03-20 | Initial GECS campaign/sector architecture with entities/components/systems, event replay model, and migration map from current UI/flag flow |
+| 0.1 | 2026-03-20 | Initial GECS campaign/sector architecture with entities/components/systems, event replay unit, and migration map from current UI/flag flow |

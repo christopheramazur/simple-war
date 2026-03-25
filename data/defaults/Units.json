@@ -1,17 +1,17 @@
 {
-    "units": [
+    "squads": [
         {
             "id": "human_riflemen",
             "display_name": "Riflemen",
             "faction_keywords": ["Human"],
-            "unit_keywords": ["Infantry", "Riflemen"],
+            "squad_keywords": ["Infantry", "Riflemen"],
             "endurance": 10,
             "durability": 10,
             "morale": 10,
             "speed": 10,
             "reflex": 10,
             "value": 100,
-            "description": "A basic infantry unit trained to fight on the front lines.",
+            "description": "A basic infantry squad trained to fight on the front lines.",
             "abilities": ["Objective Secured", "Forward Positions"],
             "weapon_skill": {
                 "rifle": 8,
@@ -22,16 +22,16 @@
             "composition": [
                 {
                     "count": 10,
-                    "model_id": "human_riflemen_model_default"
+                    "unit_id": "human_riflemen_unit_default"
                 }
             ],
-            "model_options": [
+            "unit_options": [
                 {
                     "option_id": "human_riflemen_reinforcements",
-                    "model_id": "human_riflemen_model_default",
+                    "unit_id": "human_riflemen_unit_default",
                     "count": 10,
                     "value": 100,
-                    "replacement_model_id": "",
+                    "replacement_unit_id": "",
                     "required": false
                 }
             ],
@@ -40,7 +40,7 @@
                     "item_id": "human_riflemen_optional_rocket_launcher",
                     "count": 1,
                     "value": 20,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "human_riflemen_default_rifle",
                     "required": false
                 },
@@ -48,16 +48,16 @@
                     "item_id": "human_riflemen_optional_rocket_launcher",
                     "count": 1,
                     "value": 20,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "human_riflemen_default_rifle",
-                    "requirements": [{ "unit_size": 20 }],
+                    "requirements": [{ "squad_size": 20 }],
                     "required": false
                 },
                 {
                     "item_id": "human_riflemen_optional_power_shield",
                     "count": 1,
                     "value": 5,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "human_riflemen_default_melee_weapon",
                     "required": false
                 },
@@ -65,16 +65,16 @@
                     "item_id": "human_riflemen_optional_power_shield",
                     "count": 1,
                     "value": 5,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "human_riflemen_default_melee_weapon",
-                    "requirements": [{ "unit_size": 20 }],
+                    "requirements": [{ "squad_size": 20 }],
                     "required": false
                 },
                 {
                     "item_id": "human_riflemen_optional_breaching_charge",
                     "count": 1,
                     "value": 10,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "",
                     "required": false
                 },
@@ -82,7 +82,7 @@
                     "item_id": "human_riflemen_optional_experimental_rifle",
                     "count": 10,
                     "value": 50,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "human_riflemen_default_rifle",
                     "required": false
                 },
@@ -90,7 +90,7 @@
                     "item_id": "human_riflemen_optional_experimental_rifle",
                     "count": 20,
                     "value": 100,
-                    "replacement_model_id": "human_riflemen_model_default",
+                    "replacement_unit_id": "human_riflemen_unit_default",
                     "replacement_item_id": "human_riflemen_default_rifle",
                     "required": false
                 }
@@ -100,7 +100,7 @@
             "id": "iron_bastion",
             "display_name": "Iron Bastion",
             "faction_keywords": ["Human"],
-            "unit_keywords": ["Vehicle", "Warmachine"],
+            "squad_keywords": ["Vehicle", "Warmachine"],
             "endurance": 20,
             "durability": 80,
             "morale": 15,
@@ -114,16 +114,16 @@
                 "melee": 5
             },
             "composition": [
-                { "count": 1, "model_id": "iron_bastion_model_default" }
+                { "count": 1, "unit_id": "iron_bastion_unit_default" }
             ],
-            "model_options": [],
+            "unit_options": [],
             "item_options": []
         },
         {
             "id": "maw_fiend",
             "display_name": "Maw Fiend",
             "faction_keywords": ["Xenos"],
-            "unit_keywords": ["Monster", "Bioterror"],
+            "squad_keywords": ["Monster", "Bioterror"],
             "endurance": 15,
             "durability": 100,
             "morale": 20,
@@ -137,16 +137,16 @@
                 "natural_ranged": 6
             },
             "composition": [
-                { "count": 1, "model_id": "maw_fiend_model_default" }
+                { "count": 1, "unit_id": "maw_fiend_unit_default" }
             ],
-            "model_options": [],
+            "unit_options": [],
             "item_options": []
         },
         {
             "id": "arcanists",
             "display_name": "Arcanists",
             "faction_keywords": ["Human"],
-            "unit_keywords": ["Infantry", "Mage"],
+            "squad_keywords": ["Infantry", "Mage"],
             "endurance": 8,
             "durability": 6,
             "morale": 12,
@@ -161,16 +161,16 @@
                 "rifle": 3
             },
             "composition": [
-                { "count": 5, "model_id": "arcanists_model_default" }
+                { "count": 5, "unit_id": "arcanists_unit_default" }
             ],
-            "model_options": [],
+            "unit_options": [],
             "item_options": []
         },
         {
             "id": "swarm_cultists",
             "display_name": "Swarm Cultists",
             "faction_keywords": ["Chaos"],
-            "unit_keywords": ["Infantry", "Horde"],
+            "squad_keywords": ["Infantry", "Horde"],
             "endurance": 6,
             "durability": 4,
             "morale": 4,
@@ -185,9 +185,9 @@
                 "launcher": 1
             },
             "composition": [
-                { "count": 20, "model_id": "swarm_cultists_model_default" }
+                { "count": 20, "unit_id": "swarm_cultists_unit_default" }
             ],
-            "model_options": [],
+            "unit_options": [],
             "item_options": []
         }
     ]

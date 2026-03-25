@@ -1,7 +1,7 @@
 {
-    "models": [
+    "units": [
         {
-            "id": "human_riflemen_model_default",
+            "id": "human_riflemen_unit_default",
             "display_name": "Rifleman",
             "equipped_items": [
                 { "id": "human_riflemen_default_rifle", "count": 1 },
@@ -11,7 +11,7 @@
             ]
         },
         {
-            "id": "iron_bastion_model_default",
+            "id": "iron_bastion_unit_default",
             "display_name": "Iron Bastion Hull",
             "equipped_items": [
                 { "id": "iron_bastion_siege_cannon", "count": 1 },
@@ -20,7 +20,7 @@
             ]
         },
         {
-            "id": "maw_fiend_model_default",
+            "id": "maw_fiend_unit_default",
             "display_name": "Maw Fiend",
             "equipped_items": [
                 { "id": "maw_fiend_rending_claws", "count": 1 },
@@ -28,7 +28,7 @@
             ]
         },
         {
-            "id": "arcanists_model_default",
+            "id": "arcanists_unit_default",
             "display_name": "Arcanist",
             "equipped_items": [
                 { "id": "arcanists_arcane_staff", "count": 1 },
@@ -36,7 +36,7 @@
             ]
         },
         {
-            "id": "swarm_cultists_model_default",
+            "id": "swarm_cultists_unit_default",
             "display_name": "Cultist",
             "equipped_items": [
                 { "id": "swarm_cultists_crude_blade", "count": 1 },

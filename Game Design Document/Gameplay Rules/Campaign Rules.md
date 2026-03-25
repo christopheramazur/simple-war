@@ -48,7 +48,7 @@ The Campaign System tracks the current Campaign Stage via the CampaignStageCompo
 
 During the Opening, each Player performs the following configuration steps. The Campaign definition specifies which steps are available, which have fixed values, and which are Player-configurable:
 
-1. **Select Faction**: Choose a Faction from the Campaign's allowed Factions. Some Campaigns fix the Faction; others allow free choice. The selected Faction determines which Units, Commanders, and narrative options are available.
+1. **Select Faction**: Choose a Faction from the Campaign's allowed Factions. Some Campaigns fix the Faction; others allow free choice. The selected Faction determines which Squads, Commanders, and narrative options are available.
 2. **Select Allegiances**: Declare initial Faction Relationships toward other Factions present in the Campaign. Allegiances may be fixed by the Campaign or chosen by the Player.
 3. **Select Commanders**: Choose one or more starting Commanders from the Campaign's available pool or from the Player's collection. Each Commander has an Army (see rule 260.1 in Entity System Rules). The Campaign defines the minimum and maximum number of starting Commanders.
 4. **Establish Initial Armies**: Populate each Commander's Army. The Campaign may provide pre-built Armies, allow free armybuilding subject to Roster restrictions, or offer a selection of pre-built options.
@@ -67,7 +67,7 @@ Active Play operates in **Campaign Rounds**. Each Campaign Round:
 3. Players engage in Activities at their Commanders' current Plots (see rule 820.1). Activity resolution order is defined by the Campaign; the default is simultaneous.
 4. The Campaign System evaluates Conclusion Conditions (see rule 800.5).
 
-Some Campaigns may not use Campaign Rounds and instead allow free-form navigation where Players move Commanders and engage in Activities at their own pace. The Campaign definition specifies the time model.
+Some Campaigns may not use Campaign Rounds and instead allow free-form navigation where Players move Commanders and engage in Activities at their own pace. The Campaign definition specifies the time unit.
 
 ### 800.5 Conclusion Conditions
 
@@ -85,7 +85,7 @@ A Campaign enters the Conclusion Stage when any of the following conditions are 
 During the Conclusion:
 
 1. **Final Scoring**: Each Player's Campaign Score is finalized (see rule 840.1). Any end-of-Campaign scoring bonuses are applied.
-2. **Determine Victor**: The Player with the highest Campaign Score is the Victor. If Scores are tied, the Campaign's tiebreaker rule applies. The default tiebreaker is: most Objectives completed, then most Battles won, then most surviving Units by total Value. If still tied, the Campaign is a draw.
+2. **Determine Victor**: The Player with the highest Campaign Score is the Victor. If Scores are tied, the Campaign's tiebreaker rule applies. The default tiebreaker is: most Objectives completed, then most Battles won, then most surviving Squads by total Value. If still tied, the Campaign is a draw.
 3. **Record Results**: Campaign results, including per-Player Scores, Objectives completed, Battles fought, and narrative outcomes, are recorded for use in linked Campaigns (Story mode) or Player Rankings (Ranked Multiplayer).
 
 ---
@@ -199,17 +199,17 @@ Some Activities (particularly Battles) may span multiple Campaign Rounds. A Comm
 
 ### 821.1 Armybuilding Activity Overview
 
-An Armybuilding Activity allows a Commander to add Units to, remove Units from, or reconfigure the Commander's Army. Armybuilding is the primary mechanism by which Players prepare forces for Battle.
+An Armybuilding Activity allows a Commander to add Squads to, remove Squads from, or reconfigure the Commander's Army. Armybuilding is the primary mechanism by which Players prepare forces for Battle.
 
 ### 821.2 Armybuilding Resolution
 
 When a Commander engages in an Armybuilding Activity:
 
-1. The Campaign System presents the available Unit pool to the Player. The available pool is determined by the intersection of:
-   a. The Campaign's allowed Units (which may be filtered by Faction, Campaign stage, or narrative progression).
+1. The Campaign System presents the available Squad pool to the Player. The available pool is determined by the intersection of:
+   a. The Campaign's allowed Squads (which may be filtered by Faction, Campaign stage, or narrative progression).
    b. The Activity's specific offerings (which may be a subset or curated selection).
    c. Any resource constraints (if the Campaign uses a resource economy).
-2. The Player adds, removes, or reconfigures Units in the Commander's Army.
+2. The Player adds, removes, or reconfigures Squads in the Commander's Army.
 3. All changes are validated against the Campaign's Roster requirements (see rule 850.3).
 4. The Activity completes when the Player confirms the Army composition.
 
@@ -217,11 +217,11 @@ When a Commander engages in an Armybuilding Activity:
 
 Campaigns may impose the following constraints on Armybuilding:
 
-- **Unit Pool Restrictions**: Limit which Units are available (by Faction Keyword marker Components, Unit Keyword marker Components, or explicit lists).
+- **Squad Pool Restrictions**: Limit which Squads are available (by Faction Keyword marker Components, Squad Keyword marker Components, or explicit lists).
 - **Value Caps**: Limit the total Army Value or the Value added in a single Armybuilding Activity.
-- **Availability Limits**: Restrict how many copies of a specific Unit a Player may include across all Armies.
-- **Resource Costs**: Require expenditure of Campaign Resources (see rule 825.1) to acquire Units.
-- **Progression Gates**: Unlock Units based on Campaign progress (e.g., "Available after completing 2 Battles").
+- **Availability Limits**: Restrict how many copies of a specific Squad a Player may include across all Armies.
+- **Resource Costs**: Require expenditure of Campaign Resources (see rule 825.1) to acquire Squads.
+- **Progression Gates**: Unlock Squads based on Campaign progress (e.g., "Available after completing 2 Battles").
 
 The default Armybuilding Activity has no constraints beyond the Campaign's Roster requirements.
 
@@ -245,7 +245,7 @@ A Battle Activity may be initiated in one of the following ways:
 
 When a Battle Activity is initiated:
 
-1. The Campaign System determines the participating Commanders. Each Commander must have at least one Unit in the Commander's Army.
+1. The Campaign System determines the participating Commanders. Each Commander must have at least one Squad in the Commander's Army.
 2. Campaign Modifiers are applied to the Battle as Component modifications and System parameter overrides (see rule 850.1). These may alter the Roster requirements, Battlefield Components (BattlefieldDimensionsComponent, TerrainIndexComponent), DeploymentZonesComponent, Turn limit, victory conditions, or scoring.
 3. The Battle proceeds through all four Battle Stages as defined in Battle Rules (Planning, Deployment, Engagement, Consolidation).
 4. Upon Battle completion, the Campaign System processes Battle results for Campaign purposes (see rule 822.4).
@@ -255,7 +255,7 @@ When a Battle Activity is initiated:
 After a Battle's Consolidation Stage completes (see rule 140.1 in Battle Rules):
 
 1. **Score Integration**: The Campaign System adds the Battle's per-Player Scores to each Player's Campaign Score (see rule 840.2).
-2. **Casualty Persistence**: The Campaign's casualty rules determine what happens to Units whose Zone Component is Casualty Report (see rule 822.5).
+2. **Casualty Persistence**: The Campaign's casualty rules determine what happens to Squads whose Zone Component is Casualty Report (see rule 822.5).
 3. **Objective Evaluation**: The Campaign System checks whether the Battle's outcome contributes to any Campaign Objectives (see rule 830.1).
 4. **Plot Effects**: If the Battle was at a contested Plot, the Campaign System may update the Plot's OwnerComponent to the Victor's Player (see rule 810.6).
 5. **Narrative Triggers**: The Battle's outcome may trigger narrative events or cause the Campaign System to add new Plot and Connection Entities to the Sector Map.
@@ -264,10 +264,10 @@ After a Battle's Consolidation Stage completes (see rule 140.1 in Battle Rules):
 
 Campaigns define how Battle casualties are handled at the Campaign level. The following options are available (Campaigns choose one or combine them):
 
-1. **Full Recovery**: All destroyed Units are restored to full strength after the Battle. No permanent losses. Suitable for Quickplay and competitive formats.
-2. **Partial Recovery**: A percentage of destroyed Units (defined by the Campaign) are restored. The remaining Units are permanently lost from the Commander's Army.
-3. **Reinforcement Pool**: Destroyed Units enter a Reinforcement Pool. The Player may spend Campaign Resources or Armybuilding Activities to recover Units from the Pool.
-4. **Permanent Loss**: All destroyed Units are permanently removed from the Commander's Army. Suitable for high-stakes Story Campaigns.
+1. **Full Recovery**: All destroyed Squads are restored to full strength after the Battle. No permanent losses. Suitable for Quickplay and competitive formats.
+2. **Partial Recovery**: A percentage of destroyed Squads (defined by the Campaign) are restored. The remaining Squads are permanently lost from the Commander's Army.
+3. **Reinforcement Pool**: Destroyed Squads enter a Reinforcement Pool. The Player may spend Campaign Resources or Armybuilding Activities to recover Squads from the Pool.
+4. **Permanent Loss**: All destroyed Squads are permanently removed from the Commander's Army. Suitable for high-stakes Story Campaigns.
 5. **Mixed**: The Campaign specifies different recovery rules based on context (e.g., a victorious Commander recovers 75% of casualties; a defeated Commander recovers 50%).
 
 The default Campaign Casualty Rule is Full Recovery.
@@ -308,13 +308,13 @@ Each Choice within a Narrative Event has:
 
 Effects applied by Narrative Event Choices may include:
 
-- **Add/Remove Units**: Add or remove specific Units from the Commander's Army.
-- **Add/Remove Items**: Grant or revoke Items to specific Models.
+- **Add/Remove Squads**: Add or remove specific Squads from the Commander's Army.
+- **Add/Remove Items**: Grant or revoke Items to specific Units.
 - **Modify Campaign Score**: Award or deduct Campaign Score.
 - **Modify Faction Relationships**: Alter the Player's relationships with specific Factions.
 - **Unlock/Lock Plots**: Reveal hidden Plots or Connections on the Sector Map, or make existing ones inaccessible.
 - **Trigger Activity**: Force the Commander into a specific Activity (e.g., an ambush Battle).
-- **Grant/Revoke Marker Components**: Add or remove marker Components from the Commander, Army, or specific Units.
+- **Grant/Revoke Marker Components**: Add or remove marker Components from the Commander, Army, or specific Squads.
 - **Modify Campaign Resources**: Adjust the Player's Campaign Resource totals (see rule 825.1).
 - **Narrative State Change**: Set a narrative flag that later Narrative Events, Activities, or Conclusion Conditions reference.
 
@@ -336,7 +336,7 @@ If only one Choice is valid, the Player must select that Choice. If no Choices a
 
 ### 824.1 Travel Activity Overview
 
-A Travel Activity represents events that occur during movement between Plots, such as encounters, hazards, or opportunities discovered in transit. Travel Activities are optional; a Campaign may use them to enrich the journey between Plots or may omit them entirely.
+A Travel Activity represents events that occur during movement between Plots, such as encounters, hazards, or opportsquadies discovered in transit. Travel Activities are optional; a Campaign may use them to enrich the journey between Plots or may omit them entirely.
 
 ### 824.2 Travel Events
 
@@ -353,7 +353,7 @@ If the Travel Event is Interruptible and unresolved, the Commander remains in tr
 
 ### 825.1 Campaign Resources
 
-Some Campaigns use a resource economy to gate access to Units, Items, and narrative options. Campaign Resources are tracked per Player. Each Campaign Resource has:
+Some Campaigns use a resource economy to gate access to Squads, Items, and narrative options. Campaign Resources are tracked per Player. Each Campaign Resource has:
 
 | Property | Type | Required | Description |
 |---|---|---|---|
@@ -365,13 +365,13 @@ Campaign Resources are not Entities; they are bookkeeping values managed by the 
 
 ### 825.2 Trade Activity Overview
 
-A Trade Activity allows a Commander to exchange Campaign Resources for Units, Items, or other benefits. Trade Activities provide an economic layer beyond the base Armybuilding system.
+A Trade Activity allows a Commander to exchange Campaign Resources for Squads, Items, or other benefits. Trade Activities provide an economic layer beyond the base Armybuilding system.
 
 ### 825.3 Trade Resolution
 
 When a Commander engages in a Trade Activity:
 
-1. The Campaign System presents the available trades, each specifying a cost (in Campaign Resources) and a reward (Units, Items, marker Components, or other Effects).
+1. The Campaign System presents the available trades, each specifying a cost (in Campaign Resources) and a reward (Squads, Items, marker Components, or other Effects).
 2. The Player selects one or more trades, subject to available Campaign Resources.
 3. Campaign Resources are deducted and rewards are applied.
 4. The Activity completes.
@@ -497,8 +497,8 @@ The Campaign may inject additional requirements into the Roster validation perfo
 
 - Minimum or maximum TotalValueComponent.
 - Allowed or excluded Faction Keyword marker Components.
-- Allowed or excluded Unit Keyword marker Components.
-- Required Unit inclusions (e.g., "Battleforce must include at least one Unit with the `Heavy` marker Component").
+- Allowed or excluded Squad Keyword marker Components.
+- Required Squad inclusions (e.g., "Battleforce must include at least one Squad with the `Heavy` marker Component").
 - Commander requirements (e.g., "Commander must have the `Strategist` marker Component").
 
 #### 850.2b Turn Limit
@@ -528,19 +528,19 @@ The Campaign may alter or replace the default Battle victory conditions (see rul
 
 - Alternative victory conditions (e.g., "Destroy the target building", "Hold the center for 3 consecutive Turns").
 - Additional scoring criteria for the Battle.
-- Modified Annihilation conditions (e.g., "Battle ends when one Player loses 50% of Units by Value").
+- Modified Annihilation conditions (e.g., "Battle ends when one Player loses 50% of Squads by Value").
 
 #### 850.2f Additional Battle Rules
 
 The Campaign may attach transient Components or System parameter overrides that apply during specific Battle Stages or Phases:
 
-- Pre-Battle Component modifications (e.g., "Reduce each Unit's EnduranceRemainingComponent by 2 due to forced march").
-- Per-Turn System hooks (e.g., "At the start of each Rally Phase, the Combat System deals 1 damage to each Unit with the `Exposed` marker Component").
+- Pre-Battle Component modifications (e.g., "Reduce each Squad's EnduranceRemainingComponent by 2 due to forced march").
+- Per-Turn System hooks (e.g., "At the start of each Rally Phase, the Combat System deals 1 damage to each Squad with the `Exposed` marker Component").
 - Post-Battle Component modifications (e.g., "Add the `Decorated` marker Component to the Victor's Commander Entity").
 
 ### 850.3 Armybuilding Modifiers
 
-Campaign Modifiers that target Armybuilding may alter the available Unit pool, Value caps, or Armybuilding process (see rule 821.3).
+Campaign Modifiers that target Armybuilding may alter the available Squad pool, Value caps, or Armybuilding process (see rule 821.3).
 
 ### 850.4 Modifier Precedence
 
@@ -617,9 +617,9 @@ Story Campaigns deliver the game's narrative through a sequence of linked Campai
 
 Multiplayer Campaigns extend the Skirmish framework for multiple human Players:
 
-- **Freeplay**: Any Campaign (including custom), any Units (including custom). No ranking impact.
-- **Unranked**: Official Campaigns and Unit data only. No ranking impact.
-- **Ranked**: Curated Competitive Campaign set, official Unit data only. Results affect Player Rankings.
+- **Freeplay**: Any Campaign (including custom), any Squads (including custom). No ranking impact.
+- **Unranked**: Official Campaigns and Squad data only. No ranking impact.
+- **Ranked**: Curated Competitive Campaign set, official Squad data only. Results affect Player Rankings.
 
 Multiplayer Campaigns follow the same rules as Skirmish Campaigns with the following additions:
 
@@ -633,12 +633,12 @@ Multiplayer Campaigns follow the same rules as Skirmish Campaigns with the follo
 
 - **Active Play**: The second Campaign Stage, during which Players navigate the Sector Map and engage in Activities. (Rule 800.4)
 - **Activity**: A structured interaction a Commander performs at a Plot; classified as Armybuilding, Battle, Narrative Event, Travel, Trade, or Custom. (Rule 820.1)
-- **Armybuilding Activity**: An Activity allowing a Commander to add, remove, or reconfigure Units in the Commander's Army. (Rule 821.1)
+- **Armybuilding Activity**: An Activity allowing a Commander to add, remove, or reconfigure Squads in the Commander's Army. (Rule 821.1)
 - **Battle Activity**: An Activity that initiates a Battle between Commanders at the same Plot. (Rule 822.1)
 - **Bonus Objective**: A one-time Objective tied to a specific Activity or narrative moment, awarded immediately upon completion. (Rule 830.2)
 - **Campaign**: An Entity of the Campaign archetype (CampaignStageComponent, SectorMapRefComponent, `Campaign` marker Component); the top-level game structure organizing all gameplay. (Rule 800.1)
 - **Campaign Modifier**: A Campaign-defined data structure that alters how an Activity functions through Component modifications and System parameter overrides, without changing core rules. (Rule 850.1)
-- **Campaign Resource**: A bookkeeping value tracked per Player, used to gate access to Units, Items, and narrative options. (Rule 825.1)
+- **Campaign Resource**: A bookkeeping value tracked per Player, used to gate access to Squads, Items, and narrative options. (Rule 825.1)
 - **Campaign Round**: One cycle of Commander movement and Activity resolution during Active Play. (Rule 800.4)
 - **Campaign Score**: An integer tracked per Player, accumulated through Objectives, Battles, and Activities, determining the Campaign Victor. (Rule 840.1)
 - **Choice**: An option within a Narrative Event, with Conditions and Effects. (Rule 823.3)
@@ -646,7 +646,7 @@ Multiplayer Campaigns follow the same rules as Skirmish Campaigns with the follo
 - **Conclusion Condition**: A condition that, when met, causes the Campaign to enter the Conclusion Stage. (Rule 800.5)
 - **Connection**: An Entity of the Connection archetype (SourcePlotRefComponent, DestPlotRefComponent, TravelCostComponent, BidirectionalComponent, `Connection` marker Component); an edge on the Sector Map linking two Plots. (Rule 810.3)
 - **First-Come Objective**: An Objective where only the first Player to meet the Conditions earns the Score Award. (Rule 830.3)
-- **Full Recovery**: A Campaign Casualty Rule where all destroyed Units are restored after a Battle. (Rule 822.5)
+- **Full Recovery**: A Campaign Casualty Rule where all destroyed Squads are restored after a Battle. (Rule 822.5)
 - **Generic Campaign**: The minimal Campaign template used as the foundation for all others. (Rule 860.1)
 - **Hidden Objective**: An Objective not visible until its Reveal Condition is met. (Rule 830.2)
 - **In Transit**: The state of a Commander moving along a Connection with Travel Cost greater than 1. (Rule 810.5)
@@ -655,21 +655,21 @@ Multiplayer Campaigns follow the same rules as Skirmish Campaigns with the follo
 - **Narrative State Change**: A narrative flag set by a Narrative Event Choice, referenced by later Events and Conditions. (Rule 823.4)
 - **Objective**: A condition Players pursue during a Campaign, providing direction and Campaign Score. (Rule 830.1)
 - **Opening**: The first Campaign Stage, during which Players configure starting positions, Factions, Commanders, and Armies. (Rule 800.3)
-- **Partial Recovery**: A Campaign Casualty Rule where a percentage of destroyed Units are restored after a Battle. (Rule 822.5)
+- **Partial Recovery**: A Campaign Casualty Rule where a percentage of destroyed Squads are restored after a Battle. (Rule 822.5)
 - **Per-Player Objective**: An Objective each Player may complete independently. (Rule 830.3)
-- **Permanent Loss**: A Campaign Casualty Rule where all destroyed Units are permanently removed. (Rule 822.5)
+- **Permanent Loss**: A Campaign Casualty Rule where all destroyed Squads are permanently removed. (Rule 822.5)
 - **Plot**: An Entity of the Plot archetype (DisplayNameComponent, ActivityRefComponent, `Plot` marker Component); a node on the Sector Map representing a location where Activities occur. (Rule 810.2)
 - **Plot Control**: Ownership of a Plot, which may change based on Activity outcomes. (Rule 810.6)
 - **Primary Objective**: A core Campaign Objective visible from the Opening. (Rule 830.2)
 - **Quickplay Campaign**: A minimal Campaign designed for immediate play: two Plots, one Battle. (Rule 860.2)
-- **Reinforcement Pool**: A Campaign Casualty Rule where destroyed Units enter a pool recoverable through Activities. (Rule 822.5)
+- **Reinforcement Pool**: A Campaign Casualty Rule where destroyed Squads enter a pool recoverable through Activities. (Rule 822.5)
 - **Scripted Battle**: A Battle with pre-defined parameters dictated by the Campaign's narrative. (Rule 822.2)
 - **Secondary Objective**: An optional Campaign Objective providing additional Campaign Score, visible from the Opening. (Rule 830.2)
 - **Sector Map**: An Entity of the Sector Map archetype (Plot references, Connection references, `Sector Map` marker Component); the navigable graph defining a Campaign's geography. (Rule 810.1)
 - **Shared Objective**: An Objective where all Players share the completion (cooperative Campaigns). (Rule 830.3)
 - **Skirmish Campaign**: A configurable Campaign template supporting single or multiplayer play with variable complexity. (Rule 860.3)
 - **Story Campaign**: A narrative-driven Campaign template with persistent consequences across linked Campaigns. (Rule 860.4)
-- **Trade Activity**: An Activity allowing a Commander to exchange Campaign Resources for Units, Items, or benefits. (Rule 825.2)
+- **Trade Activity**: An Activity allowing a Commander to exchange Campaign Resources for Squads, Items, or benefits. (Rule 825.2)
 - **Travel Activity**: An Activity representing events during movement between Plots. (Rule 824.1)
 - **Travel Cost**: The number of Campaign Rounds required to traverse a Connection. (Rule 810.3)
 - **Travel Event**: A Narrative Event triggered during Commander movement along a Connection. (Rule 824.2)
@@ -761,7 +761,7 @@ The Campaign System reads and writes Campaign-level Components:
 | Battleforces and Rosters | Entity System Rules 270.2–270.3 | Campaign Modifiers inject additional requirements into Zone System Roster validation |
 | Battle Stages | Battle Rules 100–150 | Campaign Modifiers override Battle Entity Components and System parameters |
 | Battle Scoring | Battle Rules 140.3 | Campaign System integrates Battle Score into CampaignScoreComponent |
-| Battle Casualties | Battle Rules 140.4 | Campaign Casualty Rules process Units in Casualty Report Zone after Battle |
+| Battle Casualties | Battle Rules 140.4 | Campaign Casualty Rules process Squads in Casualty Report Zone after Battle |
 | Deployment Zones | Battle Rules 120.2 | Campaign Modifiers may override DeploymentZonesComponent on Battlefield Entity |
 | Turn Limits | Battle Rules 150.1 | Campaign Modifiers may set TurnLimitComponent on Battle Entity |
 
@@ -778,7 +778,7 @@ This document defines Campaign-level structures referenced by:
 
 This document depends on:
 
-- **Entity System Rules** (200-series): Commander, Army, Battleforce, Roster, Unit archetypes; Component and System definitions; marker Component conventions.
+- **Entity System Rules** (200-series): Commander, Army, Battleforce, Roster, Squad archetypes; Component and System definitions; marker Component conventions.
 - **Battle Rules** (100-series): Battle Stages, Scoring, Casualty Processing, and Battle End Conditions.
 - **Movement and Positioning Rules** (300-series): Spatial Components (BattlefieldDimensionsComponent, DeploymentZonesComponent, TerrainIndexComponent) referenced by Campaign Modifiers.
 

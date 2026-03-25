@@ -2,7 +2,7 @@
 
 ## Glossary
 
-### Time Units
+### Time Squads
 
 | Abbreviation | Meaning | Equivalent |
 |---|---|---|
@@ -208,7 +208,7 @@ Where Angels are the Empire's unborn consciousness pressing against the Law, **s
 
 ### Humanity Encountered (~50 Ma)
 
-Humanity reached the stars only a few thousand years before the Law expanded to encompass their galactic arm. They have no sense for the beneath and no tradition of magic. They cannot feel it, cannot practice it, cannot perceive the Law governing their reality. But they can build instruments to measure the beneath indirectly, develop mathematical models to predict its behavior, and engineer machines that interface with the Law's rituals without intuitive sensitivity.
+Humanity reached the stars only a few thousand years before the Law expanded to encompass their galactic arm. They have no sense for the beneath and no tradition of magic. They cannot feel it, cannot practice it, cannot perceive the Law governing their reality. But they can build instruments to measure the beneath indirectly, develop mathematical units to predict its behavior, and engineer machines that interface with the Law's rituals without intuitive sensitivity.
 
 This makes them invaluable — their empirical approach reveals patterns too subtle for intuition, too vast for experience. And terrifying — they approach the beneath with the detachment of scientists, lacking the instinctive revulsion other species feel toward dangerous forces. The Folly is, to humans, an interesting case study.
 
