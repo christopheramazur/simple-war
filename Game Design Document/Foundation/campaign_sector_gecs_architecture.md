@@ -20,14 +20,16 @@ We also want to consider how the presentation and simulation architecture will h
 
 ## Runtime Boundaries
 
-The architecture is split into layers:
+The architecture is split into major layers:
 
-- `Campaign Runtime` - GECS world for campaign progression. Includes the ECS involved in tracking campaign progress, score, players, and campaign-local settings.
-- `Sector Map Runtime` - Large GECS system for sector map. Includes the ECS involved in map operations, such as the various systems and managers.
-- `Battle Runtime` - GECS world for battles. 
-- `Presentation` (UI scenes that render queries and dispatch intents)
+- `Meta State Layer` - This layer handles overall state of the game's lifetime by checking for events from the other systems and layers. Player progression such as achievements, lifetime stats, unlockables, etc. Minimal communication with the components in this layer -- mostly flags and counters that increment as the player plays.
 
-The Campaign Runtime is the source of truth for flow gating and campaign progression. The Presentation layer does not own progression flags.
+- `Game State Layer` - This layer is responsible for validating, reading, and writing audits and savegames. Communicates to meta layer when certain validation criteria are met. Other layers(even the meta state layer) communicate events as appropriate to this layer for audit and saving. 
+
+- `Game System Management Layer` - System composers that handle the actual management of systems during the game runtime. Campaing manager c
+
+- `Presentation Layer` - UI, graphics, animation, if an entity has something that the players are supposed to see, systems register it with the presentation layer to keep track of and remove it when it's no longer supposed to be visible. The presentation layer handles drawing everything that needs to be drawn. Menus, dialogues, lists, displays -- all of these are populated with data and configurations from components in other layers. 
+
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Manual Flow Checklist
 
-1. Launch game into `main_menu.tscn`.
+1. Launch game into `main_menu`.
 2. Click `Quick Play`.
 3. Confirm `campaign_planning.tscn` appears with Back/Embark.
 4. Click `Embark` and verify Sector Map note requests army building.
