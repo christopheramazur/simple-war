@@ -304,23 +304,17 @@ Every Campaign Entity has at least:
 - Opening — determine the terms of the Campaign:
   - Number and composition of activities (for example: 3 Battles, or 2 Battles and 1 narrative event).
   - Objectives that Players should try to achieve.
-- Activities — the things Players do during the Campaign:
+- Narrative — the things Players do during the Campaign:
   - In the most basic case, each Player builds an Army, then fights in a Battle against the other Player.
-  - More complex Campaigns may add, remove, or modify activities (extra Battles, narrative events, strategic map moves, etc.).
+  - More complex Campaigns may add, remove, or modify activities (extra Battles, events, strategic map moves, etc.).
 - Conclusion — determine the victor of the Campaign based on its objectives and results.
 
-Campaign Modifiers alter how Battles work by modifying Components on Battle Entities and overriding System parameters — without changing the core Battle Rules (see rule 850.1 in Campaign Rules). Examples include:
+Campaign Modifiers alter how Battles work by modifying Components on Battle Entities and overriding System parameters — without changing the core Battle Rules. Examples include:
 
 - Setting TurnLimitComponent to enforce a maximum turn count.
-- Overriding BattlefieldDimensionsComponent or DeploymentZonesComponent to change the playing field.
+- Overriding Battlefield Dimensions or Deploymen Zones to change the playing field.
 - Adding or tightening Roster requirements for Battleforce validation.
-- Modifying VictoryConditionsComponent to change Battle victory conditions.
-
-For the first digital prototype, we assume a Generic Campaign that:
-
-- Uses a default Roster with no special restrictions.
-- Has a single Battle as its only activity.
-- Uses straightforward "most victory points / wipeout" style victory conditions.
+- Modifying Victor Conditions to change Battle victory conditions.
 
 ---
 

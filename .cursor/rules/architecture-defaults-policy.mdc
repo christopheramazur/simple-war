@@ -1,0 +1,17 @@
+---
+description: Architecture and defaults safety policy for components and bootstrap flows
+alwaysApply: true
+---
+
+# Architecture And Defaults Policy
+
+- Treat component default values as constructor safety only, not domain validity.
+- Enforce required domain values in factories, builders, or validators before runtime use.
+- Use explicit sentinels for uninitialized state; avoid ambiguous `""`, `0`, or empty containers when those can be valid values.
+- Prefer constrained constants/enums over free-form status or type strings.
+- Deep-copy mutable `Dictionary`/`Array` values when passing, storing, or returning data that must not alias.
+- Keep bootstrap composition explicit: use resolver + factory, and add strategy/decorator when behavior branches.
+- Avoid monolithic orchestrators that directly construct complex object graphs.
+- Maintain determinism when consuming unordered data:
+  - sort dictionary keys before iteration when order matters
+  - use stable ordering for IDs, collections, and serialization inputs

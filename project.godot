@@ -44,7 +44,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/custom_graph_editor/addons/custom_graph_editor/plugin.cfg", "res://addons/custom_graph_editor/plugin.cfg", "res://addons/dialogic/plugin.cfg", "res://addons/gecs/plugin.cfg", "res://addons/guide/plugin.cfg", "res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/custom_graph_editor/plugin.cfg", "res://addons/dialogic/plugin.cfg", "res://addons/gecs/plugin.cfg", "res://addons/guide/plugin.cfg", "res://addons/gut/plugin.cfg")
 
 [input]
 

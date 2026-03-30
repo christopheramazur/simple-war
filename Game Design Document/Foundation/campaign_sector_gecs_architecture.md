@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Last Updated**: 2026-03-20
-**Purpose**: Define a GECS runtime architecture for Campaign and Sector Map flow, including deterministic flow gating, audit/event replay, and migration from the current UI/flag implementation.
+**Purpose**: Define a GECS runtime architecture for Campaign and Sector Map flow, including deterministic flow gating, audit/event replay, and save/load validation.
 
 ---
 
@@ -14,15 +14,18 @@ This design outlines a GECS implementation where:
 - Changes to the state are computed by Systems using component data. 
 - Every action produces an append-only Event record for audit and replay.
 
+We also want to consider how the presentation and simulation architecture will hook into our data models. For example, if an entity's data has been mutated by multiple components, we should be able to cleanly display the final value and precisely how it was calculated.  
+
 ---
 
 ## Runtime Boundaries
 
-The architecture is split into three layers:
+The architecture is split into layers:
 
-1. `Campaign Runtime` (GECS world for campaign/sector progression)
-2. `Battle Runtime` (existing battle systems and battle-local state)
-3. `Presentation` (UI scenes that render queries and dispatch intents)
+- `Campaign Runtime` - GECS world for campaign progression. Includes the ECS involved in tracking campaign progress, score, players, and campaign-local settings.
+- `Sector Map Runtime` - Large GECS system for sector map. Includes the ECS involved in map operations, such as the various systems and managers.
+- `Battle Runtime` - GECS world for battles. 
+- `Presentation` (UI scenes that render queries and dispatch intents)
 
 The Campaign Runtime is the source of truth for flow gating and campaign progression. The Presentation layer does not own progression flags.
 
