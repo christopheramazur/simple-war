@@ -14,35 +14,57 @@ This design outlines a GECS implementation where:
 - Changes to the state are computed by Systems using component data. 
 - Every action produces an append-only Event record for audit and replay.
 
-We also want to consider how the presentation and simulation architecture will hook into our data models. For example, if an entity's data has been mutated by multiple components, we should be able to cleanly display the final value and precisely how it was calculated.  
+We also want to consider how different systems will hook into our data models. For example, if an entity's data has been mutated by multiple components, we should be able to cleanly display the final value and precisely how it was calculated.
 
----
+e.g. we should be able to show an aggregated view along the lines of 
+- `Damage: 30 (Base 10, Increase 100%, Multiplier x1.50)`
+or a detailed breakdown along the lines of
+- `Damage: 30 (Base 10, Increases: {"source": "x", "value": y}, Multipliers: {"source": "x", "value": y})`
 
-## Runtime Boundaries
+We also don't need everything to be ECS. Configuration, loaders, and various meta or orchestration components can sit outside of the ECS world where it would make sense, such as for input mapping and player-specific game settings, or multiplayer lobbies handling connections.
 
-The architecture is split into major layers:
+The architecture is split into major layers to support this:
 
-- `Meta State Layer` - This layer handles overall state of the game's lifetime by checking for events from the other systems and layers. Player progression such as achievements, lifetime stats, unlockables, etc. Minimal communication with the components in this layer -- mostly flags and counters that increment as the player plays.
+- `Meta Layer` - This layer handles overall management of the game's lifetime across multiple launches by reviewing audit logs and savefiles. Player progression such as achievements, lifetime stats, unlockables, etc. are flagged by this layer. It has minimal communication with other components and layers.
 
-- `Game State Layer` - This layer is responsible for validating, reading, and writing audits and savegames. Communicates to meta layer when certain validation criteria are met. Other layers(even the meta state layer) communicate events as appropriate to this layer for audit and saving. 
+- `Input Layer` - This layer handles input configuration and mapping. We want there to be an interface the game uses, and an interface that defines how the player interacts with that interface; the GUIDE addon mostly handles one side of this so we just need to ensure that all the actions a player can make accept inputs appropriately without being hardcoded. 
 
-- `Game System Management Layer` - System composers that handle the actual management of systems during the game runtime. Campaing manager c
+- `Configuration Layer` - This layer handles game and player settings such as Audio, Graphical, and other preferences. Some of these preferences such as game difficulty or game speed may be wired to the audit, while others such as changing the game's brightness or music volume don't need to be. Settings that are auditable can also be set to specific values or ranges that are imposed by game types (Ranked multiplayer, for example) or campaign rules. This layer does not directly action the settings, instead acting as the source of truth for persisting and conveying them.
 
-- `Presentation Layer` - UI, graphics, animation, if an entity has something that the players are supposed to see, systems register it with the presentation layer to keep track of and remove it when it's no longer supposed to be visible. The presentation layer handles drawing everything that needs to be drawn. Menus, dialogues, lists, displays -- all of these are populated with data and configurations from components in other layers. 
+- `Persistence Layer` - This layer is responsible for validating, reading, and writing audits and savegames. Other layers communicate events as appropriate to this layer for audit and saving. This layer is repsonsible for managing replayability artifacts such as the random seed, for notifying the meta layer if gameplay is currently in a valid state or not (for achievement and progress purposes), and similar activities that might involve writing to savefiles and audits. 
+
+- `Game System Management Layer` - System composers that handle the actual management of systems during the game runtime. The game's systems live here and the layer acts primarily as a bus and interface allowing other layers to speak to the systems, as well as allowing the systemst to speak to each other. Systems fingerprint mutations to state for audit.  
+
+  - `Game State Layer` - A sublayer of the system management layer, entities and components are kept here as a complete representation of the game's current state, without regard for audit or validity. This layer's purpose is to provide access to any entity or component
+
+- `Presentation Layer` - This layer is responsible for matching scenes and configurations to the appropriate UI/UX. Graphics, Fonts, Audio, etc. -- if the player sees or hears something, this layer is what's showing it to them. This layer interfaces heavily with the configuration, input, and game state layers to map the underlying game state 
 
 
 ---
 
 ## Entity Archetypes
 
+### Player Root Entity
+- `PlayerTag` - Marks entity as a Player
+- `PlayerProfileRefComponent` - Inherited from the Player's profile, unique ID that references them. 
+- `PlayerConnectedComponent` - Given to a Player while they're connected to the game. 
+- `PlayerSeatComponent` - Given to the player to denote which role they're playing as. A player could for example leave a game as seat 1 and reconnect in seat 2 to control different Players from the same profile
+- `PlayerFactionComponent`
+- `PlayerStateComponent`
+- `PlayerFocusComponent`
+
+
 ### Campaign Root Entity
 
-- `CampaignTag`
-- `CampaignStageComponent`
-- `CurrentRoundComponent`
-- `FlowStateComponent`
-- `AuditCursorComponent`
-- `ReplayCheckpointComponent`
+- `CampaignTag` - Marks entity as a Campaign
+- `CampaignRefComponent` - Hashed datasource the campaign is built from, used for validity
+- `StageComponent` - Information about the current stage, used to track player modifications to settings 
+- `TurnComponent` - Information about the player's activity during the current turn, 
+- `GlobalModifierComponent` 
+- `RosterModifierComponent`
+- `EventModifierComponent`
+- `ObjectiveComponent`
+
 
 ### Sector Map Entity
 
@@ -50,6 +72,7 @@ The architecture is split into major layers:
 - `SectorMapRefComponent`
 - `PlotIndexComponent`
 - `ConnectionIndexComponent`
+- 
 
 ### Plot Entity
 
