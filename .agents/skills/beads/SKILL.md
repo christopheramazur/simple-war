@@ -11,13 +11,13 @@ Use Beads as the shared project task system. Local plans, scratch files, and per
 
 Run:
 
-```bash
+```powershell
 bd prime
 ```
 
 If that prints nothing, check whether the repository has an active Beads workspace:
 
-```bash
+```powershell
 bd where
 ```
 
@@ -29,7 +29,7 @@ Use the `bd` CLI when shell access is available. It is the most compact and dire
 
 1. Find work:
 
-```bash
+```powershell
 bd ready
 bd list --status=open
 bd list --status=in_progress
@@ -37,25 +37,25 @@ bd list --status=in_progress
 
 2. Inspect before editing:
 
-```bash
+```powershell
 bd show <id>
 ```
 
 3. Claim work atomically:
 
-```bash
+```powershell
 bd update <id> --claim
 ```
 
 4. Create durable follow-up work when implementation reveals new tasks:
 
-```bash
+```powershell
 bd create "Short title" --description="Why this exists and what needs to be done" --type=task --priority=2
 ```
 
 5. Close completed work:
 
-```bash
+```powershell
 bd close <id> --reason="Completed"
 ```
 
