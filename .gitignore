@@ -39,3 +39,8 @@ simple-war.code-workspace
 
 # Ralph TUI
 .ralph-tui/
+
+# Beads / Dolt files (added by bd init)
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
