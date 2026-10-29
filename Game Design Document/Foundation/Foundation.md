@@ -8,87 +8,59 @@ Purpose: High-level overview of how Simple War is structured — its ECS archite
 
 ## 1. Big Picture
 
-Simple War is about Players using Commanders to lead Armies on a Campaign. Campaigns take place across a Sector Map. A Campaign might have many Activities such as Armybuilding to rally forces, Battle to establish dominance in a sector, Travel to bring forces where they need to be, Trade to acquire equipment or offload excess, and more. A Campaign concludes for the Player when they have either achieved its Objectives, or when they can no longer participate in any Activities. The Conclusion of a Campaign results in a Score which determines the ultimate victor, even if all a Player's Commanders and Armies have been lost.
+Simple War is about Players using Commanders to lead Armies on Campaigns. Campaigns take place across a Sector Map. A Campaign might have many Activities such as Armybuilding to rally forces, Battle to establish dominance in a sector, Travel to bring forces where they need to be, Trade to acquire equipment or offload excess, and more. A Campaign concludes for the Player when they have either achieved its Objectives, after a set period, or when they can no longer participate in any Activities. The Conclusion of a Campaign results in a Score which determines the ultimate victor, even if all a Player's Commanders and Armies have been lost.
 
-Simple War is a competitive single or multiplayer game with a replayable story-driven game-mode. User activity is tracked in replay files that can be used to upload gameplay stats for leaderboards. Replay files use hashing to ensure theyr'e self-verifying against the version of the game they were created with. Singleplayer game modes include quickplay and skirmish modes -- which allow a Player to jump directly into Battle or into smaller, self-contained Campaigns -- as well as Challenge and Story modes, which allow a player to experience curated Campaigns. There will also be support for commsquady contriutions to these game modes.
+Simple War is a competitive single or multiplayer game, intended to be free, with a story-driven narrative game mode that players can pay to experience. User activity is tracked in replay files that can be used to upload gameplay stats for leaderboards. Replay files use hashing to ensure they're self-verifying against the version of the game they were created with. Singleplayer game modes include quickplay and skirmish modes -- which allow a Player to jump directly into Battle or into smaller, self-contained Campaigns -- as well as Challenge and Story modes, which allow a player to experience curated Campaigns. There will also be support for community contributions to these game modes.
 
-The multiplayer experience is broken into custom, unranked, and ranked. The custom game mode allow Players to interact with Player-driven content without affecting their rankings and with the understanding that the gameplay may be wildly non-standard, similar to the Use Map Settings and Arcade gameplay of Blizzard games. Unranked games are played on official campaigns using official settings, but do not affect a player's rankings. Ranked games are played on official campaigns using official settings, and affect player rankings. 
+The multiplayer experience is broken into custom, unranked, and ranked. The custom game mode allow Players to interact with Player-driven content without affecting their rankings and with the understanding that the gameplay may be wildly non-standard, similar to the Use Map Settings and Arcade gameplay of Blizzard's Starcraft and Warcraft games. Unranked games are played on official campaigns using official settings, but do not affect a player's rankings. They are for practicing without competitive consequence. Ranked games are played on official campaigns using official settings, and affect player rankings. 
 
 The primary aspect of Simple War that sets it apart from similar RTS and TBS style games such as Total War, Starcraft, Heroes of Might and Magic, Battle for Wesnoth, etc. is the parallel and simultaneous gameplay. In Heroes of Might and Magic, Players take turns moving around the overworld map, moving creatures on the battle map, etc. In Total War, the gameplay on the battelfield may be realtime and simultaneous, but Players still take turns on the overworld map, creating a series of sequential battles. 
 
-Simple War breaks this up by interweaving gameplay activities. Battles take place at the same time as other overworld activities. A Player may be managing multiple Battles at once. Each Battle progresses when all Players are finished issuing orders to their Squads, and the resulting orders are executed and resolved simultaneously. These activities all may have rolling timers that cost against the Player's focus and attention, benefitting quick play and having a gameplan even if the game is turn-based. 
+Simple War breaks this up by interweaving gameplay activities. Battles take place at the same time as other overworld activities. A Player may be managing multiple Battles at once. Each Battle progresses when all Players are finished issuing orders to that battle's participants, and the resulting orders are executed and resolved simultaneously. These activities all may have timers that ensures they cost against the Player's focus and attention, benefitting quick play and having a gameplan, even if the game is turn-based. 
 
-Like Battletech games, each Battle may also impose limitations on who and what can be involved in it. This further deepens the Player's decisionmaking when it comes to going wide or deep with their approach to dominance. Like Heroes of Might and Magic, the Squads and Commanders involved in a Battle can influence each others' morale and temperment.
+Like Battletech games, each Battle may also impose limitations on who and what can be involved in it. This further deepens the Player's decisionmaking when it comes to going wide or deep with their approach to dominance. Like Heroes of Might and Magic, the Squads and Commanders involved in a Battle can influence each others' morale and temperment. And like autobattlers, squads will each default to doing their own thing if not given orders otherwise.
 
 ---
 
 ## 2. Architecture
 
+Signals travel up through several layers. Unless absolutely necessary, nothing in a layer above needs to tell the layers below it anything. 
+
+### Godot Infrastructure
+We make use of Godot's performance monitoring to identify bottlenecks in simulation and presentation. We'll also be using their typical servers for the time being.
+
+### Data Layer
+The game's components and entities are constructed from structured data. This allows us to ingest certain file formats relatively safely and use them to construct custom data. The data layer simply manages this data and sends information about it up to where it's needed.
+
 ### Simulation Layer
-All gameplay activity takes place on a simulation layer, decoupled from animation or presentation. The simulation layer produces the game's replay files. 
+The game's state is mutated here. Timers, squad and unit data, campaign state, events, etc. If it has a data model pertaining to gameplay, it should be managed here. Events and mutators should be created with auditability in mind, with something like a metadata + event log that can be used to recreate state. 
 
+#### Entity Component System
+Simple War will use a data orented tech stack focusing on the Entity Component System as the core of its simulation layer.
+- Entity — A unique identifier (ID). An Entity has no inherent data or behavior; that comes from Components.
+- Component — A data structure attached to an Entity. Components hold state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex) or are used to filter (Tags such as various Unit Types, Faction)
+- System — Logic that operates on Entities possessing specific Components. Systems read Components, perform calculations, and write results back to Components. If game logic mutates state, it does so as part of a System.
 
-### Audit and Replay 
-Systems produce an append-only Event record for audit and replay when they mutate state. We recreate a user session and game state deterministically from these audits. Saving uses binary serialization and works by iterating the game state and copying out the bits and pieces (required to re-construct it at load time) to the compress-and-write-to-disk threads. By comparing the final record of an replay audit to the game sate, we can verify that game state. Differences indicate that external mutations influenced game state and that the replay is not verifiable. 
+If a group of systems requires a system to managed them, that manager is typicalled called an orchestrator, manager, or coordinator. 
 
 ### Presentation Layer
-The Presentation Layer hooks into the Simulation Layer to understand what the game should be showing the player. This lets us divorce framerate, art, animation, UI/HUD, and any other presentation concerns from the gritty details underneath, and allows modders to supply their own assets and widgets to create or extend any part of how the game presents itself more easily. 
+The Presentation Layer receives signals to update what is being displayed. This lets us divorce framerate, assets, animations, UI/HUD, and any other presentation concerns from the gritty details underneath, and should also allow modders to supply their own assets and widgets to create or extend any part of how the game presents itself more easily. As a note, we may have to structure data about certain things like animation times so that it's accessible from multiple layers, to prevent something like "skip animation" from telling the simulation and presentation layers different things (e.g. animation skips, but underlying wait doesn't - or vice versa)
 
-### Performance Monitoring
-We make use of Godot's performance monitoring to identify bottlenecks in simulation and presentation. 
+### Peripheral Components
 
-### Entity Component System
-Simple War uses an ECS architecture throughout. Understanding three concepts is sufficient to read the rest of this document and all rule documents.
+Not everything involved in developing or running the game falls directly into the above. Tests, data organization tools, and configuration infrastructure sit alongside our layers. 
 
-- Entity — A unique identifier (ID). An Entity has no inherent data or behavior; that comes from Components.
-- Component — A data structure attached to an Entity. Components hold state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex). 
-  - Marker Components (Tags) are a subset of Component that carry no data beyond their presence and serve as keywords for grouping and filtering (e.g., `Infantry`, `Vehicle`).
-- System — A squad of logic that operates on Entities possessing a specific set of Components. Systems read Components, perform calculations, and write results back to Components. If game logic mutates state, it should be part of a System. An example might be an Inventory System, which manages changes to Inventory components. If a Backpack Inventory has a Weight field, then the Inventory System is responsible for mutating and validating that field. There may also be global governance systems that do widespread validation and garbage collection for various components.
-
-An archetype is a common combination of Components that defines a category of Entity. Example archetypes are:
-
-| Archetype | What It Represents | Key Components |
-|---|---|---|
-| Unit | An individual figure | Statline, Equipped Items, Destruction State |
-| Squad | A group of Units | Statline, Faction Keywords, Squad Keywords, Composition, Abilities, Value, Zone, Morale State |
-| Item | Equipment or consumable | Item Type; optionally Attack Profile, Armour |
-| Commander | A leader of an Army | Statline, Equipment, Abilities, Army Reference |
-| Army | All Squads under a Commander | Commander Reference, Squad References |
-| Battleforce | Squads selected for a Battle | Army Reference, Squad References, Total Value |
-| Battle | A structured conflict | BattleStageComponent, TurnCounterComponent, PhaseComponent, VictoryConditionsComponent, and others |
-| Activity | A generic activity that is represented on the Sector Map; Battles are Activities | ActivityStatusComponent, ConditionsComponent, etc. |
-| Sector Map | A visual representation of overworld state. Activities, Paths, Commanders, and Armies are represented here | VisibilityComponent, ActivityMapComponent, etc. |
-| Campaign | The top-level game structure | CampaignStageComponent, SectorMapRefComponent, Objectives, Scoring Rules |
-
-The core Systems that drive gameplay:
-
-| System | Purpose |
-|---|---|
-| Battle System | Orchestrates Battle flow: advances Stages and Phases, delegates to other Systems |
-| Campaign System | Manages Campaign-level logic: Sector Map navigation, Activity resolution, Modifier layering |
-| Combat System | Establishes where combat happens, and how it's resolved |
-| Zone System | Manages Entity Zone transitions (Battlefield, Reserves, Casualty, etc.) |
-| Battle Movement System | Reads spatial Components, resolves movement Orders |
-| Sector Movement System | Reads Sector Map graph, tells entities where and how they can move |
-| Deployment System | Places Squads on the Battlefield within Deployment Zones |
-| Morale System | Manages Morale state transitions based on test results |
-| Ability System | Evaluates Ability conditions and effects during timing windows |
-
-Not everything is an Entity, Component, or System in Simple War. There are message busses, buffers, schedulers and orchestrators, and other data structures that aren't attached to entities or components which the game's Systems use to manage or optimize gameplay state and mutation. 
-
-
-### GUTS
+#### GUTS
 We generate tests to ensure that validity-checking works how we expect it to. We also test that generators, factories, and other patterns create the components and entities we expect them to.Systems with comprehensive test coverage are easier to learn about and modify. 
 
-### GUIDE
-The Player should have full control over their key mappings. This means making, saving, and sharing mappings are core concerns when it comes to gameplay. Player choice and accessibility are foundational to Simple War.
+#### GUIDE
+The Player should have full control over their key mappings. This means making, saving, and sharing mappings and configurations are core concerns when it comes to gameplay. Player choice and accessibility are foundational to Simple War.
 
-
-### Dialogic
+#### Dialogic
 We use JSON read from data to structure dialogue and events into components that hook into the ECS. This allows for Player-created narrative Campaigns to supply custom dialogue and graphics for events and interactions.
 
-### Beehave
-Simple War has multiple single-player game modes that require a computer controlled opponent to make decisions which challenge the player. Beehave helps us organize this decisionmaking as components and systems that can be used and adapted in order to make campaign creation easy and accessible. As well, when playing with timers, many squads and commanders have behaviours they default to when not issued orders in time, or when affected by narrative influence. 
+#### Beehave
+Simple War will have multiple single-player game modes that will require a computer controlled opponent to make decisions which challenge the player. Beehave will help us organize this decisionmaking as components and systems that can be used and adapted in order to make campaign creation easy and accessible. As well, when playing with timers, many squads and commanders have behaviours they default to when not issued orders in time, or when affected by narrative influence. 
 
 ### RTS Style Combat Resolution
 A* pathfinding, precomputed pathing on battlefield maps for each type of movement component. Squad-based formation selection available with sensible defaults. Squads will show a ghost path of their movement and destination so the Player has a complete understanding of where things intend to end up. Many units can run and gun, or can bunker down and return fire when intercepted. Battles can be configured to allow Players to issue Reactions to their Squads after everyone's issued their Orders, to build on this behavior-based reactivity. The way Reactions are distributed can be configured as well, from a Timer based free-for-all, to a Reaction banking system that Players spend in a much less time-sensitive manner. Since simulationism is a major goal of Simple War, every attack from every Unit is calculated and resolved in the simulation layer, while the presentation layer does its best to display the action. 

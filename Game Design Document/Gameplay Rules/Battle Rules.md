@@ -8,9 +8,65 @@
 
 ## Overview
 
-A Battle is an Entity of the **Battle archetype** — a structured conflict between two or more opposing Battleforces on a Battlefield. The **Battle System** advances the Battle through four sequential Stages: Planning, Deployment, Engagement, and Consolidation. During the Engagement Stage, the Battle System runs a true simultaneous turn system in which all Players issue hidden Orders to their Squads, then reveal and resolve those Orders at the same time. Other Systems — the Combat System, Morale System, Movement System, Deployment System, Zone System, and Ability System — perform their respective operations within the Phases orchestrated by the Battle System.
+Battles are where Commanders and Armies engage in Combat. Each Battle is an entity, and each Battle is overseen by multiple Systems. The Battle Systems are in turn overseen by a Battle Manager. 
 
-This document defines the Battle archetype's Components, the rules governing each Stage, the Turn and Phase structure within Engagement, and the Order system that drives simultaneous play.
+
+## Battle Manager
+The Battle Manager is an entityless context for the various Battle Systems to reference, allowing for multiple simultaneous battles to exist in different states without needing to be on-screen. It creates a space for independent battle runtimes to be served by systems.
+
+Battle Systems include: 
+- Deployment System
+   - Creates and restricts squad placement to deployment zones, handles exceptions such as vanguard and infiltration. 
+   - Works in concert with the Battlefield System to provide a staging area separate to the battlefield where the Battleforce is arranged at the start of the Deployment Phase; these squads can be individually or group selected to be dragged and dropped onto appropriate areas of the battlefield. Controls for rotation, facing, formation, etc. are all available. 
+   - Cleans up the staging area once Deployment Phase is complete by placing any remaining squads onto the battlefield according to their defaults, and then disabling the ability of anything to interact with that staging area for that battle.
+
+- Morale System
+   -  Morale is a per-squad resource that can be positive, neutral, or negative. It can be set to persist between battles. When Morale is positive, units can use it to break away from their narrative behaviours in various ways, such as enabling them to use certain abilities or change their default behavior. Extremely high morale enables units to Surge, which grants them various bonuses such as heightened characteristics or access to powerful abilities. Negative morale causes units to ignore orders that go against their narrative, such as fumbling their abilities or attacking instead of running. Extremely negative Morale causes units to Break, which can see them freeze in place, retreat, or even turn on their own squad. Many squads and factions have unique morale behaviours and abilities tying into their narrative, all of which can be modified by Campaign, Commander, and Battle rules. 
+
+- Combat Systems
+   - Priority System
+      - Handles squad prioritization of targeting, such as filtering modifiers like "focus fliers" or "ignore buildings", range behaviours like "hold fire until optimal range" or "fire at max range" or "fire in direction". Uses narrative defaults that can be overridden, often via morale.
+   
+   - Attack System
+      - Handles generating attacks for squads.
+
+   - Damage System
+      - Handles applying the results of attacks to squads.
+
+   - Casualty System
+      - Handles removal of units and squads from the battlefield. There are multiple tiers of casualty from "incapacitated" to "deleted from reality".
+
+- Navigation Systems
+   - Squad Selection System
+      - Similar to Beyond All Reason, squads can be selected individually or in a group select. Orders that all of the squads share will be displayed and available in their usual locations and hotkeys on the orders grid, while abilities will be rearranged to fit an action bar with its own hotkeys. 
+
+   - Movement System
+      - Handles the various methods squads use to move such as walking, riding, driving, teleporting, flying, phasing, etc. May interact with abilities that cause units to move or be moved. Interacts with the Squad Selection system to determine how group-select units move. 
+
+   - Vision System
+      - Handles how squads and abilities reveal the battlefield to the player. From a technical perspective, we want to limit the information that is sent to players and opponents so things like multiplayer maphacking with third party tools or injections are hard to accomplish. Information sharing (i.e. determining what the Vision System gets to work with in the first place, let alone mark as revealed to the player) should therefore be handled in collaboration with the Game Systems Management Layer and Networking Layer so that the underlying game state information is kept from the player's runtime until it's needed.
+   
+   - Targeting System
+      - Similar to the Priority System, but handles whether the player should know whether an order is possible or not without giving away gameplay information. An example of this not working is in Battle Sector, Stealthed units reveal themselves to savvy players who check where their own units can move. If they cannot move to an empty location, it indicates that the location isn't empty. This is opposed to a game like Starcraft 2, where players can attempt to land buildings on locations that have burrowed or invisible units; the game doesn't tell them they can't, it simply moves to the locations and attempts to do so, stopping only when the order is about to be executed with an invisible signal that can be tied to triggers -- this would be the preferred implementation. 
+
+- Battle Experience System
+   - Handles how squads and commanders gain experience. Subsystem to the game's more global Experience system. Similar to HoMM3: WoG, squads and commanders can gain experience and level up, unlocking various bonuses. Squads and commanders can level up during Battles from abilities internal and external to the battle. 
+
+- Battle Timing System
+   - Various aspects of the battle can be timed depending on campaign and battle rules, or abilities. Subsystem to the game's more global Timing system. The entire battle may be timed, or various stages and turns of the battle may be timed, or even various activities may be timed. 
+   - Example: players may start the battle with 5 minutes to give orders, and gain 30 seconds each turn to extend this, rewarding decisive gameplay with more time to think later. This could be balanced out by having a minimum of 1 minute each turn to give orders, meaning a player never has to rely on banking time and can always at least assess and interact. 
+   - There may be also or instead be a total time, after which the battle ends and is scored. Deployment and Reaction opportunities may also be timed in similar ways.
+   - Timers should only count down as appropriate. Example: If a player has locked in their orders in one battle, their timer pauses for that battle while their opponent is still taking actions. If they are participating in multiple battles, those timers should be independent of each other; a player's attention is a resource to be managed as part of their strategy. 
+   - When timers run out, the appropriate actions should occur. In a battle, this usually means that squads without orders default to their default behaviours. Deploying as far forward or backward as possible are typical behaviours for many squads. Charging forward, fortifying a position, firing at the nearest enemy, etc. are all also typical default behaviours. Timers running out shouldn't change behaviours, just notify the appropriate systems that they should continue. 
+
+- Orders System
+   - Responsible for conveying the Player's commands to squads. Handles command inputs from the Player and turns them into orders awaiting execution. Responsible for assigning default behaviours to squads when phases are ended without player input.
+   
+   - Reactions Subsystem
+      -  Depending on campaign and battle rules, and various abilities, the Player may be able to adjust orders for squads after orders are revealed but before they've been executed. 
+
+- Scoring Systems
+
 
 ---
 

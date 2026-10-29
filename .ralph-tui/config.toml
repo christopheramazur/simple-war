@@ -1,6 +1,0 @@
-configVersion = "2.1"
-maxIterations = 25
-agent = "cursor"
-command = "agent"
-tracker = "beads"
-subagentTracingDetail = "full"
