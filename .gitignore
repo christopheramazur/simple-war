@@ -1,6 +1,8 @@
 # Godot 4+ specific
 .godot/
 Godot_v4.6-stable_win64.exe
+Godot_*.exe
+*.uid
 *.translation
 export_presets.cfg
 *.import

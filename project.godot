@@ -17,7 +17,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="Simple War"
 config/description="High-narrative simulationist turn-based strategy. 2D Exploration, 3D combat, all taking place simultaneously in a living campaign."
 run/main_scene="res://src/ui/main_menu.tscn"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
 

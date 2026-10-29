@@ -1,4 +1,4 @@
-Gardeners are generally human in appearance but heavily augmented with sleek machinery and biological systems that primarily serve to enhance senses. 
+Gardeners are generally human in appearance but heavily augmented with sleek machinery and biological systems that serve to enhance their senses. 
 
 # Unaugmented "Pure" Gardeners
 - Large sensory organs, lots of them
@@ -32,5 +32,11 @@ Gardeners are generally human in appearance but heavily augmented with sleek mac
     - dual tongues and alternate sinus shape incorporate whistling
 
 # Modern Gardeners
-- Largely mechanical or bioengineered, individualsitic
-- General shape is often similar to pure
+- The trend is mechanical or bioengineered perfection, individualsitic form
+- General shape is often similar to pure, though this is sentimental rather than functional
+- Typically larger
+
+# Lawbringers
+- Standardized shape, nearly entirely pragmatic
+- Minimal individualization
+- Extremely magitechnologically dense, folded space makes them be and contain more
