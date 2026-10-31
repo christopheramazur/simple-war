@@ -101,6 +101,16 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
   - `--agent` uses headless OpenCode, limited to models in `opencode.json`. The MCP tool is the stdlib `hx mcp` server (`.mcp.json`).
   - Raw call records without prompt or output go to `data/raw/delegate/`; ledger ingest is not done yet.
 - **Lifecycle (Q33):** `hx worker` starts Bonsai on demand when about 11 GB of VRAM is free and stops it after 10 idle minutes. Jobs are queued in the ledger from client hooks (Claude Code SessionEnd/Stop, an OpenCode plugin). `hx delegate` calls jump the queue.
+- *Worker as built (sw-lbm.16):*
+  - The queue is SQLite (`data/worker/queue.sqlite`), not the ledger: DuckDB locks its file across processes.
+  - Jobs retry 3 times. Jobs left running by a killed worker are recovered, and pending jobs are deduplicated per session.
+  - Bonsai is stopped on idle only if the worker started it. `hx delegate` holds `data/worker/delegate.lock` so local jobs wait.
+  - Hook enqueue costs about 480 ms, mostly hx startup (`uv run python` alone is 170 ms). The hook is async, so it's acceptable.
+- *OpenCode 2.2 findings:*
+  - Plugins are `export default { id, setup(api) }`. `api.event.subscribe({})` is an async iterable; its `types` filter delivered nothing.
+  - A turn ends with `session.execution.succeeded`/`failed`.
+  - `opencode run` attaches to the desktop app's background service by default, which uses that service's environment and working directory. `hx delegate --agent` uses `--standalone` and passes `HX_GATEWAY_KEY`.
+  - The desktop app itself can't use the `hx` provider until `HX_GATEWAY_KEY` is in its environment.
 - **Context (Q18c):** 200k may not fit (estimated 10.4 GiB). The benchmark finds the best context size for the VRAM that's free.
   - *Measured (sw-lbm.12, `hx bonsai probe`):* every size up to 200k loads and fills on the RTX 3060.
   - Short-prompt generation speed is 34.5 t/s up to 128k, then 31.1 at 160k and 25.2 at 200k. Generation on a short prompt shouldn't depend on context size, so the drop means the driver is spilling into shared memory.

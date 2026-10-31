@@ -26,6 +26,18 @@
         ],
         "matcher": ""
       }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/harness/bin/hx\" worker enqueue session_end --hook >/dev/null 2>&1; bash \"${CLAUDE_PROJECT_DIR}/harness/bin/hx\" worker start >/dev/null 2>&1"
+          }
+        ]
+      }
     ]
   }
 }

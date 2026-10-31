@@ -137,7 +137,15 @@ def run(prompt: str, level: str, task_class: str | None = None, size: str | None
         if why:
             out.tried.append({"target": c["target"], "skipped": why})
             continue
-        reply = call(_call_target(c, roster), system, prompt, timeout)
+        local = roster[c["provider"]].kind == "local"
+        if local:  # tell the worker to keep its local jobs off the GPU meanwhile
+            from hx import worker
+            worker.delegate_lock().write_text(c["target"])
+        try:
+            reply = call(_call_target(c, roster), system, prompt, timeout)
+        finally:
+            if local:
+                worker.delegate_lock().unlink(missing_ok=True)
         if reply.error:
             out.tried.append({"target": c["target"], "error": reply.error[:200]})
             continue
@@ -183,8 +191,14 @@ def run_agent(prompt: str, level: str, task_class: str | None = None, size: str 
         if why:
             out.tried.append({"target": c["target"], "skipped": why})
             continue
-        p = subprocess.run([exe, "run", "--auto", "-m", f"hx/{c['model']}", prompt], capture_output=True,
-                           text=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=paths.repo_root())
+        import os
+
+        from hx import keystore
+        env = dict(os.environ, HX_GATEWAY_KEY=keystore.get("HX_GATEWAY_KEY") or "")  # opencode.json reads it
+        p = subprocess.run([exe, "run", "--standalone", "--auto", "-m", f"hx/{c['model']}", prompt], capture_output=True,
+                           stdin=subprocess.DEVNULL,  # `opencode run` otherwise waits on a piped stdin
+                           text=True, encoding="utf-8", errors="replace", timeout=timeout,
+                           cwd=paths.repo_root(), env=env)
         if p.returncode != 0:
             out.tried.append({"target": c["target"], "error": (p.stderr or p.stdout).strip()[-200:]})
             continue
