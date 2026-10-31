@@ -71,3 +71,14 @@ def test_log_roundtrip_and_seed(tmp_path, monkeypatch):
     t = budget.Tracker(roster(**{"or": Provider(id="or", name="OR", kind="api", limits={"rpd": 3}, reset_tz="UTC")}))
     assert t.seed(rows) == 3  # failures don't count against quota
     assert not t.check("or", now.timestamp()).allowed
+
+
+def test_list_price_on_free_account_is_not_spend():
+    r = roster(free=Provider(id="free", name="F", kind="api", billing="none"),
+               unk=Provider(id="unk", name="U", kind="api"))
+    t = budget.Tracker(r)
+    t.record("free", T0, usd=0.01)
+    t.record("unk", T0, usd=0.01)
+    assert t.check("free", T0 + 1).allowed
+    assert t.snapshot()["free"]["month"]["list_usd"] == 0.01
+    assert not t.check("unk", T0 + 1).allowed  # unknown billing: list price counts against $0

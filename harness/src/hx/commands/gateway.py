@@ -80,6 +80,7 @@ def _status(args) -> Result:
         usage.append({"provider": pid, "today_requests": snap.get("day", {}).get("requests", 0),
                       "today_tokens": snap.get("day", {}).get("tokens", 0),
                       "month_usd": round(snap.get("month", {}).get("usd", 0.0), 4),
+                      "list_usd": round(snap.get("month", {}).get("list_usd", 0.0), 4), "billing": p.billing,
                       "budget_usd": p.monthly_budget_usd, "refused_32d": refused,
                       "gate": "open" if t.check(pid, now).allowed else t.check(pid, now).reason})
     r.tables["usage"] = usage

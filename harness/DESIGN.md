@@ -55,6 +55,8 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
 - **Config (Q30):** `harness/config/providers.toml`, one entry per provider:
   - `monthly_budget_usd`: default 0
   - `hard_stop`: default true
+  - `billing`: default `"unknown"`. LiteLLM prices free-tier calls at list price, so on 2026-11-01 one Gemini call was recorded as $0.0025 and tripped the $0 hard stop. Only an account with no payment method (`billing = "none"`, set by the user) records that price as `list_usd` instead of spend.
+  - `enabled`: false keeps a provider on the roster but skips it everywhere. Mistral is disabled because Experiment-tier keys are no longer issued.
   - `alert_at`: e.g. 50/80/100%
   - free-tier RPM/RPD/TPD limits and reset timezone
   - `trains_on_data` flag

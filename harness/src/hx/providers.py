@@ -19,6 +19,11 @@ class Provider:
     kind: str
     # false = kept for the record but skipped everywhere (no longer offered, account closed...).
     enabled: bool = True
+    # Can this account be charged at all? "none" = no payment method on file, the provider just refuses
+    # past its free quota; list-price costs LiteLLM reports are then tracked as list_usd, not spend.
+    # Anything else ("unknown", "card") counts list price against monthly_budget_usd. Setting "none"
+    # is the user's call (AGENTS.md §6: budgets and billing).
+    billing: str = "unknown"
     keys: list[str] = field(default_factory=list)
     monthly_budget_usd: float = 0.0
     hard_stop: bool = True

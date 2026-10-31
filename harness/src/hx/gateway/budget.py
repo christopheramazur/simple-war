@@ -82,7 +82,10 @@ class Tracker:
         self.minute[pid].append(ts)
         self.day[pid]["requests"] += 1
         self.day[pid]["tokens"] += tokens or 0
-        self.month[pid]["usd"] += usd or 0.0
+        if self.roster[pid].billing == "none":  # can't be charged: list price is informational
+            self.month[pid]["list_usd"] = self.month[pid].get("list_usd", 0.0) + (usd or 0.0)
+        else:
+            self.month[pid]["usd"] += usd or 0.0
 
     def snapshot(self) -> dict:
         return {pid: {"day": dict(self.day[pid]), "month": dict(self.month[pid]), "last_minute": len(self.minute[pid])}
