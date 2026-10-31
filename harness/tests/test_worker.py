@@ -106,3 +106,11 @@ def test_pending_job_per_session_is_deduped():
     a = worker.enqueue("cheap", {"session_id": "s1"})
     assert worker.enqueue("cheap", {"session_id": "s1"}) == a
     assert worker.enqueue("cheap", {"session_id": "s2"}) != a
+
+
+def test_model_started_by_delegate_is_idled():
+    clock, lm = Clock(), FakeLM(up=True)
+    life = worker.Lifecycle(lm=lm, clock=clock)
+    (worker.state_dir() / "bonsai.started").write_text("delegate")
+    clock.t += worker.IDLE_STOP_S + 1
+    assert life.maybe_stop(busy=False) and lm.stops == 1

@@ -202,6 +202,8 @@ class Lifecycle:
         self.last_used = self.clock()
 
     def maybe_stop(self, busy: bool) -> bool:
+        # hx delegate also writes the marker when it starts the model, so it gets idled too.
+        self.started_by_us = self.started_by_us or (state_dir() / f"{self.pid}.started").exists()
         if busy or not self.started_by_us or self.clock() - self.last_used < IDLE_STOP_S:
             return False
         if self.lm.alive(self.pid):

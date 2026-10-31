@@ -120,7 +120,18 @@ def _ready(cand: dict, roster: dict[str, providers.Provider], start_local: bool)
         ok, msg = localmodel.start(p.id)
         if not ok:
             return f"{p.id} failed to start: {msg}"
+        _hand_to_worker(p.id)
     return None
+
+
+def _hand_to_worker(pid: str) -> None:
+    """We started the local model: mark it so the worker stops it when idle, and make sure a worker runs."""
+    import argparse
+
+    from hx import worker
+    from hx.commands import worker as worker_cmd
+    (worker.state_dir() / f"{pid}.started").write_text(worker._now())
+    worker_cmd.run(argparse.Namespace(action="start"))
 
 
 def run(prompt: str, level: str, task_class: str | None = None, size: str | None = None,
