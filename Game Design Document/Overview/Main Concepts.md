@@ -19,7 +19,7 @@ Under the hood, every game object — every Campaign, Commander, Army, Squad, Un
 Simple War uses an ECS architecture throughout. Understanding three concepts is sufficient to read the rest of this document and all rule documents (see rule 200.1–200.5 in Entity System Rules for the formal definitions):
 
 - **Entity** — A unique identifier (ID). An Entity has no inherent data or behavior; everything about it comes from Components.
-- **Component** — A data structure attached to an Entity. Components hold state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex). **Marker Components** (Tags) carry no data beyond their presence and serve as keywords for grouping and filtering (e.g., `Infantry`, `Vehicle`).
+- **Component** — A data structure attached to an Entity. Components hold state (e.g., a UnitStatline Component holds a specific model of unit stats). **Marker Components** (Tags) carry no data beyond their presence and serve as keywords for grouping and filtering (e.g., `Infantry`, `Vehicle`).
 - **System** — A squad of logic that operates on Entities possessing a specific set of Components. Systems read Components, perform calculations, and write results back to Components. All game logic lives in Systems.
 
 An **archetype** is a common combination of Components that defines a category of Entity. The standard archetypes are:
@@ -196,7 +196,7 @@ The Squad Editor Screen presents:
   - Lists the Player's custom Squads alongside official Squads (read-only) for reference. Filters for Faction Keywords, Squad Keywords, and value range are available.
   - Players can duplicate an official Squad as a starting point for a custom variant.
 - Component Editor
-  - The primary editing surface, structured around the Squad archetype's Components: name, Faction Keywords (marker Components), Squad Keywords (marker Components), Composition (Units and their equipped Items), Statline Component (Endurance, Durability, Morale, Speed, Reflex), Abilities, and Value.
+  - The primary editing surface, structured around the Squad archetype's Components: name, Faction Keywords (marker Components), Squad Keywords (marker Components), Composition (Units and their equipped Items), UnitStatline Component (e.g. a model of stats such as Endurance, Durability, Morale, Speed, Reflex), Abilities, and Value.
   - Unit slots can be added or removed. Each Unit slot defines its Statline Component values, default Items, and available equipment options with associated Equipment Costs.
   - Attack Profile Components for weapons are edited inline, specifying category, range brackets, damage, damage type, and modifiers.
 - Validation Panel
