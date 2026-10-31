@@ -22,12 +22,14 @@ def run(args) -> Result:
     try:
         parsed_files = _import_claude_code(con)
         quota_rows = _import_quota(con)
+        gateway_rows = _import_gateway(con)
         unpriced = reprice(con)
         report.write_summary(con)
         r.data.update({
             "copied_to_raw": len(copied),
             "files_parsed": parsed_files,
             "quota_snapshots": quota_rows,
+            "gateway_calls": gateway_rows,
             **_totals(con),
         })
         if unpriced:
@@ -83,6 +85,47 @@ def _import_quota(con) -> int:
     return n
 
 
+def _import_gateway(con) -> int:
+    """Gateway calls -> `call` (success) or `event` (failure / budget refusal)."""
+    import json
+    from hx.gateway import budget
+    root = budget.log_dir()
+    if not root.exists():
+        return 0
+    seen = {p: (s, m) for p, s, m in con.execute("SELECT raw_path, size, mtime_ns FROM import_state").fetchall()}
+    n = 0
+    for f in sorted(root.glob("*.jsonl")):
+        key, st = f"gateway/{f.name}", f.stat()
+        if seen.get(key) == (st.st_size, st.st_mtime_ns):
+            continue
+        calls, events = [], []
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines()):
+            try:
+                x = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            ts = datetime.fromisoformat(x["ts"]).astimezone(timezone.utc).replace(tzinfo=None)
+            cid = x.get("call_id") or f"gw:{f.stem}:{i}"
+            if x.get("status") == "success":
+                calls.append({
+                    "call_id": cid, "session_id": None, "agent_id": x.get("caller"), "client": "gateway",
+                    "provider": x.get("provider"), "model": x.get("model_group"), "ts": ts,
+                    "input_tokens": x.get("prompt_tokens") or 0, "output_tokens": x.get("completion_tokens") or 0,
+                    "cache_read_tokens": 0, "cache_write_5m_tokens": 0, "cache_write_1h_tokens": 0,
+                    "thinking_tokens": 0, "stop_reason": None, "est_usd": x.get("cost_usd") or 0.0,
+                    "source": "gateway"})
+            else:
+                events.append({"event_id": f"gateway_{x.get('status')}:{cid}", "session_id": None,
+                               "agent_id": x.get("caller"), "ts": ts, "kind": f"gateway_{x.get('status')}",
+                               "value": None, "detail": f"{x.get('provider')} {x.get('model_group')}: {x.get('error')}"})
+        ledger.upsert(con, "call", calls)
+        ledger.upsert(con, "event", events)
+        ledger.upsert(con, "import_state", [{"raw_path": key, "size": st.st_size, "mtime_ns": st.st_mtime_ns,
+                                             "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
+        n += len(calls)
+    return n
+
+
 def _utc(epoch: float) -> datetime:
     return datetime.fromtimestamp(epoch, timezone.utc).replace(tzinfo=None)
 
@@ -113,11 +156,14 @@ def reprice(con) -> list[str]:
         price = pricing.match(prices, model)
         if price is None:
             unpriced.add(model)
+            continue  # keep whatever the source recorded (e.g. gateway provider + LiteLLM cost)
         tokens = dict(zip(pricing.CATEGORIES, toks))
-        updates.append([price.provider if price else "unknown", pricing.estimate(price, tokens), cid])
+        updates.append([price.provider, pricing.estimate(price, tokens), cid])
     if updates:
         con.executemany("UPDATE call SET provider = ?, est_usd = ? WHERE call_id = ?", updates)
-    return sorted(m for m in unpriced if m)
+    con.execute("UPDATE call SET provider = 'unknown' WHERE provider IS NULL")
+    unpriced_rows = {m for (m,) in con.execute("SELECT DISTINCT model FROM call WHERE est_usd IS NULL").fetchall()}
+    return sorted(m for m in unpriced & unpriced_rows if m)
 
 
 def _totals(con) -> dict:

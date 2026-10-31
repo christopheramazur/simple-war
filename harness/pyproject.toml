@@ -3,7 +3,7 @@ name = "hx"
 version = "0.1.0"
 description = "Simple War agent harness CLI. See DESIGN.md."
 requires-python = ">=3.12"
-dependencies = ["duckdb>=1.1", "jsonschema>=4.20", "keyring>=25"]
+dependencies = ["duckdb>=1.1", "jsonschema>=4.20", "keyring>=25", "tzdata"]
 
 [project.scripts]
 hx = "hx.cli:main"

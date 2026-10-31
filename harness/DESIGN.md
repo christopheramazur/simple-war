@@ -58,7 +58,12 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
   - `alert_at`: e.g. 50/80/100%
   - free-tier RPM/RPD/TPD limits and reset timezone
   - `trains_on_data` flag
-  The gateway enforces these before each call and falls back to the next ladder-passing model when a provider is over budget or quota.
+  The gateway enforces these before each call: an over-budget or over-quota provider gets an HTTP 429 that names the limit.
+  - *Built (sw-lbm.10):* fallback is done by the **caller** (`hx delegate`), not LiteLLM. LiteLLM's pre-call hook only sees the first model of a fallback chain, so per-provider enforcement would be bypassed.
+  - The caller moves to the next ladder-passing model on a 429.
+  - LiteLLM 1.106.6 is pinned, run via `uvx` on Python 3.14 with no database.
+  - Calls are logged raw to `data/raw/gateway/`.
+  - Port 4000 requires a locally generated `HX_GATEWAY_KEY`.
 - **Roster (Q24/Q37):**
   | Provider | Notes |
   |---|---|

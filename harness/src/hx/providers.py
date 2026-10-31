@@ -32,6 +32,8 @@ class Provider:
     steps: list[str] = field(default_factory=list)
     notes: str | None = None
     verified: str | None = None
+    # Gateway deployments: [{alias, model, params?}]. alias is served as "<provider>/<alias>".
+    models: list[dict] = field(default_factory=list)
 
 
 def load(path: Path | None = None) -> dict[str, Provider]:

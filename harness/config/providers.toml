@@ -6,6 +6,9 @@
 # limits: free-tier limits as officially published (rpm, rpd, tpd, ...). Unknown = omitted, see notes.
 # trains_on_data: does the free tier use your prompts for training? (true / false / omit = unknown)
 # Facts checked 2026-10-31 against the official pages cited in `notes`; re-check when signing up.
+# models: what the gateway serves, as "<provider>/<alias>". Fill these in once you can see the provider's
+#   model list (`hx gateway discover <provider>` lists them once the key is stored). Example:
+#   models = [{ alias = "llama70b", model = "llama-3.3-70b-versatile" }]
 
 [provider.claude-pro]
 name = "Claude Pro"
@@ -23,6 +26,11 @@ base_url = "http://127.0.0.1:8080/v1"
 litellm_prefix = "openai/"
 trains_on_data = false
 notes = "Started on demand by hx worker (sw-lbm.16); cost is wall time + GPU, not money."
+# Served by the gateway as bonsai/think and bonsai/nothink.
+models = [
+  { alias = "think", model = "Ternary-Bonsai-2-27B-PQ2_0.gguf" },
+  { alias = "nothink", model = "Ternary-Bonsai-2-27B-PQ2_0.gguf", params = { extra_body = { chat_template_kwargs = { enable_thinking = false } } } },
+]
 
 [provider.openrouter]
 name = "OpenRouter (free :free models)"

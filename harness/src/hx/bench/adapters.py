@@ -47,7 +47,8 @@ def health(target: dict) -> str | None:
     """None if reachable, else a reason."""
     if target["adapter"] == "openai":
         try:
-            with urllib.request.urlopen(target["base_url"].rstrip("/") + "/models", timeout=5):
+            req = urllib.request.Request(target["base_url"].rstrip("/") + "/models", headers=_auth(target))
+            with urllib.request.urlopen(req, timeout=5):
                 return None
         except (urllib.error.URLError, OSError) as e:
             return f"{target['base_url']} unreachable: {e}"
@@ -65,12 +66,21 @@ def health(target: dict) -> str | None:
     return f"unknown adapter {target['adapter']}"
 
 
+def _auth(target: dict) -> dict:
+    """Bearer header from a keystore name (e.g. HX_GATEWAY_KEY); keys never live in config."""
+    if not target.get("api_key_secret"):
+        return {}
+    from hx import keystore
+    return {"Authorization": f"Bearer {keystore.get(target['api_key_secret']) or ''}"}
+
+
 def _openai(target, system, prompt, timeout) -> Reply:
     body = {"model": target["model"], "messages": [{"role": "system", "content": system},
                                                    {"role": "user", "content": prompt}],
             **target.get("params", {})}
+    headers = {"Content-Type": "application/json", "x-hx-caller": "bench", **_auth(target)}
     req = urllib.request.Request(target["base_url"].rstrip("/") + "/chat/completions",
-                                 data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+                                 data=json.dumps(body).encode(), headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         d = json.loads(resp.read())
     msg = d["choices"][0]["message"]
