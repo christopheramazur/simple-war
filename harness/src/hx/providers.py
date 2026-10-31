@@ -34,6 +34,22 @@ class Provider:
     verified: str | None = None
     # Gateway deployments: [{alias, model, params?}]. alias is served as "<provider>/<alias>".
     models: list[dict] = field(default_factory=list)
+    # Local server launch settings (kind = "local"): root, exe, model, ctx, args.
+    server: dict = field(default_factory=dict)
+    # Extra places to look for `cli` when it isn't on PATH (e.g. a desktop app's bundled CLI).
+    cli_paths: list[str] = field(default_factory=list)
+
+
+def find_cli(p: Provider) -> str | None:
+    """The provider's CLI: on PATH, else the first existing entry in cli_paths."""
+    import shutil
+    if p.cli and (found := shutil.which(p.cli)):
+        return found
+    for c in p.cli_paths:
+        path = Path(c).expanduser()
+        if path.exists():
+            return str(path)
+    return None
 
 
 def load(path: Path | None = None) -> dict[str, Provider]:

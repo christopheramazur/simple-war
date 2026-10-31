@@ -14,7 +14,7 @@ import sys
 
 from hx import __version__
 
-VERBS = ["status", "doctor", "ingest", "report", "bench", "providers", "secrets", "gateway"]
+VERBS = ["status", "doctor", "ingest", "report", "bench", "providers", "secrets", "gateway", "bonsai"]
 
 
 def build_parser() -> argparse.ArgumentParser:

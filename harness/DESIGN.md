@@ -95,6 +95,11 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
 - **Delegation:** `hx delegate --level Ln --task …`, as a CLI and an MCP tool, routed through the gateway.
 - **Lifecycle (Q33):** `hx worker` starts Bonsai on demand when about 11 GB of VRAM is free and stops it after 10 idle minutes. Jobs are queued in the ledger from client hooks (Claude Code SessionEnd/Stop, an OpenCode plugin). `hx delegate` calls jump the queue.
 - **Context (Q18c):** 200k may not fit (estimated 10.4 GiB). The benchmark finds the best context size for the VRAM that's free.
+  - *Measured (sw-lbm.12, `hx bonsai probe`):* every size up to 200k loads and fills on the RTX 3060.
+  - Short-prompt generation speed is 34.5 t/s up to 128k, then 31.1 at 160k and 25.2 at 200k. Generation on a short prompt shouldn't depend on context size, so the drop means the driver is spilling into shared memory.
+  - Chosen: **128k**. It runs at full speed, uses 10.4 GB with others' usage included, and leaves about 1.8 GB of headroom.
+  - `hx bonsai start` launches llama-server directly from `providers.toml`, never with `--agent`.
+- **OpenCode:** the desktop app's bundled CLI is v2.2.0. The project `opencode.json` routes OpenCode through the gateway as provider `hx`, with models `hx/bonsai/nothink` and `hx/bonsai/think`. The key comes from `HX_GATEWAY_KEY`, and force-push and history rewrites are denied. Verified end to end: a headless `opencode run --auto` created a file through a tool call, with every model call logged by the gateway.
 
 ## 8. Benchmark ladder (Q9/Q15/Q25/Q34)
 | Level | Class | Checker |

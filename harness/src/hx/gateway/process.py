@@ -5,14 +5,12 @@ from __future__ import annotations
 import os
 import secrets as pysecrets
 import shutil
-import subprocess
-import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-from hx import keystore, providers
+from hx import background, keystore, providers
 from hx.gateway import config
 from hx.paths import HARNESS_ROOT
 
@@ -70,17 +68,7 @@ def start(wait: float = 180) -> tuple[bool, str]:
     # 4xx (bad key, our 429 budget refusal) is masked as a 500.
     cmd = [uvx, "--python", config.PYTHON, "--with", "tzdata", "--with", "prisma", "--from", config.LITELLM, "litellm",
            "--config", str(cfg_path), "--host", "127.0.0.1", "--port", str(config.PORT)]
-    log = log_file().open("ab")
-    kw: dict = {"cwd": config.gateway_dir(), "env": child_env(roster), "stdout": log, "stderr": subprocess.STDOUT,
-                "stdin": subprocess.DEVNULL}
-    if sys.platform == "win32":
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
-        try:  # survive the agent shell's job object
-            proc = subprocess.Popen(cmd, creationflags=flags | subprocess.CREATE_BREAKAWAY_FROM_JOB, **kw)
-        except OSError:
-            proc = subprocess.Popen(cmd, creationflags=flags, **kw)
-    else:
-        proc = subprocess.Popen(cmd, start_new_session=True, **kw)
+    proc = background.spawn(cmd, config.gateway_dir(), child_env(roster), log_file())
     pid_file().write_text(str(proc.pid))
     deadline = time.time() + wait
     while time.time() < deadline:
@@ -97,9 +85,6 @@ def stop() -> str:
     if not pf.exists():
         return "not running (no pid file)"
     pid = pf.read_text().strip()
-    if sys.platform == "win32":
-        subprocess.run(["taskkill", "/PID", pid, "/T", "/F"], capture_output=True)
-    else:
-        subprocess.run(["kill", "--", f"-{pid}"], capture_output=True)
+    background.kill_tree(pid)
     pf.unlink(missing_ok=True)
     return f"stopped pid {pid}"

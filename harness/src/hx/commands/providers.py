@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import shutil
 
 from hx import keystore, providers
 from hx.output import OK, WARN, Check, Result
@@ -23,8 +22,8 @@ def readiness(p: providers.Provider) -> tuple[bool, str]:
         missing = [k for k in p.keys if not keystore.where(k)]
         return (not missing, "keys ok" if not missing else "missing " + ", ".join(missing))
     if p.kind == "client":
-        found = p.cli and shutil.which(p.cli)
-        return (bool(found), f"{p.cli} installed (login not checked)" if found else f"{p.cli} not installed")
+        found = providers.find_cli(p)
+        return (bool(found), f"{p.cli} found (login not checked)" if found else f"{p.cli} not installed")
     return True, p.kind
 
 

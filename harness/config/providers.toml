@@ -32,6 +32,20 @@ models = [
   { alias = "nothink", model = "Ternary-Bonsai-2-27B-PQ2_0.gguf", params = { extra_body = { chat_template_kwargs = { enable_thinking = false } } } },
 ]
 
+# hx bonsai start launches llama-server directly with these flags. Deliberately not the Bonsai-demo
+# start script, which adds --agent (server-side tools; Q23 keeps the agent loop in the client).
+# ctx is the context size `hx bonsai probe --apply` found to fit this GPU at full speed.
+[provider.bonsai.server]
+root = "C:/Users/chris/llmstuff/Bonsai-demo"
+exe = "bin/cuda/llama-server.exe"
+model = "models/bonsai2-gguf/27B/Ternary-Bonsai-2-27B-PQ2_0.gguf"
+host = "127.0.0.1"
+port = 8080
+ctx = 131072
+args = ["-ngl", "99", "-fa", "on", "--jinja", "-np", "1",
+        "--cache-type-k", "q4_0", "--cache-type-v", "q4_0",
+        "--temp", "1.0", "--top-p", "0.95", "--top-k", "20"]
+
 [provider.openrouter]
 name = "OpenRouter (free :free models)"
 kind = "api"
@@ -132,6 +146,8 @@ verified = "2026-10-31"
 name = "OpenCode Zen (free models, OpenCode client only)"
 kind = "client"
 cli = "opencode"
+# The OpenCode desktop app bundles the CLI (v2.2.0 here) without putting it on PATH.
+cli_paths = ["~/AppData/Local/Programs/ai.opencode.desktop/resources/opencode-cli.exe"]
 monthly_budget_usd = 0
 hard_stop = true
 signup_url = "https://opencode.ai/auth"
