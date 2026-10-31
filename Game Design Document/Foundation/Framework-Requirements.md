@@ -1,12 +1,6 @@
 # Framework Requirements
-**Status:** Confirmed (grilled session, 2026-03-18)  
-**Purpose:** The concrete requirements for the *basic framework* of Simple War. This is the implementation spec that turns the [Foundation](Foundation.md) GDD into a buildable foundation — and its **acceptance test is the Tight Scope Digital Prototype** (Foundation §"Tight Scope Digital Prototype").  
-**Companion docs:** `Foundation.md` (design), `Framework-Requirements.md` (this file — what to build), `docs/godot-skill-distillation.md` (how to build in Godot here).
-
-> Scope rule for this build: **player vs AI only.** No multiplayer, no save/audit, no story, no editors. Everything deferred is listed in §11.
-
+**Purpose:** The concrete requirements for the *basic framework* of Simple War. Its **acceptance test is the Tight Scope Digital Prototype** 
 ---
-
 ## 1. Deliverable
 A **framework** (not just a prototype) whose correctness is *verified by playing the Tight Scope prototype*. We build the architecture (ECS + deterministic simulation + data model + timer + combat manager) and prove it by reaching the prototype's end-to-end flow:
 
@@ -22,12 +16,12 @@ Main Menu → Quickplay → Campaign Planning → Sector Map
 ## 2. Non-negotiable architecture
 | Rule | Requirement |
 |---|---|
-| ECS | Use the **`gecs`** addon (entities, components, systems, archetypes, system scheduling). No custom ECS. |
+| ECS | Use the **`gecs`** addon (entities, components, systems, archetypes, system scheduling). |
 | Simulation layer | **Fixed-timestep deterministic** sim. A sim tick clock drives the game; the presentation layer is **read-only** over sim state. |
 | Determinism | All hot-path math in **integers**. Same ticks + same inputs → same result. |
 | Data as data | All gameplay content lives in `data/defaults/*.json` → `Resource`s at load. **No gameplay data in the scene tree / node properties.** |
 | F6 | Every scene runs standalone (no scene-external dependencies). |
-| Composition | Compose, don't inherit (refactor if >3 levels). |
+| Composition | Compose, don't inherit (consider refactor options when inheritance gets too deep). |
 | UI contract | UI **emits signals**; the sim/controller listens. UI never holds game state. |
 
 ---

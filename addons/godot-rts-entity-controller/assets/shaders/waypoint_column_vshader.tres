@@ -1,4 +1,4 @@
-[gd_resource type="VisualShader" load_steps=17 format=3 uid="uid://wb8rxfp08ssx"]
+[gd_resource type="VisualShader" format=3 uid="uid://wb8rxfp08ssx"]
 
 [sub_resource type="Gradient" id="Gradient_qt5dl"]
 
@@ -66,70 +66,6 @@ default_input_values = [0, 0.0, 1, -0.5, 2, 0.0]
 op_type = 0
 
 [resource]
-code = "shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, depth_test_default, cull_back, diffuse_lambert, specular_schlick_ggx, unshaded, shadows_disabled, ambient_light_disabled, fog_disabled;
-
-uniform vec4 color : source_color = vec4(0.529607, 0.864974, 0.529612, 1.000000);
-uniform float time;
-uniform float speed : hint_range(0.0, 1.0);
-uniform sampler2D tex_frg_3;
-uniform sampler2D tex_frg_10;
-
-
-
-void fragment() {
-// ColorParameter:2
-	vec4 n_out2p0 = color;
-
-
-// FloatParameter:12
-	float n_out12p0 = time;
-
-
-// FloatParameter:7
-	float n_out7p0 = speed;
-
-
-// FloatOp:8
-	float n_in8p0 = -1.00000;
-	float n_out8p0 = n_in8p0 * n_out7p0;
-
-
-// VectorCompose:9
-	float n_in9p0 = 0.00000;
-	vec2 n_out9p0 = vec2(n_in9p0, n_out8p0);
-
-
-// VectorOp:6
-	vec2 n_out6p0 = vec2(n_out12p0) * n_out9p0;
-
-
-// UVFunc:4
-	vec2 n_in4p1 = vec2(1.00000, 1.00000);
-	vec2 n_out4p0 = n_out6p0 * n_in4p1 + UV;
-
-
-// Texture2D:3
-	vec4 n_out3p0 = texture(tex_frg_3, n_out4p0);
-	float n_out3p1 = n_out3p0.r;
-
-
-// Texture2D:10
-	vec4 n_out10p0 = texture(tex_frg_10, UV);
-	float n_out10p1 = n_out10p0.r;
-
-
-// FloatOp:11
-	float n_out11p0 = n_out3p1 * n_out10p1;
-
-
-// Output:0
-	ALBEDO = vec3(n_out2p0.xyz);
-	ALPHA = n_out11p0;
-
-
-}
-"
 flags/unshaded = true
 flags/shadows_disabled = true
 flags/ambient_light_disabled = true

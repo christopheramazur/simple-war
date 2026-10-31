@@ -70,7 +70,7 @@ Battle Systems include:
 
 ---
 
-## 100.1 Battle Archetype
+## Battle Archetype
 
 A Battle is an Entity of the **Battle archetype** — a Campaign Activity in which two or more Commanders commit Battleforces to fight on a Battlefield. A Battle Entity has the `Battle` marker Component and the following characteristic Components:
 
@@ -95,7 +95,7 @@ Each Battle must have one and only one Battlefield Entity referenced by its Batt
 
 ---
 
-## 100.2 Battle Stages
+## Battle Stages
 
 A Battle proceeds through the following Stages in strict sequential order:
 
@@ -115,37 +115,37 @@ The Battle System tracks the current Stage in the Battle Entity's BattleStageCom
 
 ---
 
-## 110 Planning Stage
+## Planning Stage
 
-### 110.1 Planning Stage Overview
+### Planning Stage Overview
 
 During the Planning Stage, each participating Commander prepares a Battleforce for the Battle. The Planning Stage has the following steps, resolved in order:
 
-1. **Compose Battleforce** (rule 110.2)
-2. **Designate Transports** (rule 110.3)
-3. **Designate Reserves** (rule 110.4)
-4. **Designate Vanguard** (rule 110.5)
-5. **Reveal Faction Relationships** (rule 110.6)
+1. **Compose Battleforce** 
+2. **Designate Transports** 
+3. **Designate Reserves** 
+4. **Designate Vanguard** 
+5. **Reveal Faction Relationships** 
 
-The Planning Stage completes when all participating Players have finished all steps. The Zone System validates that each Battleforce meets the Battle's Roster requirements (see rule 270.3 in Entity System Rules) before the Battle System advances to the Deployment Stage.
+The Planning Stage completes when all participating Players have finished all steps. The Zone System validates that each Battleforce meets the Battle's Roster requirements (see Entity System Rules) before the Battle System advances to the Deployment Stage.
 
-### 110.2 Composing Battleforces
+### Composing Battleforces
 
 Each Commander selects Squads from that Commander's Army to form a Battleforce for the Battle. The Battleforce must satisfy the Battle's Roster requirements. All Squads in the Battleforce begin the Planning with their Zone Component set to Reserves.
 
-### 110.3 Designating Transports
+### Designating Transports
 
 If a Squad has the `Transport` marker Component, the owning Player may assign other Squads to be Embarked within that Transport, subject to the Transport's capacity. The Zone System sets the Embarked Squads' Zone Components to Embarked (referencing the Transport Entity) rather than the general Reserves Zone.
 
-### 110.4 Designating Reserves
+### Designating Reserves
 
 All Squads in the Battleforce begin with their Zone Component set to Reserves by default. During the Planning Stage, the Player may designate specific Squads for different types of Reserves entry (e.g., deep strike, delayed arrival). The method and timing of Reserves entry are specified by the Squad's Ability Components or the Campaign's rules.
 
-### 110.5 Designating Vanguard
+### Designating Vanguard
 
-Squads with the `Vanguard` marker Component (or Squads granted `Vanguard` by a rule) may be designated as Vanguard during the Planning Stage. Vanguard Squads deploy before other Squads during the Deployment Stage (see rule 120.3a).
+Squads with the `Vanguard` marker Component (or Squads granted `Vanguard` by a rule) may be designated as Vanguard during the Planning Stage. Vanguard Squads deploy before other Squads during the Deployment Stage.
 
-### 110.6 Revealing Faction Relationships
+### Revealing Faction Relationships
 
 At the end of the Planning Stage, each Player's Faction Relationships are revealed to all other Players. Faction Relationships are not bilateral; a Player may declare a faction as Enemy while that faction declares the Player as Friendly. Each Player's Faction Relationships are immutable during the Battle unless a rule explicitly states otherwise.
 
@@ -155,43 +155,43 @@ At the end of the Planning Stage, each Player's Faction Relationships are reveal
 
 ---
 
-## 120 Deployment Stage
+## Deployment Stage
 
-### 120.1 Deployment Stage Overview
+### Deployment Stage Overview
 
 During the Deployment Stage, Players place Squads from their Battleforces onto the Battlefield. The Deployment Stage has the following steps, resolved in order:
 
-1. **Establish Deployment Zones** (rule 120.2)
-2. **Deploy Vanguard** (rule 120.3a)
-3. **Deploy Remaining Squads** (rule 120.3b)
-4. **Resolve Pre-Engagement Moves** (rule 120.4)
+1. **Establish Deployment Zones** 
+2. **Deploy Vanguard** 
+3. **Deploy Remaining Squads** 
+4. **Resolve Pre-Engagement Moves** 
 
-The Deployment Stage completes when all Players have finished deploying Squads and Pre-Engagement Moves are resolved.
+The Deployment Stage completes when all Players have finished deploying Squads and Pre-Engagement Moves are resolved. During each of the steps, players will be spending time from their deployment timers. 
 
-### 120.2 Deployment Zones
+### Deployment Zones
 
-Each Battle defines Deployment Zones on the Battlefield via the Battlefield Entity's DeploymentZonesComponent (see Movement and Positioning Rules). A Deployment Zone is a rectangular area assigned to a specific Player or group of Players. The Deployment System may only place Squads within the owning Player's Deployment Zone during Deployment, unless a rule explicitly states otherwise.
+Each Battle defines Deployment Zones on the Battlefield via the Battlefield Entity's DeploymentZonesComponents (see Movement and Positioning Rules). A Deployment Zone is a rectangular area assigned to a specific Player or group of Players. The Deployment System may only place Squads within the owning Player's Deployment Zone during Deployment, unless a rule explicitly states otherwise.
 
-The default Deployment Zone configuration for a two-Player Battle on a standard 200×100 Battlefield:
+The default Deployment Zone configuration for a two-Player Battle on a standard Battlefield extends 20% of the way toward the middle of the battlefield:
 
-- **Player A**: the 200×20 area along one long edge (y = 0 to y = 20)
-- **Player B**: the 200×20 area along the opposite long edge (y = 80 to y = 100)
+- **Player A**: the area along Player A's long edge
+- **Player B**: the area along Player B's long edge 
 
 Campaign or scenario rules may define different Deployment Zone layouts.
 
-### 120.3 Deploying Squads
+### Deploying Squads
+Squads are deployed by selecing a squad in reserves, and placing an indicator of where that squad should be deployed on the battlefield. The indicator will show if a squad is capable of being deployed in its current location by changing shade (red for unable, green for able, pale/ghostly blue when placed and no longer being moved). Once a Player is satisfied with their deployment, they can finish their deployment, pausing their deploy timer, and the squad placement will be locked in while all players also finish their deployment.
 
-#### 120.3a Deploy Vanguard
+#### Deploy Vanguard
+All Players deploy Vanguard Squads simultaneously. The Deployment System allows players to place their Vanguard Squads wholly within the owning Player's Deployment Zone, plus up to one movement order's worth beyond, writing PositionComponents and transitioning Zone Components from Reserves to Battlefield. Once all Vanguard Squads are deployed, proceed to deploy the remaining squads.
 
-All Players deploy Vanguard Squads simultaneously. The Deployment System places each Vanguard Squad wholly within the owning Player's Deployment Zone, writing PositionComponents and transitioning Zone Components from Reserves to Battlefield. Once all Vanguard Squads are deployed, proceed to step 120.3b.
+#### Deploy Remaining Squads
 
-#### 120.3b Deploy Remaining Squads
-
-All Players deploy remaining Squads simultaneously. The Deployment System places each Squad wholly within the owning Player's Deployment Zone. A Squad's PositionComponent defines its center point (x, y) and its FacingComponent defines its facing direction (angle in degrees, 0–359). All Units in a Squad maintain cohesion within the Squad's FootprintComponent (see Movement and Positioning Rules).
+All Players deploy remaining Squads simultaneously. They place each Squad wholly within their own Deployment Zone. A Squad's PositionComponent keeps track of its location (typically its center point) and its FacingComponent defines its facing direction (angle in degrees, based on underlying map orientation, not player camera orientation). All Units in a Squad maintain cohesion within the Squad's FootprintComponent (see Movement and Positioning Rules).
 
 Squads designated to remain in Reserves do not deploy during this step; those Squads enter the Battlefield later according to their specific Reserves rules.
 
-### 120.4 Pre-Engagement Moves
+### Pre-Engagement Moves
 
 After all Squads are deployed, Squads with Ability Components granting Pre-Engagement Movement may execute those moves. The Deployment System resolves Pre-Engagement Moves simultaneously across all Players. The movement distance and restrictions are specified by the granting Ability Component.
 
@@ -201,79 +201,65 @@ After all Squads are deployed, Squads with Ability Components granting Pre-Engag
 
 ---
 
-## 130 Engagement Stage
+## Engagement Stage
 
-### 130.1 Engagement Stage Overview
+### Engagement Stage Overview
 
 The Engagement Stage is the core of a Battle. During this Stage, Players command their Squads through a repeating cycle of Turns. Each Turn uses the **true simultaneous turn** system: all Players issue hidden Orders to their Squads, those Orders are revealed together, and the results are resolved simultaneously.
 
 The Engagement Stage continues until a Battle End Condition is met (see rule 150.1).
 
-### 130.2 Turns
+### Turns
 
 A Turn is one complete cycle of the Phase sequence within the Engagement Stage. Turns are numbered sequentially starting from Turn 1. The Battle System tracks the current Turn number in the Battle Entity's TurnCounterComponent. At the beginning of each Turn, the Battle System announces the Turn number to all Players.
 
-### 130.3 Turn Structure
+### Turn Structure
 
 Each Turn proceeds through the following Phases in strict sequential order:
 
-1. **Rally Phase** (rule 131.1)
-2. **Issue Orders Phase** (rule 132.1)
-3. **Execute Phase** (rule 133.1)
-4. **Resolve Combat Phase** (rule 134.1)
+1. **Rally Phase** 
+2. **Issue Orders Phase** 
+3. **Execute Phase** 
+4. **Resolve Combat Phase** 
 
 No Phase may be skipped. A Phase completes before the next Phase begins. After the Resolve Combat Phase completes, the Turn ends and the next Turn begins (returning to the Rally Phase), unless a Battle End Condition is met.
 
 ---
 
-## 131 Rally Phase
+## Rally Phase
 
-### 131.1 Rally Phase
+### Rally Phase
 
 During the Rally Phase, the following steps resolve in order for all Squads on the Battlefield:
 
-1. **Morale Recovery**: The Morale System moves each Squad's Morale State Component one stage toward the Squad's Morale Baseline. If a Squad's Morale State Component is currently Surging, the Morale System resets it to Neutral instead.
-2. **Endurance Recovery**: Each Squad that did not perform an Endurance-taxing action during the previous Turn recovers 1 to its Endurance Remaining Component (or the Squad's Endurance recovery rate, if defined by an Ability Component).
-3. **Status Cleanup**: Remove all expired temporary marker Components and effects from all Squads. The Battle System processes removals simultaneously across all Squads.
-4. **Reserves Check**: Squads in Reserves that have met their entry conditions are flagged as eligible for deployment this Turn (see rule 132.2c).
+1. **Morale Recovery**: The Morale System adjusts each Squad's Morale State Component based on that Squad's circumstances. 
+2. **Endurance Recovery**: Squad endurance is evaluated.
+3. **Status Cleanup**: Expired temporary effects are removed. 
+4. **Reserves Check**: Squads in Reserves that have met their entry conditions are flagged as eligible for deployment this Turn (see Issue Orders Phase).
 
 The Rally Phase is resolved automatically by the Battle System, which delegates to the Morale System (step 1) and the Zone System (step 4). Players do not make decisions during this Phase.
 
-On Turn 1, steps 1–3 are skipped (there is no previous Turn to recover from). Step 4 still applies.
-
-### Examples
-
-#### Example 1: Morale Recovery
-**Setup**: Squad A's Morale State Component is Poor, Morale Baseline is Neutral.
-**Rally**: The Morale System moves the Morale State Component one stage toward Neutral → Squad A's Morale State Component becomes Neutral.
-
-#### Example 2: Surging Reset
-**Setup**: Squad B's Morale State Component is Surging after using a Surge Action last Turn.
-**Rally**: The Morale System resets the Morale State Component to Neutral.
-
 ---
 
-## 132 Issue Orders Phase
+## Issue Orders Phase
 
-### 132.1 Issue Orders Phase Overview
+### Issue Orders Phase Overview
 
-During the Issue Orders Phase, all Players simultaneously and secretly assign one Order to each of their eligible Squads. Orders are hidden from other Players until the Execute Phase.
+During the Issue Orders Phase, all Players simultaneously and secretly assign Orders to each of their eligible Squads. Orders are hidden from other Players until the Execute Phase.
 
-A Squad is eligible to receive an Order if the Squad's Zone Component is set to Battlefield and its Destruction State Component is not destroyed. A Squad's current Component state (Morale State Component, Endurance Remaining Component, Zone Component) may restrict which Order types are available, but the Squad always receives exactly one Order.
-
-If a Player does not assign an Order to a Squad before the Player confirms readiness (or the Phase timer expires in digital play), that Squad receives the default Order: Hold (see rule 132.2a).
+If a Player does not assign an Order to a Squad before the Player confirms readiness, that Squad acts according to its defaults (e.g. hold position for human infantry)
 
 The Issue Orders Phase completes when all Players have confirmed their Orders or the Phase timer expires.
 
-### 132.2 Order Types
+### Order Types
 
-The following Orders are available during the Issue Orders Phase. Each Order specifies what the Squad will attempt during the Execute Phase.
+The following Orders are typically available during the Issue Orders Phase. Each Order specifies what the Squad will attempt during the Execute Phase.
 
-#### 132.2a Hold
+#### Hold
 
-The Squad holds its current position and facing. The Squad does not move. The Combat System may resolve attacks against designated targets within range and line of sight using the Squad's equipped ranged Attack Profile Components. Hold is the default Order if no Order is assigned. Hold does not tax Endurance.
+The Squad holds its current position and facing. The Squad does not move. The Combat System may resolve attacks against designated targets within range and line of sight using the Squad's equipped ranged Attack Profile Components if appropriate. For many units, Hold is the default Order if no Order is assigned.
 
-#### 132.2b Advance
+#### Advance
 
 The Squad moves up to a distance equal to the Squad's Speed value toward a designated target point (x, y). The Squad may make attacks against designated targets within range and line of sight after movement resolves. Advance does not tax Endurance.
 
