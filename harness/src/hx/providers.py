@@ -17,6 +17,8 @@ class Provider:
     id: str
     name: str
     kind: str
+    # false = kept for the record but skipped everywhere (no longer offered, account closed...).
+    enabled: bool = True
     keys: list[str] = field(default_factory=list)
     monthly_budget_usd: float = 0.0
     hard_stop: bool = True

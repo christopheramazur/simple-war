@@ -27,9 +27,13 @@ class Result:
     data: dict[str, Any] = field(default_factory=dict)
     checks: list[Check] = field(default_factory=list)
     tables: dict[str, list[dict]] = field(default_factory=dict)
+    raw: str | None = None  # text mode prints this verbatim instead (e.g. delegate's model output)
+    exit_override: int | None = None
 
     @property
     def exit_code(self) -> int:
+        if self.exit_override is not None:
+            return self.exit_override
         return 1 if any(c.status == FAIL for c in self.checks) else 0
 
     def to_json(self) -> str:
@@ -46,6 +50,8 @@ class Result:
         )
 
     def to_text(self, verbose: bool = False) -> str:
+        if self.raw is not None:
+            return self.raw
         lines = [f"{k}: {_fmt(v)}" for k, v in self.data.items()]
         for name, rows in self.tables.items():
             lines.append(f"\n{name}:")

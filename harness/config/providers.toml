@@ -52,6 +52,7 @@ kind = "api"
 keys = ["OPENROUTER_API_KEY"]
 base_url = "https://openrouter.ai/api/v1"
 litellm_prefix = "openrouter/"
+models = [{ alias = "nemotron-ultra", model = "nvidia/nemotron-3-ultra-550b-a55b:free" }]
 monthly_budget_usd = 0
 hard_stop = true
 limits = { rpd = 50, rpd_after_10_credits = 1000 }
@@ -72,6 +73,7 @@ name = "Google Gemini API (AI Studio free tier)"
 kind = "api"
 keys = ["GEMINI_API_KEY"]
 litellm_prefix = "gemini/"
+models = [{ alias = "flash", model = "gemini-3.5-flash" }]
 monthly_budget_usd = 0
 hard_stop = true
 reset_tz = "America/Los_Angeles"
@@ -92,6 +94,7 @@ kind = "api"
 keys = ["GROQ_API_KEY"]
 base_url = "https://api.groq.com/openai/v1"
 litellm_prefix = "groq/"
+models = [{ alias = "gpt-oss-120b", model = "openai/gpt-oss-120b" }]
 monthly_budget_usd = 0
 hard_stop = true
 signup_url = "https://console.groq.com"
@@ -107,6 +110,7 @@ verified = "2026-10-31"
 [provider.mistral]
 name = "Mistral La Plateforme (free 'Experiment' mode)"
 kind = "api"
+enabled = false  # 2026-11-01: Mistral no longer issues Experiment-tier keys (user report)
 keys = ["MISTRAL_API_KEY"]
 base_url = "https://api.mistral.ai/v1"
 litellm_prefix = "mistral/"
@@ -128,6 +132,7 @@ kind = "api"
 keys = ["CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID"]
 base_url = "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
 litellm_prefix = "cloudflare/"
+models = [{ alias = "gpt-oss-120b", model = "@cf/openai/gpt-oss-120b" }]
 monthly_budget_usd = 0
 hard_stop = true
 limits = { neurons_per_day = 10000, rpm_text = 300 }

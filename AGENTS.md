@@ -60,6 +60,13 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
   - deleting ledger, transcript or tracker history
   - publishing or posting anything externally
   - changing this list
+- **Work autonomously through the backlog.** When a task is done: run the tests, `bd close` it, commit, push, then claim the next `bd ready` task and keep going without asking.
+  - Stop and ask only for one of these:
+    - billing or funding
+    - guardrails (the list above, secrets, safety)
+    - a blocking design decision that the GDD and `harness/DESIGN.md` don't settle
+    - work only the user can do (accounts, logins)
+  - Otherwise make the call, record it in the task notes, and move on.
 - **Tools over tokens:** prefer an `hx` verb to an ad-hoc command, and keep command output short (`| head`, `--short`, `-q`). If you repeat the same multi-step command, file a task to make it an `hx` verb.
 - **Data as data.** UI emits signals and the simulation listens; UI never holds game state.
 - **Composition over deep inheritance:** refactor beyond 3 levels.

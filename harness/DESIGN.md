@@ -93,6 +93,11 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
 - **Bonsai 2 27B** (PQ2_0 ternary, llama.cpp PrismML CUDA build, `:8080`) on an RTX 3060 12 GB.
 - **Agent loop (Q23):** OpenCode drives Bonsai's tool use (`--jinja` tool calls). llama-server `--agent` is off for benchmark and delegate runs; fine for web-UI chat.
 - **Delegation:** `hx delegate --level Ln --task …`, as a CLI and an MCP tool, routed through the gateway.
+  - *Built (sw-lbm.15):* reads `config/routing.toml`. Lookup goes exact route → same class at a larger size → targets `auto` on every route of the level.
+  - Candidates go through the gateway; the Claude subscription goes through `claude -p`. Fallback to the next candidate happens on a local model that can't start, a 429, or an error.
+  - Nothing usable gives exit code 2 (escalate). A `review` verdict flags the output for checking.
+  - `--agent` uses headless OpenCode, limited to models in `opencode.json`. The MCP tool is the stdlib `hx mcp` server (`.mcp.json`).
+  - Raw call records without prompt or output go to `data/raw/delegate/`; ledger ingest is not done yet.
 - **Lifecycle (Q33):** `hx worker` starts Bonsai on demand when about 11 GB of VRAM is free and stops it after 10 idle minutes. Jobs are queued in the ledger from client hooks (Claude Code SessionEnd/Stop, an OpenCode plugin). `hx delegate` calls jump the queue.
 - **Context (Q18c):** 200k may not fit (estimated 10.4 GiB). The benchmark finds the best context size for the VRAM that's free.
   - *Measured (sw-lbm.12, `hx bonsai probe`):* every size up to 200k loads and fills on the RTX 3060.

@@ -18,6 +18,8 @@ def add_args(p) -> None:
 
 
 def readiness(p: providers.Provider) -> tuple[bool, str]:
+    if not p.enabled:
+        return False, "disabled"
     if p.kind == "api":
         missing = [k for k in p.keys if not keystore.where(k)]
         return (not missing, "keys ok" if not missing else "missing " + ", ".join(missing))
@@ -33,7 +35,7 @@ def run(args) -> Result:
     rows, not_ready = [], []
     for p in roster.values():
         ready, why = readiness(p)
-        if not ready:
+        if not ready and p.enabled:
             not_ready.append(p)
         lim = p.limits or {}
         rows.append({
@@ -43,8 +45,9 @@ def run(args) -> Result:
             "trains": {True: "yes", False: "no", None: "?"}[p.trains_on_data],
         })
     r.tables["providers"] = rows
+    enabled = sum(p.enabled for p in roster.values())
     r.checks.append(Check("ready", OK if not not_ready else WARN,
-                          f"{len(roster) - len(not_ready)}/{len(roster)} ready"))
+                          f"{enabled - len(not_ready)}/{enabled} ready"))
     if args.checklist:
         r.tables = {}
         r.data["checklist"] = "\n" + (_checklist(not_ready) if not_ready else "Every provider is ready.")

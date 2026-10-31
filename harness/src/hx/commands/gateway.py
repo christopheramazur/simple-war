@@ -98,8 +98,9 @@ def _discover(args) -> Result:
     if p.keys and not key:
         r.checks.append(Check("key", FAIL, f"store it first: hx secrets set {p.keys[0]}"))
         return r
-    req = urllib.request.Request(p.base_url.rstrip("/") + "/models",
-                                 headers={"Authorization": f"Bearer {key}"} if key else {})
+    # Groq's edge returns 403 to urllib's default User-Agent.
+    headers = {"User-Agent": "hx", **({"Authorization": f"Bearer {key}"} if key else {})}
+    req = urllib.request.Request(p.base_url.rstrip("/") + "/models", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             ids = sorted(m.get("id", "") for m in json.loads(resp.read()).get("data", []))

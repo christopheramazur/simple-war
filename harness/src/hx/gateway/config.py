@@ -30,7 +30,7 @@ def deployments(roster: dict[str, providers.Provider]) -> tuple[list[dict], list
     """(model_list entries, skipped-provider notes)."""
     out, skipped = [], []
     for p in roster.values():
-        if p.kind in ("subscription", "client") or not p.models:
+        if not p.enabled or p.kind in ("subscription", "client") or not p.models:
             continue
         missing = [k for k in p.keys if not keystore.where(k)]
         if missing:

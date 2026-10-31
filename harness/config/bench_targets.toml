@@ -42,3 +42,42 @@ base_url = "http://127.0.0.1:8080/v1"
 model = "Ternary-Bonsai-2-27B-PQ2_0.gguf"
 thinking = false
 params = { temperature = 0.0, max_tokens = 16384, chat_template_kwargs = { enable_thinking = false } }
+
+# Free-tier API models, all through the gateway (budget gate + call log). Picked 2026-11-01 from
+# `hx gateway discover`: the strongest free general model each provider serves.
+
+[target.openrouter-nemotron]
+provider = "openrouter"
+route_model = "openrouter/nemotron-ultra"
+adapter = "openai"
+base_url = "http://127.0.0.1:4000/v1"
+model = "openrouter/nemotron-ultra"
+api_key_secret = "HX_GATEWAY_KEY"
+params = { temperature = 0.0, max_tokens = 16384 }
+
+[target.gemini-flash]
+provider = "gemini"
+route_model = "gemini/flash"
+adapter = "openai"
+base_url = "http://127.0.0.1:4000/v1"
+model = "gemini/flash"
+api_key_secret = "HX_GATEWAY_KEY"
+params = { temperature = 0.0, max_tokens = 16384 }
+
+[target.groq-gpt-oss]
+provider = "groq"
+route_model = "groq/gpt-oss-120b"
+adapter = "openai"
+base_url = "http://127.0.0.1:4000/v1"
+model = "groq/gpt-oss-120b"
+api_key_secret = "HX_GATEWAY_KEY"
+params = { temperature = 0.0, max_tokens = 16384 }
+
+[target.cloudflare-gpt-oss]
+provider = "cloudflare"
+route_model = "cloudflare/gpt-oss-120b"
+adapter = "openai"
+base_url = "http://127.0.0.1:4000/v1"
+model = "cloudflare/gpt-oss-120b"
+api_key_secret = "HX_GATEWAY_KEY"
+params = { temperature = 0.0, max_tokens = 16384 }
