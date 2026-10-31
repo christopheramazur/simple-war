@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Attack entry (data/defaults/Attacks.json)",
+  "type": "object",
+  "required": ["id", "display_name", "description", "category", "skill_category", "range", "damage"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$"},
+    "display_name": {"type": "string", "minLength": 1},
+    "description": {"type": "string", "minLength": 1},
+    "category": {"enum": ["melee", "ranged"]},
+    "skill_category": {"enum": ["rifle", "launcher", "melee", "magic", "natural_melee", "natural_ranged"]},
+    "range": {
+      "type": "object",
+      "required": ["min", "short", "long", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": {"type": "integer", "minimum": 0},
+        "short": {"type": "integer", "minimum": 0},
+        "long": {"type": "integer", "minimum": 0},
+        "max": {"type": "integer", "minimum": 0}
+      }
+    },
+    "damage": {
+      "type": "object",
+      "required": ["type", "value", "count"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["kinetic", "energy", "concussive"]},
+        "value": {"type": "integer", "minimum": 0},
+        "count": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+ "id": "L1-rename_drop-s",
+ "level": "L1",
+ "task_class": "rename_drop",
+ "size": "s",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "Transform this JSON array: rename keys hp→health, armor→armour, cost→points; remove the key speed; keep all other keys, values and the object order. Output only the JSON array.\n\n[\n {\n  \"name\": \"Talithber Battery\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 15,\n  \"armor\": 3,\n  \"speed\": 6,\n  \"cost\": 175\n },\n {\n  \"name\": \"Quovex Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"artillery\",\n  \"hp\": 14,\n  \"armor\": 4,\n  \"speed\": 6,\n  \"cost\": 50\n },\n {\n  \"name\": \"Zangor Choir\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"elite\",\n  \"hp\": 56,\n  \"armor\": 12,\n  \"speed\": 12,\n  \"cost\": 100\n },\n {\n  \"name\": \"Kasha Choir\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"support\",\n  \"hp\": 78,\n  \"armor\": 5,\n  \"speed\": 10,\n  \"cost\": 140\n },\n {\n  \"name\": \"Dunquosha Brood\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 92,\n  \"armor\": 4,\n  \"speed\": 5,\n  \"cost\": 35\n },\n {\n  \"name\": \"Romirsha Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"scout\",\n  \"hp\": 94,\n  \"armor\": 12,\n  \"speed\": 6,\n  \"cost\": 65\n },\n {\n  \"name\": \"Elital Pack\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"artillery\",\n  \"hp\": 119,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 260\n },\n {\n  \"name\": \"Talul Brood\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 80,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 130\n }\n]",
+ "check": {
+  "type": "json_equal",
+  "expected": [
+   {
+    "name": "Talithber Battery",
+    "faction": "Human",
+    "role": "artillery",
+    "health": 15,
+    "armour": 3,
+    "points": 175
+   },
+   {
+    "name": "Quovex Pack",
+    "faction": "Swarm",
+    "role": "artillery",
+    "health": 14,
+    "armour": 4,
+    "points": 50
+   },
+   {
+    "name": "Zangor Choir",
+    "faction": "Arcanist",
+    "role": "elite",
+    "health": 56,
+    "armour": 12,
+    "points": 100
+   },
+   {
+    "name": "Kasha Choir",
+    "faction": "Arcanist",
+    "role": "support",
+    "health": 78,
+    "armour": 5,
+    "points": 140
+   },
+   {
+    "name": "Dunquosha Brood",
+    "faction": "Human",
+    "role": "artillery",
+    "health": 92,
+    "armour": 4,
+    "points": 35
+   },
+   {
+    "name": "Romirsha Pack",
+    "faction": "Swarm",
+    "role": "scout",
+    "health": 94,
+    "armour": 12,
+    "points": 65
+   },
+   {
+    "name": "Elital Pack",
+    "faction": "Iron Bastion",
+    "role": "artillery",
+    "health": 119,
+    "armour": 3,
+    "points": 260
+   },
+   {
+    "name": "Talul Brood",
+    "faction": "Arcanist",
+    "role": "artillery",
+    "health": 80,
+    "armour": 3,
+    "points": 130
+   }
+  ]
+ }
+}

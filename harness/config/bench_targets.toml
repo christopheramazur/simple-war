@@ -1,0 +1,25 @@
+# Models the benchmark ladder can run against (DESIGN.md §8). `hx bench run --target <name>`.
+#
+# adapter = "openai"     any OpenAI-compatible /v1/chat/completions endpoint (llama-server, LiteLLM gateway)
+# adapter = "claude-cli" headless `claude -p` on the user's own subscription (needs `claude` logged in)
+#
+# `params` is merged into the request body as-is (openai adapter only).
+
+[target.haiku]
+adapter = "claude-cli"
+model = "claude-haiku-5-5"
+
+# Local Bonsai via llama-server (scripts/start_llama_server.ps1). Thinking on by default for the 27B.
+[target.bonsai]
+adapter = "openai"
+base_url = "http://127.0.0.1:8080/v1"
+model = "Ternary-Bonsai-2-27B-PQ2_0.gguf"
+thinking = true
+params = { temperature = 0.0, max_tokens = 16384 }
+
+[target.bonsai-nothink]
+adapter = "openai"
+base_url = "http://127.0.0.1:8080/v1"
+model = "Ternary-Bonsai-2-27B-PQ2_0.gguf"
+thinking = false
+params = { temperature = 0.0, max_tokens = 16384, chat_template_kwargs = { enable_thinking = false } }

@@ -1,0 +1,23 @@
+{
+ "id": "L1-filter_sort-s",
+ "level": "L1",
+ "task_class": "filter_sort",
+ "size": "s",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "From this JSON array keep only objects with faction \"Swarm\" and hp >= 40. Sort by cost descending, then name ascending. Output only the resulting JSON array of full objects (an empty array if none match).\n\n[\n {\n  \"name\": \"Talithber Battery\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 15,\n  \"armor\": 3,\n  \"speed\": 6,\n  \"cost\": 175\n },\n {\n  \"name\": \"Quovex Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"artillery\",\n  \"hp\": 14,\n  \"armor\": 4,\n  \"speed\": 6,\n  \"cost\": 50\n },\n {\n  \"name\": \"Zangor Choir\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"elite\",\n  \"hp\": 56,\n  \"armor\": 12,\n  \"speed\": 12,\n  \"cost\": 100\n },\n {\n  \"name\": \"Kasha Choir\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"support\",\n  \"hp\": 78,\n  \"armor\": 5,\n  \"speed\": 10,\n  \"cost\": 140\n },\n {\n  \"name\": \"Dunquosha Brood\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 92,\n  \"armor\": 4,\n  \"speed\": 5,\n  \"cost\": 35\n },\n {\n  \"name\": \"Romirsha Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"scout\",\n  \"hp\": 94,\n  \"armor\": 12,\n  \"speed\": 6,\n  \"cost\": 65\n },\n {\n  \"name\": \"Elital Pack\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"artillery\",\n  \"hp\": 119,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 260\n },\n {\n  \"name\": \"Talul Brood\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 80,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 130\n }\n]",
+ "check": {
+  "type": "json_equal",
+  "expected": [
+   {
+    "name": "Romirsha Pack",
+    "faction": "Swarm",
+    "role": "scout",
+    "hp": 94,
+    "armor": 12,
+    "speed": 6,
+    "cost": 65
+   }
+  ]
+ }
+}

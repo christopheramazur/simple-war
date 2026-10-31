@@ -1,0 +1,260 @@
+{
+ "id": "L1-json_to_table-m",
+ "level": "L1",
+ "task_class": "json_to_table",
+ "size": "m",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "Convert this JSON array to a Markdown table with exactly these columns in this order: name | role | hp | cost. Header row, then a separator row, then one row per object in the same order. Output only the table.\n\n[\n {\n  \"name\": \"Talgor Cell\",\n  \"faction\": \"Swarm\",\n  \"role\": \"scout\",\n  \"hp\": 74,\n  \"armor\": 12,\n  \"speed\": 12,\n  \"cost\": 210\n },\n {\n  \"name\": \"Ulsha Choir\",\n  \"faction\": \"Human\",\n  \"role\": \"heavy\",\n  \"hp\": 14,\n  \"armor\": 0,\n  \"speed\": 14,\n  \"cost\": 275\n },\n {\n  \"name\": \"Kaber Pack\",\n  \"faction\": \"Maw\",\n  \"role\": \"scout\",\n  \"hp\": 57,\n  \"armor\": 3,\n  \"speed\": 14,\n  \"cost\": 285\n },\n {\n  \"name\": \"Quoithber Wardens\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"heavy\",\n  \"hp\": 39,\n  \"armor\": 10,\n  \"speed\": 11,\n  \"cost\": 130\n },\n {\n  \"name\": \"Ulvexgor Cell\",\n  \"faction\": \"Swarm\",\n  \"role\": \"infantry\",\n  \"hp\": 16,\n  \"armor\": 0,\n  \"speed\": 7,\n  \"cost\": 195\n },\n {\n  \"name\": \"Ithelizan Wardens\",\n  \"faction\": \"Human\",\n  \"role\": \"scout\",\n  \"hp\": 120,\n  \"armor\": 9,\n  \"speed\": 6,\n  \"cost\": 200\n },\n {\n  \"name\": \"Roitheli Wardens\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"heavy\",\n  \"hp\": 68,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 295\n },\n {\n  \"name\": \"Berzantal Battery\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"infantry\",\n  \"hp\": 115,\n  \"armor\": 11,\n  \"speed\": 12,\n  \"cost\": 280\n },\n {\n  \"name\": \"Gorelimir Pack\",\n  \"faction\": \"Maw\",\n  \"role\": \"elite\",\n  \"hp\": 101,\n  \"armor\": 6,\n  \"speed\": 8,\n  \"cost\": 290\n },\n {\n  \"name\": \"Dunber Battery\",\n  \"faction\": \"Human\",\n  \"role\": \"infantry\",\n  \"hp\": 38,\n  \"armor\": 12,\n  \"speed\": 11,\n  \"cost\": 60\n },\n {\n  \"name\": \"Duntal Pack\",\n  \"faction\": \"Maw\",\n  \"role\": \"artillery\",\n  \"hp\": 55,\n  \"armor\": 12,\n  \"speed\": 3,\n  \"cost\": 140\n },\n {\n  \"name\": \"Zantalmir Pack\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"scout\",\n  \"hp\": 15,\n  \"armor\": 8,\n  \"speed\": 6,\n  \"cost\": 240\n },\n {\n  \"name\": \"Berzan Guard\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 11,\n  \"armor\": 11,\n  \"speed\": 14,\n  \"cost\": 105\n },\n {\n  \"name\": \"Quotaleli Lancers\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"artillery\",\n  \"hp\": 83,\n  \"armor\": 4,\n  \"speed\": 8,\n  \"cost\": 290\n },\n {\n  \"name\": \"Gorshaul Lancers\",\n  \"faction\": \"Maw\",\n  \"role\": \"support\",\n  \"hp\": 43,\n  \"armor\": 3,\n  \"speed\": 9,\n  \"cost\": 155\n },\n {\n  \"name\": \"Elivexul Wardens\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 34,\n  \"armor\": 3,\n  \"speed\": 8,\n  \"cost\": 250\n },\n {\n  \"name\": \"Gorquomir Pack\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 47,\n  \"armor\": 3,\n  \"speed\": 9,\n  \"cost\": 25\n },\n {\n  \"name\": \"Bervex Choir\",\n  \"faction\": \"Maw\",\n  \"role\": \"scout\",\n  \"hp\": 74,\n  \"armor\": 0,\n  \"speed\": 5,\n  \"cost\": 165\n },\n {\n  \"name\": \"Ithbermir Brood\",\n  \"faction\": \"Maw\",\n  \"role\": \"heavy\",\n  \"hp\": 50,\n  \"armor\": 10,\n  \"speed\": 14,\n  \"cost\": 290\n },\n {\n  \"name\": \"Ulzandun Pack\",\n  \"faction\": \"Maw\",\n  \"role\": \"scout\",\n  \"hp\": 65,\n  \"armor\": 0,\n  \"speed\": 13,\n  \"cost\": 215\n },\n {\n  \"name\": \"Gorberber Guard\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 14,\n  \"armor\": 11,\n  \"speed\": 12,\n  \"cost\": 30\n },\n {\n  \"name\": \"Vexquo Battery\",\n  \"faction\": \"Swarm\",\n  \"role\": \"infantry\",\n  \"hp\": 86,\n  \"armor\": 8,\n  \"speed\": 7,\n  \"cost\": 220\n },\n {\n  \"name\": \"Mirquo Brood\",\n  \"faction\": \"Human\",\n  \"role\": \"infantry\",\n  \"hp\": 47,\n  \"armor\": 10,\n  \"speed\": 14,\n  \"cost\": 80\n },\n {\n  \"name\": \"Gordun Lancers\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"heavy\",\n  \"hp\": 117,\n  \"armor\": 10,\n  \"speed\": 11,\n  \"cost\": 210\n },\n {\n  \"name\": \"Vexmir Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"heavy\",\n  \"hp\": 44,\n  \"armor\": 1,\n  \"speed\": 14,\n  \"cost\": 215\n },\n {\n  \"name\": \"Gorzangor Pack\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 118,\n  \"armor\": 11,\n  \"speed\": 3,\n  \"cost\": 215\n },\n {\n  \"name\": \"Talzanquo Battery\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"heavy\",\n  \"hp\": 97,\n  \"armor\": 6,\n  \"speed\": 8,\n  \"cost\": 80\n },\n {\n  \"name\": \"Talvexro Guard\",\n  \"faction\": \"Maw\",\n  \"role\": \"heavy\",\n  \"hp\": 74,\n  \"armor\": 10,\n  \"speed\": 3,\n  \"cost\": 300\n },\n {\n  \"name\": \"Ithdunber Pack\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"support\",\n  \"hp\": 43,\n  \"armor\": 11,\n  \"speed\": 5,\n  \"cost\": 145\n },\n {\n  \"name\": \"Rosha Battery\",\n  \"faction\": \"Human\",\n  \"role\": \"infantry\",\n  \"hp\": 103,\n  \"armor\": 7,\n  \"speed\": 7,\n  \"cost\": 50\n },\n {\n  \"name\": \"Quoquoith Brood\",\n  \"faction\": \"Human\",\n  \"role\": \"elite\",\n  \"hp\": 106,\n  \"armor\": 3,\n  \"speed\": 3,\n  \"cost\": 280\n },\n {\n  \"name\": \"Kaka Lancers\",\n  \"faction\": \"Swarm\",\n  \"role\": \"elite\",\n  \"hp\": 33,\n  \"armor\": 2,\n  \"speed\": 5,\n  \"cost\": 160\n },\n {\n  \"name\": \"Bervex Cell\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 43,\n  \"armor\": 0,\n  \"speed\": 4,\n  \"cost\": 210\n },\n {\n  \"name\": \"Elivex Guard\",\n  \"faction\": \"Swarm\",\n  \"role\": \"artillery\",\n  \"hp\": 12,\n  \"armor\": 11,\n  \"speed\": 7,\n  \"cost\": 260\n },\n {\n  \"name\": \"Zanquodun Wardens\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"support\",\n  \"hp\": 116,\n  \"armor\": 11,\n  \"speed\": 3,\n  \"cost\": 215\n },\n {\n  \"name\": \"Ithber Lancers\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"scout\",\n  \"hp\": 52,\n  \"armor\": 7,\n  \"speed\": 5,\n  \"cost\": 250\n },\n {\n  \"name\": \"Quokaquo Guard\",\n  \"faction\": \"Maw\",\n  \"role\": \"scout\",\n  \"hp\": 16,\n  \"armor\": 12,\n  \"speed\": 10,\n  \"cost\": 120\n },\n {\n  \"name\": \"Berrovex Lancers\",\n  \"faction\": \"Human\",\n  \"role\": \"heavy\",\n  \"hp\": 27,\n  \"armor\": 3,\n  \"speed\": 12,\n  \"cost\": 40\n },\n {\n  \"name\": \"Kaeligor Lancers\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"elite\",\n  \"hp\": 56,\n  \"armor\": 2,\n  \"speed\": 14,\n  \"cost\": 75\n },\n {\n  \"name\": \"Karo Brood\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"elite\",\n  \"hp\": 67,\n  \"armor\": 1,\n  \"speed\": 10,\n  \"cost\": 145\n }\n]",
+ "check": {
+  "type": "table_equal",
+  "expected": [
+   [
+    "name",
+    "role",
+    "hp",
+    "cost"
+   ],
+   [
+    "Talgor Cell",
+    "scout",
+    "74",
+    "210"
+   ],
+   [
+    "Ulsha Choir",
+    "heavy",
+    "14",
+    "275"
+   ],
+   [
+    "Kaber Pack",
+    "scout",
+    "57",
+    "285"
+   ],
+   [
+    "Quoithber Wardens",
+    "heavy",
+    "39",
+    "130"
+   ],
+   [
+    "Ulvexgor Cell",
+    "infantry",
+    "16",
+    "195"
+   ],
+   [
+    "Ithelizan Wardens",
+    "scout",
+    "120",
+    "200"
+   ],
+   [
+    "Roitheli Wardens",
+    "heavy",
+    "68",
+    "295"
+   ],
+   [
+    "Berzantal Battery",
+    "infantry",
+    "115",
+    "280"
+   ],
+   [
+    "Gorelimir Pack",
+    "elite",
+    "101",
+    "290"
+   ],
+   [
+    "Dunber Battery",
+    "infantry",
+    "38",
+    "60"
+   ],
+   [
+    "Duntal Pack",
+    "artillery",
+    "55",
+    "140"
+   ],
+   [
+    "Zantalmir Pack",
+    "scout",
+    "15",
+    "240"
+   ],
+   [
+    "Berzan Guard",
+    "artillery",
+    "11",
+    "105"
+   ],
+   [
+    "Quotaleli Lancers",
+    "artillery",
+    "83",
+    "290"
+   ],
+   [
+    "Gorshaul Lancers",
+    "support",
+    "43",
+    "155"
+   ],
+   [
+    "Elivexul Wardens",
+    "artillery",
+    "34",
+    "250"
+   ],
+   [
+    "Gorquomir Pack",
+    "artillery",
+    "47",
+    "25"
+   ],
+   [
+    "Bervex Choir",
+    "scout",
+    "74",
+    "165"
+   ],
+   [
+    "Ithbermir Brood",
+    "heavy",
+    "50",
+    "290"
+   ],
+   [
+    "Ulzandun Pack",
+    "scout",
+    "65",
+    "215"
+   ],
+   [
+    "Gorberber Guard",
+    "artillery",
+    "14",
+    "30"
+   ],
+   [
+    "Vexquo Battery",
+    "infantry",
+    "86",
+    "220"
+   ],
+   [
+    "Mirquo Brood",
+    "infantry",
+    "47",
+    "80"
+   ],
+   [
+    "Gordun Lancers",
+    "heavy",
+    "117",
+    "210"
+   ],
+   [
+    "Vexmir Pack",
+    "heavy",
+    "44",
+    "215"
+   ],
+   [
+    "Gorzangor Pack",
+    "artillery",
+    "118",
+    "215"
+   ],
+   [
+    "Talzanquo Battery",
+    "heavy",
+    "97",
+    "80"
+   ],
+   [
+    "Talvexro Guard",
+    "heavy",
+    "74",
+    "300"
+   ],
+   [
+    "Ithdunber Pack",
+    "support",
+    "43",
+    "145"
+   ],
+   [
+    "Rosha Battery",
+    "infantry",
+    "103",
+    "50"
+   ],
+   [
+    "Quoquoith Brood",
+    "elite",
+    "106",
+    "280"
+   ],
+   [
+    "Kaka Lancers",
+    "elite",
+    "33",
+    "160"
+   ],
+   [
+    "Bervex Cell",
+    "artillery",
+    "43",
+    "210"
+   ],
+   [
+    "Elivex Guard",
+    "artillery",
+    "12",
+    "260"
+   ],
+   [
+    "Zanquodun Wardens",
+    "support",
+    "116",
+    "215"
+   ],
+   [
+    "Ithber Lancers",
+    "scout",
+    "52",
+    "250"
+   ],
+   [
+    "Quokaquo Guard",
+    "scout",
+    "16",
+    "120"
+   ],
+   [
+    "Berrovex Lancers",
+    "heavy",
+    "27",
+    "40"
+   ],
+   [
+    "Kaeligor Lancers",
+    "elite",
+    "56",
+    "75"
+   ],
+   [
+    "Karo Brood",
+    "elite",
+    "67",
+    "145"
+   ]
+  ]
+ }
+}

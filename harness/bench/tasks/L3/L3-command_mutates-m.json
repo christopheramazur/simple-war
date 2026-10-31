@@ -1,0 +1,39 @@
+{
+ "id": "L3-command_mutates-m",
+ "level": "L3",
+ "task_class": "command_mutates",
+ "size": "m",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "For each shell command, answer whether running it changes files, repository state or tracker state (\"mutating\") or only reads (\"read-only\"). Output only JSON mapping id to \"mutating\" or \"read-only\".\n\nc1: git status --short\nc2: git log --oneline -5\nc3: git commit -m 'x'\nc4: git push origin main\nc5: ls -la src\nc6: rm -rf .godot\nc7: cat project.godot\nc8: grep -rn 'class_name' src\nc9: sed -i 's/a/b/' file.gd\nc10: sed -n '1,20p' file.gd\nc11: bd ready\nc12: bd close sw-1\nc13: bd show sw-1\nc14: python --version\nc15: mkdir -p build\nc16: cp a.json b.json\nc17: find . -name '*.tscn'\nc18: npm install\nc19: echo hi > out.txt\nc20: head -n 5 log.txt\nc21: git checkout -- file.gd\nc22: git diff --stat\nc23: mv old.gd new.gd\nc24: wc -l *.gd",
+ "check": {
+  "type": "labels",
+  "pass_at": 0.9,
+  "expected": {
+   "c1": "read-only",
+   "c2": "read-only",
+   "c3": "mutating",
+   "c4": "mutating",
+   "c5": "read-only",
+   "c6": "mutating",
+   "c7": "read-only",
+   "c8": "read-only",
+   "c9": "mutating",
+   "c10": "read-only",
+   "c11": "read-only",
+   "c12": "mutating",
+   "c13": "read-only",
+   "c14": "read-only",
+   "c15": "mutating",
+   "c16": "mutating",
+   "c17": "read-only",
+   "c18": "mutating",
+   "c19": "mutating",
+   "c20": "read-only",
+   "c21": "mutating",
+   "c22": "read-only",
+   "c23": "mutating",
+   "c24": "read-only"
+  }
+ }
+}

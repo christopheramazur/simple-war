@@ -1,0 +1,86 @@
+{
+ "id": "L1-csv_to_json-s",
+ "level": "L1",
+ "task_class": "csv_to_json",
+ "size": "s",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "Convert this CSV to a JSON array of objects. Keys: name, faction, role, hp, armor, speed, cost. hp, armor, speed and cost are integers. Keep row order. Output only the JSON array.\n\nname,faction,role,hp,armor,speed,cost\nTalithber Battery,Human,artillery,15,3,6,175\nQuovex Pack,Swarm,artillery,14,4,6,50\nZangor Choir,Arcanist,elite,56,12,12,100\nKasha Choir,Arcanist,support,78,5,10,140\nDunquosha Brood,Human,artillery,92,4,5,35\nRomirsha Pack,Swarm,scout,94,12,6,65\nElital Pack,Iron Bastion,artillery,119,3,4,260\nTalul Brood,Arcanist,artillery,80,3,4,130\n",
+ "check": {
+  "type": "json_equal",
+  "expected": [
+   {
+    "name": "Talithber Battery",
+    "faction": "Human",
+    "role": "artillery",
+    "hp": 15,
+    "armor": 3,
+    "speed": 6,
+    "cost": 175
+   },
+   {
+    "name": "Quovex Pack",
+    "faction": "Swarm",
+    "role": "artillery",
+    "hp": 14,
+    "armor": 4,
+    "speed": 6,
+    "cost": 50
+   },
+   {
+    "name": "Zangor Choir",
+    "faction": "Arcanist",
+    "role": "elite",
+    "hp": 56,
+    "armor": 12,
+    "speed": 12,
+    "cost": 100
+   },
+   {
+    "name": "Kasha Choir",
+    "faction": "Arcanist",
+    "role": "support",
+    "hp": 78,
+    "armor": 5,
+    "speed": 10,
+    "cost": 140
+   },
+   {
+    "name": "Dunquosha Brood",
+    "faction": "Human",
+    "role": "artillery",
+    "hp": 92,
+    "armor": 4,
+    "speed": 5,
+    "cost": 35
+   },
+   {
+    "name": "Romirsha Pack",
+    "faction": "Swarm",
+    "role": "scout",
+    "hp": 94,
+    "armor": 12,
+    "speed": 6,
+    "cost": 65
+   },
+   {
+    "name": "Elital Pack",
+    "faction": "Iron Bastion",
+    "role": "artillery",
+    "hp": 119,
+    "armor": 3,
+    "speed": 4,
+    "cost": 260
+   },
+   {
+    "name": "Talul Brood",
+    "faction": "Arcanist",
+    "role": "artillery",
+    "hp": 80,
+    "armor": 3,
+    "speed": 4,
+    "cost": 130
+   }
+  ]
+ }
+}

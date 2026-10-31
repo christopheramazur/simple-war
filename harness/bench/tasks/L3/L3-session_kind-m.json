@@ -1,0 +1,27 @@
+{
+ "id": "L3-session_kind-m",
+ "level": "L3",
+ "task_class": "session_kind",
+ "size": "m",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "Classify each agent session summary into exactly one kind:\n- feature: new game behaviour or screens\n- bugfix: fixing broken game behaviour\n- refactor: restructuring code without changing behaviour\n- content-data: editing game data/content files\n- research: investigation or comparison with no code shipped\n- harness: agent tooling, metrics or workflow\n- ops: infrastructure, dependencies, CI, trackers\n- chat: answering a question, no changes\nOutput only JSON mapping id to kind, like {\"s1\": \"feature\"}.\n\ns1: Added a morale stat to squads, wired it into combat resolution and wrote GUT tests.\ns2: Combat window crashed when a squad was destroyed mid-round; fixed null access and added a regression test.\ns3: Split the 600-line combat_resolver.gd into three classes without changing behaviour.\ns4: Wrote 12 new unit entries in Units.json and balanced their point values.\ns5: Compared GECS and a hand-rolled ECS for 2,000 entities; wrote up findings, no code.\ns6: Added a new hx verb that summarises GUT output for agents.\ns7: Upgraded bd, rotated the local Dolt server and fixed the CI cache path.\ns8: User asked what the Layer Cake rule means; answered with an example.\ns9: Implemented the sector map screen with node selection and travel.\ns10: Saves from v0.3 failed to load; added a migration for the renamed field.\ns11: Filled in the Scenarios.json entries for the second campaign act.\ns12: Added a burn-rate projection to the agent status line.",
+ "check": {
+  "type": "labels",
+  "expected": {
+   "s1": "feature",
+   "s2": "bugfix",
+   "s3": "refactor",
+   "s4": "content-data",
+   "s5": "research",
+   "s6": "harness",
+   "s7": "ops",
+   "s8": "chat",
+   "s9": "feature",
+   "s10": "bugfix",
+   "s11": "content-data",
+   "s12": "harness"
+  },
+  "pass_at": 0.9
+ }
+}

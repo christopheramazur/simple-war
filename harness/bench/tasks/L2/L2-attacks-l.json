@@ -1,0 +1,270 @@
+{
+ "id": "L2-attacks-l",
+ "level": "L2",
+ "task_class": "attack_datafill",
+ "size": "l",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "Here are two attack entries from our game data:\n\n[\n    {\n        \"id\": \"small_arms_kinetic\",\n        \"display_name\": \"Kinetic Gunfire\",\n        \"description\": \"A standard burst of kinetic projectiles from a personal firearm.\",\n        \"category\": \"ranged\",\n        \"skill_category\": \"rifle\",\n        \"range\": {\n            \"min\": 5,\n            \"short\": 10,\n            \"long\": 30,\n            \"max\": 40\n        },\n        \"damage\": {\n            \"type\": \"kinetic\",\n            \"value\": 3,\n            \"count\": 1\n        }\n    },\n    {\n        \"id\": \"small_arms_energy\",\n        \"display_name\": \"Energy Shot\",\n        \"description\": \"A focused energy discharge from a personal weapon.\",\n        \"category\": \"ranged\",\n        \"skill_category\": \"rifle\",\n        \"range\": {\n            \"min\": 5,\n            \"short\": 10,\n            \"long\": 30,\n            \"max\": 40\n        },\n        \"damage\": {\n            \"type\": \"energy\",\n            \"value\": 4,\n            \"count\": 1\n        }\n    }\n]\n\nWrite 15 new attack entries in exactly the same JSON shape, one per spec below, in the same order. id is the display name in snake_case. description is one short sentence you write. Output only a JSON array of the entries.\n\n- Plasma Lance: ranged attack, skill_category rifle, energy damage value 5 count 1, range min 4 short 12 long 36 max 48\n- Bone Saw: melee attack, skill_category melee, kinetic damage value 4 count 2, range min 0 short 1 long 1 max 1\n- Shock Grenade: ranged attack, skill_category launcher, concussive damage value 3 count 3, range min 2 short 6 long 14 max 18\n- Spine Volley: ranged attack, skill_category natural_ranged, kinetic damage value 2 count 4, range min 3 short 8 long 20 max 26\n- Hex Bolt: ranged attack, skill_category magic, energy damage value 6 count 1, range min 5 short 15 long 40 max 50\n- Crushing Maw: melee attack, skill_category natural_melee, kinetic damage value 7 count 1, range min 0 short 1 long 1 max 1\n- Flak Burst: ranged attack, skill_category launcher, kinetic damage value 2 count 6, range min 6 short 14 long 30 max 40\n- Arc Pistol: ranged attack, skill_category rifle, energy damage value 3 count 2, range min 1 short 5 long 12 max 16\n- Thunder Maul: melee attack, skill_category melee, concussive damage value 6 count 1, range min 0 short 1 long 1 max 1\n- Acid Spit: ranged attack, skill_category natural_ranged, energy damage value 3 count 1, range min 2 short 5 long 10 max 14\n- Ward Pulse: ranged attack, skill_category magic, concussive damage value 2 count 5, range min 0 short 3 long 8 max 10\n- Rail Rifle: ranged attack, skill_category rifle, kinetic damage value 8 count 1, range min 10 short 30 long 70 max 90\n- Claw Rake: melee attack, skill_category natural_melee, kinetic damage value 3 count 3, range min 0 short 1 long 1 max 1\n- Mortar Shell: ranged attack, skill_category launcher, concussive damage value 5 count 2, range min 15 short 30 long 60 max 80\n- Soul Lash: melee attack, skill_category magic, energy damage value 4 count 2, range min 0 short 2 long 3 max 4",
+ "check": {
+  "type": "attacks",
+  "schema": "attack.schema.json",
+  "expected": [
+   {
+    "id": "plasma_lance",
+    "display_name": "Plasma Lance",
+    "category": "ranged",
+    "skill_category": "rifle",
+    "range": {
+     "min": 4,
+     "short": 12,
+     "long": 36,
+     "max": 48
+    },
+    "damage": {
+     "type": "energy",
+     "value": 5,
+     "count": 1
+    }
+   },
+   {
+    "id": "bone_saw",
+    "display_name": "Bone Saw",
+    "category": "melee",
+    "skill_category": "melee",
+    "range": {
+     "min": 0,
+     "short": 1,
+     "long": 1,
+     "max": 1
+    },
+    "damage": {
+     "type": "kinetic",
+     "value": 4,
+     "count": 2
+    }
+   },
+   {
+    "id": "shock_grenade",
+    "display_name": "Shock Grenade",
+    "category": "ranged",
+    "skill_category": "launcher",
+    "range": {
+     "min": 2,
+     "short": 6,
+     "long": 14,
+     "max": 18
+    },
+    "damage": {
+     "type": "concussive",
+     "value": 3,
+     "count": 3
+    }
+   },
+   {
+    "id": "spine_volley",
+    "display_name": "Spine Volley",
+    "category": "ranged",
+    "skill_category": "natural_ranged",
+    "range": {
+     "min": 3,
+     "short": 8,
+     "long": 20,
+     "max": 26
+    },
+    "damage": {
+     "type": "kinetic",
+     "value": 2,
+     "count": 4
+    }
+   },
+   {
+    "id": "hex_bolt",
+    "display_name": "Hex Bolt",
+    "category": "ranged",
+    "skill_category": "magic",
+    "range": {
+     "min": 5,
+     "short": 15,
+     "long": 40,
+     "max": 50
+    },
+    "damage": {
+     "type": "energy",
+     "value": 6,
+     "count": 1
+    }
+   },
+   {
+    "id": "crushing_maw",
+    "display_name": "Crushing Maw",
+    "category": "melee",
+    "skill_category": "natural_melee",
+    "range": {
+     "min": 0,
+     "short": 1,
+     "long": 1,
+     "max": 1
+    },
+    "damage": {
+     "type": "kinetic",
+     "value": 7,
+     "count": 1
+    }
+   },
+   {
+    "id": "flak_burst",
+    "display_name": "Flak Burst",
+    "category": "ranged",
+    "skill_category": "launcher",
+    "range": {
+     "min": 6,
+     "short": 14,
+     "long": 30,
+     "max": 40
+    },
+    "damage": {
+     "type": "kinetic",
+     "value": 2,
+     "count": 6
+    }
+   },
+   {
+    "id": "arc_pistol",
+    "display_name": "Arc Pistol",
+    "category": "ranged",
+    "skill_category": "rifle",
+    "range": {
+     "min": 1,
+     "short": 5,
+     "long": 12,
+     "max": 16
+    },
+    "damage": {
+     "type": "energy",
+     "value": 3,
+     "count": 2
+    }
+   },
+   {
+    "id": "thunder_maul",
+    "display_name": "Thunder Maul",
+    "category": "melee",
+    "skill_category": "melee",
+    "range": {
+     "min": 0,
+     "short": 1,
+     "long": 1,
+     "max": 1
+    },
+    "damage": {
+     "type": "concussive",
+     "value": 6,
+     "count": 1
+    }
+   },
+   {
+    "id": "acid_spit",
+    "display_name": "Acid Spit",
+    "category": "ranged",
+    "skill_category": "natural_ranged",
+    "range": {
+     "min": 2,
+     "short": 5,
+     "long": 10,
+     "max": 14
+    },
+    "damage": {
+     "type": "energy",
+     "value": 3,
+     "count": 1
+    }
+   },
+   {
+    "id": "ward_pulse",
+    "display_name": "Ward Pulse",
+    "category": "ranged",
+    "skill_category": "magic",
+    "range": {
+     "min": 0,
+     "short": 3,
+     "long": 8,
+     "max": 10
+    },
+    "damage": {
+     "type": "concussive",
+     "value": 2,
+     "count": 5
+    }
+   },
+   {
+    "id": "rail_rifle",
+    "display_name": "Rail Rifle",
+    "category": "ranged",
+    "skill_category": "rifle",
+    "range": {
+     "min": 10,
+     "short": 30,
+     "long": 70,
+     "max": 90
+    },
+    "damage": {
+     "type": "kinetic",
+     "value": 8,
+     "count": 1
+    }
+   },
+   {
+    "id": "claw_rake",
+    "display_name": "Claw Rake",
+    "category": "melee",
+    "skill_category": "natural_melee",
+    "range": {
+     "min": 0,
+     "short": 1,
+     "long": 1,
+     "max": 1
+    },
+    "damage": {
+     "type": "kinetic",
+     "value": 3,
+     "count": 3
+    }
+   },
+   {
+    "id": "mortar_shell",
+    "display_name": "Mortar Shell",
+    "category": "ranged",
+    "skill_category": "launcher",
+    "range": {
+     "min": 15,
+     "short": 30,
+     "long": 60,
+     "max": 80
+    },
+    "damage": {
+     "type": "concussive",
+     "value": 5,
+     "count": 2
+    }
+   },
+   {
+    "id": "soul_lash",
+    "display_name": "Soul Lash",
+    "category": "melee",
+    "skill_category": "magic",
+    "range": {
+     "min": 0,
+     "short": 2,
+     "long": 3,
+     "max": 4
+    },
+    "damage": {
+     "type": "energy",
+     "value": 4,
+     "count": 2
+    }
+   }
+  ]
+ }
+}

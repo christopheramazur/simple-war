@@ -1,0 +1,68 @@
+{
+ "id": "L1-json_to_table-s",
+ "level": "L1",
+ "task_class": "json_to_table",
+ "size": "s",
+ "suite_version": "1",
+ "system": "You are a precise data assistant. Follow the output format exactly. Output only what is asked, no commentary.",
+ "prompt": "Convert this JSON array to a Markdown table with exactly these columns in this order: name | role | hp | cost. Header row, then a separator row, then one row per object in the same order. Output only the table.\n\n[\n {\n  \"name\": \"Talithber Battery\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 15,\n  \"armor\": 3,\n  \"speed\": 6,\n  \"cost\": 175\n },\n {\n  \"name\": \"Quovex Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"artillery\",\n  \"hp\": 14,\n  \"armor\": 4,\n  \"speed\": 6,\n  \"cost\": 50\n },\n {\n  \"name\": \"Zangor Choir\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"elite\",\n  \"hp\": 56,\n  \"armor\": 12,\n  \"speed\": 12,\n  \"cost\": 100\n },\n {\n  \"name\": \"Kasha Choir\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"support\",\n  \"hp\": 78,\n  \"armor\": 5,\n  \"speed\": 10,\n  \"cost\": 140\n },\n {\n  \"name\": \"Dunquosha Brood\",\n  \"faction\": \"Human\",\n  \"role\": \"artillery\",\n  \"hp\": 92,\n  \"armor\": 4,\n  \"speed\": 5,\n  \"cost\": 35\n },\n {\n  \"name\": \"Romirsha Pack\",\n  \"faction\": \"Swarm\",\n  \"role\": \"scout\",\n  \"hp\": 94,\n  \"armor\": 12,\n  \"speed\": 6,\n  \"cost\": 65\n },\n {\n  \"name\": \"Elital Pack\",\n  \"faction\": \"Iron Bastion\",\n  \"role\": \"artillery\",\n  \"hp\": 119,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 260\n },\n {\n  \"name\": \"Talul Brood\",\n  \"faction\": \"Arcanist\",\n  \"role\": \"artillery\",\n  \"hp\": 80,\n  \"armor\": 3,\n  \"speed\": 4,\n  \"cost\": 130\n }\n]",
+ "check": {
+  "type": "table_equal",
+  "expected": [
+   [
+    "name",
+    "role",
+    "hp",
+    "cost"
+   ],
+   [
+    "Talithber Battery",
+    "artillery",
+    "15",
+    "175"
+   ],
+   [
+    "Quovex Pack",
+    "artillery",
+    "14",
+    "50"
+   ],
+   [
+    "Zangor Choir",
+    "elite",
+    "56",
+    "100"
+   ],
+   [
+    "Kasha Choir",
+    "support",
+    "78",
+    "140"
+   ],
+   [
+    "Dunquosha Brood",
+    "artillery",
+    "92",
+    "35"
+   ],
+   [
+    "Romirsha Pack",
+    "scout",
+    "94",
+    "65"
+   ],
+   [
+    "Elital Pack",
+    "artillery",
+    "119",
+    "260"
+   ],
+   [
+    "Talul Brood",
+    "artillery",
+    "80",
+    "130"
+   ]
+  ]
+ }
+}
