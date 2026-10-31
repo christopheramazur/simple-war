@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -74,6 +75,20 @@ def _auth(target: dict) -> dict:
     return {"Authorization": f"Bearer {keystore.get(target['api_key_secret']) or ''}"}
 
 
+RETRIES = 5
+
+
+def retry_after(status: int, body: str) -> float | None:
+    """Seconds to wait when an upstream provider rate-limits with a hint ("try again in 2.4s").
+    None for anything else, including our own gate's refusals (budget/quota), which don't clear soon."""
+    if status != 429:
+        return None
+    m = re.search(r"try again in (?:(\d+)m)?([\d.]+)s", body, re.I)
+    if not m:
+        return None
+    return min(90.0, float(m.group(1) or 0) * 60 + float(m.group(2)) + 1)
+
+
 def _openai(target, system, prompt, timeout) -> Reply:
     body = {"model": target["model"], "messages": [{"role": "system", "content": system},
                                                    {"role": "user", "content": prompt}],
@@ -81,8 +96,16 @@ def _openai(target, system, prompt, timeout) -> Reply:
     headers = {"Content-Type": "application/json", "x-hx-caller": "bench", **_auth(target)}
     req = urllib.request.Request(target["base_url"].rstrip("/") + "/chat/completions",
                                  data=json.dumps(body).encode(), headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        d = json.loads(resp.read())
+    for attempt in range(RETRIES + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                d = json.loads(resp.read())
+            break
+        except urllib.error.HTTPError as e:
+            wait = retry_after(e.code, e.read().decode("utf-8", "replace")) if attempt < RETRIES else None
+            if wait is None:
+                raise
+            time.sleep(wait)
     msg = d["choices"][0]["message"]
     u = d.get("usage") or {}
     return Reply(text=msg.get("content") or "", input_tokens=u.get("prompt_tokens"),

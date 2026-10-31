@@ -177,3 +177,11 @@ def test_claude_cli_adapter_parses_result(monkeypatch):
     assert "not logged in" in adapters.health({"adapter": "claude-cli"})
     P.stdout = json.dumps({"loggedIn": True})
     assert adapters.health({"adapter": "claude-cli"}) is None
+
+
+def test_retry_after_only_for_upstream_hints():
+    from hx.bench.adapters import retry_after
+    assert retry_after(429, "Please try again in 2.4225s. Need more") == pytest.approx(3.4225)
+    assert retry_after(429, "try again in 1m3.5s") == pytest.approx(64.5)
+    assert retry_after(429, "gemini: monthly budget $0 spent") is None
+    assert retry_after(500, "try again in 2s") is None

@@ -97,6 +97,7 @@ base_url = "https://api.groq.com/openai/v1"
 litellm_prefix = "groq/"
 models = [{ alias = "gpt-oss-120b", model = "openai/gpt-oss-120b" }]
 billing = "none"  # 2026-11-01: user confirmed no payment method on the account
+limits = { tpm_gpt_oss_120b = 8000 }  # seen in Groq's 429 body, 2026-11-01
 monthly_budget_usd = 0
 hard_stop = true
 signup_url = "https://console.groq.com"

@@ -71,7 +71,8 @@ adapter = "openai"
 base_url = "http://127.0.0.1:4000/v1"
 model = "groq/gpt-oss-120b"
 api_key_secret = "HX_GATEWAY_KEY"
-params = { temperature = 0.0, max_tokens = 16384 }
+# Free tier: 8,000 tokens/minute counting the max_tokens reservation, so large outputs can't fit.
+params = { temperature = 0.0, max_tokens = 6000 }
 
 [target.cloudflare-gpt-oss]
 provider = "cloudflare"

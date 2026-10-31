@@ -97,7 +97,21 @@ def _session_end(payload: dict) -> str:
     return out
 
 
-FOLLOW_UPS: list[str] = ["tag_session"]  # job kinds enqueued after every session_end
+FOLLOW_UPS: list[str] = ["tag_session", "mine"]  # job kinds enqueued after every session_end
+
+
+@handler("mine")
+def _mine(payload: dict) -> str:
+    """Mine repeated commands into hx verb candidates (DESIGN.md §5); throttled inside mining.run."""
+    import duckdb
+
+    from hx import ledger, mining
+    con = duckdb.connect(str(ledger.path()), read_only=True)
+    try:
+        out = mining.run(con)
+    finally:
+        con.close()
+    return out.get("skipped") or f"{out['candidates']} candidates, filed {[f['issue'] for f in out['filed']]}"
 
 
 @handler("tag_session")

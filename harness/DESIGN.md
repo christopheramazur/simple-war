@@ -91,6 +91,10 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
 ## 5. Repetitive tasks → tools
 - **Seed verbs (Q40):** `hx status`, `hx godot check`, `hx godot test`, `hx task`, `hx report`, `hx delegate`, `hx bench`, `hx worker`, `hx doctor`.
 - **Mining (Q26):** transcripts from all projects plus OpenCode history, mined frequently by the local model as a post-session worker job (not monthly). Candidates are filed as tasks; use and tokens saved are measured per verb.
+  - *Built (sw-lbm.18):* `hx mine` groups ledger shell commands into shapes. Wrappers are read through (`uv run pytest`). The verbs come from the ledger, so all Claude Code projects are covered; OpenCode follows with sw-lbm.7.
+  - Thresholds: at least 3 sessions and 5 uses. Filing: at most 3 per run, at most every 6 h, deduplicated by shape.
+  - Savings: each filed shape keeps its tokens per use as a baseline, to compare with the verb's tokens per use in `hx mine --report`.
+  - First run (2026-11-01): no shape yet meets the 3-session bar. Only 2 sessions have real shell activity, and the top shape is `uv run pytest` with 17 uses in 1 session.
 
 ## 6. Encoding (Q27)
 - **rtk** command-line tool only (Apache-2.0; not the BUSL proxy). Hook for Claude Code and OpenCode.
