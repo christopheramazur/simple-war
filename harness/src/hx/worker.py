@@ -97,7 +97,20 @@ def _session_end(payload: dict) -> str:
     return out
 
 
-FOLLOW_UPS: list[str] = []  # job kinds enqueued after every session_end (filled in by later jobs)
+FOLLOW_UPS: list[str] = ["tag_session"]  # job kinds enqueued after every session_end
+
+
+@handler("tag_session")
+def _tag_session(payload: dict) -> str:
+    """Tag a finished session (DESIGN.md §3). Claude Code sessions only until the OpenCode importer
+    lands (sw-lbm.7). The delegate call starts or falls back from the local model by itself."""
+    from hx import tagging
+    sid = payload.get("session_id")
+    if not sid or payload.get("client", "claude-code") != "claude-code":
+        return "skipped: no Claude Code session id"
+    rows = tagging.tag_session(sid)
+    return "; ".join(f"{r['role']} {r.get('kind')}/{r.get('outcome')} {r.get('problem') or ''}".strip()
+                     for r in rows) or "already tagged"
 
 
 # ---------------- queue ----------------

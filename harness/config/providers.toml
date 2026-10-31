@@ -74,6 +74,7 @@ kind = "api"
 keys = ["GEMINI_API_KEY"]
 litellm_prefix = "gemini/"
 models = [{ alias = "flash", model = "gemini-3.5-flash" }]
+billing = "none"  # 2026-11-01: user confirmed no payment method on the account
 monthly_budget_usd = 0
 hard_stop = true
 reset_tz = "America/Los_Angeles"
@@ -95,6 +96,7 @@ keys = ["GROQ_API_KEY"]
 base_url = "https://api.groq.com/openai/v1"
 litellm_prefix = "groq/"
 models = [{ alias = "gpt-oss-120b", model = "openai/gpt-oss-120b" }]
+billing = "none"  # 2026-11-01: user confirmed no payment method on the account
 monthly_budget_usd = 0
 hard_stop = true
 signup_url = "https://console.groq.com"
@@ -133,6 +135,7 @@ keys = ["CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID"]
 base_url = "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
 litellm_prefix = "cloudflare/"
 models = [{ alias = "gpt-oss-120b", model = "@cf/openai/gpt-oss-120b" }]
+billing = "none"  # 2026-11-01: user confirmed no payment method on the account
 monthly_budget_usd = 0
 hard_stop = true
 limits = { neurons_per_day = 10000, rpm_text = 300 }

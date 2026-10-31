@@ -1,0 +1,35 @@
+# Session tagging taxonomy (DESIGN.md §3, Q13). Bump `version` whenever a list changes; tags record
+# the version they were made with. The reflection loop may propose new values (sw-lbm.19).
+version = 1
+
+# Tagger: routed by hx delegate (level/class), so it lands on the cheapest trusted model (Bonsai).
+tag_level = "L3"
+tag_class = "session_kind"
+
+# Audit: this share of sessions (picked by a hash of the session id, so reruns pick the same ones)
+# is re-tagged by a stronger model; agreement measures the tagger. Runs on the Claude subscription.
+audit_share = 0.10
+audit_model = "claude-sonnet-5-5"
+
+[kind]
+feature = "new game or harness functionality"
+bugfix = "fixing broken behaviour"
+refactor = "restructuring without behaviour change"
+content-data = "authoring data/defaults JSON, GDD content, assets"
+research = "reading, investigating, comparing options; little or no code change"
+harness = "agent tooling: hx, hooks, benchmarks, configs for agents"
+ops = "git, builds, installs, accounts, environment"
+chat = "conversation or a quick question"
+
+[outcome]
+completed = "the user's request was finished"
+partial = "some of it was done"
+abandoned = "the user dropped it"
+blocked = "stopped on something external (access, decision, broken tool)"
+
+[complexity]
+1 = "one-liner or a single question"
+2 = "a small change in one file"
+3 = "several files or a multi-step task"
+4 = "a feature or investigation spanning many steps"
+5 = "a large multi-part project"

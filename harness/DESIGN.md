@@ -47,7 +47,13 @@ Taxonomy, versioned in `harness/config/taxonomy.toml`:
 - **outcome**: completed / partial / abandoned / blocked
 - **friction**: computed, not judged
 
-Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged by a stronger model to measure tagger accuracy (this doubles as a benchmark task). The reflection loop may propose new tags.
+Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
+- The worker's `tag_session` job runs after every `session_end`.
+- The digest holds up to 6 human prompts (600 characters each), the end of the final reply, and ledger stats.
+- Friction is the share of tool calls that errored or were denied, plus 0.1 per interrupt and 0.05 per API error or compaction.
+- The audit uses `claude-sonnet-5-5`, picked by a hash of the session id. Tags are raw rows in `data/raw/tags/`; join them to the ledger on session_id.
+- First backfill: 18 sessions, 0 invalid. On the 2 audit pairs, kind and complexity agree but outcome does not: on one-word smoke sessions Bonsai says `abandoned` where Sonnet says `completed` or `blocked`.
+ A random 10% is re-tagged by a stronger model to measure tagger accuracy (this doubles as a benchmark task). The reflection loop may propose new tags.
 
 ## 4. Gateway, providers, budgets
 - **Hybrid capture (Q19):** Claude Code on the Pro subscription talks to Anthropic directly; Anthropic's terms allow a proxy only for your own Claude Code traffic, so we keep it out. Everything else goes through a native LiteLLM gateway (uv, no Docker, no Postgres), which logs into the ledger via OTel or a custom-logger callback.
