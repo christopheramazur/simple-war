@@ -113,6 +113,10 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
 - Each level runs across output sizes and context sizes (8k / 32k / 128k / max-fit), with thinking on and off, against Haiku as baseline.
 - **Every roster model** runs the same ladder.
 - **Routing table:** for each task class, the cheapest model that passes. Order: local → free → subscription, with quota headroom as the tie-break. ≥90% pass = automatic handoff; 70–90% = draft plus review by a stronger model. Time and VRAM are logged, not decisive.
+- **First ladder (2026-11-01, suite v1, sw-lbm.14):** Haiku passes 20/20. Bonsai no-think (3 runs) is `auto` on 17 of 20 and holds through 96k of context padding on every small task.
+  - Bonsai fails: filter_sort m (0/3; it miscounts) and l, and json_to_table l (scores 0.994, one row off).
+  - Thinking mode is worse on large outputs: it runs into the 16k output cap on csv_to_json l and rename_drop m/l, and on command_mutates. It rescues only filter_sort m (n=1).
+  - So `config/routing.toml` sends 18 routes to Bonsai (17 no-think, 1 think) and filter_sort l and json_to_table l to Haiku. Only 4 targets are tested so far; free-tier APIs are untested until their keys exist (sw-lbm.21).
 - **Fixtures:** frozen in `harness/bench/`, sourced from:
   - GD-Agentic-Skills `.gd` files (held-out functions, L4)
   - GDD plus schemas (L2)

@@ -21,7 +21,7 @@ AUTO, REVIEW = 0.9, 0.7  # routing thresholds (Q15)
 
 def add_args(p) -> None:
     sub = p.add_subparsers(dest="action", required=True, metavar="<action>")
-    for name in ("list", "run", "report", "build"):
+    for name in ("list", "run", "report", "build", "route"):
         sp = sub.add_parser(name)
         # SUPPRESS: don't clobber the flags if given before the action (hx bench --json report).
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
@@ -41,10 +41,43 @@ def add_args(p) -> None:
                             help="grouping columns (default level,task_class,size,context_tokens)")
         if name == "build":
             sp.add_argument("--force", action="store_true")
+        if name == "route":
+            sp.add_argument("--write", action="store_true", help="write config/routing.toml")
 
 
 def run(args) -> Result:
-    return {"list": _list, "run": _run, "report": _report, "build": _build}[args.action](args)
+    return {"list": _list, "run": _run, "report": _report, "build": _build, "route": _route}[args.action](args)
+
+
+def _route(args) -> Result:
+    import json
+
+    from hx import providers
+    from hx.bench import adapters, routing
+    from hx.bench.runner import results_dir
+    r = Result("bench route")
+    rows = []
+    for f in sorted(results_dir().glob("*.jsonl")) if results_dir().exists() else []:
+        rows += [json.loads(line) for line in f.read_text(encoding="utf-8").splitlines() if line.strip()]
+    targets = adapters.load_targets()
+    routes = routing.build(rows, targets, providers.load())
+    if not routes:
+        r.checks.append(Check("results", WARN, "no results for this suite yet; run hx bench run"))
+        return r
+    tested = sorted({c["target"] for x in routes for c in x["candidates"]})
+    untested = sorted(set(targets) - set(tested))
+    r.data.update({"targets_tested": tested, "targets_untested": untested or "none"})
+    r.tables["routes"] = [{"route": f"{x['level']}/{x['task_class']}/{x['size']}", "verdict": x["verdict"],
+                           "model": x["model"] or "(escalate)",
+                           "pass": x["candidates"][0]["pass_rate"] if x["candidates"] else None,
+                           "n": x["candidates"][0]["n"] if x["candidates"] else 0,
+                           "max_ctx": x["candidates"][0].get("max_ctx_passed") if x["candidates"] else None}
+                          for x in routes]
+    if args.write:
+        note = f"targets tested: {', '.join(tested)}; not yet: {', '.join(untested) or 'none'}"
+        routing.ROUTING_FILE.write_text(routing.to_toml(routes, note), encoding="utf-8", newline="\n")
+        r.data["written"] = str(routing.ROUTING_FILE)
+    return r
 
 
 def _levels(args):

@@ -42,6 +42,7 @@ The first run creates `harness/.venv` via uv. Every verb takes `--json` (machine
 - **Context padding:** `--context` pads the prompt with a frozen GDD copy (`bench/filler/gdd.txt`) up to roughly N tokens.
 - **Results:** appended to `data/raw/bench/<run_id>.jsonl`, including the full model output.
 - **Report:** pass rate per group, with a routing verdict: `auto` at ≥ 90%, `review` at ≥ 70%, otherwise `no`.
+- **Routing:** `hx bench route [--write]` builds `config/routing.toml` from all results for the current suite. Per (task class, size), it picks the cheapest tier whose pass rate is `auto` (local, then free api/client, then subscription); ties go to the higher pass rate, then the faster target. Only ctx-0 runs count toward the rate; context sweeps set `max_ctx_passed`. The file is generated: re-run the ladder and regenerate instead of editing it.
 - **Changing the suite:** never edit task files. Bump `SUITE_VERSION` and run `hx bench build --force`; a test fails if the frozen files drift from the generator.
 - **Haiku target:** uses the `claude` CLI on your subscription. It needs `claude auth login` once in a terminal.
 
