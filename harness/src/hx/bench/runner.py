@@ -32,7 +32,9 @@ def parse_context(spec: str) -> int:
 
 @cache
 def _filler() -> str:
-    return (BENCH_ROOT / "filler" / "gdd.txt").read_text(encoding="utf-8")
+    # Normalise line endings: git autocrlf may check this out as CRLF on Windows,
+    # and padded prompts must be byte-identical on every machine.
+    return (BENCH_ROOT / "filler" / "gdd.txt").read_text(encoding="utf-8").replace("\r\n", "\n")
 
 
 def pad(prompt: str, context_tokens: int) -> str:

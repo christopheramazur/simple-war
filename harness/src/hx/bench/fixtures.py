@@ -254,7 +254,7 @@ def build(force: bool = False) -> list[Path]:
     for t in tasks:
         p = TASKS_DIR / t["level"] / f"{t['id']}.json"
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(t, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+        p.write_text(json.dumps(t, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
         written.append(p)
     _freeze_filler()
     return written
@@ -265,8 +265,8 @@ def _freeze_filler() -> Path:
     out = BENCH_ROOT / "filler" / "gdd.txt"
     out.parent.mkdir(parents=True, exist_ok=True)
     gdd = repo_root() / "Game Design Document"
-    parts = [p.read_text(encoding="utf-8", errors="replace") for p in sorted(gdd.rglob("*.md"))]
-    out.write_text("\n\n".join(parts), encoding="utf-8")
+    parts = [p.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n") for p in sorted(gdd.rglob("*.md"))]
+    out.write_text("\n\n".join(parts), encoding="utf-8", newline="\n")  # LF everywhere, see runner._filler
     return out
 
 
