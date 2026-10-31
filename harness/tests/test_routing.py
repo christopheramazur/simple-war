@@ -68,3 +68,10 @@ def test_toml_round_trips():
     r = d["route"]["L1/csv/s"]
     assert d["suite_version"] == SUITE_VERSION and r["model"] == "bonsai/nothink"
     assert r["candidates"][1]["model"] == "claude-haiku-5-5" and r["candidates"][1]["p50_s"] == 2.5
+
+
+def test_gate_refusals_are_not_model_failures():
+    rows = [row("groq-70b", "csv", "s", False) | {"error": "HTTPError: HTTP Error 429: Too Many Requests"},
+            row("groq-70b", "csv", "s", True)]
+    c = by_key(routing.build(rows, TARGETS, ROSTER))[("csv", "s")]["candidates"][0]
+    assert (c["n"], c["pass_rate"]) == (1, 1.0)

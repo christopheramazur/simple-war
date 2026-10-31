@@ -134,6 +134,11 @@ Tagged after each session by Bonsai, with confidence. A random 10% is re-tagged 
   - Bonsai fails: filter_sort m (0/3; it miscounts) and l, and json_to_table l (scores 0.994, one row off).
   - Thinking mode is worse on large outputs: it runs into the 16k output cap on csv_to_json l and rename_drop m/l, and on command_mutates. It rescues only filter_sort m (n=1).
   - So `config/routing.toml` sends 18 routes to Bonsai (17 no-think, 1 think) and filter_sort l and json_to_table l to Haiku. Only 4 targets are tested so far; free-tier APIs are untested until their keys exist (sw-lbm.21).
+- **Free-tier ladder (2026-11-01):**
+  - OpenRouter `nemotron-3-ultra-550b:free` passes 19/20. It solves filter_sort m and l, which Bonsai fails, and misses only json_to_table l (149/161 rows). L1 large outputs are slow, about 3–4 min.
+  - filter_sort l now routes to OpenRouter; only json_to_table l still goes to Haiku.
+  - Gemini 3.5 Flash, Groq gpt-oss-120b and Cloudflare gpt-oss-120b each passed the smoke task. The full ladder was blocked by our own $0 gate (see `billing` in §4).
+  - Routing ignores gate refusals and connection errors: they say nothing about the model.
 - **Fixtures:** frozen in `harness/bench/`, sourced from:
   - GD-Agentic-Skills `.gd` files (held-out functions, L4)
   - GDD plus schemas (L2)

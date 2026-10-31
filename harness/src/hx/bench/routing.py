@@ -21,6 +21,12 @@ TIER = {"local": 0, "api": 1, "client": 1, "subscription": 2}
 ROUTING_FILE = HARNESS_ROOT / "config" / "routing.toml"
 
 
+def infra_error(row: dict) -> bool:
+    """Rows that say nothing about the model: refused by a quota/budget gate or never reached it."""
+    e = row.get("error") or ""
+    return any(s in e for s in ("HTTP Error 429", "URLError", "ConnectionRefused", "ConnectionReset"))
+
+
 def _verdict(rate: float) -> str:
     return "auto" if rate >= AUTO else "review" if rate >= REVIEW else "no"
 
@@ -32,7 +38,7 @@ def build(rows: list[dict], targets: dict[str, dict], roster: dict[str, provider
     ctx_pass: dict = defaultdict(lambda: defaultdict(list))  # (cls, size, target) -> ctx -> [passed]
     level: dict = {}
     for r in rows:
-        if r.get("suite_version") != SUITE_VERSION or r.get("target") not in targets:
+        if r.get("suite_version") != SUITE_VERSION or r.get("target") not in targets or infra_error(r):
             continue
         key = (r["task_class"], r["size"])
         level[key] = r["level"]
