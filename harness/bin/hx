@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# hx shim for Git Bash / WSL. uv is a Windows exe under Git Bash, so pass it a Windows path.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+command -v cygpath >/dev/null 2>&1 && here="$(cygpath -w "$here")"
+exec uv run --project "$here" --quiet hx "$@"

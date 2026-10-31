@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Claude Code status line entry. Calls the venv python directly: `uv run` adds ~0.3s per refresh.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+for py in "$here/.venv/Scripts/python.exe" "$here/.venv/bin/python"; do
+  [ -x "$py" ] && exec "$py" -m hx.statusline
+done
+command -v cygpath >/dev/null 2>&1 && here="$(cygpath -w "$here")"
+exec uv run --project "$here" --quiet python -m hx.statusline

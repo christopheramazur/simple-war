@@ -1,79 +1,85 @@
-# Simple War — Agent Routing & General Instructions
-**What this is:** This file is routing for agents. It should always be read. When checking if agent files are relevant, read the first 20 lines as well as the content of the # and ## .md headers to determine if the file should be read further. 
+# Simple War — Agent Instructions
 
-## 1. Environment (read before running any command)
-- **OS / shell:** Windows 10. The default shell is cmd.
-- **Working directory:** `C:/Users/chris/Documents/simple-war`
-- **PowerShell:** Create and store useful powershell scripts for PowerShell work. Don't try to pass to powershell directly from cmd.
-- **Godot binary:** `Godot_v4.7-stable_win64.exe` (console variant: `Godot_v4.7-stable_win64_console.exe`) at project root. Main scene is `res://src/ui/main_menu.tscn`.
+Canonical instructions for every agent client (Claude Code reads this via `CLAUDE.md` → `@AGENTS.md`; Codex and OpenCode read it directly). Read the `#`/`##` headings first, then only the sections your task needs.
 
-## 2. Where things live
+## 1. Environment
+- **OS:** Windows 11. **Repo root:** `C:/Users/chris/Documents/simple-war`.
+- **Shell:** use **Git Bash** (the Bash tool) by default; output compression and command metrics only apply there. Use PowerShell only for Windows-only operations.
+- **Godot 4.7.2:** `Godot_v4.7.2-stable_win64.exe` (editor) and `Godot_v4.7.2-stable_win64_console.exe` (headless) at the repo root.
+- **Game code is a clean slate:** `src/` is empty, and `project.godot` still points at the removed `res://src/ui/main_menu.tscn` (tracked as `sw-m7o`).
+
+## 2. Start of every session
+1. `harness/bin/hx status`: branch, dirty files, Godot version, autoloads, in-progress and ready tasks.
+2. Pick or confirm a task, then **claim it before working**: `bd update <id> --claim`. Run `bd close <id>` when done.
+   Telemetry assigns token spend to tasks from these two commands, so unclaimed work counts as `(none)`.
+3. Read only what the task needs (§4).
+
+## 3. Where things live
 | Path | What it is |
 |---|---|
-| `project.godot` | Engine config: version, autoloads, main scene, rendering. |
-| `src/` | **Game code** (`.gd` + `.tscn`). GDD defines the target design. |
-| `data/defaults/*.json` | The **data model** (content-as-data). All gameplay data should live here, as `Resource`-serializable structures (see §5). |
-| `Game Design Document/` | The **GDD** — the authoritative directive for game design direction. |
-| `docs/godot-skill-distillation.md` | Source of truth for Godot rules/patterns in THIS project. Read first before writing engine code (see §3). |
-| `GD-Agentic-Skills/` | The `godot-*` skill modules. Each has `SKILL.md`, `references/*.md`, and `scripts/`. **You do NOT need to read all of these** — pick via the reading map in `docs/godot-skill-distillation.md` §12. |
-| `scripts/` | **Project automation helpers** (see `scripts/README.md`). E.g. `scripts/status.bat`. |
-| `addons/` | Third-party: `gecs`, `dialogic`, `gut` (testing), `custom_graph_editor`, `godot-rts-entity-controller`, `guide`. Update this when adding or removing addons.|
-| `.agents\skills-general\skills\` | Other skills not directly related to the game, used when called for. `grill-me` is in productivity, for example. |
-
-## 3. The single source of truth for Godot rules → `docs/godot-skill-distillation.md`
-This is the condensed "Godot Master" skill for *this* project. Its sections:
-
-- **§1 Non-negotiable architecture rules** — *read first, keep verbatim*: Who-Owns-What, the Layer Cake (presentation is a read-only signal listener), tiered Signal Bus, "when not to use a Node".
-- **§10 The NEVER list** — the items you must never violate (absolute node paths, `String` keys in hot paths, `load()` in loops, `_process` on 1000+ entities, etc.).
-- **§12 Module Reading Map** — the router: *goal → which skill module + reference + reference scripts to load*. **Use this to pick ONLY what you need.**
-- **§14 Top 10 takeaways** — the short version if you read nothing else.
-- Then pull **only** the specific module referenced by §12 (`GD-Agentic-Skills/skills/<module>/SKILL.md` + its `references/*.md` + `scripts/`). Do **not** read `SKILL.md` or all skills top-to-bottom.
+| `Game Design Document/` | The **GDD**: the authority on game design. |
+| `GD-Agentic-Skills/godot-skill-distillation.md` | **Godot rules for this project.** Read §1 (architecture), §10 (NEVER list), §14 (top 10) before writing engine code; §12 routes you to skill modules. |
+| `GD-Agentic-Skills/skills/godot-*/` | Skill modules (`SKILL.md`, `references/`, `scripts/`). Load **only** the module §12 names, never all of them. |
+| `data/defaults/*.json` | The data model: Attacks, Campaigns, Scenarios, Sector_Maps, Squads, Units. Gameplay data lives here, not in scenes. |
+| `src/` | Game code (`.gd` + `.tscn`). |
+| `addons/` | `gecs` (ECS), `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller`, `guide`. Update this row when adding or removing addons. |
+| `harness/` | Agent harness: the `hx` CLI, telemetry ledger, benchmarks. See `harness/README.md`; decisions and reasons are in `harness/DESIGN.md`. |
+| `.agents/skills/` | Client-agnostic agent skills (e.g. `beads`). |
 
 ## 4. Classify the request, then read only this
-Match the task to a row. Read the "Start here" column. Do the "Avoid" column.
+`dist` = `GD-Agentic-Skills/godot-skill-distillation.md`. Skill names below are `GD-Agentic-Skills/skills/godot-<name>/`.
 
-| Request type | Start here | Avoid |
+| Request | Start here | Avoid |
 |---|---|---|
-| "How does the game work / what's the design?" | `Game Design Document/` (GDD) | Engine skill scripts |
-| "What are the architecture rules / patterns / never-dos?" | `docs/godot-skill-distillation.md` §1, §10, §14 | Re-reading `SKILL.md` or all skills |
-| "Build a system / feature" (new engine code) | `docs/godot-skill-distillation.md` §12 → load the specific module (SKILL + references + its scripts); GDD for the game rules | Reading every module; absolute `$`/`get_node` paths; UI holding state |
-| "Author/edit content" (squads, units, attacks, campaigns, maps) | `data/defaults/*.json` | Putting data in the scene tree |
-| "UI / scene layout / combat window / tab / minimap" | `distillation.md` §4 (F6 principle, safe signal handler, no direct button→gameplay wiring) | Connecting UI buttons directly to gameplay; holding state in UI nodes; `STOP` on transparent containers |
-| "Multiplayer / ranked / net" | `distillation.md` §6 + `multiplayer-networking`, `server-architecture` skills | Trusting the client for authoritative state; JSON on the wire |
-| "Save / load / campaign persistence" | `distillation.md` §7 + `save-load-systems` skill | Saving whole `Node`/`Object` instances; JSON for typed data |
-| "Isometric camera / 2D assets in 3D scene" | `distillation.md` §5 + `camera-systems`, `adapt-2d-to-3d` | Linear zoom; per-frame position set; real-time GI |
-| "Performance / frame spikes / GC" | `distillation.md` §9, §10 #12 + `performance-optimization` | Optimizing before profiling |
-| "Mods / Steam Workshop" | `distillation.md` §8 | Executing untrusted `.gd` |
-| "Test" | `gut` addon + `testing-patterns` skill | — |
-| "Build / export / Steam upload" | `export-builds` skill | — |
+| Game design / how the game works | GDD | Engine skill scripts |
+| Architecture rules / never-dos | `dist` §1, §10, §14 | Reading whole skill modules |
+| Build a system / feature | `dist` §12 → the one named module; GDD for the rules | Absolute `$`/`get_node` paths; UI holding state |
+| Author content (squads, units, attacks, campaigns, maps) | `data/defaults/*.json` | Data in the scene tree |
+| UI / combat window / tabs / minimap | `dist` §4 | Wiring buttons straight to gameplay; `STOP` on transparent containers |
+| Multiplayer / ranked | `dist` §6 + `multiplayer-networking`, `server-architecture` | Trusting the client; JSON on the wire |
+| Save / load | `dist` §7 + `save-load-systems` | Saving whole `Node`s; JSON for typed data |
+| Isometric camera / 2D-in-3D | `dist` §5 + `camera-systems`, `adapt-2d-to-3d` | Linear zoom; per-frame position set |
+| Performance | `dist` §9, §10 + `performance-optimization` | Optimizing before profiling |
+| Mods / Workshop | `dist` §8 | Executing untrusted `.gd` |
+| Tests | `testing-patterns` (GUT is installed) | — |
+| Build / export | `export-builds` | — |
+| Agent harness / tooling / metrics | `harness/README.md`, `harness/DESIGN.md` | Editing `harness/data/` by hand |
 
-## 5. Non-negotiable architecture rules
-1. **Who owns what** — for *every* state variable, before writing a system: (1) who owns the data, (2) who may change it (owner via a public method only), (3) who must know it changed (signal listener). If you can't answer all three, you have a coupling problem. **Signals are the enforcement mechanism — Godot has no access modifiers.**
-2. **Layer Cake:** PRESENTATION (UI/VFX) <- LOGIC (state machines) <- DATA (Resources/`.tres`) <- INFRASTRUCTURE (autoloads). **Presentation must never mutate Data directly.** Signals travel **up** as a general rule.
-3. **Scoped Signal Bus per combat event** (global bus only for lifecycle e.g.`match_started`/`match_ended`). This is how N simultaneous combats stay decoupled. Displays can remain stateless read-only projections.
-4. **`RefCounted`** for logic packets, **`Resource`** for data, **`Node`** only for spatial/per-frame. **All gameplay data as `Resource`s** — what makes Workshop mods (data+assets) possible.
-5. **Determinism is a requirement** (ranked multiplayer depends on it): same inputs + seed → same result.
-6. **F6 principle:** every scene (entity, UI, combat window) must run standalone — no scene-external dependencies.
+## 5. Non-negotiable game architecture
+1. **Who owns what:** for every state variable, know who owns it, who may change it (the owner, via a public method), and who must hear about it (a signal). If you can't answer all three, there's a coupling problem.
+2. **Layer cake:** presentation ← logic ← data (Resources) ← infrastructure (autoloads). Presentation never mutates data. Signals travel up.
+3. **A scoped signal bus per combat.** The global bus is for lifecycle only (`match_started`, `match_ended`).
+4. **`RefCounted` for logic packets, `Resource` for data, `Node` only for spatial or per-frame work.** All gameplay data is in `Resource`s, which is what makes Workshop mods possible.
+5. **Determinism:** same inputs plus same seed gives the same result. Ranked multiplayer depends on it.
+6. **F6 principle:** every scene runs standalone.
 
-## 6. Working principles (keep true)
-- **Read the reading map (§12) before reading a skill module.** Load only the modules the goal names.
-- **Composition is easier to read** if inheritance goes beyond 3 levels, consider refactor.
-- **UI emits signals; the sim/controller listens.** UI never holds game state.
-- **Data as data.** Content belongs in `data/defaults/*.json` / `Resource`s, not in node properties or the scene tree.
-- **When you're stuck:** use a web search to simplify the problem. If you approach the context limit, write a **hand-off document** for the next agent (summary, current branch, what's done, what's next, open risks).
-- **Experiments are Cheap:** It's alright to try things that might be risky, as long as there's a plan in place to backup and rollback. 
+## 6. Working rules
+- **Agents may change things freely**, including commits and `git push` to `origin`. Never force-push or rewrite history.
+- **Ask the user first** for any of these:
+  - spending money or raising any budget in `harness/config/`
+  - deleting ledger, transcript or tracker history
+  - publishing or posting anything externally
+  - changing this list
+- **Tools over tokens:** prefer an `hx` verb to an ad-hoc command, and keep command output short (`| head`, `--short`, `-q`). If you repeat the same multi-step command, file a task to make it an `hx` verb.
+- **Data as data.** UI emits signals and the simulation listens; UI never holds game state.
+- **Composition over deep inheritance:** refactor beyond 3 levels.
+- **Experiments are cheap**, as long as there's a way to roll back.
+- **Stuck:** search the web to simplify the problem.
+- **Near the context limit:** write a hand-off (summary, branch, done, next, risks) into the task with `bd update <id> --append-notes "…"`.
 
-## 7. Build & Test (PowerShell)
-Run from the project root:
+## 7. Build & test (Git Bash, from the repo root)
+| Do | Command |
+|---|---|
+| Orient | `harness/bin/hx status` |
+| Check toolchain and secrets | `harness/bin/hx doctor` |
+| Spend and usage report | `harness/bin/hx report` (`--since all`, `--html --open`); the ledger updates after every turn |
+| Open the editor | `./Godot_v4.7.2-stable_win64.exe` |
+| Headless import check | `./Godot_v4.7.2-stable_win64_console.exe --headless --import-only` (slow on a cold `.godot` cache) |
+| Game tests | GUT; see `testing-patterns` |
+| Harness tests | `uv run --project harness pytest -q` |
 
-- **Orient:** `.\scripts\status.bat` — branch, dirty files, engine version, autoloads, data assets.
-- **Editor / run:** `.\Godot_v4.7-stable_win64.exe` — opens the editor; F5/F6 to run `res://src/ui/main_menu.tscn`.
-- **Headless asset-import check:** `.\Godot_v4.7-stable_win64_console.exe --headless --import-only` — verifies all asset imports with no errors; may take a few minutes on a cold `.godot` cache.
-- **Tests:** `gut` addon — route via `docs/godot-skill-distillation.md` §12 → `testing-patterns`.
-- **Export / builds:** `export-builds` skill (route via §12).
-
-## 8. Beads Issue Tracker
-This project uses **bd (beads)** for issue tracking. Check the beads skill for more information when looking to perform task management.
+## 8. Task tracking
+The two blocks below are generated by `bd`. Leave the marker comments intact. Prefer `hx task …` once it exists (`sw-lbm.8`).
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:46cd31e7 -->
 ## Beads Issue Tracker
@@ -97,14 +103,6 @@ bd close <id>         # Complete work
 
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/core-concepts/sync-concepts.md for details and anti-patterns.
 
-## Agent Context Profiles
-
-The managed Beads block is task-tracking guidance, not permission to override repository, user, or orchestrator instructions.
-
-- **Conservative (default)**: Use `bd` for task tracking. Do not run git commits, git pushes, or Dolt remote sync unless explicitly asked. At handoff, report changed files, validation, and suggested next commands.
-- **Minimal**: Keep tool instruction files as pointers to `bd prime`; use the same conservative git policy unless active instructions say otherwise.
-- **Team-maintainer**: Only when the repository explicitly opts in, agents may close beads, run quality gates, commit, and push as part of session close. A current "do not commit" or "do not push" instruction still wins.
-
 ## Session Completion
 
 This protocol applies when ending a Beads implementation workflow. It is subordinate to explicit user, repository, and orchestrator instructions.
@@ -127,7 +125,6 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
 **Critical rules:**
 - Explicit user or orchestrator instructions override this Beads block.
-- Do not commit or push without clear authority from the active profile or the current user request.
 - If a required sync or push is blocked, stop and report the exact command and error.
 <!-- END BEADS INTEGRATION -->
 
@@ -138,7 +135,7 @@ Use Beads (`bd`) for durable task tracking in repositories that include it. Use 
 
 ### Quick Reference
 
-```powershell
+```bash
 bd ready                # Find available work
 bd show <id>            # View issue details
 bd update <id> --claim  # Claim work
@@ -153,4 +150,4 @@ bd prime                # Refresh Beads context
 - Keep persistent project memory in Beads via `bd remember`; do not create ad hoc memory files.
 
 **Architecture in one line:** issues live in a local Dolt DB; sync uses `refs/dolt/data` on your git remote; `.beads/issues.jsonl` is a passive export. See https://github.com/gastownhall/beads/blob/main/docs/core-concepts/sync-concepts.md for details and anti-patterns.
-<!-- END BEADS SETUP -->
+<!-- END BEADS CODEX SETUP -->

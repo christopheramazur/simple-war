@@ -1,0 +1,115 @@
+# USD per million tokens. Used for the API-equivalent spend estimate (DESIGN.md §2, Q4).
+# Matched against the model id by longest `prefix`. Unmatched models get no estimate and
+# show up as "unpriced" in `hx ingest`.
+# Source: https://platform.claude.com/docs/en/about-claude/pricing (fetched 2026-10-31).
+# Global routing; US-only inference_geo would be 1.1x and is not modelled.
+#
+# Optional long-context tier: when prompt tokens (input + cache read + cache write) exceed
+# `long_threshold`, the `long_*` prices apply to the whole call.
+
+[[model]]
+prefix = "claude-fable-5-1"
+provider = "anthropic"
+input = 10.0
+cache_write_5m = 12.5
+cache_write_1h = 20.0
+cache_read = 0.25
+output = 50.0
+
+[[model]]
+prefix = "claude-fable-5"
+provider = "anthropic"
+input = 10.0
+cache_write_5m = 12.5
+cache_write_1h = 20.0
+cache_read = 1.0
+output = 50.0
+
+[[model]]
+prefix = "claude-opus-5-5"
+provider = "anthropic"
+input = 4.0
+cache_write_5m = 5.0
+cache_write_1h = 8.0
+cache_read = 0.20
+output = 20.0
+
+[[model]]
+prefix = "claude-opus-5"
+provider = "anthropic"
+input = 5.0
+cache_write_5m = 6.25
+cache_write_1h = 10.0
+cache_read = 0.50
+output = 25.0
+
+[[model]]
+prefix = "claude-opus-4"
+provider = "anthropic"
+# Opus 4.5–4.8. (Retired Opus 4 / 4.1 were 3x this.)
+input = 5.0
+cache_write_5m = 6.25
+cache_write_1h = 10.0
+cache_read = 0.50
+output = 25.0
+
+[[model]]
+prefix = "claude-sonnet-5-5"
+provider = "anthropic"
+input = 2.0
+cache_write_5m = 2.5
+cache_write_1h = 4.0
+cache_read = 0.10
+output = 10.0
+
+[[model]]
+prefix = "claude-sonnet-5"
+provider = "anthropic"
+input = 2.0
+cache_write_5m = 2.5
+cache_write_1h = 4.0
+cache_read = 0.20
+output = 10.0
+
+[[model]]
+prefix = "claude-sonnet-4"
+provider = "anthropic"
+input = 3.0
+cache_write_5m = 3.75
+cache_write_1h = 6.0
+cache_read = 0.30
+output = 15.0
+
+[[model]]
+prefix = "claude-haiku-5-5"
+provider = "anthropic"
+input = 0.10
+cache_write_5m = 0.125
+cache_write_1h = 0.20
+cache_read = 0.01
+output = 0.50
+long_threshold = 100000
+long_input = 0.50
+long_cache_write_5m = 0.625
+long_cache_write_1h = 1.0
+long_cache_read = 0.05
+long_output = 2.50
+
+[[model]]
+prefix = "claude-haiku-4-5"
+provider = "anthropic"
+input = 1.0
+cache_write_5m = 1.25
+cache_write_1h = 2.0
+cache_read = 0.10
+output = 5.0
+
+# Local models: no token price. Cost is wall time and GPU, recorded elsewhere.
+[[model]]
+prefix = "Ternary-Bonsai"
+provider = "local"
+input = 0.0
+cache_write_5m = 0.0
+cache_write_1h = 0.0
+cache_read = 0.0
+output = 0.0

@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Ledger, raw transcript copies, local state (DESIGN.md §2)
+data/
