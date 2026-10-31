@@ -19,6 +19,8 @@ The first run creates `harness/.venv` via uv. Every verb takes `--json` (machine
 | `doctor` | Toolchain (git, uv, bd, rtk, Godot), checks `harness/data/` is git-ignored, scans committable files for API keys. |
 | `report` | Spend (API-price estimate), tokens, cache hit, cost per closed task, friction, agent-vs-waiting time, and tables by day, model, task, tool and command. `--since 7d\|24h\|all\|YYYY-MM-DD` (default 7d). `--html` writes `data/reports/report.html`; `--open` also opens it. |
 | `bench` | Benchmark ladder (DESIGN.md §8). `bench list`; `bench run --target bonsai [--level L1,L2] [--task 'L1-*-s'] [--context 0,8k,32k] [--repeat N]`; `bench report [--by target,level,size]`. Targets live in `config/bench_targets.toml`. |
+| `providers` | The provider roster from `config/providers.toml`: readiness, monthly budget (default $0 with hard stop), free-tier limits, whether the free tier trains on your data. `--checklist` prints setup steps for providers that aren't ready. |
+| `secrets` | `secrets set NAME` stores an API key in Windows Credential Manager (hidden prompt; `--file` stores it in `~/.hx/secrets.env`; `--stdin` reads it from a pipe). `secrets list` shows where each key comes from, never the value. `secrets delete NAME`. Lookup order: environment variable, then keyring, then file. |
 | `ingest` | Copies new Claude Code transcripts to `data/raw/` and loads them into the DuckDB ledger (`data/ledger.duckdb`). Incremental. `--rebuild` re-reads all raw copies, e.g. after a schema change. |
 
 ## Live monitoring (wired in `.claude/settings.json`)

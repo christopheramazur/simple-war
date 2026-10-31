@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sys
 
-from hx import godot, secrets_scan
+from hx import godot, keystore, secrets_scan
 from hx.output import FAIL, OK, WARN, Check, Result
 from hx.paths import HARNESS_ROOT, repo_root
 from hx.proc import run as sh
@@ -46,6 +46,10 @@ def run(args) -> Result:
     ign = sh(["git", "check-ignore", "-q", "data/ledger.duckdb"], cwd=HARNESS_ROOT)
     r.checks.append(Check("harness/data ignored", OK if ign.ok else FAIL,
                           "" if ign.ok else "harness/data/ would be committed"))
+
+    kr = keystore.keyring_backend()
+    r.checks.append(Check("keyring", OK if kr != "unavailable" else WARN,
+                          kr if kr != "unavailable" else "no OS keyring; hx secrets set --file falls back to ~/.hx"))
 
     if not args.no_secrets:
         files = secrets_scan.candidate_files(root)

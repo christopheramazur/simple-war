@@ -1,0 +1,150 @@
+# Provider roster (DESIGN.md §4; Q24, Q30, Q37). `hx providers` shows readiness; `--checklist` prints setup steps.
+#
+# kind: subscription | api | local | client (client = only usable inside its own CLI, can't go through the gateway)
+# monthly_budget_usd: 0 = free tier only. hard_stop = refuse calls once the budget/quota is hit (gateway, sw-lbm.10).
+# Raising a budget above its cap needs the user's approval (AGENTS.md §6).
+# limits: free-tier limits as officially published (rpm, rpd, tpd, ...). Unknown = omitted, see notes.
+# trains_on_data: does the free tier use your prompts for training? (true / false / omit = unknown)
+# Facts checked 2026-10-31 against the official pages cited in `notes`; re-check when signing up.
+
+[provider.claude-pro]
+name = "Claude Pro"
+kind = "subscription"
+monthly_budget_usd = 0
+hard_stop = false  # tracked via the status line, not enforced (doesn't pass through the gateway)
+limits = { windows = "5h + 7d, read from Claude Code status line" }
+trains_on_data = false
+notes = "Main agent sessions. Quota from rate_limits in the status line; recorded to the ledger."
+
+[provider.bonsai]
+name = "Bonsai 2 27B (local llama-server)"
+kind = "local"
+base_url = "http://127.0.0.1:8080/v1"
+litellm_prefix = "openai/"
+trains_on_data = false
+notes = "Started on demand by hx worker (sw-lbm.16); cost is wall time + GPU, not money."
+
+[provider.openrouter]
+name = "OpenRouter (free :free models)"
+kind = "api"
+keys = ["OPENROUTER_API_KEY"]
+base_url = "https://openrouter.ai/api/v1"
+litellm_prefix = "openrouter/"
+monthly_budget_usd = 0
+hard_stop = true
+limits = { rpd = 50, rpd_after_10_credits = 1000 }
+reset_tz = "UTC"
+trains_on_data = false
+signup_url = "https://openrouter.ai"
+key_url = "https://openrouter.ai/settings/keys"
+steps = [
+  "Sign up at https://openrouter.ai (one account only; Q16).",
+  "Settings → Keys → Create key. If the dialog offers a credit limit, set the lowest allowed (ideally $0) so the key can only use :free models.",
+  "Optional, needs your approval: a one-time $10 credit purchase (+~5.5% card fee) lifts free models from 50 to 1,000 requests/day permanently (lifetime purchases count).",
+]
+notes = "Daily free-model cap is account-wide, resets midnight UTC. Keep the balance >= 0 or free models return 402. Sources: openrouter.ai/docs/faq, docs/guides/overview/auth/provisioning-api-keys. Key page path unverified."
+verified = "2026-10-31"
+
+[provider.gemini]
+name = "Google Gemini API (AI Studio free tier)"
+kind = "api"
+keys = ["GEMINI_API_KEY"]
+litellm_prefix = "gemini/"
+monthly_budget_usd = 0
+hard_stop = true
+reset_tz = "America/Los_Angeles"
+trains_on_data = true
+signup_url = "https://aistudio.google.com"
+key_url = "https://aistudio.google.com/apikey"
+steps = [
+  "Sign in to https://aistudio.google.com with your Google account.",
+  "Open https://aistudio.google.com/apikey → Create API key (it creates a free-tier project).",
+  "Note the per-model RPM/RPD shown in AI Studio's rate-limit page and add them under limits here.",
+]
+notes = "Free tier: 'content used to improve our products' (humans may review). Free models include 2.5 Pro, 2.5 Flash/Flash-Lite and newer Flash; 3.1 Pro Preview is paid. Limits are per project, shown only in AI Studio. Sources: ai.google.dev/gemini-api/docs/rate-limits, /pricing."
+verified = "2026-10-31"
+
+[provider.groq]
+name = "Groq"
+kind = "api"
+keys = ["GROQ_API_KEY"]
+base_url = "https://api.groq.com/openai/v1"
+litellm_prefix = "groq/"
+monthly_budget_usd = 0
+hard_stop = true
+signup_url = "https://console.groq.com"
+key_url = "https://console.groq.com/keys"
+steps = [
+  "Sign up at https://console.groq.com (no payment method).",
+  "API Keys → Create API key.",
+  "Open Settings → Limits in the console and copy your free-plan RPM/RPD/TPD for the models you'll use into limits here.",
+]
+notes = "Free-plan limits and training policy not confirmed from official pages (only Developer-plan limits were readable, e.g. gpt-oss-120b 30 RPM / 1K RPD). Key page and base URL are the conventional ones, unverified. Source: console.groq.com/docs/rate-limits."
+verified = "2026-10-31"
+
+[provider.mistral]
+name = "Mistral La Plateforme (free 'Experiment' mode)"
+kind = "api"
+keys = ["MISTRAL_API_KEY"]
+base_url = "https://api.mistral.ai/v1"
+litellm_prefix = "mistral/"
+monthly_budget_usd = 0
+hard_stop = true
+trains_on_data = true
+signup_url = "https://console.mistral.ai"
+key_url = "https://console.mistral.ai"
+steps = [
+  "Sign up at https://console.mistral.ai and choose the free Experiment plan (no card needed).",
+  "API Keys (sidebar) → Create new key.",
+]
+notes = "Official docs: free mode has 'limited usage and rate limits' (no numbers). Experiment-plan requests may be used for training (help.mistral.ai). Base URL conventional, unverified."
+verified = "2026-10-31"
+
+[provider.cloudflare]
+name = "Cloudflare Workers AI"
+kind = "api"
+keys = ["CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID"]
+base_url = "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+litellm_prefix = "cloudflare/"
+monthly_budget_usd = 0
+hard_stop = true
+limits = { neurons_per_day = 10000, rpm_text = 300 }
+reset_tz = "UTC"
+signup_url = "https://dash.cloudflare.com/sign-up"
+key_url = "https://dash.cloudflare.com/profile/api-tokens"
+steps = [
+  "Sign up at https://dash.cloudflare.com/sign-up (Workers Free plan).",
+  "Copy your Account ID from the dashboard (Workers & Pages overview, right-hand side).",
+  "My Profile → API Tokens → Create Token with Workers AI permission (use the Workers AI template if offered).",
+]
+notes = "10,000 Neurons/day free, resets 00:00 UTC; overage needs the paid plan. Token permission name unverified; training policy unverified. Sources: developers.cloudflare.com/workers-ai/platform/pricing, /configuration/open-ai-compatibility."
+verified = "2026-10-31"
+
+[provider.opencode-zen]
+name = "OpenCode Zen (free models, OpenCode client only)"
+kind = "client"
+cli = "opencode"
+monthly_budget_usd = 0
+hard_stop = true
+signup_url = "https://opencode.ai/auth"
+steps = [
+  "Install OpenCode (https://opencode.ai) if 'opencode' isn't on PATH.",
+  "In the OpenCode TUI run /connect → OpenCode Zen → sign in at https://opencode.ai/auth.",
+  "Run /models and check the free models are listed. Free models may work without a key; paid ones need billing (budget stays $0).",
+]
+notes = "Free chat models only work inside OpenCode (hx delegate drives it headless). Training varies: GLM-5.3-Flash Free and DeepSeek V4.1 Flash Free = zero retention; Big Pickle, MiMo-V2.6-Flash Free, Flint 40B Free may train; Nemotron = trial only. Source: opencode.ai/docs/zen."
+verified = "2026-10-31"
+
+[provider.antigravity]
+name = "Google Antigravity CLI (personal Google login)"
+kind = "client"
+cli = "agy"
+monthly_budget_usd = 0
+hard_stop = true
+steps = [
+  "Install from the official page https://antigravity.google/docs/install/ (avoid third-party install scripts).",
+  "Run 'agy' and sign in with your personal Google account (browser OAuth, /login).",
+  "Run /usage to see the free quota per model and record it under limits here.",
+]
+notes = "Successor to Gemini CLI. Free quota numbers not published officially. Headless mode can use GEMINI_API_KEY with modelProvider=gemini (forum reports say AI Studio keys may not work; test). Sources: antigravity.google/docs/install, /docs/cli/credits."
+verified = "2026-10-31"
