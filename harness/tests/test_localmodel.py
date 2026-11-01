@@ -77,3 +77,16 @@ def test_choose_largest_fit_at_full_speed():
 
 def test_size_parse():
     assert _size("96k") == 98304 and _size("32768") == 32768
+
+
+def test_required_free_uses_measured_footprint(cfg, tmp_path, monkeypatch):
+    monkeypatch.setattr(localmodel, "state_dir", lambda pid="bonsai": tmp_path)
+    assert localmodel.required_free_mib("bonsai") == localmodel.FALLBACK_FREE_MIB
+    localmodel._save_footprint("bonsai", 32768, 9400)
+    assert localmodel.required_free_mib("bonsai") == 9400 + localmodel.MARGIN_MIB
+    assert localmodel.required_free_mib("bonsai", ctx=65536) == localmodel.FALLBACK_FREE_MIB
+    monkeypatch.setattr(localmodel, "vram_used_mib", lambda: 2300)
+    monkeypatch.setattr(localmodel, "vram_total_mib", lambda: 12288)
+    assert localmodel.can_start("bonsai") is None
+    monkeypatch.setattr(localmodel, "vram_used_mib", lambda: 3000)
+    assert "need 9912" in localmodel.can_start("bonsai")

@@ -58,18 +58,53 @@ def start(pid: str = "bonsai", ctx: int | None = None, wait: float = 300) -> tup
     if alive(pid):
         return True, "already running"
     cmd = command(pid, ctx)
+    ctx = ctx or _server(pid)[1].get("ctx")
     d = state_dir(pid)
     log = d / "server.log"
+    before = vram_used_mib()
     proc = background.spawn(cmd, Path(cmd[0]).parent, None, log)
     (d / "server.pid").write_text(str(proc.pid))
     deadline = time.time() + wait
     while time.time() < deadline:
         if alive(pid):
-            return True, f"pid {proc.pid}, ctx {ctx or _server(pid)[1].get('ctx')}"
+            after = vram_used_mib()
+            if before is not None and after is not None and after > before:
+                _save_footprint(pid, ctx, after - before)
+            return True, f"pid {proc.pid}, ctx {ctx}"
         if proc.poll() is not None:
             return False, f"exited with {proc.returncode}: {_tail_error(log)}"
         time.sleep(1)
     return False, f"not healthy after {wait:.0f}s: {_tail_error(log)}"
+
+
+FALLBACK_FREE_MIB = 11000  # Q33 "about 11 GB free", used until a start has measured the real footprint
+MARGIN_MIB = 512
+
+
+def _save_footprint(pid: str, ctx, mib: int) -> None:
+    f = state_dir(pid) / "footprint.json"
+    d = json.loads(f.read_text()) if f.exists() else {}
+    d[str(ctx)] = mib
+    f.write_text(json.dumps(d))
+
+
+def required_free_mib(pid: str = "bonsai", ctx: int | None = None) -> int:
+    """VRAM that must be free to start: the footprint measured at this ctx on an earlier start, plus a margin."""
+    ctx = ctx or _server(pid)[1].get("ctx")
+    f = state_dir(pid) / "footprint.json"
+    mib = json.loads(f.read_text()).get(str(ctx)) if f.exists() else None
+    return mib + MARGIN_MIB if mib else FALLBACK_FREE_MIB
+
+
+def can_start(pid: str = "bonsai") -> str | None:
+    """None if there's room to start the server now, else why not."""
+    used, total = vram_used_mib(), vram_total_mib()
+    need = required_free_mib(pid)
+    if used is None or total is None:
+        return "can't read VRAM (nvidia-smi)"
+    if total - used < need:
+        return f"not enough free VRAM to start {pid} ({total - used} MiB free, need {need})"
+    return None
 
 
 def stop(pid: str = "bonsai") -> str:

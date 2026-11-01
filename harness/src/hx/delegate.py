@@ -25,7 +25,6 @@ from hx.bench.routing import ROUTING_FILE
 
 SIZES = ["s", "m", "l"]
 MAX_TOKENS = 16384
-LOCAL_FREE_MIB = 11000  # Q33: start the local model only when ~11 GB of VRAM is free
 SYSTEM = "You are a precise assistant. Do exactly what the task asks and output only the result."
 
 
@@ -114,9 +113,9 @@ def _ready(cand: dict, roster: dict[str, providers.Provider], start_local: bool)
             return None
         if not start_local:
             return "local server not running"
-        used, total = localmodel.vram_used_mib(), localmodel.vram_total_mib()
-        if used is None or total is None or total - used < LOCAL_FREE_MIB:
-            return f"not enough free VRAM to start {p.id}"
+        why = localmodel.can_start(p.id)
+        if why:
+            return why
         ok, msg = localmodel.start(p.id)
         if not ok:
             return f"{p.id} failed to start: {msg}"
@@ -143,9 +142,11 @@ def run(prompt: str, level: str, task_class: str | None = None, size: str | None
     out = Outcome()
     out.route, out.match, cands = lookup(table, level, task_class, size)
     t0 = time.perf_counter()
+    down: dict[str, str] = {}  # provider -> why it can't serve; checked once per call, not per target
     for c in cands:
-        why = _ready(c, roster, start_local)
+        why = down.get(c["provider"]) or _ready(c, roster, start_local)
         if why:
+            down[c["provider"]] = why
             out.tried.append({"target": c["target"], "skipped": why})
             continue
         local = roster[c["provider"]].kind == "local"

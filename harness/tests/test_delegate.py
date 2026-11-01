@@ -101,3 +101,12 @@ def test_mcp_protocol(monkeypatch, capsys):
     assert out[1]["result"]["tools"][0]["name"] == "delegate"
     assert out[2]["result"]["content"][0]["text"] == "RESULT"
     assert out[3]["error"]["code"] == -32601
+
+
+def test_provider_checked_once_per_call(monkeypatch):
+    checks = []
+    monkeypatch.setattr(delegate, "_ready", lambda c, roster, start: checks.append(c["target"]) or "no VRAM")
+    t = {"route": {"L1/x/s": {"level": "L1", "candidates": [cand("b1", "bonsai/nothink", "bonsai"),
+                                                             cand("b2", "bonsai/think", "bonsai")]}}}
+    out = delegate.run("x", "L1", "x", "s", table=t, roster=ROSTER, call=lambda *a: Reply(text="never"))
+    assert checks == ["b1"] and [x["skipped"] for x in out.tried] == ["no VRAM", "no VRAM"]

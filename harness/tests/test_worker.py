@@ -16,6 +16,9 @@ class FakeLM:
     def vram_total_mib(self):
         return 12288
 
+    def can_start(self, pid):
+        return None if self.free >= 11000 else f"{self.free} MiB free"
+
     def start(self, pid):
         self.up, self.starts = True, self.starts + 1
         return True, "ok"

@@ -24,7 +24,6 @@ from hx import paths
 
 IDLE_STOP_S = 600
 POLL_S = 5
-LOCAL_FREE_MIB = 11000
 MAX_ATTEMPTS = 3
 DELEGATE_LOCK_STALE_S = 1800
 
@@ -225,9 +224,9 @@ class Lifecycle:
         """None when the model is up, else why it can't be."""
         if self.lm.alive(self.pid):
             return None
-        used, total = self.lm.vram_used_mib(), self.lm.vram_total_mib()
-        if used is None or total is None or total - used < LOCAL_FREE_MIB:
-            return f"waiting for {LOCAL_FREE_MIB} MiB free VRAM"
+        why = self.lm.can_start(self.pid)
+        if why:
+            return f"waiting: {why}"
         ok, msg = self.lm.start(self.pid)
         if not ok:
             return msg

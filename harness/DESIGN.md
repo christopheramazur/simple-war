@@ -121,6 +121,11 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - Jobs retry 3 times. Jobs left running by a killed worker are recovered, and pending jobs are deduplicated per session.
   - Bonsai is stopped on idle only if the worker started it. `hx delegate` holds `data/worker/delegate.lock` so local jobs wait.
   - Hook enqueue costs about 480 ms, mostly hx startup (`uv run python` alone is 170 ms). The hook is async, so it's acceptable.
+- *Start rule refined (sw-7si, from the first reflection run):*
+  - `localmodel.start` measures Bonsai's own VRAM footprint (used after start minus used before) and saves it per context size in `data/bonsai/footprint.json`.
+  - The local model starts when footprint + 512 MiB is free. Until a measurement exists, it falls back to Q33's ~11 GB.
+  - Measured at 128k: 9,364 MiB, so it now starts with 9,876 MiB free. With desktop apps using ~2.2 GB, the old 11 GB rule never fired, and every tagging call fell back to OpenRouter's 50/day.
+  - `hx delegate` also checks each provider once per call instead of once per target.
 - *OpenCode 2.2 findings:*
   - Plugins are `export default { id, setup(api) }`. `api.event.subscribe({})` is an async iterable; its `types` filter delivered nothing.
   - A turn ends with `session.execution.succeeded`/`failed`.
