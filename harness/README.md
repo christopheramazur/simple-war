@@ -31,6 +31,7 @@ The first run creates `harness/.venv` via uv. Every verb takes `--json` (machine
 | `reflect` | Weekly reflection, proposals only (DESIGN.md §9).<br>• `reflect --evidence` prints the week's evidence pack.<br>• `reflect [--dry-run]` has Sonnet propose at most 5 changes citing that evidence. They are filtered (evidence, area, duplicates, money) and filed as bd tasks labelled `reflection`.<br>• The worker runs it at most every 7 days. Runs are kept in `data/raw/reflection/`. |
 | `task` | The tracker interface (DESIGN.md §10), an adapter over bd today.<br>• `ready` (epics hidden), `show <id>`, `claim <id>`, `close <id> [--reason]`, `new "title" [-d] [-p] [-t] [-l] [--parent]`, `note <id> "text"`. |
 | `godot` | `check [--no-import]`: headless import plus a GDScript parse of every script under `src/`. Prints errors only, with locations, deduplicated.<br>`test [--dir res://test]`: GUT headless; prints the summary and failures. |
+| `ab` | `ab rtk`: the rtk A/B experiment. Per arm: sessions, Bash calls, output tokens per call, error rate. Verdict `collecting` until 10 sessions per arm, then `keep` (≥ 20% saved, no more errors) or `drop`. Arms come from `bin/rtk-hook`; force one with `HX_RTK=on\|off`. |
 | `ingest` | Copies new Claude Code transcripts and exports changed OpenCode sessions (session tables only) to `data/raw/`, then loads them into the DuckDB ledger (`data/ledger.duckdb`). Incremental. `--rebuild` re-reads all raw copies, e.g. after a schema change. |
 
 ## Live monitoring (wired in `.claude/settings.json`)

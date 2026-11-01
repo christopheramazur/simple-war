@@ -24,6 +24,7 @@ def run(args) -> Result:
         parsed_files = _import_claude_code(con) + _import_opencode(con)
         quota_rows = _import_quota(con)
         gateway_rows = _import_gateway(con)
+        _import_ab_arms(con)
         mark_gateway_duplicates(con)
         unpriced = reprice(con)
         report.write_summary(con)
@@ -64,6 +65,27 @@ def _import_claude_code(con) -> int:
                                              "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
         count += 1
     return count
+
+
+def _import_ab_arms(con) -> int:
+    """A/B arms written by client hooks (e.g. harness/bin/rtk-hook) -> event kind 'ab_<experiment>'."""
+    import json
+
+    from hx.paths import data_dir
+    rows = []
+    for f in (data_dir() / "raw").glob("*/arms.jsonl"):
+        exp = f.parent.name
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                x = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            ts = datetime.fromisoformat(x["ts"].replace("Z", "+00:00")).replace(tzinfo=None)
+            rows.append({"event_id": f"ab_{exp}:{x['session_id']}", "session_id": x["session_id"], "agent_id": None,
+                         "ts": ts, "kind": f"ab_{exp}", "value": float(x[exp]),
+                         "detail": "forced" if x.get("forced") else None})
+    ledger.upsert(con, "event", rows)
+    return len(rows)
 
 
 def mark_gateway_duplicates(con) -> int:

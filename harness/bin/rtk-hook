@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Claude Code PreToolUse hook (Bash tool): per-session A/B of rtk output compression (DESIGN.md §6).
+# Arm from a hash of the session id: 1 = rewrite through `rtk hook claude`, 0 = leave the command alone.
+# HX_RTK=on|off forces an arm. Each session's arm is logged once to data/raw/rtk/arms.jsonl; ingest
+# loads it and `hx ab rtk` compares the arms. Plain bash: this runs before every Bash call.
+input=$(cat)
+sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+[ -z "$sid" ] && exit 0
+case "${HX_RTK:-}" in
+  on) arm=1 ;; off) arm=0 ;;
+  *) arm=$(( $(printf '%s' "$sid" | cksum | cut -d' ' -f1) % 2 )) ;;
+esac
+raw="${HX_DATA_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/data}/raw/rtk"
+if [ ! -e "$raw/sessions/$sid" ]; then
+  mkdir -p "$raw/sessions" && : > "$raw/sessions/$sid"
+  printf '{"ts":"%s","session_id":"%s","rtk":%s,"forced":%s}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sid" "$arm" \
+    "$([ -n "${HX_RTK:-}" ] && echo true || echo false)" >> "$raw/arms.jsonl"
+fi
+[ "$arm" = 1 ] && command -v rtk >/dev/null 2>&1 || exit 0
+printf '%s' "$input" | rtk hook claude
+exit 0
