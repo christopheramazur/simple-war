@@ -168,6 +168,12 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
 
 ## 9. Reflection and autonomy
 - **Engine (Q29):** our own continual loop modelled on harness2's propose → probe → compose. It reads the ledger and transcripts, finds friction, and proposes changes. The thin slice is proposals only, filed as tasks, weekly.
+- *Built (sw-lbm.19):* `hx reflect`, plus a worker job that runs at most every 7 days.
+  - **Evidence** is mechanical: spend by client and provider with billing status, failing tools and command shapes, events, sessions by kind, high-friction sessions, tag-audit agreement, delegate fallbacks, gateway failures, unfiled mining shapes.
+  - **Propose:** Sonnet, through `claude -p`, gives at most 5 proposals, each citing evidence keys.
+  - **Probe** rejects a proposal that cites no evidence, falls outside the allowed areas, duplicates an open task (title word overlap ≥ 0.6), or asks for money or deletion. Negated mentions are allowed.
+  - **Compose:** bd tasks labelled `reflection`. The full run is kept in `data/raw/reflection/`.
+  - First run (2026-11-01) filed 4 tasks: PowerShell-safe verbs (OpenCode's shell tool failed 79/403), skipping Bonsai early when VRAM is short, compaction checkpoints, and failing fast on web tools.
 - **Auto-apply (Q8/Q14), once the eval set exists:**
   1. Change made on an `auto/*` branch.
   2. pytest plus the ladder must pass with no score drop, within the change's token budget.

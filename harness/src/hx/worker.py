@@ -97,7 +97,7 @@ def _session_end(payload: dict) -> str:
     return out
 
 
-FOLLOW_UPS: list[str] = ["tag_session", "mine"]  # job kinds enqueued after every session_end
+FOLLOW_UPS: list[str] = ["tag_session", "mine", "reflect"]  # job kinds enqueued after every session_end
 
 
 @handler("mine")
@@ -110,6 +110,18 @@ def _mine(payload: dict) -> str:
     finally:
         con.close()
     return out.get("skipped") or f"{out['candidates']} candidates, filed {[f['issue'] for f in out['filed']]}"
+
+
+@handler("reflect")
+def _reflect(payload: dict) -> str:
+    """Weekly reflection, proposals only (DESIGN.md §9); throttled inside reflection.run."""
+    from hx import ledger, reflection
+    con = ledger.read_only()
+    try:
+        out = reflection.run(con)
+    finally:
+        con.close()
+    return out.get("skipped") or f"filed {[p['issue'] for p in out['proposals'] if p.get('issue')]}"
 
 
 @handler("tag_session")
