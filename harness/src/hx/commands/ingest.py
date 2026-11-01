@@ -25,6 +25,7 @@ def run(args) -> Result:
         quota_rows = _import_quota(con)
         gateway_rows = _import_gateway(con)
         _import_ab_arms(con)
+        otel_rows = _import_otel(con)
         mark_gateway_duplicates(con)
         unpriced = reprice(con)
         report.write_summary(con)
@@ -33,6 +34,7 @@ def run(args) -> Result:
             "files_parsed": parsed_files,
             "quota_snapshots": quota_rows,
             "gateway_calls": gateway_rows,
+            "otel_events": otel_rows,
             **_totals(con),
         })
         if unpriced:
@@ -65,6 +67,31 @@ def _import_claude_code(con) -> int:
                                              "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
         count += 1
     return count
+
+
+def _import_otel(con) -> int:
+    """Claude Code OTel payloads (hx otel receiver) -> event rows; only data transcripts lack."""
+    import json
+
+    from hx import otel
+    root = otel.raw_dir()
+    seen = {p: (s, m) for p, s, m in con.execute("SELECT raw_path, size, mtime_ns FROM import_state").fetchall()}
+    n = 0
+    for f in sorted(root.glob("*.jsonl")):
+        key, st = f"otel/{f.name}", f.stat()
+        if seen.get(key) == (st.st_size, st.st_mtime_ns):
+            continue
+        rows = []
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                rows += otel.parse_line(json.loads(line))
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
+        ledger.upsert(con, "event", list({r["event_id"]: r for r in rows}.values()))
+        ledger.upsert(con, "import_state", [{"raw_path": key, "size": st.st_size, "mtime_ns": st.st_mtime_ns,
+                                             "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
+        n += len(rows)
+    return n
 
 
 def _import_ab_arms(con) -> int:

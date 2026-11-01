@@ -39,6 +39,10 @@ Scope (Q7/Q17): a thin slice of every goal first, then back to game work; the ha
 - **Status line:** Claude Pro 5-hour and weekly usage (`rate_limits.*`), cost per completed task, quota burn, unpushed auto-merges, advisory model hint (Q42).
 - **Reports use local time (UTC+10).**
 
+- *OTLP receiver (sw-lbm.6):* `hx otel` runs a stdlib HTTP receiver on 127.0.0.1:4318 (OTLP http/json only). The SessionStart hook starts it, and `.claude/settings.json` `env` turns on Claude Code's exporter with delta temporality.
+  - **Storage:** payloads go to `data/raw/otel/<day>.jsonl` with account identity (`user.email`, `user.account_*`, `user.id`, `organization.id`) removed on receipt. Prompt and response text arrive redacted, Claude Code's default.
+  - **No double counting:** ingest keeps only what transcripts lack, as events: `api_latency` (ms, per model), `tool_run` (ms, success, tool_use_id, which joins to `tool_use`), `tool_decision`, `api_error_otel`, `active_s`, `lines_changed`. Calls, tokens and cost stay with the transcript importer.
+  - Event names and attributes were verified against a live `claude -p` run on 2026-11-01. Export applies to sessions started after the settings change.
 - *OpenCode importer (sw-lbm.7):* OpenCode 2.x keeps sessions in SQLite (`~/.local/share/opencode/opencode.db`; override with `HX_OPENCODE_DB`).
   - `hx ingest` exports each changed session (only `session_v2` and `session_message`; the DB also holds account tokens and credentials) to `data/raw/opencode/<id>.jsonl`, then parses it into the same ledger tables.
   - Calls OpenCode sent through our gateway get `source = 'opencode-gateway'`. The gateway logs them too (client `gateway`), ingest marks the gateway's copy `gateway-dup` (same model and output tokens, gateway prompt = OpenCode input + cache read, within 2 min), and every total skips it (sw-lbm.23).
