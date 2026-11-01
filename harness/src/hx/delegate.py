@@ -158,6 +158,9 @@ def run(prompt: str, level: str, task_class: str | None = None, size: str | None
         finally:
             if local:
                 worker.delegate_lock().unlink(missing_ok=True)
+                marker = worker.state_dir() / f"{c['provider']}.started"
+                if marker.exists():  # harness-owned model was just used: restart its idle clock
+                    marker.touch()
         if reply.error:
             out.tried.append({"target": c["target"], "error": reply.error[:200]})
             continue

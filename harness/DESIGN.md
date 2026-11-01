@@ -138,6 +138,8 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - The local model starts when footprint + 512 MiB is free. Until a measurement exists, it falls back to Q33's ~11 GB.
   - Measured at 128k: 9,364 MiB, so it now starts with 9,876 MiB free. With desktop apps using ~2.2 GB, the old 11 GB rule never fired, and every tagging call fell back to OpenRouter's 50/day.
   - `hx delegate` also checks each provider once per call instead of once per target.
+- *OpenCode shell (sw-68o):* OpenCode 2.2 picks its shell from config `shell`, then `$SHELL`, then pwsh, PowerShell, Git Bash and cmd. Unset, it ran pwsh, so models' bash idioms (`2>/dev/null`, `| head`, `grep`) caused most of the 79/403 shell errors. `opencode.json` now sets `"shell": "bash"`, which resolves to Git Bash (verified). That matches AGENTS.md's Git Bash rule and opens the way for the rtk hook (sw-lbm.24).
+- *Worker idle clock (bug fixed 2026-11-01):* idle time now counts from the harness-started marker's mtime, and `hx delegate` touches the marker after each local call. Before, a worker that had been up for an hour killed a freshly started Bonsai on the next tick.
 - *OpenCode 2.2 findings:*
   - Plugins are `export default { id, setup(api) }`. `api.event.subscribe({})` is an async iterable; its `types` filter delivered nothing.
   - A turn ends with `session.execution.succeeded`/`failed`.

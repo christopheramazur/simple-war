@@ -77,7 +77,7 @@ def test_local_job_waits_for_vram_then_starts(tmp_data):
 
 def test_idle_stop_only_if_we_started_it():
     clock, lm = Clock(), FakeLM()
-    life = worker.Lifecycle(lm=lm, clock=clock)
+    life = worker.Lifecycle(lm=lm, clock=clock, mtime=lambda p: 1000.0)  # marker written at start
     life.ensure()
     clock.t += worker.IDLE_STOP_S - 1
     assert not life.maybe_stop(busy=False)
@@ -111,9 +111,13 @@ def test_pending_job_per_session_is_deduped():
     assert worker.enqueue("cheap", {"session_id": "s2"}) != a
 
 
-def test_model_started_by_delegate_is_idled():
+def test_model_started_by_delegate_is_idled_from_marker_time():
     clock, lm = Clock(), FakeLM(up=True)
-    life = worker.Lifecycle(lm=lm, clock=clock)
+    marked = {}
+    life = worker.Lifecycle(lm=lm, clock=clock, mtime=lambda p: marked["t"])
+    clock.t += 5000  # worker has been up a long time before anything is started
     (worker.state_dir() / "bonsai.started").write_text("delegate")
+    marked["t"] = clock.t
+    assert not life.maybe_stop(busy=False) and lm.stops == 0  # just started: not idle yet
     clock.t += worker.IDLE_STOP_S + 1
     assert life.maybe_stop(busy=False) and lm.stops == 1

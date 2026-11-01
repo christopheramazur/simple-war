@@ -71,8 +71,10 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 - **Data as data.** UI emits signals and the simulation listens; UI never holds game state.
 - **Composition over deep inheritance:** refactor beyond 3 levels.
 - **Experiments are cheap**, as long as there's a way to roll back.
-- **Stuck:** search the web to simplify the problem.
-- **Near the context limit:** write a hand-off (summary, branch, done, next, risks) into the task with `bd update <id> --append-notes "…"`.
+- **Stuck:** search the web to simplify the problem. If a web tool fails, don't retry the same query or URL. Try another source once, then use local docs (GDD, `GD-Agentic-Skills/`) or ask the user.
+- **Long sessions:** at each milestone, record goal, decisions, next step and blockers with `hx task note <id> "…"`.
+  - After about 4 compactions, or near the context limit, write that hand-off and continue in a fresh session that starts from the note.
+  - A blocked task always gets its blocker written down.
 
 ## 7. Build & test (Git Bash, from the repo root)
 | Do | Command |

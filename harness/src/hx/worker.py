@@ -213,10 +213,10 @@ def delegate_active() -> bool:
 class Lifecycle:
     """Starts the local model for local jobs and stops it after IDLE_STOP_S, if this worker started it."""
 
-    def __init__(self, pid: str = "bonsai", lm=None, clock=time.time):
+    def __init__(self, pid: str = "bonsai", lm=None, clock=time.time, mtime=lambda p: p.stat().st_mtime):
         if lm is None:
             from hx import localmodel as lm
-        self.pid, self.lm, self.clock = pid, lm, clock
+        self.pid, self.lm, self.clock, self.mtime = pid, lm, clock, mtime
         self.started_by_us = (state_dir() / f"{pid}.started").exists()
         self.last_used = clock()
 
@@ -238,8 +238,12 @@ class Lifecycle:
         self.last_used = self.clock()
 
     def maybe_stop(self, busy: bool) -> bool:
-        # hx delegate also writes the marker when it starts the model, so it gets idled too.
-        self.started_by_us = self.started_by_us or (state_dir() / f"{self.pid}.started").exists()
+        # hx delegate also writes the marker when it starts the model (and refreshes it after each
+        # local call), so it gets idled too; idle time counts from the marker, never from before it.
+        marker = state_dir() / f"{self.pid}.started"
+        if marker.exists():
+            self.started_by_us = True
+            self.last_used = max(self.last_used, self.mtime(marker))
         if busy or not self.started_by_us or self.clock() - self.last_used < IDLE_STOP_S:
             return False
         if self.lm.alive(self.pid):

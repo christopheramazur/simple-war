@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "shell": "bash",
   "model": "hx/bonsai/nothink",
   "provider": {
     "hx": {
@@ -12,11 +13,17 @@
       "models": {
         "bonsai/nothink": {
           "name": "Bonsai 2 27B (no thinking)",
-          "limit": { "context": 131072, "output": 8192 }
+          "limit": {
+            "context": 131072,
+            "output": 8192
+          }
         },
         "bonsai/think": {
           "name": "Bonsai 2 27B (thinking)",
-          "limit": { "context": 131072, "output": 16384 }
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
         }
       }
     }
