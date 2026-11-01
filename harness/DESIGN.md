@@ -116,7 +116,9 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - **Install:** `rtk-oss` v1.1.0, the Apache-2.0-only build without the BUSL engine; the plain `rtk` build bundles BUSL code, and `rtk-proxy` is BUSL. SHA-256 verified against the release checksums, installed to `~/.local/bin/rtk.exe` (already on PATH). Telemetry stays off: it's opt-in and was never enabled.
   - **Hook:** `harness/bin/rtk-hook` is a PreToolUse hook on Bash, plain bash so it adds no Python start-up. It picks the arm from a hash of the session id (on → `rtk hook claude`, off → unchanged); `HX_RTK=on|off` forces an arm.
   - **Measurement:** each session's arm goes once to `data/raw/rtk/arms.jsonl`, which ingest loads as event `ab_rtk`. `hx ab rtk` compares Bash output tokens per call and error rate, and reports keep or drop once each arm has 10 unforced sessions.
-  - Cost of the on arm is about 0.25 s per Bash call. OpenCode isn't in the experiment yet (sw-lbm.24).
+  - Cost of the on arm is about 0.25 s per Bash call.
+  - OpenCode (sw-lbm.24): `.opencode/plugins/hx.js` registers `api.tool.hook("execute.before")`. OpenCode runs the tool with the hook's returned input, which is undocumented in 2.2 and was read from the binary. For `shell` calls it pipes the command through the same `rtk-hook`, so both clients share one arm hash and one arms log.
+  - Verified: an OpenCode run forced on raised rtk's command count by one, and the output was rtk's compact `git status`. The stored transcript still shows the model's original command.
 
 ## 7. Local model and delegation
 - **Bonsai 2 27B** (PQ2_0 ternary, llama.cpp PrismML CUDA build, `:8080`) on an RTX 3060 12 GB.
