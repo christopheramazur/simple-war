@@ -55,7 +55,7 @@ litellm_prefix = "openrouter/"
 models = [{ alias = "nemotron-ultra", model = "nvidia/nemotron-3-ultra-550b-a55b:free" }]
 monthly_budget_usd = 0
 hard_stop = true
-limits = { rpd = 50, rpd_after_10_credits = 1000 }
+limits = { rpd = 1000 }  # 2026-11-01: user bought the one-time $10 credit (lifts :free models from 50/day)
 reset_tz = "UTC"
 trains_on_data = false
 signup_url = "https://openrouter.ai"
@@ -171,6 +171,7 @@ verified = "2026-10-31"
 [provider.antigravity]
 name = "Google Antigravity CLI (personal Google login)"
 kind = "client"
+enabled = false  # 2026-11-01: user couldn't get Antigravity running yet; re-enable when it works
 cli = "agy"
 monthly_budget_usd = 0
 hard_stop = true

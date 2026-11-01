@@ -71,6 +71,8 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - `monthly_budget_usd`: default 0
   - `hard_stop`: default true
   - `billing`: default `"unknown"`. LiteLLM prices free-tier calls at list price, so on 2026-11-01 one Gemini call was recorded as $0.0025 and tripped the $0 hard stop. Only an account with no payment method (`billing = "none"`, set by the user) records that price as `list_usd` instead of spend.
+  - OpenRouter (2026-11-01): the user bought the one-time $10 credit, which lifts `:free` models to 1,000 requests a day. Budget stays $0 with hard stop and billing stays `unknown`, because the account now holds credit that paid models could spend. The gateway serves only the `:free` model.
+  - Antigravity is disabled until it runs. The OpenCode desktop app needs `HX_GATEWAY_KEY` in the user environment: `hx secrets export HX_GATEWAY_KEY --user-env`, run by the user (sw-lbm.22).
   - `enabled`: false keeps a provider on the roster but skips it everywhere. Mistral is disabled because Experiment-tier keys are no longer issued.
   - `alert_at`: e.g. 50/80/100%
   - free-tier RPM/RPD/TPD limits and reset timezone
