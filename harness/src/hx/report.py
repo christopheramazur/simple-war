@@ -20,7 +20,7 @@ _SUBCOMMAND_TOOLS = {"git", "bd", "uv", "npm", "npx", "pnpm", "cargo", "go", "do
 # ends that attribution (ASOF join over claim/close events).
 CALL_TASK = """
 SELECT c.*, CASE WHEN st.source = 'claim' THEN st.task_id END AS task_id
-FROM (SELECT * FROM call WHERE ts >= TIMESTAMP '{since}') c
+FROM (SELECT * FROM call WHERE ts >= TIMESTAMP '{since}' AND source IS DISTINCT FROM 'gateway-dup') c
 ASOF LEFT JOIN session_task st ON c.session_id = st.session_id AND c.ts >= st.ts
 """
 
@@ -120,7 +120,7 @@ def write_summary(con, path=None) -> dict:
     midnight_utc = now_local.replace(hour=0, minute=0, second=0, microsecond=0) - offset
     today, week = con.execute(
         "SELECT coalesce(sum(est_usd) FILTER (WHERE ts >= ?), 0), coalesce(sum(est_usd) FILTER (WHERE ts >= ?), 0) "
-        "FROM call", [midnight_utc, midnight_utc - timedelta(days=6)]).fetchone()
+        "FROM call WHERE source IS DISTINCT FROM 'gateway-dup'", [midnight_utc, midnight_utc - timedelta(days=6)]).fetchone()
     con.execute("CREATE OR REPLACE TEMP VIEW ct AS " + CALL_TASK.format(since=datetime(1970, 1, 1)))
     t = _totals(con)
     summ = {"generated_at": time.time(), "today_usd": round(today, 4), "week_usd": round(week, 4),

@@ -119,3 +119,26 @@ def test_adapter_sends_gateway_key(roster, monkeypatch):
     keystore.set("HX_GATEWAY_KEY", "hx-local")
     assert adapters._auth({"api_key_secret": "HX_GATEWAY_KEY"}) == {"Authorization": "Bearer hx-local"}
     assert adapters._auth({}) == {}
+
+
+def test_gateway_copies_of_opencode_calls_are_marked(tmp_path):
+    from datetime import datetime
+
+    from hx import ledger
+    from hx.commands.ingest import mark_gateway_duplicates
+    con = ledger.connect(tmp_path / "l.duckdb")
+    base = {"session_id": None, "agent_id": None, "provider": "bonsai", "model": "bonsai/nothink",
+            "cache_write_5m_tokens": 0, "cache_write_1h_tokens": 0, "thinking_tokens": 0, "stop_reason": None,
+            "est_usd": 0.0}
+    ledger.upsert(con, "call", [
+        {**base, "call_id": "oc", "session_id": "s", "client": "opencode", "source": "opencode-gateway",
+         "ts": datetime(2026, 11, 1, 0, 0, 5), "input_tokens": 4, "cache_read_tokens": 11332, "output_tokens": 2},
+        {**base, "call_id": "gw", "client": "gateway", "source": "gateway",
+         "ts": datetime(2026, 11, 1, 0, 0, 4), "input_tokens": 11336, "cache_read_tokens": 0, "output_tokens": 2},
+        {**base, "call_id": "gw2", "client": "gateway", "source": "gateway",
+         "ts": datetime(2026, 11, 1, 0, 0, 4), "input_tokens": 999, "cache_read_tokens": 0, "output_tokens": 2},
+    ])
+    mark_gateway_duplicates(con)
+    mark_gateway_duplicates(con)
+    assert dict(con.execute("SELECT call_id, source FROM call").fetchall()) == \
+           {"oc": "opencode-gateway", "gw": "gateway-dup", "gw2": "gateway"}

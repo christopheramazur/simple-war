@@ -24,6 +24,7 @@ def run(args) -> Result:
         parsed_files = _import_claude_code(con) + _import_opencode(con)
         quota_rows = _import_quota(con)
         gateway_rows = _import_gateway(con)
+        mark_gateway_duplicates(con)
         unpriced = reprice(con)
         report.write_summary(con)
         r.data.update({
@@ -63,6 +64,20 @@ def _import_claude_code(con) -> int:
                                              "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
         count += 1
     return count
+
+
+def mark_gateway_duplicates(con) -> int:
+    """OpenCode calls routed through our gateway are logged twice: by OpenCode (session attributed,
+    source 'opencode-gateway') and by the gateway (no session). Mark the gateway copy 'gateway-dup'
+    so reports count each call once. Same model and output tokens; the gateway's prompt tokens are
+    OpenCode's input + cache read; timestamps within 2 minutes. Idempotent."""
+    return con.execute("""
+        UPDATE call SET source = 'gateway-dup' WHERE call_id IN (
+            SELECT g.call_id FROM call g JOIN call o
+              ON o.source = 'opencode-gateway' AND g.model = o.model AND g.output_tokens = o.output_tokens
+             AND g.input_tokens = o.input_tokens + o.cache_read_tokens
+             AND abs(epoch(g.ts) - epoch(o.ts)) <= 120
+            WHERE g.client = 'gateway' AND g.source = 'gateway')""").fetchone()[0]
 
 
 def _import_opencode(con) -> int:
@@ -192,7 +207,8 @@ def reprice(con) -> list[str]:
 def _totals(con) -> dict:
     sessions, calls, inp, out, cr, cw, usd = con.execute(
         "SELECT (SELECT count(*) FROM session), count(*), sum(input_tokens), sum(output_tokens), "
-        "sum(cache_read_tokens), sum(cache_write_5m_tokens + cache_write_1h_tokens), sum(est_usd) FROM call"
+        "sum(cache_read_tokens), sum(cache_write_5m_tokens + cache_write_1h_tokens), sum(est_usd) FROM call "
+        "WHERE source IS DISTINCT FROM 'gateway-dup'"
     ).fetchone()
     return {
         "sessions": sessions,

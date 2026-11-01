@@ -66,7 +66,7 @@ def evidence(con, since: datetime) -> dict:
     q = lambda sql, *a: con.execute(sql, [s, *a]).fetchall()  # noqa: E731
     ev: dict = {"window": f"since {since.date()}"}
     ev["spend"] = [{"client": c, "provider": p, "calls": n, "usd": round(u or 0, 2)} for c, p, n, u in q(
-        "SELECT client, provider, count(*), sum(est_usd) FROM call WHERE ts >= ? GROUP BY 1, 2 ORDER BY 4 DESC NULLS LAST")]
+        "SELECT client, provider, count(*), sum(est_usd) FROM call WHERE ts >= ? AND source IS DISTINCT FROM 'gateway-dup' GROUP BY 1, 2 ORDER BY 4 DESC NULLS LAST")]
     from hx import providers
     ev["billing"] = {pid: ("free account: usd is list price, not charged" if p.billing == "none" else p.billing)
                      for pid, p in providers.load().items() if p.kind in ("api", "local")}

@@ -41,7 +41,7 @@ Scope (Q7/Q17): a thin slice of every goal first, then back to game work; the ha
 
 - *OpenCode importer (sw-lbm.7):* OpenCode 2.x keeps sessions in SQLite (`~/.local/share/opencode/opencode.db`; override with `HX_OPENCODE_DB`).
   - `hx ingest` exports each changed session (only `session_v2` and `session_message`; the DB also holds account tokens and credentials) to `data/raw/opencode/<id>.jsonl`, then parses it into the same ledger tables.
-  - Calls OpenCode sent through our gateway get `source = 'opencode-gateway'`. The gateway logs them too (client `gateway`), so totals count them twice until the report dedupes (sw-lbm.23).
+  - Calls OpenCode sent through our gateway get `source = 'opencode-gateway'`. The gateway logs them too (client `gateway`), ingest marks the gateway's copy `gateway-dup` (same model and output tokens, gateway prompt = OpenCode input + cache read, within 2 min), and every total skips it (sw-lbm.23).
   - Tagging and mining read OpenCode sessions as well.
 
 ## 3. Session tagging (Q13)
