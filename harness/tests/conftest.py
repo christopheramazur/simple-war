@@ -30,3 +30,9 @@ def fake_repo(tmp_path, monkeypatch):
     paths.repo_root.cache_clear()
     yield tmp_path
     paths.repo_root.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def no_real_opencode_db(tmp_path_factory, monkeypatch):
+    """Ingest exports OpenCode sessions; tests must never read the user's real opencode.db."""
+    monkeypatch.setenv("HX_OPENCODE_DB", str(tmp_path_factory.getbasetemp() / "no-opencode.db"))

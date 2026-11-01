@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from hx import ledger, pricing, quota, report
-from hx.importers import claude_code
+from hx.importers import claude_code, opencode
 from hx.output import OK, WARN, Check, Result
 
 HELP = "Import new agent transcripts into the ledger (incremental; --rebuild re-reads all raw copies)"
@@ -18,15 +18,16 @@ def add_args(p) -> None:
 def run(args) -> Result:
     r = Result("ingest")
     copied = claude_code.sync_raw()
+    exported = opencode.export()
     con = ledger.connect(rebuild=args.rebuild)
     try:
-        parsed_files = _import_claude_code(con)
+        parsed_files = _import_claude_code(con) + _import_opencode(con)
         quota_rows = _import_quota(con)
         gateway_rows = _import_gateway(con)
         unpriced = reprice(con)
         report.write_summary(con)
         r.data.update({
-            "copied_to_raw": len(copied),
+            "copied_to_raw": len(copied) + len(exported),
             "files_parsed": parsed_files,
             "quota_snapshots": quota_rows,
             "gateway_calls": gateway_rows,
@@ -58,6 +59,28 @@ def _import_claude_code(con) -> int:
         ledger.upsert(con, "tool_result", p.tool_results)
         ledger.upsert(con, "event", p.events)
         ledger.upsert(con, "session_task", p.tasks)
+        ledger.upsert(con, "import_state", [{"raw_path": key, "size": st.st_size, "mtime_ns": st.st_mtime_ns,
+                                             "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
+        count += 1
+    return count
+
+
+def _import_opencode(con) -> int:
+    root = opencode.raw_root()
+    if not root.exists():
+        return 0
+    seen = {p: (s, m) for p, s, m in con.execute("SELECT raw_path, size, mtime_ns FROM import_state").fetchall()}
+    count = 0
+    for f in sorted(root.glob("*.jsonl")):
+        key, st = f"{opencode.CLIENT}/{f.name}", f.stat()
+        if seen.get(key) == (st.st_size, st.st_mtime_ns):
+            continue
+        p = opencode.parse_file(f)
+        _merge_sessions(con, list(p.sessions.values()))
+        ledger.upsert(con, "call", list(p.calls.values()))
+        ledger.upsert(con, "tool_use", p.tool_uses)
+        ledger.upsert(con, "tool_result", p.tool_results)
+        ledger.upsert(con, "event", p.events)
         ledger.upsert(con, "import_state", [{"raw_path": key, "size": st.st_size, "mtime_ns": st.st_mtime_ns,
                                              "imported_at": datetime.now(timezone.utc).replace(tzinfo=None)}])
         count += 1

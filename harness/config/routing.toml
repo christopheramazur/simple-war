@@ -2,7 +2,7 @@
 # re-run the ladder and regenerate. Read by hx delegate (sw-lbm.15).
 # targets tested: bonsai, bonsai-nothink, cloudflare-gpt-oss, gateway-bonsai, gemini-flash, groq-gpt-oss, haiku, openrouter-nemotron; not yet: none
 suite_version = "1"
-generated_at = "2026-10-31T23:33:29+00:00"
+generated_at = "2026-11-01T00:03:46+00:00"
 auto_threshold = 0.9
 review_threshold = 0.7
 
@@ -15,9 +15,12 @@ target = "bonsai-nothink"
 model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 379.82 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 160.46 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 193.91 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 44.67 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 579.96 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 0.5, n = 2, verdict = "no", p50_s = 20.99 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 56.89 },
 ]
 
 [route."L1/csv_to_json/m"]
@@ -30,7 +33,10 @@ model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 86.25 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 124.7 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 18.55 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 38.66 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 40.59 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 54.25 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 11.35 },
 ]
 
@@ -45,7 +51,10 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 4, verdict = "auto", p50_s = 17.08, max_ctx_passed = 96000 },
   { target = "gateway-bonsai", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 20.55 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 24.84 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.72 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 10.87 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 15.1 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 16.82 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.44 },
 ]
 
@@ -54,10 +63,12 @@ level = "L1"
 task_class = "filter_sort"
 size = "l"
 verdict = "auto"
-target = "openrouter-nemotron"
-model = "openrouter/nemotron-ultra"
+target = "gemini-flash"
+model = "gemini/flash"
 candidates = [
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 20.63 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 191.69 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 192.6 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 19.35 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 310.94 },
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 3, verdict = "no", p50_s = 630.02 },
@@ -72,6 +83,9 @@ target = "bonsai"
 model = "bonsai/think"
 candidates = [
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 51.23 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 4.91 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 11.24 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 18.29 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 35.04 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 7.49 },
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 3, verdict = "no", p50_s = 13.48 },
@@ -88,10 +102,10 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 4, verdict = "auto", p50_s = 3.52, max_ctx_passed = 96000 },
   { target = "gateway-bonsai", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 3.8 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 7.2 },
-  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 2.06 },
-  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 3.49 },
-  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 3.99 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 2, verdict = "auto", p50_s = 3.49 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 2, verdict = "auto", p50_s = 4.34 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 2, verdict = "auto", p50_s = 5.19 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 2, verdict = "auto", p50_s = 37.56 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.32 },
 ]
 
@@ -100,9 +114,11 @@ level = "L1"
 task_class = "json_to_table"
 size = "l"
 verdict = "auto"
-target = "haiku"
-model = "claude-haiku-5-5"
+target = "gemini-flash"
+model = "gemini/flash"
 candidates = [
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 20.67 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 51.3 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 14.67 },
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 3, verdict = "no", p50_s = 103.98 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 390.44 },
@@ -119,7 +135,10 @@ model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 23.49 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 75.97 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 3.33 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.85 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 13.81 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 18.74 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 8.28 },
 ]
 
@@ -134,7 +153,10 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 4, verdict = "auto", p50_s = 6.14, max_ctx_passed = 96000 },
   { target = "gateway-bonsai", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.87 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 12.73 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 3.68 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 4.47 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 8.57 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 31.42 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.69 },
 ]
 
@@ -147,7 +169,9 @@ target = "bonsai-nothink"
 model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 369.19 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 52.47 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 171.0 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 229.52 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 46.01 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 649.21 },
 ]
@@ -161,7 +185,10 @@ target = "bonsai-nothink"
 model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 78.82 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 7.45 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 13.56 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 27.26 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 36.86 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 15.02 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 570.67 },
 ]
@@ -177,6 +204,9 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 4, verdict = "auto", p50_s = 16.19, max_ctx_passed = 96000 },
   { target = "gateway-bonsai", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 17.64 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 20.36 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.85 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.87 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 17.42 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 37.66 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.92 },
 ]
@@ -191,7 +221,10 @@ model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 64.14 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 96.66 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 16.87 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 24.11 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 35.97 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 46.48 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 14.74 },
 ]
 
@@ -205,7 +238,10 @@ model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 25.37 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 47.6 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 2.91 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 10.18 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 11.69 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 16.69 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 8.9 },
 ]
 
@@ -220,7 +256,10 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 4, verdict = "auto", p50_s = 9.2, max_ctx_passed = 96000 },
   { target = "gateway-bonsai", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 10.16 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 13.66 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.72 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 7.72 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 9.94 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 30.24 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 7.17 },
 ]
 
@@ -233,6 +272,9 @@ target = "bonsai-nothink"
 model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 7.69 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 2.67 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.9 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 18.34 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 21.05 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.12 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 0.0, n = 1, verdict = "no", p50_s = 546.53 },
@@ -248,6 +290,8 @@ model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 1.11 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 76.37 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 7.15 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 24.46 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 44.85 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.36 },
 ]
@@ -262,6 +306,9 @@ model = "bonsai/nothink"
 candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 0.47 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 17.9 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 0.88 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.47 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.7 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 24.33 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 5.03 },
 ]
@@ -277,6 +324,9 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 4, verdict = "auto", p50_s = 1.28, max_ctx_passed = 96000 },
   { target = "gateway-bonsai", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 1.54 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.16, max_ctx_passed = 8000 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 0.81 },
+  { target = "gemini-flash", model = "gemini/flash", provider = "gemini", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 2.66 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.66 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 6.97 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 2, verdict = "auto", p50_s = 6.76 },
 ]
@@ -292,5 +342,7 @@ candidates = [
   { target = "bonsai-nothink", model = "bonsai/nothink", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 3, verdict = "auto", p50_s = 3.68 },
   { target = "bonsai", model = "bonsai/think", provider = "bonsai", tier = 0, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 15.64 },
   { target = "openrouter-nemotron", model = "openrouter/nemotron-ultra", provider = "openrouter", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 9.48 },
+  { target = "cloudflare-gpt-oss", model = "cloudflare/gpt-oss-120b", provider = "cloudflare", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 17.06 },
+  { target = "groq-gpt-oss", model = "groq/gpt-oss-120b", provider = "groq", tier = 1, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 30.16 },
   { target = "haiku", model = "claude-haiku-5-5", provider = "claude-pro", tier = 2, pass_rate = 1.0, n = 1, verdict = "auto", p50_s = 8.0 },
 ]

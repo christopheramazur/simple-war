@@ -116,12 +116,12 @@ def _mine(payload: dict) -> str:
 
 @handler("tag_session")
 def _tag_session(payload: dict) -> str:
-    """Tag a finished session (DESIGN.md §3). Claude Code sessions only until the OpenCode importer
-    lands (sw-lbm.7). The delegate call starts or falls back from the local model by itself."""
+    """Tag a finished session (DESIGN.md §3); session_end ran ingest first, so the raw copy exists.
+    The delegate call starts or falls back from the local model by itself."""
     from hx import tagging
     sid = payload.get("session_id")
-    if not sid or payload.get("client", "claude-code") != "claude-code":
-        return "skipped: no Claude Code session id"
+    if not sid:
+        return "skipped: no session id"
     rows = tagging.tag_session(sid)
     return "; ".join(f"{r['role']} {r.get('kind')}/{r.get('outcome')} {r.get('problem') or ''}".strip()
                      for r in rows) or "already tagged"

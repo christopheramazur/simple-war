@@ -54,7 +54,19 @@ def is_audited(session_id: str, share: float) -> bool:
 
 # ---------------- digest ----------------
 
+def _opencode_messages(raw_file: Path) -> list[dict]:
+    rows = [json.loads(line) for line in raw_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [r for r in rows if r.get("kind") == "message"]
+
+
+def _is_opencode(raw_file: Path) -> bool:
+    return raw_file.parent.name == "opencode"
+
+
 def human_prompts(raw_file: Path) -> list[str]:
+    if _is_opencode(raw_file):
+        return [m["data"]["text"].strip() for m in _opencode_messages(raw_file)
+                if m["type"] == "user" and (m["data"].get("text") or "").strip()]
     out = []
     for line in raw_file.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
@@ -73,6 +85,10 @@ def human_prompts(raw_file: Path) -> list[str]:
 
 def last_reply(raw_file: Path) -> str:
     """The final assistant text in the transcript: what the outcome is judged on."""
+    if _is_opencode(raw_file):
+        texts = ["\n".join(b.get("text", "") for b in m["data"].get("content") or [] if b.get("type") == "text")
+                 for m in _opencode_messages(raw_file) if m["type"] == "assistant"]
+        return next((x.strip() for x in reversed(texts) if x.strip()), "")
     last = ""
     for line in raw_file.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
@@ -170,8 +186,9 @@ def _write(row: dict) -> None:
 
 
 def find_raw(session_id: str) -> Path | None:
-    from hx.importers import claude_code
-    return next(claude_code.raw_root().glob(f"*/{session_id}.jsonl"), None)
+    from hx.importers import claude_code, opencode
+    oc = opencode.raw_root() / f"{session_id}.jsonl"
+    return oc if oc.exists() else next(claude_code.raw_root().glob(f"*/{session_id}.jsonl"), None)
 
 
 def tag_session(session_id: str, con=None, tax: dict | None = None, delegate_run=None, audit_call=None,

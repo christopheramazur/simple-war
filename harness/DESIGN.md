@@ -39,6 +39,11 @@ Scope (Q7/Q17): a thin slice of every goal first, then back to game work; the ha
 - **Status line:** Claude Pro 5-hour and weekly usage (`rate_limits.*`), cost per completed task, quota burn, unpushed auto-merges, advisory model hint (Q42).
 - **Reports use local time (UTC+10).**
 
+- *OpenCode importer (sw-lbm.7):* OpenCode 2.x keeps sessions in SQLite (`~/.local/share/opencode/opencode.db`; override with `HX_OPENCODE_DB`).
+  - `hx ingest` exports each changed session (only `session_v2` and `session_message`; the DB also holds account tokens and credentials) to `data/raw/opencode/<id>.jsonl`, then parses it into the same ledger tables.
+  - Calls OpenCode sent through our gateway get `source = 'opencode-gateway'`. The gateway logs them too (client `gateway`), so totals count them twice until the report dedupes (sw-lbm.23).
+  - Tagging and mining read OpenCode sessions as well.
+
 ## 3. Session tagging (Q13)
 Taxonomy, versioned in `harness/config/taxonomy.toml`:
 - **kind**: feature / bugfix / refactor / content-data / research / harness / ops / chat
@@ -147,7 +152,12 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
 - **Free-tier ladder (2026-11-01):**
   - OpenRouter `nemotron-3-ultra-550b:free` passes 19/20. It solves filter_sort m and l, which Bonsai fails, and misses only json_to_table l (149/161 rows). L1 large outputs are slow, about 3–4 min.
   - filter_sort l now routes to OpenRouter; only json_to_table l still goes to Haiku.
-  - Gemini 3.5 Flash, Groq gpt-oss-120b and Cloudflare gpt-oss-120b each passed the smoke task. The full ladder was blocked by our own $0 gate (see `billing` in §4).
+  - After the user confirmed no card on Gemini, Groq or Cloudflare (`billing = "none"`), full ladders ran. Pass rates exclude gate refusals:
+    - Cloudflare gpt-oss-120b: 21/21
+    - Gemini 3.5 Flash: 19/20
+    - Groq gpt-oss-120b: 17/18, with output capped at 6k by its 8k TPM free tier, so the large tasks can't fit
+  - Every route now has a free model; Haiku remains a fallback candidate only. filter_sort l and json_to_table l go to Gemini.
+  - Bench calls retry upstream 429s that carry a "try again in Xs" hint.
   - Routing ignores gate refusals and connection errors: they say nothing about the model.
 - **Fixtures:** frozen in `harness/bench/`, sourced from:
   - GD-Agentic-Skills `.gd` files (held-out functions, L4)
