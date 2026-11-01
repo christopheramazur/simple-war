@@ -31,10 +31,8 @@ def run(args) -> Result:
     if args.session_id:
         ids = [args.session_id]
     elif args.untagged:
-        import duckdb
-
         from hx import ledger
-        con = duckdb.connect(str(ledger.path()), read_only=True)
+        con = ledger.read_only()
         try:
             ids = tagging.untagged_sessions(con)[: args.limit]
         finally:

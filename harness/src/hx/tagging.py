@@ -194,8 +194,6 @@ def find_raw(session_id: str) -> Path | None:
 def tag_session(session_id: str, con=None, tax: dict | None = None, delegate_run=None, audit_call=None,
                 force: bool = False) -> list[dict]:
     """Tag one session (and audit it if it's in the audit share). Returns the rows written."""
-    import duckdb
-
     from hx import delegate, ledger
     tax = tax or taxonomy()
     done = set() if force else tagged_ids()
@@ -203,7 +201,7 @@ def tag_session(session_id: str, con=None, tax: dict | None = None, delegate_run
     if raw is None:
         raise FileNotFoundError(f"no raw transcript for {session_id} (run hx ingest)")
     own = con is None
-    con = con or duckdb.connect(str(ledger.path()), read_only=True)
+    con = con or ledger.read_only()
     try:
         m = metrics(con, session_id)
     finally:

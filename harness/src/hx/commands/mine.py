@@ -18,11 +18,9 @@ def add_args(p) -> None:
 
 
 def run(args) -> Result:
-    import duckdb
-
     from hx import ledger, mining
     r = Result("mine")
-    con = duckdb.connect(str(ledger.path()), read_only=True)
+    con = ledger.read_only()
     try:
         if args.report:
             r.tables["hx verb usage"] = mining.verb_usage(con)

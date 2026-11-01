@@ -103,10 +103,8 @@ FOLLOW_UPS: list[str] = ["tag_session", "mine"]  # job kinds enqueued after ever
 @handler("mine")
 def _mine(payload: dict) -> str:
     """Mine repeated commands into hx verb candidates (DESIGN.md §5); throttled inside mining.run."""
-    import duckdb
-
     from hx import ledger, mining
-    con = duckdb.connect(str(ledger.path()), read_only=True)
+    con = ledger.read_only()
     try:
         out = mining.run(con)
     finally:

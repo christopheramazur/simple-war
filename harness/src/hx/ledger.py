@@ -97,6 +97,20 @@ def path() -> Path:
     return data_dir() / "ledger.duckdb"
 
 
+def read_only(db: Path | None = None, wait: float = 120) -> duckdb.DuckDBPyConnection:
+    """Read-only connection. On Windows DuckDB can't open the file at all while another process
+    writes it (the Stop hook's or the worker's ingest), so retry until that finishes."""
+    import time
+    deadline = time.time() + wait
+    while True:
+        try:
+            return duckdb.connect(str(db or path()), read_only=True)
+        except duckdb.IOException:
+            if time.time() > deadline:
+                raise
+            time.sleep(1)
+
+
 def connect(db: Path | None = None, rebuild: bool = False) -> duckdb.DuckDBPyConnection:
     db = db or path()
     db.parent.mkdir(parents=True, exist_ok=True)
