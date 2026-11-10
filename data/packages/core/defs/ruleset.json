@@ -4,7 +4,7 @@
 			"ticks_per_second": 10,
 			"band_floor_pct": {"broken": 0, "fraying": 15, "neutral": 40, "primed": 65, "surging": 90},
 			"morale_interval_ticks": 10,
-			"morale_rate_per_s": 3,
+			"morale_rate_per_s": "0.4",
 			"morale_leech_pct": 10,
 			"pool_defaults": {
 				"stamina": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},

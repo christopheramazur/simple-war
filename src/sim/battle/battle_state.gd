@@ -1,0 +1,96 @@
+class_name BattleState
+extends SimContext
+## One battle: tables, compiled rules, zones, scores and the pressure ledger.
+## GDD 02 §2.4-2.5, 04 §4.2.
+
+var rules: BattleRules
+var units: BattleUnits
+var squads: BattleSquads
+## Turns resolved so far.
+var turn: int = 0
+## Player IDs in this battle, ascending.
+var players: PackedInt64Array = PackedInt64Array()
+## Zone runtime (index = rules zone index). owner 0 = nobody.
+var zone_owner: PackedInt64Array = PackedInt64Array()
+var zone_amount: PackedInt64Array = PackedInt64Array()
+## player -> Victory Points from zones (Influence score).
+var influence: Dictionary = {}
+## player -> enemy Value destroyed (Value score).
+var value_score: Dictionary = {}
+## "squad_id|pool|source" -> net fixed points (R6Q3). Read by analytics and
+## Legend consequence selection.
+var ledger: Dictionary = {}
+## Empty while running; set once the battle ends.
+var result: Dictionary = {}
+## Derived cache, rebuilt every tick by Centroids: squad row -> unit rows.
+## Not state: never hashed or saved.
+var squad_units: Dictionary = {}
+
+
+func _init(context_id: int, battle_rules: BattleRules, seed_value: int = 0) -> void:
+	super(context_id, &"battle", seed_value)
+	rules = battle_rules
+	units = BattleUnits.new()
+	squads = BattleSquads.new()
+	add_table(units)
+	add_table(squads)
+	zone_owner.resize(rules.zone_ids.size())
+	zone_amount.resize(rules.zone_ids.size())
+	for side in rules.sides:
+		players.append(side["player"])
+		influence[side["player"]] = 0
+		value_score[side["player"]] = 0
+	players.sort()
+
+
+func is_over() -> bool:
+	return not result.is_empty()
+
+
+func record_flow(squad_id: int, pool: int, source: StringName, amount: int) -> void:
+	if amount == 0:
+		return
+	var key := "%d|%d|%s" % [squad_id, pool, source]
+	ledger[key] = int(ledger.get(key, 0)) + amount
+
+
+func _snapshot_extra(snap: Dictionary) -> void:
+	snap["battle"] = {
+		"turn": turn, "players": players.duplicate(),
+		"zone_owner": zone_owner.duplicate(), "zone_amount": zone_amount.duplicate(),
+		"influence": influence.duplicate(), "value_score": value_score.duplicate(),
+		"ledger": ledger.duplicate(), "result": result.duplicate(true),
+	}
+
+
+func _restore_extra(snap: Dictionary) -> void:
+	var b: Dictionary = snap["battle"]
+	turn = b["turn"]
+	players = (b["players"] as PackedInt64Array).duplicate()
+	zone_owner = (b["zone_owner"] as PackedInt64Array).duplicate()
+	zone_amount = (b["zone_amount"] as PackedInt64Array).duplicate()
+	influence = (b["influence"] as Dictionary).duplicate()
+	value_score = (b["value_score"] as Dictionary).duplicate()
+	ledger = (b["ledger"] as Dictionary).duplicate()
+	result = (b["result"] as Dictionary).duplicate(true)
+
+
+## Hash includes battle-level state beyond the tables.
+func state_hash() -> PackedByteArray:
+	var h := HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(super.state_hash())
+	h.update(PackedInt64Array([turn]).to_byte_array())
+	if zone_owner.size() > 0:
+		h.update(zone_owner.to_byte_array())
+		h.update(zone_amount.to_byte_array())
+	var keys: Array = ledger.keys()
+	keys.sort()
+	var text := ""
+	for k: String in keys:
+		text += "%s=%d;" % [k, ledger[k]]
+	for p in players:
+		text += "P%d:%d:%d;" % [p, influence[p], value_score[p]]
+	text += JSON.stringify(result, "", true)
+	h.update(text.to_utf8_buffer())
+	return h.finish()

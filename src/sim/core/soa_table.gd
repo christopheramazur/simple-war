@@ -186,6 +186,34 @@ func export_row(id: int) -> Dictionary:
 
 
 ## Feeds the table's full state (ID mapping and columns) into a hash.
+## Full state as plain data (Packed arrays copied), for saves and forecasts.
+func snapshot() -> Dictionary:
+	var cols := {}
+	for name in _column_names:
+		var col: Variant = get(name)
+		cols[String(name)] = col.duplicate()
+	return {
+		"kind": String(kind),
+		"columns": cols,
+		"row_slot": _row_slot.duplicate(),
+		"slot_row": _slot_row.duplicate(),
+		"slot_gen": _slot_gen.duplicate(),
+		"free": _free_slots.duplicate(),
+	}
+
+
+func restore(snap: Dictionary) -> void:
+	assert(snap["kind"] == String(kind), "SoaTable.restore: kind mismatch")
+	var cols: Dictionary = snap["columns"]
+	for name in _column_names:
+		var col: Variant = cols[String(name)]
+		put_column(name, col.duplicate())
+	_row_slot = (snap["row_slot"] as PackedInt32Array).duplicate()
+	_slot_row = (snap["slot_row"] as PackedInt32Array).duplicate()
+	_slot_gen = (snap["slot_gen"] as PackedInt32Array).duplicate()
+	_free_slots = (snap["free"] as PackedInt32Array).duplicate()
+
+
 ## Every section is length-prefixed, so empty arrays still hash distinctly.
 func hash_into(ctx: HashingContext) -> void:
 	_feed(ctx, String(kind).to_utf8_buffer())
