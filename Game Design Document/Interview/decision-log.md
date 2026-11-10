@@ -191,3 +191,17 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - E1Q5 Yes: rules text is always generated from structured data via localised templates with glossary terms and live values; authors write flavour text only.
 - E1Q6 Yes: no chance in the language; accumulators replace it and their counters are visible.
 - E1Q7 Yes: tags on everything (effects, abilities, weapons, damage); selections, resistances, restrictions and Ruin work through tags; tags are a moddable registry with glossary entries.
+### Settled (Round E2)
+- E2Q1 Both kinds, PoE-style wording "% increased" / "% more", fixed order (base -> flat -> increased pool -> each more -> override -> clamp -> one rounding). PoE's confusion comes from not being able to show the calculation; the visual step trace is the answer.
+- E2Q2 Designer's model: lasting effects change the computed value, which systems read and cache through the order of operations (10 base HP +5 base +50% increased max = 22.5/22.5). Damage is pushed onto a queue for the unit and a HEALTH SYSTEM (the owner) applies it (22.5 -> 17.5/22.5). When a max-value modifier wears off, the current/max RATIO is kept (17.5/22.5 -> 11.66/15).
+- E2Q3 Yes, plus: "within a distance of tagged allies/enemies" is only tracked out to the furthest range of an effect that uses it. Show calculated numbers instead of words like "recently". A dedicated inspection window (planning and playback) gives per-unit breakdowns behind tabs or unit cards; a strategy game can afford what an ARPG can't.
+- E2Q4 Yes: v1 selectors with deterministic ordering (distance, then ID).
+- E2Q5 Yes: v1 hooks, hard chain depth 1, optional cooldowns. More hooks later; depth rule may be relaxed or managed differently later.
+- E2Q6 Yes: refresh (default) / stack / independent / strongest, per-source or per-target.
+- E2Q7 Yes, plus a DISTANCE duration on the overworld (persists for N hexes traversed) and a story-mode BANK (like SC2 banks) to carry data between campaigns (cf. Raynor's Gone Roguelike, StarCraft: Rogue mods).
+- E2Q8 No conversion in v1; "extra damage as type X" only.
+- E2Q9 Accumulator fields: starting value, value, step size, counted event (second, attack, hit, health lost, distance, ...), threshold, reset condition (resets outside a threshold event, e.g. after a time or when interrupted by a hit). Tooltip names the event: "next in 2 hits", "next after 10 metres", "next charge", "next after losing 10 hit points", "next squad casualty"; event-to-wording matching may be rough at first.
+- E2Q10 Yes: ability = bundle + activation (costs, cooldown, charges, ready time, range, targeting, toggle); Ruin/Null act through tags.
+- E2Q11 Less critical than PoE (small stat/affix pool); show comparison tooltips of how unit/squad stats change. Keep scopes explicit as good practice.
+- E2Q12 Yes: visible means inspectable, except deception-tagged effects (show their disguise).
+- E2Q13 Yes: bundles are package templates, referenced by ID, inheritable, schema-validated.
