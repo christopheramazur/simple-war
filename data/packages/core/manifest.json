@@ -1,0 +1,15 @@
+{
+	"format": 1,
+	"id": "core",
+	"version": "0.1.0",
+	"name": "Simple War core content",
+	"dependencies": [],
+	"data": [
+		"defs/terrain.json",
+		"defs/equipment.json",
+		"defs/humanity.json",
+		"defs/ruleset.json",
+		"defs/scenarios.json"
+	],
+	"assets": {}
+}

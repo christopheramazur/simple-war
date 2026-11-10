@@ -1,0 +1,40 @@
+{
+	"templates": [
+		{"id": "foot", "kind": "movement", "values": {
+			"walk": 3, "run": 6, "accel": 12, "turn_deg_per_s": 360,
+			"terrain_cost_pct": {"forest": 150, "ruins": 150, "road": 80}}},
+		{"id": "heavy_foot", "parent": "foot", "values": {"walk": "2.5", "run": "4.5", "accel": 8, "turn_deg_per_s": 240}},
+
+		{"id": "no_armour", "kind": "defense", "values": {}},
+		{"id": "flak", "kind": "defense", "values": {"evasion_pct": 5, "resist_pct": {"explosive": 20}}},
+		{"id": "carapace", "kind": "defense", "values": {
+			"block_chance_pct": 10, "block_amount_pct": 50, "flat": 1, "percent": 10,
+			"resist_pct": {"kinetic": 10, "explosive": 25}, "floor": {"kinetic": 1}}},
+
+		{"id": "rifle", "kind": "weapon", "values": {
+			"name": "Service rifle", "range": 40, "damage_type": "kinetic", "magazine": 30, "reload_ticks": 20,
+			"modes": {
+				"aimed": {"shots": 1, "cooldown_ticks": 10, "accuracy": "0.6", "damage": 3, "crit_every": 8, "crit_bonus_pct": 100},
+				"burst": {"shots": 3, "cooldown_ticks": 15, "accuracy": "0.3", "damage": 3, "moving": true}}}},
+		{"id": "carbine", "parent": "rifle", "values": {"name": "Carbine", "range": 30}},
+		{"id": "lmg", "kind": "weapon", "values": {
+			"name": "Light machine gun", "range": 50, "damage_type": "kinetic", "magazine": 100, "reload_ticks": 40,
+			"modes": {
+				"sustained": {"shots": 5, "cooldown_ticks": 20, "accuracy": "0.3", "damage": 3},
+				"hip": {"shots": 3, "cooldown_ticks": 20, "accuracy": "0.15", "damage": 3, "moving": true}}}},
+		{"id": "marksman_rifle", "kind": "weapon", "values": {
+			"name": "Marksman rifle", "range": 70, "damage_type": "kinetic", "magazine": 5, "reload_ticks": 30,
+			"modes": {"aimed": {"shots": 1, "cooldown_ticks": 25, "accuracy": "0.8", "damage": 8, "crit_every": 4, "crit_bonus_pct": 100}}}},
+		{"id": "rocket_launcher", "kind": "weapon", "values": {
+			"name": "Rocket launcher", "range": 45, "min_range": 5, "damage_type": "explosive", "magazine": 1, "reload_ticks": 40,
+			"modes": {"direct": {"shots": 1, "cooldown_ticks": 50, "accuracy": "0.5", "damage": 12, "aoe_radius": 3}}}},
+
+		{"id": "auspex", "kind": "ability", "values": {"type": "detection", "radius": 30, "instinct_cost_per_s": 0}},
+		{"id": "field_camo", "kind": "ability", "values": {
+			"type": "concealment", "instinct_cost_per_s": 0, "base_pct": 20,
+			"terrain_pct": {"forest": 20, "ruins": 15}, "moving_pct": -15, "firing_pct": -40}},
+		{"id": "scout_cloak", "kind": "ability", "values": {
+			"type": "concealment", "instinct_cost_per_s": 2, "auto_off_band": "broken", "base_pct": 45,
+			"terrain_pct": {"forest": 30, "ruins": 20}, "moving_pct": -10, "firing_pct": -50}}
+	]
+}

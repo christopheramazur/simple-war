@@ -1,0 +1,46 @@
+{
+	"templates": [
+		{"id": "trooper", "kind": "unit", "values": {"name": "Trooper", "hp": 10, "size_class": "medium", "defense": "flak", "movement": "foot", "weapon": "rifle", "proficiency_pct": 100}},
+		{"id": "sergeant", "parent": "trooper", "values": {"name": "Sergeant", "hp": 12, "proficiency_pct": 110, "tags": ["leader"]}},
+		{"id": "gunner", "parent": "trooper", "values": {"name": "Gunner", "hp": 12, "movement": "heavy_foot", "weapon": "lmg"}},
+		{"id": "marksman", "parent": "trooper", "values": {"name": "Marksman", "hp": 8, "weapon": "marksman_rifle", "proficiency_pct": 120}},
+		{"id": "rocketeer", "parent": "trooper", "values": {"name": "Rocketeer", "weapon": "rocket_launcher"}},
+		{"id": "scout", "parent": "trooper", "values": {"name": "Scout", "hp": 8, "weapon": "carbine"}},
+		{"id": "chi_operative", "parent": "trooper", "values": {"name": "CHI operative", "defense": "carapace", "proficiency_pct": 115}},
+
+		{"id": "humanity_squad", "kind": "squad", "abstract": true, "values": {
+			"faction": "humanity", "capture_rate": 10, "sight": 45,
+			"formation": {"shape": "line", "spacing": 2},
+			"reactions": [{"id": "halt", "instinct_cost": 8}, {"id": "fall_back", "instinct_cost": 12}, {"id": "retarget", "instinct_cost": 6}],
+			"legend_archetype": "damage"}},
+		{"id": "rifle_squad", "parent": "humanity_squad", "values": {
+			"name": "Rifle squad", "value": 100,
+			"members": [{"unit": "sergeant", "count": 1}, {"unit": "trooper", "count": 7}]}},
+		{"id": "heavy_weapons_team", "parent": "humanity_squad", "values": {
+			"name": "Heavy weapons team", "value": 120, "capture_rate": 5, "legend_archetype": "tank",
+			"formation": {"shape": "blob", "spacing": 2},
+			"members": [{"unit": "gunner", "count": 2}, {"unit": "trooper", "count": 2}]}},
+		{"id": "marksman_team", "parent": "humanity_squad", "values": {
+			"name": "Marksman team", "value": 90, "capture_rate": 5, "sight": 60, "legend_archetype": "scout",
+			"abilities": ["field_camo"],
+			"members": [{"unit": "marksman", "count": 2}]}},
+		{"id": "scout_team", "parent": "humanity_squad", "values": {
+			"name": "Scout team", "value": 80, "sight": 55, "legend_archetype": "scout",
+			"abilities": ["scout_cloak", "auspex"],
+			"formation": {"shape": "wedge", "spacing": 3},
+			"members": [{"unit": "scout", "count": 4}]}},
+		{"id": "rocket_team", "parent": "humanity_squad", "values": {
+			"name": "Rocket team", "value": 110, "capture_rate": 5, "legend_archetype": "sapper",
+			"members": [{"unit": "rocketeer", "count": 2}, {"unit": "trooper", "count": 1}]}},
+
+		{"id": "hf_militia", "parent": "rifle_squad", "values": {
+			"name": "Humanity First militia", "doctrine": "humanity_first", "value": 75,
+			"members": [{"unit": "trooper", "count": 10}]}},
+		{"id": "chi_operatives", "parent": "rifle_squad", "values": {
+			"name": "CHI operatives", "doctrine": "chi", "value": 140,
+			"members": [{"unit": "sergeant", "count": 1}, {"unit": "chi_operative", "count": 5}]}},
+		{"id": "enlightened_vanguard", "parent": "rifle_squad", "values": {
+			"name": "Enlightened vanguard", "doctrine": "enlightened", "value": 110,
+			"pools": {"prowess": {"start_pct": 65}, "morale": {"start_pct": 60}}}}
+	]
+}

@@ -1,0 +1,34 @@
+{
+	"templates": [
+		{"id": "standard", "kind": "ruleset", "values": {
+			"ticks_per_second": 10,
+			"band_floor_pct": {"broken": 0, "fraying": 15, "neutral": 40, "primed": 65, "surging": 90},
+			"morale_interval_ticks": 10,
+			"morale_rate_per_s": 3,
+			"morale_leech_pct": 10,
+			"pool_defaults": {
+				"stamina": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},
+				"instinct": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},
+				"morale": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "0.5"},
+				"prowess": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "0.5"},
+				"legend": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "0.2"}
+			},
+			"sinks": {
+				"stamina_run_per_s": 4,
+				"stamina_per_hp_lost_pct": 1,
+				"instinct_fire_moving": 1,
+				"instinct_reaction": 10,
+				"prowess_readying_per_s": 2
+			},
+			"floats": {
+				"prowess_reacted_to": 6,
+				"prowess_intercept": 10,
+				"prowess_ambush": 10,
+				"prowess_interrupt": 10,
+				"legend_damage_per_10_dealt": 1,
+				"legend_tank_per_10_taken": 1,
+				"legend_scout_reveal": 2,
+				"legend_sapper_per_10_dealt": 2
+			}}}
+	]
+}

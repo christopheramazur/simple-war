@@ -1,0 +1,29 @@
+{
+	"templates": [
+		{"id": "duel_crossroads", "kind": "scenario", "values": {
+			"name": "Duel: Crossroads",
+			"ruleset": "standard",
+			"width": 200, "height": 100, "ticks_per_turn": 100,
+			"terrain_default": "open",
+			"terrain": [
+				{"feature": "road", "x": 0, "y": 48, "w": 200, "h": 4},
+				{"feature": "forest", "x": 40, "y": 10, "w": 20, "h": 25},
+				{"feature": "forest", "x": 140, "y": 65, "w": 20, "h": 25},
+				{"feature": "ruins", "x": 92, "y": 40, "w": 16, "h": 8},
+				{"feature": "ruins", "x": 92, "y": 52, "w": 16, "h": 8}
+			],
+			"zones": [
+				{"id": "west", "x": 55, "y": 70, "radius": 10, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1},
+				{"id": "centre", "x": 100, "y": 50, "radius": 12, "decay": 10, "threshold": 10, "buffer": 10, "vp": 2},
+				{"id": "east", "x": 145, "y": 30, "radius": 10, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1}
+			],
+			"sides": [
+				{"player": 1, "facing": 0, "deploy": {"x": 5, "y": 15, "w": 25, "h": 70},
+					"squads": ["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"]},
+				{"player": 2, "facing": 32768, "deploy": {"x": 170, "y": 15, "w": 25, "h": 70},
+					"squads": ["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"]}
+			],
+			"victory": {"turn_limit": 10, "primary": "influence", "score_target": 20, "annihilation": true, "withdrawal": true},
+			"end_hooks": {"loser": "scatter"}}}
+	]
+}

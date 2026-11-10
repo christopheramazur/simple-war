@@ -1,0 +1,8 @@
+{
+	"templates": [
+		{"id": "open", "kind": "feature", "values": {"name": "Open ground"}},
+		{"id": "road", "kind": "feature", "values": {"name": "Road"}},
+		{"id": "forest", "kind": "feature", "values": {"name": "Forest", "blocks_los": true, "cover_evasion_pct": 25, "concealment_pct": 40}},
+		{"id": "ruins", "kind": "feature", "values": {"name": "Ruins", "blocks_los": true, "cover_evasion_pct": 40, "concealment_pct": 30}}
+	]
+}
