@@ -181,3 +181,13 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 
 ## Post-interview corrections
 - 2026-11-10 (corrects R6Q10 / R7Q5): zone vacuum applies ONLY when the zone's influence is at or above the capture threshold. Example from the designer: a CR10 squad contested by a CR1 squad nets 9: 9, then 18 the turn after, then decay 10 to 8 and fill back to 17, etc.
+
+## Effect-language interview (sw-p2q.1)
+### Settled (Round E1)
+- E1Q1 Yes: ONE effect language for all sim-side effects (abilities, statuses, equipment, traits/keywords, terrain features, zone conditions, Legend consequences, commander abilities, overworld feature effects). The campaign trigger layer stays separate and invokes effects. Designer's reference: Brotato, where items, weapons and abilities all share and implement the same effects.
+- E1Q2 Yes: an effect = op, target, magnitude, condition, duration, stacking, tags, source. Abilities, statuses, items and features are named bundles of effects.
+- E1Q3 Yes: declared stat registry (glossary name, unit, rounding, min/max, unit or squad scope); effects touch registered stats only; systems read effective values (M2 combat/movement code to be refactored onto it).
+- E1Q4 Yes: closed, engine-provided vocabulary (ops, selectors, conditions, scalers); no free-form formulas in data; new vocabulary from engine updates, later opt-in Lua ops.
+- E1Q5 Yes: rules text is always generated from structured data via localised templates with glossary terms and live values; authors write flavour text only.
+- E1Q6 Yes: no chance in the language; accumulators replace it and their counters are visible.
+- E1Q7 Yes: tags on everything (effects, abilities, weapons, damage); selections, resistances, restrictions and Ruin work through tags; tags are a moddable registry with glossary entries.
