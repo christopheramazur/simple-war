@@ -20,7 +20,7 @@ Simple War uses an ECS architecture throughout. Understanding three concepts is 
 
 - **Entity** — A unique identifier (ID). An Entity has no inherent data or behavior; everything about it comes from Components.
 - **Component** — A data structure attached to an Entity. Components hold state (e.g., a UnitStatline Component holds a specific model of unit stats). **Marker Components** (Tags) carry no data beyond their presence and serve as keywords for grouping and filtering (e.g., `Infantry`, `Vehicle`).
-- **System** — A squad of logic that operates on Entities possessing a specific set of Components. Systems read Components, perform calculations, and write results back to Components. All game logic lives in Systems.
+- **System** — A sunit of logic that operates on Entities possessing a specific set of Components. Systems read Components, perform calculations, and write results back to Components. All game logic lives in Systems.
 
 An **archetype** is a common combination of Components that defines a category of Entity. The standard archetypes are:
 
@@ -71,7 +71,7 @@ Not everything is an Entity. The Roster validation process, Score calculation, a
 - Battles are fought between opposing Battleforces on a **Battlefield**.
   - A Battle is an Entity of the Battle archetype. The Battle System orchestrates its four Stages: Planning, Deployment, Engagement, and Consolidation (see rule 100.1 in Battle Rules).
   - A Commander must be leading each Battleforce, but does not need to be present on the Battlefield.
-  - Like Heroes of Might and Magic, there may be opportsquadies to retreat, or resolve a battle diplomatically, or accept the surrender of an opponent in exchange for Campaign-specific resources.
+  - Like Heroes of Might and Magic, there may be opportunities to retreat, or resolve a battle diplomatically, or accept the surrender of an opponent in exchange for Campaign-specific resources.
 
 - A Battle consists of 4 primary **Stages**: **Planning**, **Deployment**, **Engagement**, and **Consolidation**.
   - Planning is where Players determine which of their Commanders and Battleforces will be involved in the Battle, how the Squads in those Battleforces will be Deployed and Composed, and which other strategic assets or resources they will commit.
@@ -84,7 +84,7 @@ Not everything is an Entity. The Roster validation process, Score calculation, a
   - Commanders, Abilities, and Campaign Modifiers can all influence how and where Squads can be set up.
 
 - **Reinforcements** are Squads from a Battleforce whose Zone Component is set to Reserves rather than Battlefield at the start of a Battle.
-  - Reinforcements are instead Deployed to the Battlefield through other methods, such as hidden infiltrators waiting in ambush; outflanking cavalry ready to arrive where and when they're least expected; teleporting reserves awaiting the perfect opportsquady to turn the tides; and more.
+  - Reinforcements are instead Deployed to the Battlefield through other methods, such as hidden infiltrators waiting in ambush; outflanking cavalry ready to arrive where and when they're least expected; teleporting reserves awaiting the perfect opportunity to turn the tides; and more.
   - Commanders, Abilities, and Campaign Modifiers can all influence how and where Reinforcements can be set up.
 
 - Commanders navigate the **Sector Map** with their Armies to participate in **Activities**.
@@ -177,7 +177,7 @@ Campaign Editor allows Players to create, edit, and share custom Campaigns. A Ca
 
 The Campaign Editor Screen is divided into three main areas:
 - Campaign Browser
-  - Lists the Player's custom Campaigns alongside installed commsquady Campaigns, with search and filter options.
+  - Lists the Player's custom Campaigns alongside installed community Campaigns, with search and filter options.
   - Each entry shows the Campaign name, author, Player count, estimated duration, and publication status (Draft, Published, or Archived).
 - Sector Map Canvas
   - A visual editor for placing and connecting Plots on the Sector Map. Players drag-and-drop Plot nodes, draw travel connections between them, and assign Activities (Armybuilding, Battle, Narrative Event, Trade, etc.) to each Plot.

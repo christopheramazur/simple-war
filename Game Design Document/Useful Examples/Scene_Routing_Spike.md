@@ -78,7 +78,7 @@ No transitions API is shared; paths are duplicated literals or come from `Campai
 
 ## 5. Other addons (context only)
 
-Commsquady “scene manager” addons (e.g. glass-brick Scene-Manager, YASM, fade-only SceneChanger) optimize for **animated transitions** and stacks. Same tradeoff: adopt when transition UX is a product requirement, not when the only problem is string duplication.
+Community “scene manager” addons (e.g. glass-brick Scene-Manager, YASM, fade-only SceneChanger) optimize for **animated transitions** and stacks. Same tradeoff: adopt when transition UX is a product requirement, not when the only problem is string duplication.
 
 ---
 

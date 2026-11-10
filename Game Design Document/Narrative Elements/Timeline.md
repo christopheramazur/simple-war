@@ -2,7 +2,7 @@
 
 ## Glossary
 
-### Time Squads
+### Time Units
 
 | Abbreviation | Meaning | Equivalent |
 |---|---|---|

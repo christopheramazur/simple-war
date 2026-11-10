@@ -393,9 +393,9 @@ Main Menu → Quickplay → Campaign Planning → Sector Map
 - **Battlefield**
   - **100 squads tall × 200 squads wide**; 1 squad-distance ≈ 1 in-world meter.
   - Generic grassland texture surrounded by grey.
-  - **Top 20 squads** tinted **Red** with a dotted line at the 20-squad mark (opponent zone); **bottom 20 squads** tinted **Blue** with a dotted line (player zone).
-  - Zoomable; **grid markers** scale with zoom: fully zoomed-in = 1-squad markers; zooming out swaps to 3-squad, then 6-squad markers (and back).
-  - Zoom limits: no finer than a 6×6 grid of 1-squad markers; no coarser than seeing the whole battlefield plus 6 squads of grey margin.
+  - **Top 20 squads** tinted **Red** with a dotted line at the 20-unit mark (opponent zone); **bottom 20 squads** tinted **Blue** with a dotted line (player zone).
+  - Zoomable; **grid markers** scale with zoom: fully zoomed-in = 1-unit markers; zooming out swaps to 3-unit, then 6-unit markers (and back).
+  - Zoom limits: no finer than a 6×6 grid of 1-unit markers; no coarser than seeing the whole battlefield plus 6 squads of grey margin.
   - The selected Army sits in the grey to the side: **5 squads of "Riflemen"**, each 10 circles in a rectangle. Circles keep their rectangle positions for now, but the implementation must leave room for movement, pathfinding, and formation.
   - **Drag / multi-select-and-drag / drop** squads onto the Battlefield — **only wholly within the deployment zone**.
   - Top-middle **"Engage Enemy"** button enables once deployment is done (also: Enter, or right-click battlefield → context menu → "Engage Enemy").
@@ -415,7 +415,7 @@ Reserve/reinforcement squads, morale, hit/miss, abilities, explicit attack targe
 ### Build order (each slice ends in something visible)
 1. **Core** — `gecs` ECS + JSON→Resource loader + fixed-timestep tick + Main Menu (Quickplay/Quit) + top-right Menu button.
 2. **Sector** — 2-plot Sector Map scene (Armybuilding → Battle, dotted-line arrow, travel note) + Armybuilding screen (select Militia) + Commander movement with the path gate.
-3. **Battlefield** — 100×200 grid render + zoom (1/3/6-squad markers) + drag/multi-select in-zone deploy + "Engage Enemy".
+3. **Battlefield** — 100×200 grid render + zoom (1/3/6-unit markers) + drag/multi-select in-zone deploy + "Engage Enemy".
 4. **Turn loop** — Issue orders + ghost paths → Lock/Reveal → React window → Resolve (move + combat) → repeat → Consolidation stats → back to Sector Map.
 
 ### Acceptance criteria

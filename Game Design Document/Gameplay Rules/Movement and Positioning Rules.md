@@ -26,9 +26,9 @@ The origin (0, 0) is the bottom-left corner of the Battlefield. The x-axis incre
 
 ### 300.2 Battlefield Dimensions
 
-The default Battlefield for a two-Player Battle is 200 distance squads wide (x-axis: 0 to 200) and 100 distance squads tall (y-axis: 0 to 100). One distance squad corresponds to one meter of in-world scale.
+The default Battlefield for a two-Player Battle is 200 distance units wide (x-axis: 0 to 200) and 100 distance units tall (y-axis: 0 to 100). One distance unit corresponds to one meter of in-world scale.
 
-Campaign or scenario rules may define Battlefields with different dimensions. The Battlefield's width and height must each be an integer number of distance squads and must each be at least 20 distance squads.
+Campaign or scenario rules may define Battlefields with different dimensions. The Battlefield's width and height must each be an integer number of distance units and must each be at least 20 distance units.
 
 ### 300.3 Distance Measurement
 
@@ -36,7 +36,7 @@ All distances in Simple War are measured as **Euclidean distance** (straight-lin
 
 **Distance = √((x₂ − x₁)² + (y₂ − y₁)²)**
 
-When a rule specifies a distance threshold (such as "within 3 distance squads"), the condition is met if the Euclidean distance between the two reference points is less than or equal to the threshold.
+When a rule specifies a distance threshold (such as "within 3 distance units"), the condition is met if the Euclidean distance between the two reference points is less than or equal to the threshold.
 
 When a rule specifies a maximum movement distance, the total path length — not the straight-line displacement — must not exceed the allowed value (see rule 310.3).
 
@@ -48,11 +48,11 @@ The grid is displayed at different granularities depending on the Player's view 
 
 | Zoom Level | Grid Spacing |
 |---|---|
-| Close (most zoomed in) | 1 distance squad |
-| Medium | 3 distance squads |
-| Far (most zoomed out) | 6 distance squads |
+| Close (most zoomed in) | 1 distance unit |
+| Medium | 3 distance units |
+| Far (most zoomed out) | 6 distance units |
 
-The maximum zoom-in level shows a 6×6 area of 1-squad grid cells. The maximum zoom-out level shows the entire Battlefield plus 6 distance squads of surrounding area on each side.
+The maximum zoom-in level shows a 6×6 area of 1-unit grid cells. The maximum zoom-out level shows the entire Battlefield plus 6 distance units of surrounding area on each side.
 
 ### 300.5 Battlefield Boundary
 
@@ -64,10 +64,10 @@ A Squad that would be forced beyond the Battlefield boundary by a rule or collis
 
 #### Example 1: Distance Calculation
 **Setup**: Squad A is at position (10, 20). Squad B is at position (13, 24).
-**Calculation**: Distance = √((13 − 10)² + (24 − 20)²) = √(9 + 16) = √25 = 5 distance squads.
+**Calculation**: Distance = √((13 − 10)² + (24 − 20)²) = √(9 + 16) = √25 = 5 distance units.
 
 #### Example 2: Threshold Check
-**Setup**: A rule requires "within 3 distance squads." Squad A is at (0, 0) and Squad B is at (2, 2).
+**Setup**: A rule requires "within 3 distance units." Squad A is at (0, 0) and Squad B is at (2, 2).
 **Calculation**: Distance = √(4 + 4) = √8 ≈ 2.83. Since 2.83 ≤ 3, the condition is met.
 
 ---
@@ -128,7 +128,7 @@ If no valid path to the Destination exists, the Movement System moves the Squad 
 When two or more Squads from opposing Players would occupy overlapping positions at the end of simultaneous movement resolution:
 
 1. If one or both Squads issued a Charge Order targeting the other, both Squads are placed in Melee at the point of contact (see rule 132.2e in Battle Rules).
-2. Otherwise, each Squad stops at the closest valid position before the overlap, maintaining a minimum separation of 1 distance squad between their footprint edges.
+2. Otherwise, each Squad stops at the closest valid position before the overlap, maintaining a minimum separation of 1 distance unit between their footprint edges.
 
 The Movement System resolves collisions during step 5 of rule 133.4 in Battle Rules.
 
@@ -154,7 +154,7 @@ Any part of the Squad's footprint overlaps a Friendly Squad's footprint at the e
 
 #### Example 1: Simple Advance
 **Setup**: Squad A has Speed 10 and is at position (50, 30). The Player issues an Advance Order to target point (55, 42).
-**Calculation**: Distance to target = √(25 + 144) = √169 = 13. This exceeds Speed (10). The Squad moves 10 distance squads along the straight-line path toward (55, 42), stopping at (50 + 5×(10/13), 30 + 12×(10/13)) = (53.85, 39.23) (rounded to two decimal places).
+**Calculation**: Distance to target = √(25 + 144) = √169 = 13. This exceeds Speed (10). The Squad moves 10 distance units along the straight-line path toward (55, 42), stopping at (50 + 5×(10/13), 30 + 12×(10/13)) = (53.85, 39.23) (rounded to two decimal places).
 
 #### Example 2: Run to Destination Within Range
 **Setup**: Squad B has Speed 8 and is at (20, 20). The Player issues a Run Order to target point (30, 24).
@@ -162,7 +162,7 @@ Any part of the Squad's footprint overlaps a Friendly Squad's footprint at the e
 
 #### Example 3: Obstruction Pathing
 **Setup**: Squad C has Speed 10, is at (40, 50), and issues an Advance to (60, 50). A Blocking Terrain feature occupies positions (48, 48) to (52, 52), blocking the straight-line path.
-**Result**: The Movement System calculates the shortest path around the terrain Entity. If the detour path length exceeds 10 distance squads, Squad C stops partway along the detour.
+**Result**: The Movement System calculates the shortest path around the terrain Entity. If the detour path length exceeds 10 distance units, Squad C stops partway along the detour.
 
 ---
 
@@ -175,13 +175,13 @@ A Squad occupies space on the Battlefield defined by its **FootprintComponent**.
 - **Width**: Determined by the number of Units arranged in file (side to side).
 - **Depth**: Determined by the number of ranks (front to back).
 
-Each Unit occupies a circular area with a diameter of 1 distance squad. Units within the footprint are spaced according to the Squad's FormationComponent (see rule 320.3).
+Each Unit occupies a circular area with a diameter of 1 distance unit. Units within the footprint are spaced according to the Squad's FormationComponent (see rule 320.3).
 
 The Movement System recalculates the FootprintComponent when the Squad's Composition Component changes (e.g., the Combat System destroys a Unit). When Units are destroyed, the footprint may shrink as the remaining Units consolidate.
 
 ### 320.2 Unit Cohesion
 
-All Units in a Squad must remain within the Squad's footprint at all times. A Unit may not be separated from the nearest Unit in the same Squad by more than **2 distance squads** (measured center-to-center). This is the **Cohesion Distance**.
+All Units in a Squad must remain within the Squad's footprint at all times. A Unit may not be separated from the nearest Unit in the same Squad by more than **2 distance units** (measured center-to-center). This is the **Cohesion Distance**.
 
 If a rule or effect would place a Unit outside the Cohesion Distance from all other Units in its Squad, that Unit is instead placed at the nearest valid position that satisfies the Cohesion Distance requirement.
 
@@ -189,7 +189,7 @@ When a Unit is destroyed, the Squad's remaining Units are not required to immedi
 
 ### 320.3 Formations
 
-The FormationComponent defines how Units are arranged within a Squad's footprint. The default FormationComponent value is **rectangular_block**: Units are arranged in rows and columns, evenly spaced by 1 distance squad center-to-center.
+The FormationComponent defines how Units are arranged within a Squad's footprint. The default FormationComponent value is **rectangular_block**: Units are arranged in rows and columns, evenly spaced by 1 distance unit center-to-center.
 
 The number of ranks and files in the default formation is determined by:
 
@@ -205,15 +205,15 @@ Custom FormationComponent values may be introduced by Ability Components, Squad 
 #### Example 1: Standard Infantry Footprint
 **Setup**: A Riflemen Squad has 10 Units and the `Infantry` marker Component.
 **Formation**: 5 files × 2 ranks.
-**Result**: Units arranged in a 5×2 block centered on the Squad's position. Footprint is 5 distance squads wide × 2 distance squads deep.
+**Result**: Units arranged in a 5×2 block centered on the Squad's position. Footprint is 5 distance units wide × 2 distance units deep.
 
 #### Example 2: Reduced Squad
 **Setup**: The Riflemen Squad loses 3 Units, leaving 7.
-**Formation**: 5 files × 2 ranks (second rank has 2 Units instead of 5). Footprint width is 5 distance squads; second rank has 3 empty slots.
+**Formation**: 5 files × 2 ranks (second rank has 2 Units instead of 5). Footprint width is 5 distance units; second rank has 3 empty slots.
 
 #### Example 3: Vehicle Squad
 **Setup**: A Tank Squad has 3 Units and the `Vehicle` marker Component.
-**Formation**: 3 files × 1 rank. Footprint is 3 distance squads wide × 1 distance squad deep.
+**Formation**: 3 files × 1 rank. Footprint is 3 distance units wide × 1 distance unit deep.
 
 ---
 
@@ -257,12 +257,12 @@ When a Squad performs a Reposition Reaction, the Movement System does not update
 **Result**: Squad A pivots to face east (90°) at no cost, since Hold has no movement component.
 
 #### Example 2: Pivot During Advance
-**Setup**: Squad B has Speed 10, a 5×2 footprint (diagonal = √(25 + 4) = √29 ≈ 5.39 distance squads), and needs to pivot 90° before advancing.
-**Calculation**: Pivot cost = (90 / 360) × (√29 / 2) = 0.25 × 2.69 = 0.67 distance squads. Remaining movement = 10 − 0.67 = 9.33 distance squads.
+**Setup**: Squad B has Speed 10, a 5×2 footprint (diagonal = √(25 + 4) = √29 ≈ 5.39 distance units), and needs to pivot 90° before advancing.
+**Calculation**: Pivot cost = (90 / 360) × (√29 / 2) = 0.25 × 2.69 = 0.67 distance units. Remaining movement = 10 − 0.67 = 9.33 distance units.
 
 #### Example 3: About-Face and Advance
 **Setup**: Squad C has Speed 10, a 5×2 footprint (diagonal = √29 ≈ 5.39), and needs to turn 180°.
-**Calculation**: Pivot cost = (180 / 360) × (√29 / 2) = 0.5 × 2.69 = 1.35 distance squads. Remaining movement = 10 − 1.35 = 8.65 distance squads.
+**Calculation**: Pivot cost = (180 / 360) × (√29 / 2) = 0.5 × 2.69 = 1.35 distance units. Remaining movement = 10 − 1.35 = 8.65 distance units.
 
 ---
 
@@ -309,7 +309,7 @@ Specific Reserves rules (such as deep strike or flanking maneuvers) may designat
 
 Squads with the `Vanguard` marker Component (see rule 110.5 in Battle Rules) deploy before other Squads during the Deployment Stage. Vanguard deployment follows all standard Deployment Constraints (rule 340.2). Squads with the `Vanguard` marker Component do not receive an extended Deployment Zone by default — they deploy within the same zone as other Squads but are placed first.
 
-Specific Ability Components may grant extended deployment areas (e.g., the Forward Positions Passive Ability Component allows deployment up to 6 distance squads beyond the Deployment Zone boundary; see rule 250.2 in Entity System Rules).
+Specific Ability Components may grant extended deployment areas (e.g., the Forward Positions Passive Ability Component allows deployment up to 6 distance units beyond the Deployment Zone boundary; see rule 250.2 in Entity System Rules).
 
 ### 340.5 Pre-Engagement Moves
 
@@ -326,7 +326,7 @@ After all Squads are deployed and before the Engagement Stage begins, Squads wit
 **Result**: The Squad is placed along the bottom edge (y = 0 + half the footprint depth so the Squad is wholly on the Battlefield). The Squad cannot move or attack this Turn.
 
 #### Example 3: Deployment Zone Too Small
-**Setup**: A large Vehicle Squad has a footprint 8 distance squads deep, but the Deployment Zone is only 20 deep.
+**Setup**: A large Vehicle Squad has a footprint 8 distance units deep, but the Deployment Zone is only 20 deep.
 **Result**: The Squad can be placed (8 < 20). If the zone were smaller than the footprint depth, the Squad would remain in Reserves until the zone is adjusted.
 
 ---
@@ -335,7 +335,7 @@ After all Squads are deployed and before the Engagement Stage begins, Squads wit
 
 ### 350.1 Minimum Movement
 
-A Squad is never required to move its full allowed distance. A Squad may move any distance from 0 up to its maximum allowed path length. Choosing to move 0 distance squads is always valid (the Squad remains at its current position).
+A Squad is never required to move its full allowed distance. A Squad may move any distance from 0 up to its maximum allowed path length. Choosing to move 0 distance units is always valid (the Squad remains at its current position).
 
 ### 350.2 Endurance and Movement
 
@@ -358,12 +358,12 @@ Movement does not provoke attacks by default (see rule 133.4 in Battle Rules). I
 ### Examples
 
 #### Example 1: Partial Movement
-**Setup**: Squad A has Speed 10 and an Advance Order to a target 3 distance squads away.
-**Result**: Squad A moves 3 distance squads and stops. The remaining 7 squads of allowed movement are unused.
+**Setup**: Squad A has Speed 10 and an Advance Order to a target 3 distance units away.
+**Result**: Squad A moves 3 distance units and stops. The remaining 7 squads of allowed movement are unused.
 
 #### Example 2: Broken Morale Fall Back
 **Setup**: Squad B has Broken Morale and Speed 6. The Player issues a Fall Back Order.
-**Result**: Squad B may move up to 12 distance squads (2 × 6) away from the nearest Enemy Squad.
+**Result**: Squad B may move up to 12 distance units (2 × 6) away from the nearest Enemy Squad.
 
 ---
 
@@ -371,10 +371,10 @@ Movement does not provoke attacks by default (see rule 133.4 in Battle Rules). I
 
 - **Battlefield Boundary**: The rectangular perimeter of the Battlefield Entity defined by x ∈ [0, width] and y ∈ [0, height] from its dimension Components. Squads may not extend beyond the boundary. (Rule 300.5)
 - **Blocking** (marker Component): A marker Component on a terrain Entity that prevents movement through the positions the terrain Entity occupies. The Movement System reads this marker Component during pathfinding. (Rule 310.7b)
-- **Cohesion Distance**: The maximum allowed distance (2 distance squads) between any Unit and the nearest other Unit in the same Squad. (Rule 320.2)
+- **Cohesion Distance**: The maximum allowed distance (2 distance units) between any Unit and the nearest other Unit in the same Squad. (Rule 320.2)
 - **Deployment System**: The System that handles initial placement of Entities onto the Battlefield during the Deployment Stage and Reinforcement entry. Reads and writes PositionComponent, FacingComponent, ZoneComponent. (Rules 340.1–340.5)
 - **Deployment Zone** (Component): A Component on the Battlefield Entity defining a rectangular area where a Player may place Squads during the Deployment Stage. (Rules 120.2, 340.1)
-- **Distance Squad**: The base squad of measurement in Simple War; one distance squad equals one meter of in-world scale. (Rule 300.2)
+- **Distance Squad**: The base squad of measurement in Simple War; one distance unit equals one meter of in-world scale. (Rule 300.2)
 - **Euclidean Distance**: The straight-line distance between two points, used for all distance measurement in Simple War. (Rule 300.3)
 - **FacingComponent**: A data Component on a Squad Entity holding the Squad's orientation as an angle in degrees (0–359) clockwise from north. Read and written by the Movement System. (Rule 330.1)
 - **Flying** (marker Component): A marker Component on a Squad Entity indicating the Squad can ignore terrain Entities with the `Blocking` marker Component, unless the terrain also has the `Grounded` marker Component. (Rule 310.7b)

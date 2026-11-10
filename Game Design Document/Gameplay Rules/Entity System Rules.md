@@ -61,7 +61,7 @@ Rules that reference a marker Component always specify the exact name. A rule th
 
 ### 200.4 Systems
 
-A System is a squad of logic that operates on Entities possessing a specific set of Components. Systems read Component data, perform calculations, and write results back to Components. Systems contain all game logic; Components contain all game state.
+A System is a sunit of logic that operates on Entities possessing a specific set of Components. Systems read Component data, perform calculations, and write results back to Components. Systems contain all game logic; Components contain all game state.
 
 The core Systems referenced by these rules include:
 
@@ -155,10 +155,10 @@ Morale state affects which Orders and actions a Squad may take:
 
 Speed is an integer Characteristic in the Statline Component representing the typical distance a Squad can move in a single Turn without taxing Endurance. The Movement System reads Speed from the Statline Component.
 
-- **Advance**: move up to Speed distance squads (rule 132.2b in Battle Rules).
-- **Run**: move up to 2 × Speed distance squads; taxes Endurance (rule 132.2d in Battle Rules).
-- **Charge**: move up to floor(1.5 × Speed) distance squads toward a target; taxes Endurance (rule 132.2e in Battle Rules).
-- **Fall Back**: move up to Speed distance squads away from the nearest enemy Squad; a Squad with Broken Morale moves up to 2 × Speed instead (rule 132.2g in Battle Rules).
+- **Advance**: move up to Speed distance units (rule 132.2b in Battle Rules).
+- **Run**: move up to 2 × Speed distance units; taxes Endurance (rule 132.2d in Battle Rules).
+- **Charge**: move up to floor(1.5 × Speed) distance units toward a target; taxes Endurance (rule 132.2e in Battle Rules).
+- **Fall Back**: move up to Speed distance units away from the nearest enemy Squad; a Squad with Broken Morale moves up to 2 × Speed instead (rule 132.2g in Battle Rules).
 
 Speed also contributes to a Unit's Evasion Rating (see rule 210.7b).
 
@@ -191,7 +191,7 @@ Armour Value is the sum of the Armour Value properties from all Armour Component
 
 #### Example 1: Reading a Statline Component
 **Setup**: A Rifleman Unit's Statline Component contains Endurance 10, Durability 10, Morale 10, Speed 10, Reflex 10.
-**Meaning**: The Unit can sustain moderate exertion, absorb 10 damage before the Combat System marks it as destroyed, has average morale resilience, the Movement System moves it 10 distance squads per Advance, and it has decent reactive capability.
+**Meaning**: The Unit can sustain moderate exertion, absorb 10 damage before the Combat System marks it as destroyed, has average morale resilience, the Movement System moves it 10 distance units per Advance, and it has decent reactive capability.
 
 #### Example 2: Asymmetric Statline Component
 **Setup**: A Maw Fiend Unit's Statline Component contains Endurance 15, Durability 100, Morale 20, Speed 8, Reflex 12.
@@ -263,9 +263,9 @@ The **effective range** is the interval [Short, Long]. The Combat System does no
 
 The intervals (Min, Short) and (Long, Max) are the **penalty ranges**. The Combat System applies a penalty to hit probability for attacks in these intervals.
 
-For melee Attack Profile Components, Range is limited to a Max distance (default 1 distance squad) representing close proximity. Melee profiles have no Min, Short, or Long brackets.
+For melee Attack Profile Components, Range is limited to a Max distance (default 1 distance unit) representing close proximity. Melee profiles have no Min, Short, or Long brackets.
 
-All Range values are integers representing distance squads.
+All Range values are integers representing distance units.
 
 ### 220.6 Armour Component
 
@@ -496,12 +496,12 @@ A Squad may perform at most one Surge Action per Battle unless a rule explicitly
 #### Example 1: Passive Ability Component — Objective Secured
 **Name**: Objective Secured
 **Type**: Passive
-**Effect**: While this Squad is within 3 distance squads of an Objective marker and is not destroyed, the Ability System counts this Squad as controlling that Objective, even if Enemy Squads are also within 3 distance squads — unless those Enemy Squads also have the Objective Secured Ability Component.
+**Effect**: While this Squad is within 3 distance units of an Objective marker and is not destroyed, the Ability System counts this Squad as controlling that Objective, even if Enemy Squads are also within 3 distance units — unless those Enemy Squads also have the Objective Secured Ability Component.
 
 #### Example 2: Passive Ability Component — Forward Positions
 **Name**: Forward Positions
 **Type**: Passive
-**Effect**: During the Deployment Stage, this Squad may be placed up to 6 distance squads beyond the owning Player's Deployment Zone boundary, provided the final position is more than 9 distance squads from any Enemy Unit.
+**Effect**: During the Deployment Stage, this Squad may be placed up to 6 distance units beyond the owning Player's Deployment Zone boundary, provided the final position is more than 9 distance units from any Enemy Unit.
 
 ---
 
@@ -651,7 +651,7 @@ Campaign, tournament, and companion rules may define additional Rosters.
 - **Status Tag**: A marker Component identifying an effect not inherent to an Entity, communicating transient state. (Rule 200.3)
 - **Surge Ability Component**: A special Active Ability Component available only at Surging Morale, activated via Surge Action Order. Resolved by the Ability System. (Rule 250.4)
 - **Surging**: The highest Morale state in the Morale State Component, enabling Surge Actions. (Rule 210.4)
-- **System**: A squad of logic operating on Entities with specific Components. Systems read Component data, perform calculations, and write results back. (Rule 200.4)
+- **System**: A sunit of logic operating on Entities with specific Components. Systems read Component data, perform calculations, and write results back. (Rule 200.4)
 - **Squad**: An Entity of the Squad archetype grouping Unit Entities, providing the collective interface through which Units engage with Zones and other Entities. (Rule 240.1)
 - **Squad Keywords**: Marker Components describing a Squad's battlefield role. (Rule 200.3)
 - **Value Component**: An integer Component on a Squad Entity representing overall strength for armybuilding, Roster validation, and scoring. (Rule 240.6)

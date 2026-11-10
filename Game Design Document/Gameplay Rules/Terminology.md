@@ -16,7 +16,7 @@ Simple War uses an Entity–Component–System architecture. Understanding these
 
 - **Entity**: A unique identifier (ID) in the game world. An Entity has no inherent data or behavior — all of its properties, capabilities, and state are defined by the Components attached to it.
 - **Component**: A data structure attached to an Entity. Components hold state (e.g., a Statline Component holds Endurance, Durability, Morale, Speed, Reflex). An Entity's set of Components determines what it is and how it participates in the game.
-- **System**: A squad of logic that operates on Entities that have a specific set of Components. Systems read Component data, perform calculations, and write results back to Components. For example, the Combat System reads Attack Profile and Statline Components to produce Damage Instances, and the Zone System manages transitions between Zones.
+- **System**: A sunit of logic that operates on Entities that have a specific set of Components. Systems read Component data, perform calculations, and write results back to Components. For example, the Combat System reads Attack Profile and Statline Components to produce Damage Instances, and the Zone System manages transitions between Zones.
 
 An **archetype** is a common combination of Components that defines a category of Entity. Squads, Units, Items, Commanders, Armies, and Battleforces are all archetypes — each has a characteristic set of Components described in the Entity System Rules (section 200–270).
 
@@ -89,7 +89,7 @@ Squads are Entities of the Squad archetype — their Components include a Statli
 ## Statline
 The Statline Component holds the basic Characteristics shared by Units in a Squad: Endurance, Durability, Morale, Speed, and Reflex. These Characteristics are innate to each Unit (see rule 210.1 in Entity System Rules). Units in a Squad may have different values for these; the Combat System operates at the Unit level, using each individual Unit's own Statline values.
 
-The Statline can be modified by Item Components, Ability Components, and rules affecting the Unit or the Unit's Squad. The Statline is used in combination with Tags (marker Components) and Abilities to inform Systems of a Unit's capabilities. An example: a Unit with a Speed of 6 moves 6 distance squads under a standard Advance Order, but if the Unit has access to jet packs, that Speed of 6 is not fully indicative of the Unit's manoeuvrability. Similarly, a Unit with low Endurance but powerful Armour may take a long time to destroy.
+The Statline can be modified by Item Components, Ability Components, and rules affecting the Unit or the Unit's Squad. The Statline is used in combination with Tags (marker Components) and Abilities to inform Systems of a Unit's capabilities. An example: a Unit with a Speed of 6 moves 6 distance units under a standard Advance Order, but if the Unit has access to jet packs, that Speed of 6 is not fully indicative of the Unit's manoeuvrability. Similarly, a Unit with low Endurance but powerful Armour may take a long time to destroy.
 
 ### Endurance
 During an Engagement, Squads take actions which may tax their Endurance. Running for multiple Turns in a row, fighting a prolonged Melee, digging tunnels, and other acts of extreme exertion reduce a Squad's Endurance. When a Squad has no remaining Endurance, that Squad can no longer perform actions that would tax it. Endurance recovers when Squads take actions that do not tax it (see rule 210.2 in Entity System Rules).

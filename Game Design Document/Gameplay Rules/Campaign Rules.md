@@ -336,7 +336,7 @@ If only one Choice is valid, the Player must select that Choice. If no Choices a
 
 ### 824.1 Travel Activity Overview
 
-A Travel Activity represents events that occur during movement between Plots, such as encounters, hazards, or opportsquadies discovered in transit. Travel Activities are optional; a Campaign may use them to enrich the journey between Plots or may omit them entirely.
+A Travel Activity represents events that occur during movement between Plots, such as encounters, hazards, or opportunities discovered in transit. Travel Activities are optional; a Campaign may use them to enrich the journey between Plots or may omit them entirely.
 
 ### 824.2 Travel Events
 

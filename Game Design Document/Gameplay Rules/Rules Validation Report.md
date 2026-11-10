@@ -41,7 +41,7 @@
 **Issue Type**: State Representation
 **Severity**: ERROR
 **Location**: Battle Rules 132.2e, 134.1; Battle Rules Glossary
-**Problem**: Melee is defined in the glossary as "A state in which two or more opposing Squads are within 1 distance squad" but it is also described as something Squads are "placed in" (132.2e). It is unclear whether Melee is: (a) a tag/status applied to Squads when a Charge connects, or (b) a spatial condition re-evaluated each Phase. This distinction matters for: Can a Squad exit Melee by being pushed/repositioned away? Is Melee a zone?
+**Problem**: Melee is defined in the glossary as "A state in which two or more opposing Squads are within 1 distance unit" but it is also described as something Squads are "placed in" (132.2e). It is unclear whether Melee is: (a) a tag/status applied to Squads when a Charge connects, or (b) a spatial condition re-evaluated each Phase. This distinction matters for: Can a Squad exit Melee by being pushed/repositioned away? Is Melee a zone?
 **Failing Text**: > "the charging Squad and the target Squad are both placed in Melee"
 **Recommendation**: Define Melee explicitly as a tracked state (tag) applied when a Charge makes contact or when Squads begin a Turn within 1 DU. Specify when the Melee tag is removed (e.g., when one Squad Falls Back, when one Squad is destroyed, when separation exceeds 1 DU at the start of a Phase).
 
@@ -132,7 +132,7 @@
 **Issue Type**: Determinism & Computability
 **Severity**: WARNING
 **Location**: Movement Rules 300.3
-**Problem**: Euclidean distance uses square roots, producing irrational numbers. Threshold comparisons ("within 3 distance squads") require floating-point comparison (e.g., √8 ≈ 2.8284...). Floating-point equality is error-prone.
+**Problem**: Euclidean distance uses square roots, producing irrational numbers. Threshold comparisons ("within 3 distance units") require floating-point comparison (e.g., √8 ≈ 2.8284...). Floating-point equality is error-prone.
 **Recommendation**: Specify an epsilon tolerance (e.g., 0.001 DU) for all distance comparisons, or compare squared distances where possible to avoid square roots.
 
 ---

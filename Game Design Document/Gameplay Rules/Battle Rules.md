@@ -273,7 +273,7 @@ The Squad moves up to a distance equal to twice the Squad's Speed value toward a
 
 #### 132.2e Charge
 
-The Squad moves up to a distance equal to 1.5 times the Squad's Speed value (rounded down to the nearest whole number) toward a designated enemy Squad. If the charging Squad's final position is within 1 distance squad of the target Squad, the charging Squad and the target Squad are both placed in Melee. Charging taxes Endurance by 1. A Squad with Broken Morale may not Charge.
+The Squad moves up to a distance equal to 1.5 times the Squad's Speed value (rounded down to the nearest whole number) toward a designated enemy Squad. If the charging Squad's final position is within 1 distance unit of the target Squad, the charging Squad and the target Squad are both placed in Melee. Charging taxes Endurance by 1. A Squad with Broken Morale may not Charge.
 
 #### 132.2f Dig In
 
@@ -365,7 +365,7 @@ All movement from Orders and Reactions resolves simultaneously. The Movement Sys
 4. The Movement System moves all remaining Squads toward their intended destinations simultaneously.
 5. If two or more Squads from opposing Players would occupy overlapping positions:
    a. If one or both Squads issued a Charge Order targeting the other, both Squads are placed in Melee at the point of contact.
-   b. Otherwise, the Movement System stops each Squad at the closest valid position before the overlap, maintaining a minimum separation of 1 distance squad.
+   b. Otherwise, the Movement System stops each Squad at the closest valid position before the overlap, maintaining a minimum separation of 1 distance unit.
 6. The Movement System writes updated PositionComponents for all Squads on the Battlefield.
 
 Movement does not provoke attacks by default. If a rule grants a Squad the ability to make attacks against Squads that move through a specified area (e.g., Overwatch), those attacks resolve during step 4 before final positions are set.
@@ -394,7 +394,7 @@ All attacks from Orders and Reactions resolve simultaneously. The Combat System 
 
 During the Resolve Combat Phase, the Battle System processes the aftermath of the Execute Phase by delegating to the Combat System, Morale System, and Zone System. The following steps resolve in order:
 
-1. **Melee Resolution**: Squads in Melee that have not yet attacked this Turn exchange attacks simultaneously using melee Attack Profile Components. The Combat System applies the same Attack and Defense Pipeline process as rule 133.5, limited to melee Attack Profile Components and restricted to Units within 1 distance squad of an opposing Unit.
+1. **Melee Resolution**: Squads in Melee that have not yet attacked this Turn exchange attacks simultaneously using melee Attack Profile Components. The Combat System applies the same Attack and Defense Pipeline process as rule 133.5, limited to melee Attack Profile Components and restricted to Units within 1 distance unit of an opposing Unit.
 2. **Morale Tests**: Each Squad that suffered one or more casualties this Turn makes a Morale Test. The Morale System compares the number of casualties taken to the Squad's Morale Characteristic (from the Statline Component). If casualties exceed the Morale Characteristic, the Morale System worsens the Squad's Morale State Component by one stage. If casualties are fewer than or equal to the Morale Characteristic, the Morale System improves the Morale State Component by one stage (maximum Good; Surging is only reached through Surge triggers defined in the Squad's Ability Components).
 3. **Destruction Processing**: For each Squad that was destroyed this Turn, confirm the Squad's Zone Component is set to Casualty Report and the Battle System records the Turn number and cause of destruction in the Battle Entity's CasualtyReportComponent.
 4. **Battle End Check**: Evaluate all Battle End Conditions (rule 150.1). If any condition is met, the Engagement Stage ends and the Battle proceeds to the Consolidation Stage. Otherwise, the current Turn ends and the next Turn begins.
@@ -508,7 +508,7 @@ This guarantees that no Player gains an advantage from resolution order. Every P
 - **Fall Back**: An Order type. The Movement System moves the Squad away from the nearest enemy Squad. (Rule 132.2g)
 - **Hold**: An Order type and the default Order. The Squad maintains position; the Combat System may resolve attacks. (Rule 132.2a)
 - **Issue Orders Phase**: The second Phase of a Turn. Players secretly assign Orders, stored in the Battle Entity's OrderQueueComponent. (Rule 132.1)
-- **Melee**: A state in which two or more opposing Squads are within 1 distance squad and the Combat System resolves melee Attack Profile Components. (Rule 132.2e, 134.1)
+- **Melee**: A state in which two or more opposing Squads are within 1 distance unit and the Combat System resolves melee Attack Profile Components. (Rule 132.2e, 134.1)
 - **Order**: A hidden instruction assigned to a Squad during the Issue Orders Phase, stored in the OrderQueueComponent, specifying the Squad's action for the Turn. (Rule 132.1)
 - **OrderQueueComponent**: A data Component on the Battle Entity mapping Squad IDs to Order structs, hidden per Player until the Execute Phase. (Rule 100.1, 132.1)
 - **Phase**: A sub-part of a Turn. The Battle System advances Phases in fixed sequence: Rally, Issue Orders, Execute, Resolve Combat. (Rule 130.3)

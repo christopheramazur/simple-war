@@ -137,7 +137,7 @@
 **Severity**: ERROR
 **Issue**: The Lawmakers General Overview contains a truncated sentence: "lost touch with ." — the object of "with" is missing.
 **Impact**: The document is incomplete and cannot be validated.
-**Recommendation**: The original author should complete the sentence. Context suggests something like "lost touch with their individuality" or "lost touch with the broader Gardener commsquady" based on the surrounding text about isolating routine and mandatory training.
+**Recommendation**: The original author should complete the sentence. Context suggests something like "lost touch with their individuality" or "lost touch with the broader Gardener community" based on the surrounding text about isolating routine and mandatory training.
 **Follow-up**: File as a separate bead.
 
 ### WARNINGS
