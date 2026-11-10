@@ -159,3 +159,22 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - R7Q17 Yes: criteria library, state-conditioned weight schedules, masks, full lineage recorded.
 - R7Q18 No fixed match-count target. First build a solid API, metric library and test scenarios, then BENCHMARK what this machine achieves; optimise if low. The real throughput target is HOW QUICKLY SCORING GAINS ARE ACHIEVED (measures both run speed and metric nuance). DuckDB storage and the go-native escalation stand, used only after optimisations and scoring tweaks run out.
 - R7Q19 Yes: shipped AIs are curated factory outputs labelled by difficulty and feel, separate sets per ruleset, deterministic, lineage recorded.
+
+## Settled (Round 8)
+- R8Q1 Yes: universal Sight + line of sight drives fog; Detection is the extra layer that reveals concealed squads.
+- R8Q2 Yes (toggles are planning orders, act at execute start, hidden from opponents) BUT auto-off triggers when Reflex reaches Broken (or another data-defined default band), not 0. Players can configure auto-off behaviour and defaults, e.g. after X turns, when Reflex falls below X.
+- R8Q3 Yes: winners rejoin their Commander's army. A dropped-off battleforce becomes a CONVOY (like production supply lines) and can be rallied to the Commander along with any spoils. Uses the end-of-battle hook mechanism.
+- R8Q4 Yes: hex sight sources, shared allied vision, last-seen memory for explored hexes, battle-hex contents hidden without sight.
+- R8Q5 Yes (snapshot at pulse boundary, per-turn autosave, SP saves during planning, ironman/challenge autosave only, resumable MP saves, replays = snapshot + inputs) PLUS saves keep the input/telemetry log alongside the snapshot, as replays do, so a save state can be rebuilt by re-simulation without relying on the snapshot alone (e.g. partially corrupt save).
+- R8Q6 Order: (1) sim core → (2) Game API + headless Duel battle scenario → (4) minimum presentation to watch replays → (6) Angelfall overworld + battles → (3) metric library + harness runs → (5) first AI factory loop. At some point the campaign editor that lets us build out Angelfall is also needed.
+- R8Q7 Yes: authoring tools as Godot editor plugins/data tools first; in-game player editor later on the same data formats and validators.
+- R8Q8 Yes: opt-in anonymous telemetry (disconnect causes, match length, crashes, performance; never chat or personal data) to the free-tier serverless service; unrated competitive queue with recorded results until data justifies a rating model.
+- R8Q9 Yes: Windows on Steam primary, Steam Deck design target, native Linux later; no Mac/console. Mobile is a poor fit (clicking, window management); a mobile version, if ever, would centre on the autobattle portions.
+- R8Q10 Yes (translation keys from day one, English at launch; scalable UI/text, colour-blind-safe palettes, never colour alone, untimed option) PLUS every individual HUD/UI portion is configurable, as are all input methods and mappings.
+- R8Q11 Audio, art direction and UI aesthetics each need a major dedicated pass. The audio layer works like presentation: it checks what it should be doing; nothing below it cares what it does.
+- R8Q12 Yes: archive old data/defaults JSON to History/; rebuild defaults from the new schema (Humanity Duel roster + Angelfall, archetype templates). (A stray "12)" followed the answers; treated as no change.)
+- R8Q13 Yes: remove gecs; keep dialogic, gut, guide; evaluate godot-rts-entity-controller for selection/command UI ideas, remove if unused; update AGENTS.md addon row.
+- R8Q14 Yes: GDD rewrite = Vision & Pillars, Rules Spec, Data Model, Systems Architecture, Harness & AI Factory, Narrative Bible, Glossary (tooltip term source), Decision Log; old docs to History/.
+- R8Q15 Yes: bd epic per system, milestone tasks per the R8Q6 order, tasks labelled with the decision IDs they implement.
+- R8Q16 Yes: each deferred topic (timeline, effect language, narrative/audio/art/UI aesthetics, AI factory wave, Legend deep dive, commander duels) becomes its own interview task after the GDD rewrite; effect language first.
+- R8Q17 Yes: one-screen summary next, then the user's go-ahead before anything is built or rewritten.
