@@ -107,6 +107,26 @@ func execute_finished() -> void:
 	_enter(Phase.INTERMISSION)
 
 
+func snapshot() -> Dictionary:
+	return {
+		"phase": phase, "turn": turn, "elapsed": elapsed_ms, "players": _players.duplicate(),
+		"battles": _battles.duplicate(), "reserve": _reserve.duplicate(),
+		"ready": _ready_at.duplicate(), "intermission_deadline": _intermission_deadline,
+	}
+
+
+## Restores clock state without emitting signals.
+func restore(snap: Dictionary) -> void:
+	phase = snap["phase"]
+	turn = snap["turn"]
+	elapsed_ms = snap["elapsed"]
+	_players.assign(snap["players"])
+	_battles = (snap["battles"] as Dictionary).duplicate()
+	_reserve = (snap["reserve"] as Dictionary).duplicate()
+	_ready_at = (snap["ready"] as Dictionary).duplicate()
+	_intermission_deadline = snap["intermission_deadline"]
+
+
 ## Time the player has left in the current phase, or -1 when untimed.
 func remaining_ms(player_id: int) -> int:
 	var limit := _player_limit(player_id)
