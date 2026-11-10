@@ -178,3 +178,6 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - R8Q15 Yes: bd epic per system, milestone tasks per the R8Q6 order, tasks labelled with the decision IDs they implement.
 - R8Q16 Yes: each deferred topic (timeline, effect language, narrative/audio/art/UI aesthetics, AI factory wave, Legend deep dive, commander duels) becomes its own interview task after the GDD rewrite; effect language first.
 - R8Q17 Yes: one-screen summary next, then the user's go-ahead before anything is built or rewritten.
+
+## Post-interview corrections
+- 2026-11-10 (corrects R6Q10 / R7Q5): zone vacuum applies ONLY when the zone's influence is at or above the capture threshold. Example from the designer: a CR10 squad contested by a CR1 squad nets 9: 9, then 18 the turn after, then decay 10 to 8 and fill back to 17, etc.

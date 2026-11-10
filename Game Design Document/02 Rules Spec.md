@@ -75,7 +75,7 @@ Data-driven behaviour hooks decide what happens to each side's remaining forces.
 - **Value:** gained by destroying enemy Value.
 
 ### Zone resolution (each turn, each zone)
-1. **Vacuum:** the zone's current influence sinks by its decay (default 10).
+1. **Vacuum:** if the zone's influence is at or above the capture threshold, it sinks by its decay (default 10). Below the threshold there is no vacuum (correction to R7Q5, 2026-11-10). Example: a CR-10 squad contested by a CR-1 squad nets 9 a turn: 9, then 18 (captured), then 18 − 10 + 9 = 17, and so on.
 2. **Capture Rate:** each faction's **Capture Rate (CR)** is summed over its squads that *end* the turn in the zone, with squad, faction, zone, commander and tag modifiers applied. Human infantry has CR 10 by default. Some units have CR 0, such as the planetary AI's robots in Angelfall (R7Q7).
 3. **Net push:** the strongest faction pushes influence toward itself by its CR minus the strongest opposing CR.
 4. **Capture:** a zone is captured when influence reaches the threshold (default 10) for a faction.

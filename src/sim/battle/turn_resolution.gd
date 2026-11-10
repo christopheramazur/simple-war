@@ -11,13 +11,18 @@ static func resolve(state: BattleState) -> void:
 	check_victory(state)
 
 
-## Per zone: vacuum -> faction Capture Rate -> net push -> capture -> score.
+## Per zone: vacuum (only at/above threshold) -> faction Capture Rate ->
+## net push -> capture -> score.
 static func resolve_zones(state: BattleState) -> void:
 	var r := state.rules
 	var sq := state.squads
 	for z in r.zone_ids.size():
 		var owner := state.zone_owner[z]
-		var amount := maxi(state.zone_amount[z] - r.zn_decay[z], 0)
+		var amount := state.zone_amount[z]
+		# Vacuum applies only while the zone is at or above its threshold
+		# (designer correction after R7Q5).
+		if amount >= r.zn_threshold[z]:
+			amount = maxi(amount - r.zn_decay[z], 0)
 		if amount == 0:
 			owner = 0
 		# Capture Rate per player from squads ending the turn in the zone.

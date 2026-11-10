@@ -184,3 +184,21 @@ func test_reaction_triggers_on_contact() -> void:
 	assert_eq(triggered, 1)
 	assert_true(s.ledger.has("%d|%d|reacted_to" % [a, BattleSquads.PROWESS]), "provoker floats Prowess")
 	assert_true(s.ledger.has("%d|%d|reaction" % [b, BattleSquads.INSTINCT]), "reactor pays Instinct")
+
+
+func test_vacuum_only_at_or_above_threshold() -> void:
+	# The designer's example: CR 10 contested by CR 1 nets 9 a turn.
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var r := BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
+	r.sq_cr[r.squad_index("heavy_weapons_team")] = 1
+	var s := BattleState.new(1, r, 1)
+	var z := Array(r.zone_ids).find("centre")
+	for p in [[1, "rifle_squad"], [2, "heavy_weapons_team"]]:
+		BattleSetup.spawn_squad(s, p[0], r.squad_index(p[1]), r.zn_x[z], r.zn_y[z], 0)
+	Centroids.update(s)
+	var amounts := []
+	for _t in 5:
+		TurnResolution.resolve_zones(s)
+		amounts.append(s.zone_amount[z])
+	assert_eq(amounts, [9, 18, 17, 16, 15])
+	assert_eq(s.zone_owner[z], 1)
