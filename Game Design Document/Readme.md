@@ -1,29 +1,30 @@
-# Game Design Document
+# Simple War: Game Design Document
 
-## Where to start
+This is the authority on game design. It was rewritten after the design interview (bd `sw-d46`). Every rule carries the decision ID that settled it, for example `R7Q4` (round 7, question 4), so you can trace it back to [the decision log](Interview/decision-log.md).
 
-**Single source of direction: `Overview/Design-Overview.md`** — the consolidated design for what Simple War is, its architecture (layers + ECS + non-negotiables), the turn/timer model, combat contracts, the data model, the audit/event contract, user experience, and the **Tight Scope Digital Prototype** (scope, build order, and acceptance criteria). Read this first; it superseded the source documents it consolidates.
+| # | Document | What it holds |
+|---|---|---|
+| 1 | [Vision and Pillars](01%20Vision%20and%20Pillars.md) | What the game is, who it is for, the pillars, modes, platforms, business model |
+| 2 | [Rules Spec](02%20Rules%20Spec.md) | The simulation's rules: turns, battles, combat, SIMPL pressure, overworld, scoring. Authoritative over the code |
+| 3 | [Data Model](03%20Data%20Model.md) | Content schemas, archetype templates, unit and squad stat lists, mod packages |
+| 4 | [Systems Architecture](04%20Systems%20Architecture.md) | State stores, systems, event queues and the pulse bus, the Game API, networking, saves |
+| 5 | [Harness and AI Factory](05%20Harness%20and%20AI%20Factory.md) | Headless runs, metrics, replays, Pressure Lab, controller profiles, evolution |
+| 6 | [Narrative Bible](06%20Narrative%20Bible.md) | Setting, magic, factions, the Angelfall tutorial, story scope |
+| 7 | [Glossary](07%20Glossary.md) | Defined terms. The source of in-game hoverable term tooltips |
+| 8 | [Decision Log](Interview/decision-log.md) | Append-only interview record; [research notes](Interview/research-notes.md) beside it |
 
-## Folder map
+## Precedence
+1. The decision log records what the designer decided. If a document contradicts it, the document is wrong: fix the document.
+2. Documents 1–7 are the readable, consolidated form. Code follows the Rules Spec and Data Model.
+3. `History/` holds the pre-interview GDD and the old `data/defaults` JSON. It is reference only. Where it conflicts with the documents above, it is superseded. Known issues in it: the old tabletop framing (statlines, dice, Baseline Competence), the "~50 Ma" Humanity date in the Timeline (R2Q9), the Second Magic and Ruin definitions in the zone table (R1Q15), and many places where "Squad" still stands for what is now a Unit (model).
 
-| Folder | What it is |
-|---|---|
-| `Overview/` | **Direction.** `Design-Overview.md` (consolidated single doc). `Main Concepts.md` is a source doc, superseded by `Design-Overview.md`, retained for history. |
-| `About/` | Project framing (`Introduction.md`): positioning, the digital-first pivot. |
-| `Foundation/` | **Source design docs, superseded by `Overview/Design-Overview.md` on 2026-10-29**, retained for provenance: `Foundation.md` (design), `Framework-Requirements.md` (confirmed v1 implementation spec), `campaign_sector_gecs_architecture.md` (GECS campaign/sector runtime architecture + migration map). |
-| `Gameplay Rules/` | **Formal rules, authoritative over the Overview for the rule itself.** Battle Rules (100.x), Entity System Rules (200.x), Movement & Positioning Rules (300.x), Campaign Rules (800.x), `Terminology.md`, `Combat Resolution Brainstorming.md`, plus validation reports. v1 implements a *subset* of these rules (see `Design-Overview.md` §12). |
-| `Narrative Elements/` | Story context: factions (`Gardeners/`, `Kraken/`), `Overarching Narrative.md`, `Timeline.md`. |
-| `Useful Examples/` | Reference material: `Repositories.md`, `Scene_Routing_Spike.md`, `Tooling and Foundation Plan.md`, `Tooling Suitability Matrix.md`. |
+## Open topics (each gets its own interview, R8Q16)
+In order:
+1. **Effect language**: a Path of Exile study. Abilities, statuses and Ruin effects all depend on it (R3Q9).
+2. **Timeline** grilling (R2Q9).
+3. **Narrative pass**, with art direction, audio and UI aesthetics (R4Q22, R8Q11).
+4. **AI factory wave**: the rest of the testing framework (R4Q16, R6Q24).
+5. **Legend deep dive** (R2Q7, R5Q6).
+6. **Commander duels** (R7Q2).
 
-## How the documents relate (priority)
-
-1. **`Overview/Design-Overview.md`** — design direction, architecture, v1 scope.
-2. **`Gameplay Rules/*`** — formal rule definitions. When a rule and the Overview disagree, the rule document is authoritative for that rule; fix the Overview.
-3. **`docs/godot-skill-distillation.md`** — how to build engine code in this repo (architecture rules, never-lists, skill module reading map).
-
-## Maintenance
-
-- New design decisions: write them into `Design-Overview.md` first, then propagate to the relevant `Gameplay Rules/` doc (and `docs/godot-skill-distillation.md` if it changes implementation rules).
-- Keep rule references (e.g. "see rule 850.1 in Campaign Rules") pointing at rules that actually exist in the target document.
-- The v1 definition of done is the **Tight Scope acceptance criteria** in `Design-Overview.md` §12; any scope change requires updating that section and the build order.
-- Superseded source docs live in `Foundation/` — do not edit them for ongoing work; they are history.
+Explicitly later: Morale contagion and battle-event inputs (R5Q3), deeper economy (R5Q11), Lua scripting mods (R6Q25), the in-game player editor (R8Q7), rating models (R7Q10), Dawn of War-style weapon × armour types (R3Q6), wargear logistics (R3Q7).

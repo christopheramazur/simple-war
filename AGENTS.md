@@ -17,12 +17,12 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 ## 3. Where things live
 | Path | What it is |
 |---|---|
-| `Game Design Document/` | The **GDD**: the authority on game design. |
+| `Game Design Document/` | The **GDD**: the authority on game design. Start at its `README.md` (eight documents; `History/` is superseded reference). |
 | `GD-Agentic-Skills/godot-skill-distillation.md` | **Godot rules for this project.** Read §1 (architecture), §10 (NEVER list), §14 (top 10) before writing engine code; §12 routes you to skill modules. |
 | `GD-Agentic-Skills/skills/godot-*/` | Skill modules (`SKILL.md`, `references/`, `scripts/`). Load **only** the module §12 names, never all of them. |
-| `data/defaults/*.json` | The data model: Attacks, Campaigns, Scenarios, Sector_Maps, Squads, Units. Gameplay data lives here, not in scenes. |
+| `data/` | Content packages (official content uses the mod package format). Schema: GDD `03 Data Model.md`. Gameplay data lives here, not in scenes. The old `data/defaults` JSON is archived in `Game Design Document/History/data/`. |
 | `src/` | Game code (`.gd` + `.tscn`). |
-| `addons/` | `gecs` (ECS), `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller`, `guide`. Update this row when adding or removing addons. |
+| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller` (under evaluation for UI ideas), `guide`. Update this row when adding or removing addons. |
 | `harness/` | Agent harness: the `hx` CLI, telemetry ledger, benchmarks. See `harness/README.md`; decisions and reasons are in `harness/DESIGN.md`. |
 | `.agents/skills/` | Client-agnostic agent skills (e.g. `beads`). |
 
@@ -34,7 +34,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | Game design / how the game works | GDD | Engine skill scripts |
 | Architecture rules / never-dos | `dist` §1, §10, §14 | Reading whole skill modules |
 | Build a system / feature | `dist` §12 → the one named module; GDD for the rules | Absolute `$`/`get_node` paths; UI holding state |
-| Author content (squads, units, attacks, campaigns, maps) | `data/defaults/*.json` | Data in the scene tree |
+| Author content (squads, units, attacks, campaigns, maps) | GDD `03 Data Model.md`, then `data/` | Data in the scene tree |
 | UI / combat window / tabs / minimap | `dist` §4 | Wiring buttons straight to gameplay; `STOP` on transparent containers |
 | Multiplayer / ranked | `dist` §6 + `multiplayer-networking`, `server-architecture` | Trusting the client; JSON on the wire |
 | Save / load | `dist` §7 + `save-load-systems` | Saving whole `Node`s; JSON for typed data |

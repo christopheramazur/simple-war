@@ -1,0 +1,270 @@
+# 2. Rules Spec
+
+The simulation's rules. This document is authoritative over the code: if they disagree, either the code is a bug or this document needs a decision-log entry. Numbers given here are **starting defaults held in data**, not constants (R5Q3, R6Q6).
+
+## 2.1 Foundations
+- **Determinism** (R1Q7): the same inputs plus the same seed give the same result on every machine. Sim state uses fixed-point integers with **FPDR (Fixed Point Defined Rounding)** (R4Q8). There are no floats in the simulation.
+- **No hidden randomness** (R2Q6): chance is replaced by modifiers and deterministic accumulators ("every Nth hit is a crit", R5Q5). Seeds exist only for content generation (map templates).
+- **Space** (R2Q5): battles use continuous fixed-point space. The overworld is a hex grid; each hex is a **plot** (R3Q22).
+- **Simulation scale** (R1Q9): every model (**Unit**) is simulated. The **Squad** is the command unit. Unit data overrides squad defaults.
+- **Transparency** (R1Q3, R3Q10): every calculation exposes its terms for context-aware tooltips. The displayed number is the used number.
+
+## 2.2 The turn and the pulse
+### Clock
+- By default, the overworld and every battle share one **pulse**: one overworld turn equals one turn in each battle (R2Q3). Independent clocks are a configurable option (R2Q3).
+- The turn and timing system is isolated, so the overworld and battles can run separately or together (R2Q1).
+
+### Turn sequence
+1. **Planning** (R3Q1, R4Q3): about 60 s by default, with a reserve top-up. Players issue orders in every context they're in.
+   - The server forecasts interactions continuously as orders are drafted and keeps a reaction dictionary. Forecasts show *Vacuum* (pending sinks) and intent ghosts (R4Q3, R6Q2).
+   - **Parallel-battle bonus** (R4Q2): being in more battles adds planning time, asymptotically: +10 s for the 2nd battle, a little less for each one after, reaching +60 s total at 10 battles, then +1 s per extra battle.
+2. **Ready / timeout:** final validation of all orders (R4Q3).
+3. **Reveal and reaction window** (R2Q4, R3Q4): the sim pauses after reveal, and players scan all battles and issue reactions.
+   - **What a reaction is:** a restricted order, triggered by interactions that the revealed orders create (for example, A and B come into range). It costs the squad and/or the commander.
+   - **Limits:** there is one reaction timing and no counter-reactions, except niche abilities.
+   - **UI:** a radial popup on reactable squads, plus a scrollable reaction queue.
+   - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
+   - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions exist only as upgrades or unit abilities (R2Q4).
+4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed, and while watching, the overworld is locked. Ranked may skip straight to results (R3Q2).
+5. **Turn summary:** a brief per-turn change summary (R3Q2). After Intermission it collapses to a menu icon, and every past summary stays browsable (R4Q1).
+6. **Intermission** (R4Q1): its own step, without touching reserve. Capped at 30 s (10 s ranked); when at least 50% of players are ready, it drops to 3 s. Legend consequence choices are offered here (R6Q4).
+
+### Cross-context changes
+Cross-context changes (reinforcements, transfers, battle results) apply at fixed pulse points in canonical order (R7Q12, R7Q13).
+
+## 2.3 Commanders, armies and battleforces
+- **Commanders** (R3Q3, R1Q10): commanders anchor armies and have abilities, though not every ability category and not all usable on the battlefield. Reactions are tied to the commander. The player has a self-insert commander, but campaigns may cast them as others.
+- **Armies grow** across a campaign, and a story may carry an army into the next one (R2Q1).
+- **Battleforce** (R2Q1): the share of an army that fights in a given battle. Battleforce caps come from campaign or battle rules. Auto-fill defaults to "strongest until the cap", with archetype presets that sort on squad features, and player presets that persist.
+- **Staying or dropping off** (R2Q1, R5Q9):
+  - **Staying:** the commander stays in the battle, giving commander bonuses and reinforcements from the rest of the army. The *army's* presence is what enables reinforcements (R3Q3).
+  - **Dropping off:** the commander drops the battleforce off and leaves. They can leave at the start of any turn while the commander squad isn't deployed. Leaving frees overworld movement.
+  - **Garrisons:** drop-off covers every case where forces are needed but oversight isn't, including neutral garrisons that cause battles (R5Q9).
+- **Story-essential commanders** (R2Q13): they revive only on easy; otherwise their death fails the mission.
+- **Friendly commanders** sharing a hex trade squads and items freely during planning (R7Q9).
+
+## 2.4 Battles
+### Start and duration
+- Battles begin at the start of a turn (R2Q1).
+- A typical battle is about 8 turns:
+  - T1: scouting and positioning.
+  - T2: first casualties.
+  - T3–5: main engagement and reinforcements.
+  - T6: the victor emerges.
+  - T7+: rout and scoring.
+- A hard cap on simultaneous battles is found empirically through performance testing (R2Q1).
+
+### Victory conditions (R7Q6)
+These are data. The starting set:
+- **Annihilation:** a side has no squads on the field and none in reinforcement.
+- **Turn limit:** the scenario sets it (default 10). The primary score decides the winner, and the secondary score breaks ties.
+- **Score target:** reaching a set number of Victory Points wins immediately.
+- **Withdrawal:** a commander leaves with the whole battleforce.
+
+### End-of-battle hooks (R7Q6, R8Q3)
+Data-driven behaviour hooks decide what happens to each side's remaining forces.
+- **Losers:** for now, the only hook is **scatter permanently**. Future hooks:
+  - become re-recruitable at production features
+  - rejoin a re-hired commander
+  - become scattered overworld battleforces
+- **Winners:** they rejoin their commander's army. A dropped-off battleforce becomes a **convoy** that can be rallied to the commander along with any spoils.
+
+## 2.5 Scoring: Influence and Value (R6Q10, R7Q5)
+- **Primary and tiebreaker:** each scenario picks one of two scoring options as primary; the other breaks ties. A weighted combination may come later.
+- **Influence:** gained by squads fulfilling objectives, mainly by holding **zones**.
+- **Value:** gained by destroying enemy Value.
+
+### Zone resolution (each turn, each zone)
+1. **Vacuum:** the zone's current influence sinks by its decay (default 10).
+2. **Capture Rate:** each faction's **Capture Rate (CR)** is summed over its squads that *end* the turn in the zone, with squad, faction, zone, commander and tag modifiers applied. Human infantry has CR 10 by default. Some units have CR 0, such as the planetary AI's robots in Angelfall (R7Q7).
+3. **Net push:** the strongest faction pushes influence toward itself by its CR minus the strongest opposing CR.
+4. **Capture:** a zone is captured when influence reaches the threshold (default 10) for a faction.
+5. **Buffer:** the holder's influence can fill above the threshold up to a buffer (default 10). The buffer must be eroded before a contest can flip the zone, so a CR-1 squad can't contest a CR-10 squad forever through the drain.
+6. **Scoring:** every captured zone scores Victory Points that turn. You score the turn you capture. A zone stays held after you leave until decay or a rival erodes it.
+
+Decay, threshold and buffer are zone data.
+
+## 2.6 Combat
+### Accuracy (R3Q7, R4Q9)
+Accuracy is the product of four factors: unit, weapon, activity and enemy state or abilities. Examples:
+- Moving full-auto fire lands more hits, at worse accuracy, than stationary aimed bursts.
+- A point-blank ambush on an unaware target is best.
+- Robotic vector calculators ignore their own movement.
+- A Lawbringer in a Ruined zone is unfamiliar with their fallback sidearm.
+- Intangible targets ignore mundane bullets.
+
+Crits are deterministic "every Nth hit" accumulators (R5Q5). There are no generic +1 upgrades. Gear is per unit: five plasma rifles from a cache arm five units (R3Q7).
+
+### Weapons (R6Q8)
+- Each fire mode has its own stats.
+- Reload cycles are modelled.
+- Ammunition exists only for consumables.
+- Simple drop-in damage and simple area-of-effect, StarCraft II / Warcraft III style (R3Q6).
+
+### Damage and defence order (R7Q1)
+Each hit passes through the target's **Defensive Profile** (R5Q7) in this order:
+1. **Evasion:** avoid the hit.
+2. **Block:** a percentage chance to block a percentage amount, Path of Exile style.
+3. **Resistance:** per damage type.
+4. **Flat** reduction.
+5. **Percentage** reduction.
+6. **Floor:** a minimum damage per damage type, as data. It defaults to 0, so immunity is allowed.
+7. **Temporary HP:** wards and shields soak first.
+8. **Hit Points.**
+9. **Absorption:** Diablo 2 style. After taking damage of a type, a flat or percentage amount of it is restored as health.
+
+### Defined conditions
+Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
+- The tooltip shows "(5 HP)" on a 10 HP unit and "(Any Hit)" on a 1 HP unit.
+- A +25% *base* HP buff counts towards the threshold; +25% *temporary* HP does not.
+- "Sturdy" doubles the threshold, and the tooltip shows it in green as beneficially modified.
+
+### Other combat rules
+- **Terrain, line of sight, cover** (R3Q8): these apply. Movement types use feature cost tables (R6Q8).
+- **Readying** (R7Q3): a data-driven behaviour in which a squad needs some time before a separate behaviour becomes available, like a siege-mode transformation or building ammunition. While readying, a squad can create Prowess Vacuum, as data. Interrupting a readying squad floats the interrupter's Prowess.
+- **Scavenging** (R3Q7): free for now. Survivors pick up squad upgrades, and limited upgrades are re-equipped up to the maximum on the turn after casualties (R4Q10).
+
+## 2.7 Vision, Detection and Concealment
+- **Sight** (R8Q1): every squad has a sight radius, limited by line of sight. Sight reveals normal enemies and lifts the fog of war.
+- **Detection and Concealment** (R7Q4) are *abilities* some squads have, natively or through abilities or equipment. They are not universal stats.
+  - **Detection:** reveals concealed squads within its radius. Its source defines the radius and how Instinct affects it.
+  - **Concealment:** its source defines how terrain traits, activities and Instinct affect it.
+  - **Cost:** an active Detection or Concealment sinks Instinct. A source that costs 0 is on by default.
+  - **Toggling** (R8Q2): toggling is a planning order. It takes effect at execute start and is hidden from opponents, who only see its effects.
+  - **Auto-off** (R8Q2): when Instinct reaches Broken, or another data-defined band, the effect breaks. Players can configure auto-off rules, such as "after X turns" or "when Instinct is below X".
+- **Ambush:** an attack begun while the target hasn't detected the attacker (R6Q1).
+- **Intercept:** a charge against an enemy squad that is itself charging one of yours (R6Q1).
+- **Information hiding:** disguise, hallucination and cloak abilities plug into this system (R2Q18).
+
+## 2.8 SIMPL pressure systems
+Five squad-level pressure systems (R5Q2, R5Q8):
+- **S**tamina (formerly Endurance)
+- **I**nstinct (formerly Reflex)
+- **M**orale
+- **P**rowess
+- **L**egend
+
+### The shared contract (R4Q4, R5Q1)
+- **Pool:** each system is a pool with a capacity. Its percentage maps to five bands:
+
+| Band | Range |
+|---|---|
+| Surging | 90–100% |
+| Primed | 65–89% |
+| Neutral | 40–64% |
+| Fraying | 15–39% |
+| Broken | below 15% |
+
+- **Verbs** (R6Q2): actions and events **Float** a pool (add pressure) or **Sink** it (create vacuum). A pending sink shown in a forecast is **Vacuum**. Crossing into the top band is a **Surge**; crossing into the bottom band is a **Break**.
+- **Drift:** every system starts at Neutral and drifts toward it at its own rate.
+- **Parameters:** each squad's pools have a starting value, a neutral value, a drift rate and a sensitivity profile (R5Q8). Everything is parameterised for the Pressure Lab (R5Q3, R6Q6).
+- **No direct band multipliers** (R5Q4): effects come from composition. If high Instinct raises a squad's accuracy, that squad's data says so. Sensitivity profiles and band traits are content paths.
+- **Leaders** (R5Q2, R6Q5): when a surge benefit needs an individual, the squad's unit tagged `leader` uses it. The tag is validated at squad instantiation. When a squad has no leader, it falls back to the highest-proficiency unit, then the lowest ID.
+- **Ledger** (R6Q3): all pressure flows are source-tagged into a per-battle ledger, which consequence selection and analytics read.
+
+### Morale: the governor (R4Q4, R5Q1, R5Q3)
+- **Generation:** mainly a base rate. Not every commander feeds Morale. Holding objectives is a source for some squads, not universally.
+- **No direct damage link:** Morale isn't tied to damage, losses or being attacked, to avoid perverse incentives. Combat affects it only at second order.
+- **The only channel between systems:** on a fixed tick interval during Execute, Morale pays into below-Neutral systems, weighted by capacity × deficit. It leeches from above-Neutral systems.
+- **Broken Morale:** it leeches pressure from the other systems, so capability degrades according to each squad's strengths and weaknesses. There are no arbitrary failed charges or ignored orders.
+- **Later:** contagion and battle-event inputs (R5Q3).
+
+### Stamina (R3Q7, R4Q5)
+- **Sinks:** high exertion such as sprinting, sustained running, climbing, building and digging. Stamina can also take damage directly.
+- **Effect:** at Neutral, a squad runs at 100% speed and efficacy. Vacuum proportionally reduces the run bonus and dig, climb and build speeds.
+- **Recovery:** below Neutral, Stamina receives proportionally more of Morale's distribution.
+
+### Instinct (R4Q6, R5Q5, R7Q4)
+Reaction and precision.
+- **Affects:** detection range, damage point, the moving-accuracy penalty, turn radius and speed.
+- **Sinks:** shooting on the move, being selected for a reaction, and running Detection or Concealment.
+- **Split later?** It stays one stat for now; a Precision split happens only if needed.
+
+### Prowess (R6Q1, R7Q2, R7Q3)
+Battlefield presence: a squad's effect on the shape and flow of battle beyond raw combat.
+- **Sinks:** using magic, readying special attacks or abilities, and commander duels. General melee is not a sink.
+- **Floats:**
+  - enemy squads reacting to your orders, such as a revealed charge turning their attack-move into a retreat
+  - intercepts
+  - ambushes
+  - interrupting an enemy's readying
+- **Duels:** out of the design space for now (R7Q2).
+
+### Legend (R4Q7, R5Q6, R6Q3, R6Q4)
+- **Squad-level, outside Morale governance.** Sensitivity profiles tune what touches Legend and what Legend touches.
+- **Archetypal actions only for now:** Legend moves on actions that fit the squad's archetype. Damage dealers dealing damage, tanks tanking, scouts revealing and ambushing, sappers hitting buildings and vehicles.
+- **Persistent effects:** holding pressure gives minor in-battle bonuses. Only a Surge or a Break makes a persistent change.
+- **Consequences:**
+  - **Story categories, not bonus/malus.** Persistent changes feed the squad's story. Example: an honour guard's broken Legend lowers its fire priority for enemy autobattle. That hurts its story but enables a break-away gambit through overwhelming fire.
+  - **Choosing:** at Intermission, three options are offered and the player picks one.
+  - **Tags:** consequences carry loose associative tags (Reputation, Doctrine, Bond, Kit, Burden), not forced groupings.
+  - **Unchosen options:** the two unchosen options are archived and later combined into Angel versions of the squad (§2.11).
+  - **Upgrades:** surge upgrades are applied in an Intermission popup when immediate; when a refit is needed, they get a notice line instead (R4Q10).
+- **Avoid boring pools:** consequence pools shouldn't produce "the killer kills faster". The pool is influenced by what is boosting Morale.
+- **Later:** a deep dive is pending.
+
+## 2.9 Overworld
+### Map and features
+- **Map** (R3Q22, R4Q12): hex plots carry **features**, which come from map-generation passes, player activity and natural events. Features are not prescriptive terrain types. Maps come from seeded templates (R3Q13).
+- **Routes** (R4Q12, R4Q13): a commander's planned hex path.
+  - **Quick actions along the route:** drop off a battleforce, including up to 1 hex off the route at a movement cost; pick up caches.
+  - **Activities:** refit, recruit, a commander-led battle, converting a resource node. These require ending the route on the hex.
+  - **Battle tiles:** routing onto a battle tile ends all movement. To route elsewhere, that segment has to be removed.
+- **Interaction timing** (R6Q14):
+  - **Uncertain outcomes** (negotiation, battle, interactive events) are presented at the start of a turn in which the player has a commander uncontested on the hex.
+  - **Stable outcomes** (production, pickups, setting up supply lines) are handled during planning, when routing through.
+- **Control** (R6Q14, R7Q8): only Commanders flip a controllable feature, by passing through it. A garrisoned feature needs an engagement first.
+
+### Guards and movement
+- **Guards** (R4Q14, R5Q9, R6Q11, R6Q12): entering a guarded hex triggers an engagement. What overworld forces will do is never revealed before engagement.
+- **Banking movement:** commanders whose plan was cut short bank 50% of their unused movement points, capped at one turn, and it expires after the next turn.
+- **Neutrals only:** guard and garrison rules apply only to neutral garrisons and features.
+- **Chase and intercept** (R3Q22): commander-vs-commander pursuit needs a chase/intercept handler. This is to be specified.
+- **Fog of war** (R8Q4):
+  - **Sight sources:** commanders, convoys, controlled features and detachments each have a sight radius in hexes.
+  - **Allies:** vision is shared with allies.
+  - **Memory:** explored hexes keep their last-seen state.
+  - **Battle hexes:** their contents are hidden without sight.
+
+### Production and logistics (R5Q10, R6Q13)
+- **Distributed production:** production is spread across the map, Civilization-like, without tending cities. Features provide production and recruitment activities, like visiting HoMM dwellings and mines.
+- **Configuring:** some features let the player select, upgrade or change their output. Most can set up rally routes, or **supply lines**, carried by **convoys**.
+- **Convoy merging:** convoys on the same hex along the same supply line merge for interaction, with squads configurable together and items forming one war chest, until they split.
+- **Intent:** this design encourages multiple commanders, consolidating battleforces and protecting supply lines.
+- **For now:** simple squad, item and resource tiles. Faction or allegiance variants come later.
+
+### Economy (R2Q15, R5Q11, R6Q15)
+- **Value is the sole resource.** It recruits commanders and squads and buys equipment. Supplies, Materiel and Manpower collapse into Value for now.
+- **Story experiments:** collectible assets at merchants, trading production for Value, and meta-campaign investments.
+- **The real scarcity** is multitasking.
+- **Extensibility:** the architecture stays extensible toward deep resource modelling.
+
+### Inventory: the War Chest (R4Q10)
+- **The army's inventory:** sortable and filterable, with icons and hover tooltips. A detail view lets you equip valid units.
+- **Equipped tab:** organised by squad, for swapping.
+- **Availability:** usable anywhere on the overworld outside battle.
+- **Refitting** vehicles, monsters and unique units needs special plots.
+- **Later:** auto-equip rules.
+
+## 2.10 Magic and Ruin in play (R1Q15, R2Q8, R4Q21)
+- **Zones:** plots and battlefield areas carry a magic condition: Law (normal), Ruined or Null.
+- **Ruin** is a zone condition. It raises costs, lowers efficacy and restricts types, regardless of how the magic is accessed, like denial-of-service or 500 errors. Ruin effects are (effect descriptor, target descriptor, magnitude) triples in the effect language.
+- **Null:** no magic works.
+- **Raw magic** doesn't become available where the Law fails, except in "wacky" scripted circumstances.
+
+## 2.11 Angels in play (R3Q17, R5Q6, R6Q17)
+- **Driven by behaviour data:** Angels are an undirected narrative force (not a player faction), driven by behaviour data through the trigger system.
+- **Interference:** they act as filler interference. They give battle in front of resources, eat turn timers with nonsense dialogue, and steal or move overworld items.
+- **Inverted auto-resolve:** a commander with no battleforce can temporarily disperse Angels by engaging them. This is required to clear movement-blocking Angels in the Angelfall mission, but it doesn't work in the final key battles.
+- **Accumulation:** every Angel not fought becomes one to face later. In the preventable-Angelfall campaign, Angel forces are added or replaced with squads built from the player's unchosen Legend consequences.
+
+## 2.12 Disconnects (multiplayer) (R6Q23, R7Q10, R7Q11)
+- **Pause:** the game pauses and gameplay locks. Lobby chat stays available, showing the dropped player's status.
+- **Countdown and vote:** after a 30 s reconnect countdown, the remaining players vote:
+  - **Drop:** an AI takes over immediately. Not available in ranked.
+  - **End:** return to the multiplayer screen.
+  - **Return to lobby:** the same players and settings.
+
+  Players may keep waiting. The vote needs majority+1, dropping to a simple majority after another 30 s. End and Return-to-lobby both count toward ending.
+- **Host drop:** host migration runs first, then the flow above, authoritative from the new host.
+- **Ranked:** a vote-ended match is a forfeit for the disconnected side, and void if everyone dropped. There are no penalties until usage data exists.

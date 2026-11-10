@@ -22,7 +22,6 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [autoload]
 
 Dialogic="*uid://ds2q0uclmolvu"
-ECS="*uid://dfqwl5njvdnmq"
 RTS_Controls="*uid://clueh0xugrfl2"
 RTS_PlayerInput="*uid://yvr01lu8cx37"
 RTS_EventBus="*uid://cpdegl77xxyyt"
@@ -46,7 +45,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/custom_graph_editor/plugin.cfg", "res://addons/dialogic/plugin.cfg", "res://addons/gecs/plugin.cfg", "res://addons/godot-rts-entity-controller/plugin.cfg", "res://addons/guide/plugin.cfg", "res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/custom_graph_editor/plugin.cfg", "res://addons/dialogic/plugin.cfg", "res://addons/godot-rts-entity-controller/plugin.cfg", "res://addons/guide/plugin.cfg", "res://addons/gut/plugin.cfg")
 
 [input]
 

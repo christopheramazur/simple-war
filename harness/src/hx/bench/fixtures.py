@@ -123,7 +123,7 @@ def _snake(s: str) -> str:
 
 
 def level2(rng: random.Random) -> list[dict]:
-    attacks = json.loads((repo_root() / "data" / "defaults" / "Attacks.json").read_text(encoding="utf-8"))["attacks"]
+    attacks = json.loads((repo_root() / "Game Design Document" / "History" / "data" / "defaults" / "Attacks.json").read_text(encoding="utf-8"))["attacks"]
     examples = json.dumps(attacks[:2], indent=4)
     out = []
     for size, n in {"s": 2, "m": 6, "l": 15}.items():
