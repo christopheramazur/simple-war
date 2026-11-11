@@ -29,6 +29,8 @@ const POOL_COLORS: Dictionary = {
 const OFFENSIVE_PREFIXES: Array[String] = ["movement.", "weapon.", "unit.proficiency"]
 
 static var _tps: int = 10
+## The opponent-view chip that stands in for a disguised bundle (hovered in the mock).
+static var _disguise: Dictionary = {}
 
 
 static func build() -> Control:
@@ -68,6 +70,11 @@ static func build() -> Control:
 	tip.target = tip_target["row"]
 	tip.beside = wide
 	root.add_child(tip)
+	if not _disguise.is_empty():
+		var dt := _hover_tip("Disguise", "Your %s shows as %s to the opponent." % [_disguise["real"], _disguise["shown"]])
+		dt.target = _disguise["chip"]
+		dt.below = true
+		root.add_child(dt)
 	return root
 
 
@@ -261,7 +268,7 @@ static func _visibility(d: Dictionary) -> Control:
 	p.add_child(b)
 	b.add_child(_lbl("Visibility", 14, ACCENT))
 	var spotted: bool = d["spotted"]
-	b.add_child(_pair("Spotted by the enemy", "Yes: they can inspect this squad" if spotted else "No", DOWN if spotted else UP))
+	b.add_child(_lbl("Spotted by the enemy  ·  Inspectable by the enemy" if spotted else "Hidden from the enemy", 12, DIM))
 	var vis := HBoxContainer.new()
 	vis.add_theme_constant_override("separation", 18)
 	for key: String in ["squad.sight", "squad.concealment_pct", "squad.detection_radius"]:
@@ -278,9 +285,13 @@ static func _visibility(d: Dictionary) -> Control:
 		real[e["bundle"]] = e["name"]
 	for g: Dictionary in _groups(en):
 		var e: Dictionary = g["first"]
-		chips.add_child(_effect_chip(e, 11, false))
+		var chip := _effect_chip(e, 11, false)
+		chips.add_child(chip)
 		if not real.has(e["bundle"]):
-			chips.add_child(_lbl("(disguises %s)" % _disguised_name(v, en), 11, DIM))
+			_disguise = {"chip": chip, "real": _disguised_name(v, en), "shown": e["name"]}
+			var sb: StyleBoxFlat = chip.get_theme_stylebox("panel")
+			sb.set_border_width_all(1)
+			sb.border_color = ACCENT
 	b.add_child(chips)
 	var mine: Dictionary = v["units"][1]
 	var theirs: Dictionary = en["units"][1]
@@ -422,6 +433,22 @@ static func _tooltip(e: Dictionary) -> Follow:
 	return t
 
 
+static func _hover_tip(title: String, text: String) -> Follow:
+	var t := Follow.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = PANEL2
+	sb.border_color = ACCENT
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(6)
+	sb.set_content_margin_all(8)
+	t.add_theme_stylebox_override("panel", sb)
+	var b := _vbox(2)
+	t.add_child(b)
+	b.add_child(_lbl(title, 12, ACCENT))
+	b.add_child(_lbl(text, 12, TEXT))
+	return t
+
+
 static func _trace_line(e: Dictionary, step: Dictionary) -> Control:
 	var h := HBoxContainer.new()
 	var what := ""
@@ -557,14 +584,6 @@ static func _remaining(e: Dictionary, short: bool = false) -> String:
 	if e["remaining_ticks"] < 0:
 		return "∞" if short else "lasts the battle"
 	return ("%s s" if short else "%s s left") % Fixed.to_display(Fixed.from_ratio(e["remaining_ticks"], _tps))
-
-
-static func _pair(a: String, b: String, col: Color) -> Control:
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 10)
-	h.add_child(_lbl(a, 12, DIM))
-	h.add_child(_lbl(b, 12, col))
-	return h
 
 
 static func _sep() -> Control:
@@ -738,15 +757,24 @@ class Portrait extends Control:
 class Follow extends PanelContainer:
 	var target: Control
 	var beside: Control
+	## Below the target (pointer up) instead of right of `beside`.
+	var below: bool = false
 	const POINT_Y := 18.0
+	const POINT_X := 18.0
 
 	func _process(_delta: float) -> void:
-		if target == null or beside == null:
+		if target == null:
 			return
-		global_position = Vector2(beside.global_position.x + beside.size.x + 12,
-			target.global_position.y + target.size.y / 2.0 - POINT_Y)
+		if below:
+			global_position = target.global_position + Vector2(0, target.size.y + 10)
+		elif beside != null:
+			global_position = Vector2(beside.global_position.x + beside.size.x + 12,
+				target.global_position.y + target.size.y / 2.0 - POINT_Y)
 		queue_redraw()
 
 	func _draw() -> void:
 		var col := Color("e6b450")
-		draw_colored_polygon(PackedVector2Array([Vector2(1, POINT_Y - 8), Vector2(-10, POINT_Y), Vector2(1, POINT_Y + 8)]), col)
+		if below:
+			draw_colored_polygon(PackedVector2Array([Vector2(POINT_X - 8, 1), Vector2(POINT_X, -9), Vector2(POINT_X + 8, 1)]), col)
+		else:
+			draw_colored_polygon(PackedVector2Array([Vector2(1, POINT_Y - 8), Vector2(-10, POINT_Y), Vector2(1, POINT_Y + 8)]), col)
