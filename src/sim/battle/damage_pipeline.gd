@@ -94,7 +94,7 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 		out["killed"] = true
 	elif to_hp > 0:
 		var heal := r.df_absorb_flat[prof * nt + dtype] + Fixed.round_div(to_hp * r.df_absorb_pct[prof * nt + dtype], 100)
-		heal = mini(heal, r.ut_hp[u.tmpl[row]] - hp[row])
+		heal = mini(heal, u.hp_max[row] - hp[row])
 		if heal > 0:
 			hp[row] += heal
 			out["absorbed"] = heal

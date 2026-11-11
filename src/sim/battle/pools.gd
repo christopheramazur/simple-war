@@ -13,11 +13,43 @@ static func value(state: BattleState, row: int, pool: int) -> int:
 
 
 static func capacity(state: BattleState, row: int, pool: int) -> int:
-	return state.rules.sq_pool_cap[state.squads.tmpl[row] * 5 + pool]
+	return state.squads.get(BattleSquads.CAPS[pool])[row]
 
 
+## Neutral scales with the squad's current capacity.
 static func neutral(state: BattleState, row: int, pool: int) -> int:
-	return state.rules.sq_pool_neutral[state.squads.tmpl[row] * 5 + pool]
+	var i := state.squads.tmpl[row] * 5 + pool
+	return _scaled(state, row, pool, state.rules.sq_pool_neutral[i], state.rules.sq_pool_cap[i])
+
+
+## Drift per tick, scaled with the squad's current capacity.
+static func drift(state: BattleState, row: int, pool: int) -> int:
+	var i := state.squads.tmpl[row] * 5 + pool
+	return _scaled(state, row, pool, state.rules.sq_pool_drift[i], state.rules.sq_pool_cap[i])
+
+
+static func _scaled(state: BattleState, row: int, pool: int, v: int, template_cap: int) -> int:
+	var cap := capacity(state, row, pool)
+	if cap == template_cap or template_cap <= 0:
+		return v
+	return Fixed.mul_ratio(v, cap, template_cap)
+
+
+## Sets a pool's capacity. The value keeps its ratio to capacity unless
+## `restores` (E3Q2). The change is a flow (ledger source `source`), so bands
+## and Surge/Break events stay correct.
+static func set_capacity(state: BattleState, row: int, pool: int, new_cap: int, restores: bool, source: StringName) -> void:
+	var old_cap := capacity(state, row, pool)
+	if new_cap == old_cap:
+		return
+	var before := value(state, row, pool)
+	var after := MaxChange.rescale(before, old_cap, new_cap, restores)
+	var cn := BattleSquads.CAPS[pool]
+	var caps: PackedInt64Array = state.squads.take_column(cn)
+	caps[row] = new_cap
+	state.squads.put_column(cn, caps)
+	# The clamp in flow uses the new capacity.
+	flow(state, row, pool, after - before, source)
 
 
 static func band(state: BattleState, row: int, pool: int) -> int:

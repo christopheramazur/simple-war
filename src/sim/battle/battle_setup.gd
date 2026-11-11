@@ -41,6 +41,7 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 	}
 	for p in 5:
 		values[BattleSquads.POOLS[p]] = r.sq_pool_start[st * 5 + p]
+		values[BattleSquads.CAPS[p]] = r.sq_pool_cap[st * 5 + p]
 	var sid := state.squads.spawn(values)
 	for slot in members.size():
 		var ui := members[slot]
@@ -50,7 +51,7 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 			"squad": sid, "tmpl": ui, "slot": slot,
 			"x": Fixed.clamp_fixed(ax + off[0], 0, Fixed.from_int(r.width) - 1),
 			"y": Fixed.clamp_fixed(ay + off[1], 0, Fixed.from_int(r.height) - 1),
-			"facing": facing, "hp": r.ut_hp[ui],
+			"facing": facing, "hp": r.ut_hp[ui], "hp_max": r.ut_hp[ui],
 			"ammo": r.wp_magazine[w] if w >= 0 else 0,
 		})
 	return sid

@@ -249,8 +249,9 @@ func _legend_per_10(state: BattleState, row: int, counter: StringName, amount: i
 		return
 	var col: PackedInt64Array = sq.take_column(counter)
 	col[row] += amount
-	var tens := col[row] / 10
-	col[row] -= tens * 10
+	var ten := 10 * Fixed.ONE  # damage is fixed-point (E3Q1)
+	var tens := col[row] / ten
+	col[row] -= tens * ten
 	sq.put_column(counter, col)
 	if tens > 0:
 		Pools.flow(state, row, BattleSquads.LEGEND, Fixed.from_int(tens * r.flt(key)), StringName("legend_" + arche))

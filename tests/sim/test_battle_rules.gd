@@ -33,12 +33,12 @@ func test_damage_order_on_carapace() -> void:
 	var s := _empty()
 	var sid := _place(s, 1, "chi_operatives", 20, 20)
 	var u := _unit_of(s, sid, 1)
-	var res := DamagePipeline.apply(s, u, 10, 0, 0)
-	# 10 kinetic: resist 10% -> 9, flat 1 -> 8, 10% -> 7 (0.8 rounds to 1).
-	assert_eq(res["resisted"], 1)
-	assert_eq(res["flat"], 1)
-	assert_eq(res["percent"], 1)
-	assert_eq(res["to_hp"], 7)
+	var res := DamagePipeline.apply(s, u, 10 * ONE, 0, 0)
+	# 10 kinetic: resist 10% -> 9, flat 1 -> 8, 10% -> 7.2 (fixed-point, E3Q1).
+	assert_eq(res["resisted"], ONE)
+	assert_eq(res["flat"], ONE)
+	assert_eq(res["percent"], Fixed.round_div(8 * ONE * 10, 100))
+	assert_eq(Fixed.to_display(res["to_hp"]), "7.2")
 	var steps := []
 	for t: Array in res["terms"]:
 		steps.append(t[0])
@@ -49,14 +49,14 @@ func test_floor_and_block_accumulator() -> void:
 	var s := _empty()
 	var sid := _place(s, 1, "chi_operatives", 20, 20)
 	var u := _unit_of(s, sid, 1)
-	var res := DamagePipeline.apply(s, u, 1, 0, 0)
-	assert_eq(res["floored"], 1, "flat would zero it; kinetic floor is 1")
-	assert_eq(res["to_hp"], 1)
+	var res := DamagePipeline.apply(s, u, ONE, 0, 0)
+	assert_eq(res["floored"], ONE, "flat would zero it; kinetic floor is 1")
+	assert_eq(res["to_hp"], ONE)
 	# Block chance 10%: exactly the 10th hit is blocked.
 	var blocked_on := -1
 	for i in range(2, 12):
-		s.units.set_value(s.units.id_at(u), &"hp", 100)
-		if DamagePipeline.apply(s, u, 4, 0, 0)["blocked"] > 0:
+		s.units.set_value(s.units.id_at(u), &"hp", 100 * ONE)
+		if DamagePipeline.apply(s, u, 4 * ONE, 0, 0)["blocked"] > 0:
 			blocked_on = i
 			break
 	assert_eq(blocked_on, 10)
@@ -68,7 +68,7 @@ func test_cover_evasion_every_nth() -> void:
 	var u := _unit_of(s, sid, 1)
 	var pattern := []
 	for _i in 4:
-		pattern.append(DamagePipeline.apply(s, u, 1, 0, 25)["evaded"])
+		pattern.append(DamagePipeline.apply(s, u, ONE, 0, 25)["evaded"])
 	assert_eq(pattern, [false, false, false, true], "flak 5% + cover 25% = every 4th (30,60,90,120)")
 
 

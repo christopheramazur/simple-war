@@ -35,7 +35,7 @@ func run(ctx: SimContext) -> void:
 
 
 func _drift(state: BattleState, row: int, pool: int) -> void:
-	var rate := state.rules.sq_pool_drift[state.squads.tmpl[row] * 5 + pool]
+	var rate := Pools.drift(state, row, pool)
 	if rate <= 0:
 		return
 	var diff := Pools.neutral(state, row, pool) - Pools.value(state, row, pool)

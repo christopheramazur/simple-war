@@ -110,6 +110,18 @@ static func to_decimal_string(a: int, places: int = 4) -> String:
 # --- arithmetic ------------------------------------------------------------
 
 ## Integer division rounded to nearest, ties away from zero.
+## Display form for HP and pools (E3Q1): one decimal, shown only when the
+## value is fractional at that precision. 22.5 -> "22.5", 15 -> "15",
+## 11.666 -> "11.7".
+static func to_display(a: int) -> String:
+	var tenths := round_div(a * 10, ONE)
+	var sign := "-" if tenths < 0 else ""
+	tenths = absi(tenths)
+	if tenths % 10 == 0:
+		return sign + str(tenths / 10)
+	return "%s%d.%d" % [sign, tenths / 10, tenths % 10]
+
+
 static func round_div(n: int, d: int) -> int:
 	assert(d != 0, "Fixed.round_div: division by zero")
 	var neg := (n < 0) != (d < 0)

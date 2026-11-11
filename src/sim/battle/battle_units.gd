@@ -11,7 +11,8 @@ var y := PackedInt64Array()            ## fixed
 var facing := PackedInt64Array()       ## binary angle
 var speed := PackedInt64Array()        ## current speed, fixed per tick
 var moving := PackedByteArray()        ## moved this tick
-var hp := PackedInt64Array()
+var hp := PackedInt64Array()            ## fixed; dead at <= 0 (E3Q1)
+var hp_max := PackedInt64Array()        ## fixed; effects change it via Health.set_max
 var temp_hp := PackedInt64Array()      ## wards and shields (R7Q1)
 var cooldown := PackedInt64Array()     ## ticks until it may fire
 var ammo := PackedInt64Array()
@@ -26,7 +27,7 @@ var fired_tick := PackedInt64Array()   ## last tick it fired, -1 never
 func _init() -> void:
 	super(&"unit")
 	for c: StringName in [&"squad", &"tmpl", &"slot", &"x", &"y", &"facing", &"speed", &"moving",
-			&"hp", &"temp_hp", &"cooldown", &"ammo", &"reload", &"acc_hit", &"acc_evade",
+			&"hp", &"hp_max", &"temp_hp", &"cooldown", &"ammo", &"reload", &"acc_hit", &"acc_evade",
 			&"acc_block", &"hits"]:
 		declare(c, 0)
 	declare(&"fired_tick", -1)

@@ -22,14 +22,14 @@ const OBJECTS: Dictionary = {
 		"shots": {"type": "int", "required": true, "min": 1},
 		"cooldown_ticks": {"type": "int", "required": true, "min": 1},
 		"accuracy": {"type": "fixed", "required": true},
-		"damage": {"type": "int", "required": true, "min": 0},
+		"damage": {"type": "fixed", "required": true, "min": 0},
 		"moving": {"type": "bool"},
 		"aoe_radius": {"type": "fixed"},
 		"crit_every": {"type": "int", "min": 0},
 		"crit_bonus_pct": {"type": "int", "min": 0},
 	},
 	"absorb": {
-		"flat": {"type": "int", "min": 0},
+		"flat": {"type": "fixed", "min": 0},
 		"pct": {"type": "int", "min": 0, "max": 100},
 	},
 	"squad_member": {
@@ -112,9 +112,9 @@ const KINDS: Dictionary = {
 		"block_chance_pct": {"type": "int", "min": 0, "max": 100},
 		"block_amount_pct": {"type": "int", "min": 0, "max": 100},
 		"resist_pct": {"type": "map:int", "keys": DAMAGE_TYPES},
-		"flat": {"type": "int", "min": 0},
+		"flat": {"type": "fixed", "min": 0},
 		"percent": {"type": "int", "min": 0, "max": 100},
-		"floor": {"type": "map:int", "keys": DAMAGE_TYPES},
+		"floor": {"type": "map:fixed", "keys": DAMAGE_TYPES, "min": 0},
 		"absorb": {"type": "map:obj:absorb", "keys": DAMAGE_TYPES},
 	},
 	"movement": {
@@ -136,7 +136,7 @@ const KINDS: Dictionary = {
 	},
 	"unit": {
 		"name": {"type": "string"},
-		"hp": {"type": "int", "required": true, "min": 1},
+		"hp": {"type": "fixed", "required": true, "min": 1},
 		"size_class": {"type": "string", "enum": ["small", "medium", "large", "huge"]},
 		"defense": {"type": "ref:defense", "required": true},
 		"movement": {"type": "ref:movement", "required": true},
@@ -258,10 +258,18 @@ static func _check_value(v: Variant, fs: Dictionary, tid: String, path: String, 
 			if fs.has("max") and int(v) > int(fs["max"]):
 				errors.append("%s: '%s' above maximum %d" % [tid, path, fs["max"]])
 		"fixed":
+			var fv := 0
 			if typeof(v) == TYPE_INT:
-				return
-			if typeof(v) != TYPE_STRING or not Fixed.parse_decimal(v).ok:
+				fv = Fixed.from_int(v)
+			elif typeof(v) == TYPE_STRING and Fixed.parse_decimal(v).ok:
+				fv = Fixed.parse_decimal(v).value
+			else:
 				errors.append("%s: '%s' must be an integer or decimal string" % [tid, path])
+				return
+			if fs.has("min") and fv < Fixed.from_int(fs["min"]):
+				errors.append("%s: '%s' below minimum %d" % [tid, path, fs["min"]])
+			if fs.has("max") and fv > Fixed.from_int(fs["max"]):
+				errors.append("%s: '%s' above maximum %d" % [tid, path, fs["max"]])
 		"bool":
 			if typeof(v) != TYPE_BOOL:
 				errors.append("%s: '%s' must be true or false" % [tid, path])

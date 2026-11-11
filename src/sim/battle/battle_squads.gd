@@ -13,6 +13,9 @@ const INSTINCT: int = 1
 const MORALE: int = 2
 const PROWESS: int = 3
 const LEGEND: int = 4
+## Per-squad pool capacities (fixed), same order. Effects change them via
+## Pools.set_capacity, which keeps the value/capacity ratio (E3Q2).
+const CAPS: Array[StringName] = [&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]
 
 var player := PackedInt64Array()
 var tmpl := PackedInt64Array()          ## BattleRules squad template index
@@ -27,7 +30,7 @@ var ay := PackedInt64Array()
 var cx := PackedInt64Array()            ## centroid of living units, fixed
 var cy := PackedInt64Array()
 var alive := PackedInt64Array()         ## living units
-var hp_max := PackedInt64Array()        ## total starting HP
+var hp_max := PackedInt64Array()        ## total starting HP, fixed
 var hp_lost := PackedInt64Array()
 var destroyed := PackedByteArray()
 var withdrawn := PackedByteArray()
@@ -46,6 +49,11 @@ var p_instinct := PackedInt64Array()
 var p_morale := PackedInt64Array()
 var p_prowess := PackedInt64Array()
 var p_legend := PackedInt64Array()
+var c_stamina := PackedInt64Array()
+var c_instinct := PackedInt64Array()
+var c_morale := PackedInt64Array()
+var c_prowess := PackedInt64Array()
+var c_legend := PackedInt64Array()
 
 
 func _init() -> void:
@@ -53,7 +61,8 @@ func _init() -> void:
 	for c: StringName in [&"player", &"tmpl", &"order", &"tx", &"ty", &"run", &"facing", &"ax", &"ay",
 			&"cx", &"cy", &"alive", &"hp_max", &"hp_lost", &"destroyed", &"withdrawn",
 			&"detect_on", &"conceal_on", &"seen_by", &"moving", &"dmg_dealt", &"dmg_taken",
-			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend"]:
+			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
+			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:
 		declare(c, 0)
 	for c: StringName in [&"target", &"engaged", &"fired_tick", &"reaction", &"reaction_trigger"]:
 		declare(c, -1)
