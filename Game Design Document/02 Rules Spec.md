@@ -240,6 +240,13 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Allies:** vision is shared with allies.
   - **Memory:** explored hexes keep their last-seen state.
   - **Battle hexes:** their contents are hidden without sight.
+  - **In play (sw-o1m.1.4):**
+    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't.
+    - **Memory** records each explored hex's features (and owners) and the turn they were last seen. It's recorded at the start and end of every turn and around every hex a commander enters, so hexes glimpsed on the way are explored too. Commanders are never remembered, only seen.
+    - **Battle tiles are public:** every player knows where battles are, because a route onto one ends there. What's in a battle (who and why) needs sight.
+    - **Orders use what the player knows.** Pathfinding, route costs and planned activities see unexplored hexes as open ground and explored ones as last seen. Movement uses the truth, so a route into an unseen lake stops at its shore without banking.
+    - **Events:** a player sees an event about its own or an allied commander or player, or on a hex it saw during that turn. Other battle starts and ends arrive reduced to where.
+    - **Allies** are players on the same team; until campaigns set teams, everyone is hostile.
 
 ### Production and logistics (R5Q10, R6Q13)
 - **Distributed production:** production is spread across the map, Civilization-like, without tending cities. Features provide production and recruitment activities, like visiting HoMM dwellings and mines.

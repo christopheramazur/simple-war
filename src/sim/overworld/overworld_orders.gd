@@ -39,10 +39,11 @@ static func set_activity(s: OverworldState, player: int, commander_id: int, acti
 		return "is in a battle"
 	var route: PackedInt64Array = s.routes.get(commander_id, PackedInt64Array())
 	var dest := c.plot[row] if route.is_empty() else route[route.size() - 1]
-	var fr := OverworldActivities.offering(s, dest, activity)
-	if fr < 0:
+	# What the player knows of the hex (fog of war); resolving uses the truth.
+	var t := OverworldVision.known_offering(s, player, dest, activity)
+	if t < 0:
 		return "the route must end on a hex offering %s" % activity
-	var cost := s.rules.hf_activity_cost[s.features.tmpl[fr]]
+	var cost := s.rules.hf_activity_cost[t]
 	if s.value_of(player) < cost:
 		return "%s costs %d Value, you have %d" % [activity, cost, s.value_of(player)]
 	s.activities[commander_id] = {"activity": activity, "plot": dest}
@@ -62,13 +63,15 @@ static func validate_route(s: OverworldState, player: int, commander_id: int, pl
 		return "is in a battle: it cannot move until the battle ends"
 	var at := c.plot[row]
 	var spent := 0
+	# Costs as the player knows them: an unexplored hex looks like open ground.
+	var costs := OverworldVision.known_costs(s, player)
 	for i in plots.size():
 		var p := plots[i]
 		if p < 0 or p >= s.rules.plot_count():
 			return "step %d is off the map" % (i + 1)
 		if not Hex.adjacent(at, p, s.rules.width):
 			return "step %d is not next to the previous hex" % (i + 1)
-		var cost := s.move_cost(p)
+		var cost := costs[p]
 		if cost < 0:
 			return "step %d is impassable" % (i + 1)
 		if s.engagement_at(p) >= 0 and i < plots.size() - 1:

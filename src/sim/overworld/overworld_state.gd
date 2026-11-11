@@ -20,6 +20,13 @@ var value: Dictionary = {}
 ## Uncertain-outcome interactions presented this turn (R6Q14): [{"plot",
 ## "feature" (ID), "player"}], rebuilt as each turn resolves.
 var offers: Array[Dictionary] = []
+## Fog of war memory (R8Q4): player -> {plot -> PackedInt64Array [turn last
+## seen, then (feature ID, template, owner) per feature]}. Kept by
+## OverworldVision.
+var memory: Dictionary = {}
+## Alliances: player -> team. Players on one team are allies; a player not
+## listed is a team of its own. Set up by campaigns and matches.
+var teams: Dictionary = {}
 ## Derived cache, plot -> feature rows (ascending template index). Rebuilt
 ## by reindex(); never hashed or saved.
 var plot_features: Dictionary = {}
@@ -67,10 +74,13 @@ func add_value(player: int, amount: int, source: StringName) -> void:
 	events.push(&"value_changed", {"player": player, "amount": amount, "source": source}, tick)
 
 
-## Whether two players are enemies. Alliances arrive with campaigns; until
-## then every other player is hostile.
+func team_of(player: int) -> int:
+	return int(teams.get(player, player))
+
+
+## Whether two players are enemies: different teams.
 func hostile(a: int, b: int) -> bool:
-	return a != b
+	return team_of(a) != team_of(b)
 
 
 ## Guard squads on a plot (neutral guards, R4Q14): the union of its
@@ -93,9 +103,16 @@ func engagement_at(p: int) -> int:
 ## Movement points to enter a plot: the map's base cost plus its features'
 ## costs, at least 1. -1 = impassable.
 func move_cost(p: int) -> int:
-	var cost := rules.base_cost
+	var tmpls := PackedInt64Array()
 	for row in features_at(p):
-		var f := features.tmpl[row]
+		tmpls.append(features.tmpl[row])
+	return cost_of(tmpls)
+
+
+## Movement cost of a plot holding these feature templates.
+func cost_of(tmpls: PackedInt64Array) -> int:
+	var cost := rules.base_cost
+	for f in tmpls:
 		if rules.hf_impassable[f] == 1:
 			return -1
 		cost += rules.hf_move_cost[f]
@@ -144,7 +161,8 @@ func _snapshot_extra(snap: Dictionary) -> void:
 	for cid: int in routes:
 		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
 	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true),
-		"value": value.duplicate(), "offers": offers.duplicate(true)}
+		"value": value.duplicate(), "offers": offers.duplicate(true),
+		"memory": memory.duplicate(true), "teams": teams.duplicate()}
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -156,6 +174,8 @@ func _restore_extra(snap: Dictionary) -> void:
 	activities = (snap["overworld"].get("activities", {}) as Dictionary).duplicate(true)
 	value = (snap["overworld"].get("value", {}) as Dictionary).duplicate()
 	offers.assign((snap["overworld"].get("offers", []) as Array).duplicate(true))
+	memory = (snap["overworld"].get("memory", {}) as Dictionary).duplicate(true)
+	teams = (snap["overworld"].get("teams", {}) as Dictionary).duplicate()
 	reindex()
 
 
@@ -180,6 +200,23 @@ func state_hash() -> PackedByteArray:
 		text += "V%d:%d;" % [p, value[p]]
 	for o in offers:
 		text += "O%d:%d:%d;" % [o["plot"], o["feature"], o["player"]]
+	players = teams.keys()
+	players.sort()
+	for p: int in players:
+		text += "T%d:%d;" % [p, teams[p]]
+	var mem := PackedInt64Array()
+	players = memory.keys()
+	players.sort()
+	for p: int in players:
+		var plots: Array = (memory[p] as Dictionary).keys()
+		plots.sort()
+		mem.append_array([p, plots.size()])
+		for q: int in plots:
+			var e: PackedInt64Array = memory[p][q]
+			mem.append_array([q, e.size()])
+			mem.append_array(e)
+	if not mem.is_empty():
+		h.update(mem.to_byte_array())
 	if not text.is_empty():
 		h.update(text.to_utf8_buffer())
 	return h.finish()

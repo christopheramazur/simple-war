@@ -6,16 +6,20 @@ extends RefCounted
 ##   3. production: controlled features pay their owners Value;
 ##   4. the turn advances, and uncertain-outcome features are offered to
 ##      players with a commander uncontested on their hex (R6Q14).
+## Fog of war memory is recorded at the start and end of the turn and as
+## commanders move (OverworldVision).
 
 
 ## Returns the turn's events in order.
 static func resolve(s: OverworldState) -> Array[SimEvent]:
 	s.begin_turn()
+	OverworldVision.update(s)
 	OverworldMovement.resolve(s)
 	s.routes = {}
 	OverworldActivities.resolve(s)
 	s.activities = {}
 	produce(s)
+	OverworldVision.update(s)
 	s.turn += 1
 	offer(s)
 	s.end_tick()

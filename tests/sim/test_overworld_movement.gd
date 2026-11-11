@@ -59,6 +59,8 @@ func test_route_validation() -> void:
 	assert_eq(OverworldOrders.set_route(s, 1, 999, _route([Vector2i(5, 8)])), "no such commander")
 	assert_eq(OverworldOrders.set_route(s, 1, a, _route([Vector2i(6, 8)])), "step 1 is not next to the previous hex")
 	var far := _route([Vector2i(5, 8), Vector2i(6, 8), Vector2i(7, 8), Vector2i(8, 8), Vector2i(9, 8), Vector2i(10, 8)])
+	assert_eq(OverworldOrders.set_route(s, 1, a, far), "", "the hills are out of sight: they look like plains")
+	OverworldVision.glimpse(s, 1, P(10, 8), 0)
 	assert_eq(OverworldOrders.set_route(s, 1, a, far), "needs 70 movement points, has 60", "hills +10 on the last hex")
 	var b := _cmd(s, 1, 6, 2)
 	assert_eq(OverworldOrders.set_route(s, 1, b, _route([Vector2i(7, 2)])), "step 1 is impassable", "the lake")

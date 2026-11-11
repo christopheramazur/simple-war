@@ -73,10 +73,11 @@ static func resolve(s: OverworldState) -> void:
 					# Stopping on the route's last hex is arriving, not a cut plan.
 					if other != cid or st[2] < last[cid]:
 						cut[other] = true
-			continue
-		_arrive(s, row, to)
-		if st[2] == last[cid]:
-			moving[cid] = false  # route finished: being engaged later is not a cut plan
+		else:
+			_arrive(s, row, to)
+			if st[2] == last[cid]:
+				moving[cid] = false  # route finished: being engaged later is not a cut plan
+		OverworldVision.glimpse(s, c.player[row], to, s.rules.cm_sight[c.tmpl[row]])
 	for row in c.count():
 		var cid := c.id_at(row)
 		var bank := 0
@@ -142,5 +143,9 @@ static func end_engagement(s: OverworldState, eid: int) -> void:
 	for row in c.count():
 		if c.engagement[row] == eid:
 			c.set_value(c.id_at(row), &"engagement", -1)
-	if s.engagements.despawn(eid):
-		s.events.push(&"engagement_ended", {"engagement": eid}, s.tick)
+	var erow := s.engagements.row_of(eid)
+	if erow < 0:
+		return
+	var p := s.engagements.plot[erow]
+	s.engagements.despawn(eid)
+	s.events.push(&"engagement_ended", {"engagement": eid, "plot": p}, s.tick)

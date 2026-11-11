@@ -4,15 +4,19 @@ extends RefCounted
 ## §2.9). Dijkstra on movement cost with ties broken by plot index, so the
 ## same query always gives the same path. Guards are not avoided: the player
 ## can see the feature but never what its forces will do (R5Q9). A battle
-## tile may only be the destination (R4Q13).
+## tile may only be the destination (R4Q13). Costs are what `player` knows
+## under fog of war (OverworldVision.known_costs); player 0 knows the truth.
 
 
 ## Plots to enter from `from` to `to` (start excluded, `to` included), or
 ## empty if unreachable or `from == to`.
-static func find(s: OverworldState, from: int, to: int) -> PackedInt64Array:
+static func find(s: OverworldState, from: int, to: int, player: int = 0) -> PackedInt64Array:
 	var r := s.rules
 	var n := r.plot_count()
-	if from == to or from < 0 or to < 0 or from >= n or to >= n or s.move_cost(to) < 0:
+	if from == to or from < 0 or to < 0 or from >= n or to >= n:
+		return PackedInt64Array()
+	var costs := OverworldVision.known_costs(s, player)
+	if costs[to] < 0:
 		return PackedInt64Array()
 	var dist := PackedInt64Array()
 	dist.resize(n)
@@ -37,7 +41,7 @@ static func find(s: OverworldState, from: int, to: int) -> PackedInt64Array:
 		if p != from and s.engagement_at(p) >= 0:
 			continue  # a battle tile ends movement: nothing continues past it
 		for q in Hex.neighbours(p, r.width, r.height):
-			var c := s.move_cost(q)
+			var c := costs[q]
 			if c < 0 or done[q] == 1:
 				continue
 			var d := dist[p] + c

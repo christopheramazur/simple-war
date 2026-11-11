@@ -36,7 +36,7 @@ data                  (immutable template tables from packages)
 
 ## 4.4 Game API (R7Q14)
 - **Inputs:** orders, routes, reactions, activity choices, toggles, votes.
-- **Observations:** visibility-filtered state plus events, honouring fog, Detection and Concealment (R8Q1, R8Q4).
+- **Observations:** visibility-filtered state plus events, honouring fog, Detection and Concealment (R8Q1, R8Q4). On the overworld these are `OverworldVision.observe` and `OverworldVision.filter_events`.
 - **Clock:** real-time pacing for humans, and fast-forward (as fast as possible) for headless runs.
 - **Callers:** the human UI, AI controllers, the network layer, test bots and the AI factory all use the same API.
 
