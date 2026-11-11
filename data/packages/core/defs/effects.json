@@ -5,6 +5,9 @@
 	{"id": "aura", "kind": "tag", "values": {"name": "Aura"}},
 	{"id": "wound", "kind": "tag", "values": {"name": "Wound"}},
 	{"id": "trait", "kind": "tag", "values": {"name": "Trait"}},
+	{"id": "detection", "kind": "tag", "values": {"name": "Detection"}},
+	{"id": "concealment", "kind": "tag", "values": {"name": "Concealment"}},
+	{"id": "reaction", "kind": "tag", "values": {"name": "Reaction"}},
 
 	{"id": "inspired", "kind": "bundle", "values": {
 		"name": "Inspired", "tags": ["buff"],

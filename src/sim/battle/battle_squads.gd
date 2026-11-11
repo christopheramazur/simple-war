@@ -35,12 +35,10 @@ var hp_lost := PackedInt64Array()
 var destroyed := PackedByteArray()
 var withdrawn := PackedByteArray()
 var engaged := PackedInt64Array()       ## squad ID it is firing at, -1 none
-var detect_on := PackedByteArray()
-var conceal_on := PackedByteArray()
 var seen_by := PackedInt64Array()       ## bitmask of players that see it (bit = player)
 var fired_tick := PackedInt64Array()
 var moving := PackedByteArray()
-var reaction := PackedInt64Array()      ## queued reaction index, -1 none
+var reaction := PackedInt64Array()      ## queued reaction (ability index), -1 none
 var reaction_trigger := PackedInt64Array()  ## enemy squad ID that triggers it
 var dmg_dealt := PackedInt64Array()     ## remainder accumulators for "per 10" Legend floats
 var dmg_taken := PackedInt64Array()
@@ -60,7 +58,7 @@ func _init() -> void:
 	super(&"squad")
 	for c: StringName in [&"player", &"tmpl", &"order", &"tx", &"ty", &"run", &"facing", &"ax", &"ay",
 			&"cx", &"cy", &"alive", &"hp_max", &"hp_lost", &"destroyed", &"withdrawn",
-			&"detect_on", &"conceal_on", &"seen_by", &"moving", &"dmg_dealt", &"dmg_taken",
+			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken",
 			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
 			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:
 		declare(c, 0)

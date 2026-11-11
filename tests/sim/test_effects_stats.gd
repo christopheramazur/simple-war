@@ -50,7 +50,9 @@ func test_registry_expands_declared_keys_and_wildcards() -> void:
 	assert_true(_r().has("squad.pools.morale.capacity"))
 	assert_eq(_r().find("weapon.modes.auto.accuracy").id, "weapon.modes.*.accuracy")
 	assert_eq(_r().find("movement.terrain_cost_pct.ruins").id, "movement.terrain_cost_pct.*")
-	assert_true(_r().has("squad.reactions.halt.instinct_cost"), "reaction cost is a registered stat (E3Q4)")
+	assert_true(_r().has("ability.activation.costs.instinct"), "reaction cost is a registered stat (E3Q4)")
+	assert_true(_r().has("squad.concealment_pct"))
+	assert_true(_r().has("squad.detection_radius"))
 
 
 func test_registry_skips_non_stats() -> void:
@@ -74,8 +76,8 @@ func test_read_base_from_templates() -> void:
 	assert_eq(_r().read_base(_r().find("defense.resist_pct.energy"), carapace, PackedStringArray(), 7), 7, "missing -> default")
 	var mv := _r().find("movement.terrain_cost_pct.*")
 	assert_eq(_r().read_base(mv, {"terrain_cost_pct": {"ruins": 150}}, PackedStringArray(["ruins"])), 150 * ONE)
-	var react := _r().find("squad.reactions.fall_back.instinct_cost")
-	assert_eq(_r().read_base(react, {"reactions": [{"id": "halt", "instinct_cost": 2}, {"id": "fall_back", "instinct_cost": 5}]}), 5 * ONE)
+	var react := _r().find("ability.activation.costs.instinct")
+	assert_eq(_r().read_base(react, {"activation": {"timing": "reaction", "costs": {"instinct": 5}}}), 5 * ONE)
 
 
 func test_schema_rejects_undeclared_map_keys() -> void:

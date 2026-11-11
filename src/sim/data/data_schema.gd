@@ -17,7 +17,10 @@ const SIMPL: Array[String] = ["stamina", "instinct", "morale", "prowess", "legen
 const BANDS: Array[String] = ["broken", "fraying", "neutral", "primed", "surging"]
 
 ## Effect language vocabulary (GDD 02 §2.13). Closed: engine-provided.
-const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "apply_bundle"]
+const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "apply_bundle", "order"]
+## Orders an "order" effect gives its holder (reactions, E3Q7). "attack"
+## attacks the first squad the effect's target selector picks.
+const ORDERS: Array[String] = ["hold", "fall_back", "attack"]
 const MOD_KINDS: Array[String] = ["flat", "increased", "more", "override"]
 ## When an effect acts. "while" = continuously (modify); "apply"/"expire" =
 ## once; "every" = periodically; hooks = on that event (depth 1, E2Q5);
@@ -27,6 +30,8 @@ const HOOK_EVENTS: Array[String] = ["attack", "hit", "damaged", "kill", "casualt
 const ACC_EVENTS: Array[String] = ["second", "attack", "hit", "damaged", "casualty", "distance"]
 const SELECTS: Array[String] = ["self", "source", "other", "allies", "enemies", "squads"]
 const STACKING: Array[String] = ["refresh", "stack", "independent", "strongest"]
+## What loses a readying or readied ability state (E3Q6).
+const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
@@ -97,10 +102,6 @@ const OBJECTS: Dictionary = {
 	"end_hooks": {
 		"loser": {"type": "string", "enum": ["scatter"]},
 	},
-	"reaction": {
-		"id": {"type": "string", "required": true, "enum": ["halt", "fall_back", "retarget", "go_prone"]},
-		"instinct_cost": {"type": "int", "min": 0},
-	},
 	# --- effect language (GDD 02 §2.13, 03 §3.4) ---
 	"selector": {
 		"select": {"type": "string", "required": true, "enum": SELECTS},
@@ -123,6 +124,8 @@ const OBJECTS: Dictionary = {
 		"firing": {"type": "bool"},
 		"hp_below_pct": {"type": "int", "min": 0, "max": 100},
 		"has_keyword": {"type": "string"},
+		## Feature IDs; holds while the squad's centroid stands on one of them.
+		"on_feature": {"type": "list:string"},
 	},
 	"effect": {
 		"op": {"type": "string", "required": true, "enum": EFFECT_OPS},
@@ -133,6 +136,7 @@ const OBJECTS: Dictionary = {
 		"damage_type": {"type": "string", "enum": DAMAGE_TYPES},
 		"pool": {"type": "string", "enum": SIMPL},
 		"bundle": {"type": "ref:bundle"},
+		"order": {"type": "string", "enum": ORDERS},
 		"target": {"type": "obj:selector"},
 		"per": {"type": "obj:per"},
 		"condition": {"type": "obj:condition"},
@@ -164,12 +168,24 @@ const OBJECTS: Dictionary = {
 		"reset_on": {"type": "string", "enum": HOOK_EVENTS},
 		"reset_after_s": {"type": "fixed", "min": 0},
 	},
-	## Ability activation (E2Q10). Used from sw-ps1.5 on.
+	## Ability activation (E2Q10, E3Q6, E3Q7). Costs are paid on use. A
+	## toggle pays its upkeep while on and switches off when a pool it sinks
+	## falls to auto_off_band (default Broken, R8Q2); a toggle that sinks
+	## nothing starts on (R7Q4). Reactions are queued in the reaction window
+	## and fire on contact with the trigger. ready_s > 0 readies first (Prowess
+	## Vacuum per second while readying); the bundle, the readied state,
+	## applies when readying ends. lose_on events cancel readying and end the
+	## readied state.
 	"activation": {
-		"costs": {"type": "map:fixed", "keys": SIMPL},
+		"timing": {"type": "string", "enum": ["order", "reaction"]},
+		"costs": {"type": "map:fixed", "keys": SIMPL, "min": 0},
+		"upkeep_per_s": {"type": "map:fixed", "keys": SIMPL, "min": 0},
+		"auto_off_band": {"type": "string", "enum": BANDS},
 		"cooldown_s": {"type": "fixed", "min": 0},
 		"charges": {"type": "int", "min": 1},
 		"ready_s": {"type": "fixed", "min": 0},
+		"readying_prowess_per_s": {"type": "fixed", "min": 0},
+		"lose_on": {"type": "list:string", "enum": LOSE_EVENTS},
 		"range": {"type": "fixed", "min": 0},
 		"targeting": {"type": "string", "enum": ["none", "self", "squad", "point"]},
 		"toggle": {"type": "bool"},
@@ -226,16 +242,13 @@ const KINDS: Dictionary = {
 		"turn_deg_per_s": {"type": "int", "min": 1},
 		"terrain_cost_pct": {"type": "map:int"},
 	},
+	## A bundle plus an activation (E2Q10). Detection, Concealment and
+	## reactions are abilities (E3Q7).
 	"ability": {
-		"type": {"type": "string", "required": true, "enum": ["detection", "concealment"]},
-		"radius": {"type": "fixed"},
-		"instinct_cost_per_s": {"type": "int", "min": 0},
-		"auto_off_band": {"type": "string", "enum": BANDS},
-		"base_pct": {"type": "int", "min": 0, "max": 100},
-		"terrain_pct": {"type": "map:int"},
-		"moving_pct": {"type": "int"},
-		"firing_pct": {"type": "int"},
-		"bundle": {"type": "ref:bundle"},
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"tags": {"type": "list:string"},
+		"bundle": {"type": "ref:bundle", "required": true},
 		"activation": {"type": "obj:activation"},
 	},
 	"unit": {
@@ -261,7 +274,11 @@ const KINDS: Dictionary = {
 		"formation": {"type": "obj:formation"},
 		"pools": {"type": "map:obj:pool", "keys": SIMPL},
 		"abilities": {"type": "list:ref:ability"},
-		"reactions": {"type": "list:obj:reaction"},
+		## Bases that ability bundles modify (R7Q4): concealment shrinks the
+		## range at which plain Sight spots the squad; detection spots
+		## concealed squads within its radius.
+		"concealment_pct": {"type": "int", "min": 0, "max": 100},
+		"detection_radius": {"type": "fixed", "min": 0},
 		"keywords": {"type": "list:string"},
 		"bundles": {"type": "list:ref:bundle"},
 		"legend_archetype": {"type": "string", "enum": ["damage", "tank", "scout", "sapper", "support"]},

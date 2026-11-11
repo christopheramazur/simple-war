@@ -11,7 +11,7 @@
 		{"id": "humanity_squad", "kind": "squad", "abstract": true, "values": {
 			"faction": "humanity", "capture_rate": 10, "sight": 45,
 			"formation": {"shape": "line", "spacing": 2},
-			"reactions": [{"id": "halt", "instinct_cost": 8}, {"id": "fall_back", "instinct_cost": 12}, {"id": "retarget", "instinct_cost": 6}],
+			"abilities": ["halt", "fall_back", "retarget"],
 			"legend_archetype": "damage"}},
 		{"id": "rifle_squad", "parent": "humanity_squad", "values": {
 			"name": "Rifle squad", "value": 100,
@@ -22,11 +22,11 @@
 			"members": [{"unit": "gunner", "count": 2}, {"unit": "trooper", "count": 2}]}},
 		{"id": "marksman_team", "parent": "humanity_squad", "values": {
 			"name": "Marksman team", "value": 90, "capture_rate": 5, "sight": 60, "legend_archetype": "scout",
-			"abilities": ["field_camo"],
+			"abilities": ["halt", "fall_back", "retarget", "field_camo"],
 			"members": [{"unit": "marksman", "count": 2}]}},
 		{"id": "scout_team", "parent": "humanity_squad", "values": {
 			"name": "Scout team", "value": 80, "sight": 55, "legend_archetype": "scout",
-			"abilities": ["scout_cloak", "auspex"],
+			"abilities": ["halt", "fall_back", "retarget", "scout_cloak", "auspex"],
 			"formation": {"shape": "wedge", "spacing": 3},
 			"members": [{"unit": "scout", "count": 4}]}},
 		{"id": "rocket_team", "parent": "humanity_squad", "values": {

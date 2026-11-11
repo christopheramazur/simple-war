@@ -16,6 +16,28 @@ const EN: Dictionary = {
 	"fx.heal": "Restores {amount} HP",
 	"fx.pool_flow": "{sign}{amount} {pool}",
 	"fx.apply_bundle": "Applies {bundle}",
+	"fx.order.hold": "Halts",
+	"fx.order.fall_back": "Falls back",
+	"fx.order.attack": "Attacks {who}",
+	"fx.order.who.other": "them",
+	"fx.order.who.source": "the source",
+	"fx.order.who.allies": "the nearest ally",
+	"fx.order.who.enemies": "the nearest enemy",
+	"fx.order.who.squads": "the nearest squad",
+	"ab.toggle": "Toggle.",
+	"ab.reaction": "Reaction.",
+	"ab.cost": "Costs {amount} {pool}.",
+	"ab.upkeep": "Sinks {amount} {pool} per second while on; switches off at {band} {pool}.",
+	"ab.cooldown": "Cooldown {seconds} s.",
+	"ab.charges": "{n} uses per battle.",
+	"ab.ready": "Readies for {seconds} s (sinks {prowess} Prowess per second), then:",
+	"ab.lose_on": "Lost on {events}.",
+	"ab.lose.move": "moving",
+	"ab.lose.attack": "attacking",
+	"ab.lose.damaged": "taking damage",
+	"ab.lose.casualty": "a casualty",
+	"ab.range": "Range {range} m.",
+	"ab.or": " or ",
 	"fx.when.apply": "On application: {text}",
 	"fx.when.expire": "When it ends: {text}",
 	"fx.when.every": "Every {seconds} s: {text}",
@@ -44,6 +66,7 @@ const EN: Dictionary = {
 	"fx.cond.firing": "{text} while firing",
 	"fx.cond.not_firing": "{text} while not firing",
 	"fx.cond.hp_below": "{text} below {pct}% HP",
+	"fx.cond.on_feature": "{text} in {features}",
 	"fx.cooldown": "{text} (at most once every {seconds} s)",
 	"fx.duration.seconds": "Lasts {seconds} s.",
 	"fx.duration.turns": "Lasts {turns} turns.",
@@ -65,6 +88,8 @@ const EN: Dictionary = {
 	"stat.movement.run": "Run Speed",
 	"stat.squad.sight": "Sight",
 	"stat.squad.capture_rate": "Capture Rate",
+	"stat.squad.concealment_pct": "Concealment",
+	"stat.squad.detection_radius": "Detection Radius",
 }
 
 
@@ -108,6 +133,9 @@ static func effect(fx: EffectRules, bd: Dictionary, e: Dictionary, registry: Sta
 			text = _f("fx.pool_flow", {"sign": "+" if amount >= 0 else "-", "amount": _num(absi(amount)), "pool": _pool(e["pool"])})
 		"apply_bundle":
 			text = _f("fx.apply_bundle", {"bundle": fx.bundles[e["bundle"]]["name"]})
+		"order":
+			var order: String = DataSchema.ORDERS[e["order"]]
+			text = _f("fx.order." + order, {"who": _w("fx.order.who." + str((e["target"] as Dictionary).get("select", "other")))})
 	var per: Dictionary = e["per"]
 	if not per.is_empty():
 		match per["source"]:
@@ -119,13 +147,15 @@ static func effect(fx: EffectRules, bd: Dictionary, e: Dictionary, registry: Sta
 			"accumulator":
 				text = _f("fx.per.accumulator", {"text": text, "each": _num(per["each"])})
 	var sel: Dictionary = e["target"]
-	if not sel.is_empty() and sel["select"] != "self":
+	if not sel.is_empty() and sel["select"] != "self" and e["op"] != "order":
 		text = _f("fx.target." + str(sel["select"]), {"text": text, "within": _within(sel)})
 	text = _condition(text, e["cond"])
 	var when: String = e["when"]
 	match when:
 		"while":
 			pass
+		"apply" when bd.get("instant", false):
+			pass  # Applying is all an instant bundle does.
 		"every":
 			text = _f("fx.when.every", {"seconds": _num(Fixed.from_ratio(e["every"], tps)), "text": text})
 		"accumulator":
@@ -136,6 +166,39 @@ static func effect(fx: EffectRules, bd: Dictionary, e: Dictionary, registry: Sta
 	if e["cooldown"] > 0:
 		text = _f("fx.cooldown", {"text": text, "seconds": _num(Fixed.from_ratio(e["cooldown"], tps))})
 	return text
+
+
+## Activation lines for ability `ab`, then its bundle's lines (E2Q10).
+static func ability_lines(r: BattleRules, ab: int) -> PackedStringArray:
+	var out := PackedStringArray()
+	if r.ab_reaction[ab] == 1:
+		out.append(_w("ab.reaction"))
+	if r.ab_toggle[ab] == 1:
+		out.append(_w("ab.toggle"))
+	for p in 5:
+		if r.ab_costs[ab][p] > 0:
+			out.append(_f("ab.cost", {"amount": _num(r.ab_costs[ab][p]), "pool": _pool(p)}))
+	for p in 5:
+		if r.ab_upkeep[ab][p] > 0:
+			out.append(_f("ab.upkeep", {"amount": _num(r.ab_upkeep[ab][p]), "pool": _pool(p),
+				"band": DataSchema.BANDS[r.ab_auto_off_band[ab]].capitalize()}))
+	if r.ab_cooldown_s[ab] > 0:
+		out.append(_f("ab.cooldown", {"seconds": _num(r.ab_cooldown_s[ab])}))
+	if r.ab_charges[ab] > 0:
+		out.append(_f("ab.charges", {"n": r.ab_charges[ab]}))
+	if r.ab_range[ab] >= 0:
+		out.append(_f("ab.range", {"range": _num(r.ab_range[ab])}))
+	if r.ab_ready_s[ab] > 0:
+		out.append(_f("ab.ready", {"seconds": _num(r.ab_ready_s[ab]), "prowess": _num(r.ab_ready_prowess[ab])}))
+	var lose := r.ab_lose_on[ab]
+	if not lose.is_empty():
+		var evs := PackedStringArray()
+		for ev in lose:
+			evs.append(_w("ab.lose." + ev))
+		out.append(_f("ab.lose_on", {"events": _w("ab.or").join(evs)}))
+	if r.ab_bundle[ab] >= 0:
+		out.append_array(bundle_lines(r.fx, r.ab_bundle[ab], r.stats, r.tps))
+	return out
 
 
 ## Display name of a stat: its translation, else a readable form of its ID.
@@ -163,6 +226,11 @@ static func _condition(text: String, c: Dictionary) -> String:
 		text = _f("fx.cond.firing" if c["firing"] else "fx.cond.not_firing", {"text": text})
 	if c.has("hp_below_pct"):
 		text = _f("fx.cond.hp_below", {"text": text, "pct": c["hp_below_pct"]})
+	if c.has("on_feature"):
+		var names := PackedStringArray()
+		for f: String in c["on_feature"]:
+			names.append(_t("feature." + f, f.capitalize()))
+		text = _f("fx.cond.on_feature", {"text": text, "features": _w("ab.or").join(names)})
 	return text
 
 

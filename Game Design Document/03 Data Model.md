@@ -36,13 +36,21 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 **Retired:** the old Statline, `weapon_skill` and Baseline Competence (R3Q7, R5Q8).
 
 ## 3.4 Effects, bundles and abilities (§2.13)
-- **Stat registry:** derived from the schemas. Each stat has a glossary name, unit, rounding, min/max and scope (unit or squad). Every stat the rules use has a data field with a default; for example, a reaction's cost is `instinct_cost`.
+- **Stat registry:** derived from the schemas. Each stat has a glossary name, unit, rounding, min/max and scope (unit or squad). Every stat the rules use has a data field with a default; for example, a reaction's cost is the ability's `activation.costs.instinct` (stat `ability.activation.costs.instinct`).
 - **Effect:** `op`, `target` (selector), `magnitude` (constant, or per stack plus a stack source), `condition`, `duration` (time, distance in hexes, or a campaign bank), `stacking` (refresh, stack, independent or strongest; per source or per target), `tags`, `source`. Optional flags such as `restores`.
 - **Bundle:** a named list of effects. Statuses, items, traits, features, zone conditions and Ruin effects are bundles. Bundles are package templates: referenced by ID, inheritable, schema-validated.
 - **Accumulator:** starting value, value, step size, counted event, threshold, reset condition.
 - **Ability:** a bundle plus an activation: costs, cooldown, charges, ready time, range, targeting, toggle.
-  - **Detection source** (R7Q4): radius; how Instinct affects it; Instinct sink per tick (0 means on by default).
-  - **Concealment source** (R7Q4): how terrain traits, activities and Instinct affect it; Instinct sink per tick (0 means on by default).
+  - **Activation fields:**
+    - `timing`: order or reaction.
+    - Costs: `costs` (per pool, paid on use) and `upkeep_per_s` (per pool, while a toggle is on).
+    - `auto_off_band`.
+    - Limits: `cooldown_s`, `charges`.
+    - Readying: `ready_s`, `readying_prowess_per_s`, `lose_on`.
+    - Targeting: `range`, `targeting` (none, self or squad; point is not supported yet), `toggle`.
+  - **Detection source** (R7Q4): a toggle whose bundle raises the squad stat `detection_radius`. Instinct efficacy scales the radius. Zero upkeep means it is on by default.
+  - **Concealment source** (R7Q4): a toggle whose bundle raises the squad stat `concealment_pct`. Terrain uses the `on_feature` condition; activities use the `moving` and `firing` conditions. Instinct shifts the result. Zero upkeep means it is on by default.
+  - **Reactions:** abilities with reaction timing. Their bundles use the `order` operation (hold, fall_back or attack).
   - **Readied state** (R7Q3, E3Q6): ready time; what the state does; how long it lasts; the conditions that lose it; Prowess Vacuum while readying.
   - **Auto-off defaults** (R8Q2): the band that breaks the effect (default Broken), plus player-overridable rules.
 - **Tags:** a moddable registry with glossary entries.

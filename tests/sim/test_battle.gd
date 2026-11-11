@@ -71,12 +71,12 @@ func test_order_validation() -> void:
 		{"squad": mine[0], "type": "teleport"},
 		{"squad": mine[0], "type": "move", "x": -5, "y": 0},
 		{"squad": mine[0], "type": "attack", "target": theirs[0]},
-		{"squad": mine[0], "type": "move", "x": 10 * ONE, "y": 10 * ONE, "concealment": true},
+		{"squad": mine[0], "type": "move", "x": 10 * ONE, "y": 10 * ONE, "abilities": [{"id": "scout_cloak", "on": true}]},
 	])
 	assert_eq(errs.size(), 5, "\n".join(errs))
 	assert_string_contains(errs[0], "not your squad")
 	assert_string_contains(errs[3], "target not visible")
-	assert_string_contains(errs[4], "no concealment ability")
+	assert_string_contains(errs[4], "squad has no ability 'scout_cloak'")
 
 
 func test_movement_closes_distance() -> void:

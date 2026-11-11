@@ -6,8 +6,10 @@ extends RefCounted
 ## Order dict (all positions are raw fixed ints):
 ##   {"squad": id, "type": "hold"|"move"|"attack_move"|"attack"|"fall_back"|"withdraw",
 ##    "x": fx, "y": fy, "target": squad_id, "run": bool,
-##    "detection": bool, "concealment": bool}
-## Detection / Concealment toggles take effect at execute start (R8Q2).
+##    "abilities": [{"id": ability, "on": bool} | {"id": ability, "target": squad_id}]}
+## Abilities are planning orders validated against their activation
+## (E3Q7); toggles such as Detection and Concealment switch at execute
+## start (R8Q2). See Abilities.validate_use.
 
 const TYPES: Dictionary = {
 	"hold": BattleSquads.Order.HOLD,
@@ -65,13 +67,15 @@ static func validate(state: BattleState, player: int, o: Variant) -> String:
 			return "invalid target"
 		if state.squads.seen_by[trow] & BattleSquads.bit(player) == 0:
 			return "target not visible"
-	for k in ["run", "detection", "concealment"]:
-		if o.has(k) and typeof(o[k]) != TYPE_BOOL:
-			return "%s must be true or false" % k
-	if o.get("detection", false) and state.rules.sq_detection[state.squads.tmpl[row]] < 0:
-		return "squad has no detection ability"
-	if o.get("concealment", false) and state.rules.sq_concealment[state.squads.tmpl[row]] < 0:
-		return "squad has no concealment ability"
+	if o.has("run") and typeof(o["run"]) != TYPE_BOOL:
+		return "run must be true or false"
+	var abl: Variant = o.get("abilities", [])
+	if typeof(abl) != TYPE_ARRAY:
+		return "abilities must be a list"
+	for a: Variant in abl:
+		var err := Abilities.validate_use(state, row, a)
+		if not err.is_empty():
+			return err
 	return ""
 
 
@@ -98,10 +102,10 @@ static func _apply_one(state: BattleState, o: Dictionary) -> void:
 			tx = 0 if _own_edge_is_west(state, sq.player[row]) else Fixed.from_int(state.rules.width)
 			ty = sq.cy[row]
 	set_order(state, row, t, tx, ty, target, run)
-	if o.has("detection"):
-		_set_byte(sq, &"detect_on", row, 1 if o["detection"] else 0)
-	if o.has("concealment"):
-		_set_byte(sq, &"conceal_on", row, 1 if o["concealment"] else 0)
+	for a: Dictionary in o.get("abilities", []):
+		# Re-checked: an earlier entry may have spent the cost or charge.
+		if Abilities.validate_use(state, row, a).is_empty():
+			Abilities.apply_use(state, row, a)
 
 
 static func set_order(state: BattleState, row: int, t: int, tx: int, ty: int, target: int, run: int) -> void:

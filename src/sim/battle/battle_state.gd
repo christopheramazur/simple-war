@@ -7,6 +7,7 @@ var rules: BattleRules
 var units: BattleUnits
 var squads: BattleSquads
 var effects: BattleEffects
+var abilities: BattleAbilities
 ## Turns resolved so far.
 var turn: int = 0
 ## Player IDs in this battle, ascending.
@@ -47,9 +48,11 @@ func _init(context_id: int, battle_rules: BattleRules, seed_value: int = 0) -> v
 	units = BattleUnits.new()
 	squads = BattleSquads.new()
 	effects = BattleEffects.new()
+	abilities = BattleAbilities.new()
 	add_table(units)
 	add_table(squads)
 	add_table(effects)
+	add_table(abilities)
 	zone_owner.resize(rules.zone_ids.size())
 	zone_amount.resize(rules.zone_ids.size())
 	for side in rules.sides:

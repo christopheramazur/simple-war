@@ -7,22 +7,29 @@ extends RefCounted
 ##   id, name, tags (PackedStringArray), effects (Array of compiled effects),
 ##   seconds_ticks (-1 = none), turns (0 = none), policy (String),
 ##   per_source (bool), max_stacks (int), acc (Dictionary or {}),
-##   disguise (bundle index or -1), listens (PackedStringArray of hook events).
+##   disguise (bundle index or -1), listens (PackedStringArray of hook events),
+##   instant (bool: only "apply" effects and no duration, so nothing is left
+##   to hold once it has acted).
 ## A compiled effect is a Dictionary:
 ##   op, when (Strings), stat (StringName, "" if none), mod (StatModifier.Kind),
 ##   amount (fixed), dtype, pool, bundle (ints, -1 if none), target / per /
 ##   cond (Dictionaries, {} if none), every, cooldown (ticks, 0 if none),
-##   restores (bool), source (String: "<bundle id>#<index>").
+##   restores (bool), source (String: "<bundle id>#<index>"), order (index
+##   into DataSchema.ORDERS, -1 if none). A condition's on_feature list is
+##   compiled to "features" (PackedInt64Array of BattleRules feature indices).
 
 const OP_DEFAULT_WHEN: Dictionary = {"modify": "while"}
 
 var bundles: Array[Dictionary] = []
 var errors: PackedStringArray = PackedStringArray()
 var _index: Dictionary = {}  # bundle template id -> index
+var _features: PackedStringArray = PackedStringArray()
 
 
-static func compile(t: TemplateTable, registry: StatRegistry, tps: int) -> EffectRules:
+## `features` is BattleRules.feature_ids, for on_feature conditions.
+static func compile(t: TemplateTable, registry: StatRegistry, tps: int, features: PackedStringArray = PackedStringArray()) -> EffectRules:
 	var fx := EffectRules.new()
+	fx._features = features
 	var ids: PackedStringArray = PackedStringArray()
 	var tags := {}
 	for tid in t.ids():
@@ -87,6 +94,10 @@ func _compile_bundle(tid: String, v: Dictionary, registry: StatRegistry, tps: in
 		b["effects"].append(e)
 		if e["when"] in DataSchema.HOOK_EVENTS and not b["listens"].has(e["when"]):
 			b["listens"].append(e["when"])
+	var instant: bool = b["seconds_ticks"] < 0 and b["turns"] == 0 and (b["acc"] as Dictionary).is_empty()
+	for e: Dictionary in b["effects"]:
+		instant = instant and e["when"] == "apply"
+	b["instant"] = instant
 	return b
 
 
@@ -95,14 +106,14 @@ func _compile_effect(src: String, v: Dictionary, b: Dictionary, registry: StatRe
 	var e := {
 		"op": op, "when": str(v.get("when", OP_DEFAULT_WHEN.get(op, "apply"))),
 		"stat": &"", "mod": StatModifier.Kind.FLAT, "amount": DataSchema.to_fixed(v.get("amount", 0)),
-		"dtype": -1, "pool": -1, "bundle": -1, "target": _selector(v.get("target", {})),
-		"per": {}, "cond": v.get("condition", {}), "every": 0, "cooldown": 0,
+		"dtype": -1, "pool": -1, "bundle": -1, "order": -1, "target": _selector(v.get("target", {})),
+		"per": {}, "cond": _condition(src, v.get("condition", {})), "every": 0, "cooldown": 0,
 		"restores": bool(v.get("restores", false)), "source": src,
 	}
 	for tag: String in v.get("tags", []):
 		if not tags.has(tag):
 			errors.append("%s: unknown tag '%s'" % [src, tag])
-	var need_amount := op != "apply_bundle"
+	var need_amount := op not in ["apply_bundle", "order"]
 	if need_amount and not v.has("amount"):
 		errors.append("%s: '%s' needs an amount" % [src, op])
 	match op:
@@ -127,6 +138,12 @@ func _compile_effect(src: String, v: Dictionary, b: Dictionary, registry: StatRe
 			e["bundle"] = _index.get(v.get("bundle", ""), -1)
 			if e["bundle"] < 0:
 				errors.append("%s: apply_bundle needs a bundle" % src)
+		"order":
+			e["order"] = DataSchema.ORDERS.find(str(v.get("order", "")))
+			if e["order"] < 0:
+				errors.append("%s: order needs an order" % src)
+			elif DataSchema.ORDERS[e["order"]] == "attack" and (e["target"] as Dictionary).get("select", "self") == "self":
+				errors.append("%s: an attack order needs a target selector" % src)
 	if op != "modify" and e["when"] == "while":
 		errors.append("%s: only modify effects act 'while'" % src)
 	if e["when"] == "every":
@@ -154,6 +171,21 @@ func _compile_effect(src: String, v: Dictionary, b: Dictionary, registry: StatRe
 				if (b["acc"] as Dictionary).is_empty():
 					errors.append("%s: per accumulator needs the bundle to have an accumulator" % src)
 	return e
+
+
+func _condition(src: String, c: Dictionary) -> Dictionary:
+	if not c.has("on_feature"):
+		return c
+	var out := c.duplicate()
+	var idx := PackedInt64Array()
+	for f: String in c["on_feature"]:
+		var i := _features.find(f)
+		if i < 0:
+			errors.append("%s: unknown feature '%s'" % [src, f])
+		else:
+			idx.append(i)
+	out["features"] = idx
+	return out
 
 
 static func _selector(v: Dictionary) -> Dictionary:

@@ -32,6 +32,12 @@ static func unit(state: BattleState, urow: int, stat: StringName, base: int) -> 
 	return base if mods.is_empty() else StatCalc.value(def_of(state, stat), base, mods)
 
 
+## Whether any active modifier touches this squad stat.
+static func squad_has_mods(state: BattleState, srow: int, stat: StringName) -> bool:
+	var by_stat: Dictionary = state.squad_mods.get(state.squads.id_at(srow), {})
+	return by_stat.has(stat)
+
+
 ## As `squad`, with the step trace for the inspection window.
 static func squad_trace(state: BattleState, srow: int, stat: StringName, base: int) -> Dictionary:
 	return StatCalc.with_trace(def_of(state, stat), base, _squad_mods(state, srow, stat))

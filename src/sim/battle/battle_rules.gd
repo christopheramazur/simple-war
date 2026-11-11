@@ -10,7 +10,7 @@ const SYSTEMS: Array[String] = DataSchema.SIMPL
 const BANDS: Array[String] = DataSchema.BANDS
 const SHAPES: Array[String] = ["line", "column", "wedge", "blob"]
 const ARCHETYPES: Array[String] = ["", "damage", "tank", "scout", "sapper", "support"]
-const REACTIONS: Array[String] = ["halt", "fall_back", "retarget", "go_prone"]
+const TARGETING: Array[String] = ["none", "self", "squad", "point"]
 
 var errors: PackedStringArray = PackedStringArray()
 ## Stat registry (shared, derived from the schema) and compiled bundles.
@@ -80,18 +80,31 @@ var md_aoe: PackedInt64Array = PackedInt64Array()
 var md_crit_every: PackedInt64Array = PackedInt64Array()
 var md_crit_bonus: PackedInt64Array = PackedInt64Array()
 
-# --- abilities ---
+# --- abilities (E2Q10, E3Q6, E3Q7) ---
 var ab_ids: PackedStringArray = PackedStringArray()
-var ab_is_detection: PackedByteArray = PackedByteArray()
-var ab_radius: PackedInt64Array = PackedInt64Array()
-## Instinct cost per tick, fixed points.
-var ab_cost: PackedInt64Array = PackedInt64Array()
+var ab_names: PackedStringArray = PackedStringArray()
+## EffectRules index of the ability's bundle (its active or readied state).
+var ab_bundle: PackedInt64Array = PackedInt64Array()
+## Per ability, 5 pools (SIMPL order), fixed: cost on use, upkeep per
+## second. Activation numbers are bases for the ability.activation.* stats;
+## Abilities reads them through Stats.
+var ab_costs: Array[PackedInt64Array] = []
+var ab_upkeep: Array[PackedInt64Array] = []
 var ab_auto_off_band: PackedInt64Array = PackedInt64Array()
-var ab_base: PackedInt64Array = PackedInt64Array()
-var ab_moving: PackedInt64Array = PackedInt64Array()
-var ab_firing: PackedInt64Array = PackedInt64Array()
-## [ability * feature_count + feature]
-var ab_terrain: PackedInt64Array = PackedInt64Array()
+var ab_toggle: PackedByteArray = PackedByteArray()
+var ab_reaction: PackedByteArray = PackedByteArray()
+## Toggles that sink nothing start on (R7Q4).
+var ab_default_on: PackedByteArray = PackedByteArray()
+var ab_cooldown_s: PackedInt64Array = PackedInt64Array()   ## fixed seconds
+var ab_charges: PackedInt64Array = PackedInt64Array()      ## -1 = unlimited
+var ab_ready_s: PackedInt64Array = PackedInt64Array()      ## fixed seconds, 0 = acts at once
+var ab_ready_prowess: PackedInt64Array = PackedInt64Array()  ## Prowess Vacuum per second while readying, fixed
+var ab_lose_on: Array[PackedStringArray] = []
+var ab_range: PackedInt64Array = PackedInt64Array()        ## fixed, -1 = unlimited
+var ab_targeting: PackedInt64Array = PackedInt64Array()    ## TARGETING index
+## True when some ability is lost on damage or casualties (HealthSystem
+## only reports to Abilities then).
+var ab_lost_on_hits: bool = false
 
 # --- unit templates ---
 var unit_ids: PackedStringArray = PackedStringArray()
@@ -117,11 +130,11 @@ var sq_members: Array[PackedInt64Array] = []
 var sq_bundles: Array[PackedInt64Array] = []
 var ut_bundles: Array[PackedInt64Array] = []
 var sq_keywords: Array[PackedStringArray] = []
-## Ability indices, -1 if none.
-var sq_detection: PackedInt64Array = PackedInt64Array()
+## Ability indices per squad template, in template order.
+var sq_abilities: Array[PackedInt64Array] = []
+## Bases for the concealment and detection stats (R7Q4), fixed.
 var sq_concealment: PackedInt64Array = PackedInt64Array()
-## Reaction costs (fixed points) per REACTIONS entry; -1 = not available.
-var sq_reaction_cost: Array[PackedInt64Array] = []
+var sq_detection: PackedInt64Array = PackedInt64Array()
 ## Pool parameters per squad template, [squad * 5 + system], fixed points.
 var sq_pool_cap: PackedInt64Array = PackedInt64Array()
 var sq_pool_start: PackedInt64Array = PackedInt64Array()
@@ -284,9 +297,9 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	if _registry == null:
 		_registry = StatRegistry.from_schema()
 	stats = _registry
-	fx = EffectRules.compile(t, stats, tps)
-	errors.append_array(fx.errors)
 	_compile_features(t, by_kind.get("feature", PackedStringArray()))
+	fx = EffectRules.compile(t, stats, tps, feature_ids)
+	errors.append_array(fx.errors)
 	var mv_index := _compile_movement(t, by_kind.get("movement", PackedStringArray()))
 	var df_index := _compile_defense(t, by_kind.get("defense", PackedStringArray()))
 	var wp_index := _compile_weapons(t, by_kind.get("weapon", PackedStringArray()))
@@ -403,18 +416,49 @@ func _compile_abilities(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 	var index := {}
 	for tid in ids:
 		var v := t.values_of(tid)
+		var act: Dictionary = v.get("activation", {})
 		index[tid] = ab_ids.size()
 		ab_ids.append(tid)
-		ab_is_detection.append(1 if v["type"] == "detection" else 0)
-		ab_radius.append(DataSchema.to_fixed(v.get("radius", 0)))
-		ab_cost.append(Fixed.round_div(Fixed.from_int(int(v.get("instinct_cost_per_s", 0))), tps))
-		ab_auto_off_band.append(BANDS.find(v.get("auto_off_band", "broken")))
-		ab_base.append(int(v.get("base_pct", 0)))
-		ab_moving.append(int(v.get("moving_pct", 0)))
-		ab_firing.append(int(v.get("firing_pct", 0)))
-		var terr: Dictionary = v.get("terrain_pct", {})
-		for f in feature_ids:
-			ab_terrain.append(int(terr.get(f, 0)))
+		ab_names.append(str(v.get("name", tid)))
+		var b := fx.index_of(str(v.get("bundle", "")))
+		if b < 0:
+			errors.append("%s: unknown bundle '%s'" % [tid, v.get("bundle", "")])
+		ab_bundle.append(b)
+		var reaction: bool = act.get("timing", "order") == "reaction"
+		var toggle: bool = act.get("toggle", false)
+		var costs_in: Dictionary = act.get("costs", {})
+		if reaction and costs_in.is_empty():
+			costs_in = {"instinct": sink("instinct_reaction")}
+		var upkeep_in: Dictionary = act.get("upkeep_per_s", {})
+		var costs := PackedInt64Array()
+		var upkeep := PackedInt64Array()
+		var sinks_any := false
+		for p in SYSTEMS:
+			costs.append(DataSchema.to_fixed(costs_in.get(p, 0)))
+			var u := DataSchema.to_fixed(upkeep_in.get(p, 0))
+			upkeep.append(u)
+			sinks_any = sinks_any or u > 0
+		ab_costs.append(costs)
+		ab_upkeep.append(upkeep)
+		ab_auto_off_band.append(BANDS.find(act.get("auto_off_band", "broken")))
+		ab_toggle.append(1 if toggle else 0)
+		ab_reaction.append(1 if reaction else 0)
+		ab_default_on.append(1 if toggle and not sinks_any else 0)
+		ab_cooldown_s.append(DataSchema.to_fixed(act.get("cooldown_s", 0)))
+		ab_charges.append(int(act.get("charges", -1)))
+		var ready := DataSchema.to_fixed(act.get("ready_s", 0))
+		ab_ready_s.append(ready)
+		ab_ready_prowess.append(DataSchema.to_fixed(act.get("readying_prowess_per_s", sink("prowess_readying_per_s"))))
+		var lose := PackedStringArray(act.get("lose_on", []))
+		ab_lose_on.append(lose)
+		ab_lost_on_hits = ab_lost_on_hits or lose.has("damaged") or lose.has("casualty")
+		ab_range.append(DataSchema.to_fixed(act["range"]) if act.has("range") else -1)
+		var targeting := TARGETING.find(act.get("targeting", "none"))
+		ab_targeting.append(targeting)
+		if reaction and (toggle or ready > 0):
+			errors.append("%s: a reaction acts at once (no toggle, no ready_s)" % tid)
+		if TARGETING[targeting] == "squad" and toggle:
+			errors.append("%s: a toggle acts on its own squad" % tid)
 	return index
 
 
@@ -460,22 +504,12 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 		sq_members.append(leaders)
 		sq_bundles.append(_bundle_list(v))
 		sq_keywords.append(PackedStringArray(v.get("keywords", [])))
-		var det := -1
-		var con := -1
+		var abl := PackedInt64Array()
 		for a: String in v.get("abilities", []):
-			var ai: int = ab[a]
-			if ab_is_detection[ai] == 1:
-				det = ai
-			else:
-				con = ai
-		sq_detection.append(det)
-		sq_concealment.append(con)
-		var costs := PackedInt64Array()
-		costs.resize(REACTIONS.size())
-		costs.fill(-1)
-		for re: Dictionary in v.get("reactions", []):
-			costs[REACTIONS.find(re["id"])] = Fixed.from_int(int(re.get("instinct_cost", sink("instinct_reaction"))))
-		sq_reaction_cost.append(costs)
+			abl.append(ab[a])
+		sq_abilities.append(abl)
+		sq_concealment.append(DataSchema.to_fixed(v.get("concealment_pct", 0)))
+		sq_detection.append(DataSchema.to_fixed(v.get("detection_radius", 0)))
 		var pools: Dictionary = v.get("pools", {})
 		for s in SYSTEMS:
 			var d: Dictionary = _pool_defaults.get(s, {})

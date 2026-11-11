@@ -81,10 +81,12 @@ func _drain(state: BattleState, q: PackedInt64Array, tally: Dictionary, pairs: A
 			_count_loss(state, trow)
 		if dealt > 0:
 			Effects.on_event(state, "damaged", tid, vid, by_squad, by_unit, dealt, depth)
+			Abilities.on_event(state, "damaged", tid, by_squad)
 			if row >= 0:
 				Effects.on_event(state, "hit", by_squad, by_unit, tid, vid, Fixed.ONE, depth)
 		if killed:
 			Effects.on_event(state, "casualty", tid, vid, by_squad, by_unit, Fixed.ONE, depth)
+			Abilities.on_event(state, "casualty", tid, by_squad)
 			if row >= 0:
 				Effects.on_event(state, "kill", by_squad, by_unit, tid, vid, Fixed.ONE, depth)
 		if row < 0:

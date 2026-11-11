@@ -13,13 +13,16 @@ extends RefCounted
 ## hold rows across a structural change.
 
 const MAX_DEPTH: int = 2
+## A squad that fired within this many seconds counts as "firing".
+const FIRING_WINDOW_S: int = 2
 
 
 ## Applies bundle `b` to a squad (or one of its units). Returns the instance
 ## ID, or -1 if refused. Stacking per the bundle (E2Q6): refresh / stack /
 ## strongest update the existing instance; independent always adds one.
-## "apply" effects run only when a new instance is created.
-static func apply(state: BattleState, b: int, squad_id: int, unit_id: int = -1, source_id: int = -1, depth: int = 0) -> int:
+## "apply" effects run only when a new instance is created; `other_squad` is
+## the other party they see (a reaction's trigger).
+static func apply(state: BattleState, b: int, squad_id: int, unit_id: int = -1, source_id: int = -1, depth: int = 0, other_squad: int = -1) -> int:
 	if b < 0 or depth > MAX_DEPTH or state.squads.row_of(squad_id) < 0:
 		return -1
 	var bd: Dictionary = state.rules.fx.bundles[b]
@@ -55,7 +58,7 @@ static func apply(state: BattleState, b: int, squad_id: int, unit_id: int = -1, 
 	state.events.push(&"effect_applied", {"effect": eid, "bundle": bd["id"], "squad": squad_id, "unit": unit_id, "source": source_id}, state.tick)
 	for e: Dictionary in bd["effects"]:
 		if e["when"] == "apply":
-			run_effect(state, eid, e)
+			run_effect(state, eid, e, other_squad)
 	return eid
 
 
@@ -74,7 +77,7 @@ static func remove(state: BattleState, eid: int, expired: bool) -> void:
 
 
 ## Runs one instant effect of instance `eid` (damage, heal, pool_flow,
-## apply_bundle). `other_*` is the other party of a hook event.
+## apply_bundle, order). `other_*` is the other party of a hook event.
 static func run_effect(state: BattleState, eid: int, e: Dictionary, other_squad: int = -1, other_unit: int = -1) -> void:
 	var fx := state.effects
 	var row := fx.row_of(eid)
@@ -89,6 +92,9 @@ static func run_effect(state: BattleState, eid: int, e: Dictionary, other_squad:
 	var amount: int = e["amount"] * stacks_for(state, row, e)
 	# Damage is credited to whoever applied the bundle, else its holder.
 	var by: int = fx.source[row] if fx.source[row] >= 0 else fx.holder_squad[row]
+	if e["op"] == "order":
+		_order(state, srow, e, targets(state, row, e["target"], other_squad, other_unit))
+		return
 	for tgt in targets(state, row, e["target"], other_squad, other_unit):
 		var ts: int = tgt[0]
 		var tu: int = tgt[1]
@@ -262,7 +268,7 @@ static func condition_holds(state: BattleState, srow: int, c: Dictionary, unit_i
 		return false
 	if c.has("firing"):
 		var ft := sq.fired_tick[srow]
-		var firing := ft >= 0 and state.tick - ft <= state.rules.tps
+		var firing := ft >= 0 and state.tick - ft <= FIRING_WINDOW_S * state.rules.tps
 		if firing != bool(c["firing"]):
 			return false
 	if c.has("hp_below_pct"):
@@ -275,7 +281,26 @@ static func condition_holds(state: BattleState, srow: int, c: Dictionary, unit_i
 			return false
 	if c.has("has_keyword") and not state.rules.sq_keywords[sq.tmpl[srow]].has(c["has_keyword"]):
 		return false
+	if c.has("features") and not (c["features"] as PackedInt64Array).has(state.rules.feature_at(sq.cx[srow], sq.cy[srow])):
+		return false
 	return true
+
+
+## "order" effects (reactions, E3Q7): the holder squad takes the order.
+static func _order(state: BattleState, srow: int, e: Dictionary, tgts: Array) -> void:
+	var sq := state.squads
+	match DataSchema.ORDERS[e["order"]]:
+		"hold":
+			BattleOrders.set_order(state, srow, BattleSquads.Order.HOLD, sq.cx[srow], sq.cy[srow], -1, 0)
+		"fall_back":
+			var p := BattleOrders.fall_back_point(state, srow)
+			BattleOrders.set_order(state, srow, BattleSquads.Order.FALL_BACK, p[0], p[1], -1, 1)
+		"attack":
+			if tgts.is_empty():
+				return
+			var trow := sq.row_of(tgts[0][0])
+			if trow >= 0 and sq.is_active(trow):
+				BattleOrders.set_order(state, srow, BattleSquads.Order.ATTACK, sq.cx[trow], sq.cy[trow], sq.id_at(trow), 0)
 
 
 static func _expiry(state: BattleState, bd: Dictionary) -> int:

@@ -29,12 +29,54 @@
 			"name": "Rocket launcher", "range": 45, "min_range": 5, "damage_type": "explosive", "magazine": 1, "reload_ticks": 40,
 			"modes": {"direct": {"shots": 1, "cooldown_ticks": 50, "accuracy": "0.5", "damage": 12, "aoe_radius": 3}}}},
 
-		{"id": "auspex", "kind": "ability", "values": {"type": "detection", "radius": 30, "instinct_cost_per_s": 0}},
+		{"id": "auspex", "kind": "ability", "values": {
+			"name": "Auspex", "bundle": "auspex_scan", "activation": {"toggle": true}}},
 		{"id": "field_camo", "kind": "ability", "values": {
-			"type": "concealment", "instinct_cost_per_s": 0, "base_pct": 20,
-			"terrain_pct": {"forest": 20, "ruins": 15}, "moving_pct": -15, "firing_pct": -40}},
+			"name": "Field camo", "bundle": "field_camo_cover", "activation": {"toggle": true}}},
 		{"id": "scout_cloak", "kind": "ability", "values": {
-			"type": "concealment", "instinct_cost_per_s": 2, "auto_off_band": "broken", "base_pct": 45,
-			"terrain_pct": {"forest": 30, "ruins": 20}, "moving_pct": -10, "firing_pct": -50}}
+			"name": "Scout cloak", "bundle": "scout_cloak_cover",
+			"activation": {"toggle": true, "upkeep_per_s": {"instinct": 2}, "auto_off_band": "broken"}}},
+
+		{"id": "auspex_scan", "kind": "bundle", "values": {
+			"name": "Auspex scan", "tags": ["detection"],
+			"effects": [{"op": "modify", "stat": "squad.detection_radius", "amount": 30}]}},
+		{"id": "field_camo_cover", "kind": "bundle", "values": {
+			"name": "Field camo", "tags": ["concealment"],
+			"effects": [
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": 20},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": 20, "condition": {"on_feature": ["forest"]}},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": 15, "condition": {"on_feature": ["ruins"]}},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": -15, "condition": {"moving": true}},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": -40, "condition": {"firing": true}}
+			]}},
+		{"id": "scout_cloak_cover", "kind": "bundle", "values": {
+			"name": "Scout cloak", "tags": ["concealment"],
+			"effects": [
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": 45},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": 30, "condition": {"on_feature": ["forest"]}},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": 20, "condition": {"on_feature": ["ruins"]}},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": -10, "condition": {"moving": true}},
+				{"op": "modify", "stat": "squad.concealment_pct", "amount": -50, "condition": {"firing": true}}
+			]}},
+
+		{"id": "halt", "kind": "ability", "values": {
+			"name": "Halt", "bundle": "halt_order", "activation": {"timing": "reaction", "costs": {"instinct": 8}}}},
+		{"id": "fall_back", "kind": "ability", "values": {
+			"name": "Fall back", "bundle": "fall_back_order", "activation": {"timing": "reaction", "costs": {"instinct": 12}}}},
+		{"id": "retarget", "kind": "ability", "values": {
+			"name": "Retarget", "bundle": "retarget_order", "activation": {"timing": "reaction", "costs": {"instinct": 6}}}},
+		{"id": "halt_order", "kind": "bundle", "values": {
+			"name": "Halt", "tags": ["reaction"], "effects": [{"op": "order", "order": "hold"}]}},
+		{"id": "fall_back_order", "kind": "bundle", "values": {
+			"name": "Fall back", "tags": ["reaction"], "effects": [{"op": "order", "order": "fall_back"}]}},
+		{"id": "retarget_order", "kind": "bundle", "values": {
+			"name": "Retarget", "tags": ["reaction"], "effects": [{"op": "order", "order": "attack", "target": {"select": "other"}}]}},
+
+		{"id": "dig_in", "kind": "ability", "values": {
+			"name": "Dig in", "bundle": "dug_in",
+			"activation": {"ready_s": 3, "readying_prowess_per_s": 2, "lose_on": ["move", "damaged"], "cooldown_s": 10}}},
+		{"id": "dug_in", "kind": "bundle", "values": {
+			"name": "Dug in", "tags": ["buff"], "duration": {"turns": 2},
+			"effects": [{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": 15}]}}
 	]
 }

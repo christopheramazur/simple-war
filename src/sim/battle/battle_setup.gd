@@ -35,8 +35,6 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 		"player": player, "tmpl": st, "order": BattleSquads.Order.HOLD,
 		"tx": ax, "ty": ay, "facing": facing, "ax": ax, "ay": ay, "cx": ax, "cy": ay,
 		"alive": members.size(), "hp_max": hp_total,
-		"detect_on": 1 if r.sq_detection[st] >= 0 and r.ab_cost[r.sq_detection[st]] == 0 else 0,
-		"conceal_on": 1 if r.sq_concealment[st] >= 0 and r.ab_cost[r.sq_concealment[st]] == 0 else 0,
 		"seen_by": BattleSquads.bit(player),
 	}
 	for p in 5:
@@ -58,4 +56,5 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 			Effects.apply(state, b, sid, uid)
 	for b in r.sq_bundles[st]:
 		Effects.apply(state, b, sid)
+	Abilities.spawn_for(state, sid, st)
 	return sid

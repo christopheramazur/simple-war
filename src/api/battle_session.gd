@@ -198,8 +198,7 @@ func observe(player: int) -> Dictionary:
 			d["engaged"] = sq.engaged[row]
 			d["hp_lost"] = sq.hp_lost[row]
 			d["hp_max"] = sq.hp_max[row]
-			d["detection"] = sq.detect_on[row] == 1
-			d["concealment"] = sq.conceal_on[row] == 1
+			d["abilities"] = Abilities.view(state, sid)
 			var pools := {}
 			for p in 5:
 				pools[DataSchema.SIMPL[p]] = {

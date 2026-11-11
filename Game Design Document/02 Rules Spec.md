@@ -130,6 +130,7 @@ Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
   - **Detection:** reveals concealed squads within its radius. Its source defines the radius and how Instinct affects it.
   - **Concealment:** its source defines how terrain traits, activities and Instinct affect it.
   - **Cost:** an active Detection or Concealment sinks Instinct. A source that costs 0 is on by default.
+  - **As abilities (E3Q7):** both are toggled abilities whose bundles modify two squad stats, `concealment_pct` and `detection_radius`. Terrain and activity modifiers are effect conditions (on a feature, moving, firing within 2 s). Two engine rules apply: Instinct relative to Neutral shifts concealment by about ±25 points, clamped to 0–95%, and Instinct efficacy scales the detection radius.
   - **Toggling** (R8Q2): toggling is a planning order. It takes effect at execute start and is hidden from opponents, who only see its effects.
   - **Auto-off** (R8Q2): when Instinct reaches Broken, or another data-defined band, the effect breaks. Players can configure auto-off rules, such as "after X turns" or "when Instinct is below X".
 - **Ambush:** an attack begun while the target hasn't detected the attacker (R6Q1).
@@ -281,7 +282,7 @@ One language describes every simulation-side effect: abilities, statuses, equipm
 - **Tags** go on everything: effects, abilities, weapons, damage. Selection, resistances, restrictions, Ruin and Null all work through tags. The tag list is a moddable registry with glossary entries (E1Q7, E2Q10).
 
 ### Stats (E1Q3, E3Q1, E3Q2, E3Q4)
-- Effects touch **registered stats** only. The registry is derived from the schemas and covers every stat, each with a glossary name, unit, rounding, min/max and scope (unit or squad). A value without a data field (for example a reaction cost) gets one, with a sensible default.
+- Effects touch **registered stats** only. The registry is derived from the schemas and covers every stat, each with a glossary name, unit, rounding, min/max and scope (unit or squad). A value without a data field gets one, with a sensible default. For example, a reaction's cost is `ability.activation.costs.instinct`.
 - Systems read **effective values**, never raw data.
 - HP, temporary HP and every pool are fixed-point. One decimal is shown only when the value is fractional. Death is at HP ≤ 0, and thresholds compare exact values.
 - **Ratio-keeping:** when a maximum changes, every current/max pair keeps its ratio, unless the effect is flagged *restores*. Example: 17.5/22.5 becomes 11.66/15 when a +50% increased max wears off.
@@ -310,6 +311,13 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - An ability is a bundle plus an **activation**: costs, cooldown, charges, ready time, range, targeting, toggle.
 - Abilities are planning orders validated against their activation. Toggles (Detection, Concealment) and reactions are abilities.
 - **Readied states:** what the state does, how long it lasts and which conditions lose it are all data.
+- **Activation in play (sw-ps1.5):**
+  - **Using an ability:** an order's ability entry is checked against cooldown, charges, costs, targeting and range, then applied at execute start. A squad-targeted bundle is held by the target and sourced from the user.
+  - **Toggles:** a toggle pays upkeep every tick while on. It switches off when a pool it sinks reaches its auto-off band.
+  - **Reactions:** a reaction pays its costs (Instinct, default from the ruleset) when it fires on contact. Its bundle sees the trigger as "other". Reaction bundles use the `order` operation: hold, fall back, or attack the selected squad.
+  - **Readying:** readying sinks the squad's Prowess every second (the Vacuum), then applies the bundle as the readied state. Its `lose_on` events (move, attack, damaged, casualty) cancel readying or end the state. An enemy that interrupts readying floats its own Prowess.
+  - **Instant bundles:** a bundle with only on-application effects and no duration is released as soon as it has acted.
+  - **Stats:** activation numbers are `ability.activation.*` stats, so effects can change them for a whole squad.
 
 ### Text and inspection (E1Q5, E2Q3, E2Q11, E2Q12, E3Q8)
 - Rules text is generated from data via localised templates with glossary terms and live values. Authors write flavour text only.
