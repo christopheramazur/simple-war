@@ -42,7 +42,7 @@ func test_rules_compile() -> void:
 	var rifle := r.squad_index("rifle_squad")
 	assert_eq(r.sq_members[rifle].size(), 8)
 	assert_eq(r.ut_leader[r.sq_members[rifle][0]], 1, "leader first")
-	assert_eq(r.mv_walk[0] > 0, true)
+	assert_eq(r.mv_walk_s[0] > 0, true)
 	assert_eq(r.feature_ids[r.feature_at(50 * ONE, 20 * ONE)], "forest")
 	assert_eq(r.feature_ids[r.feature_at(10 * ONE, 49 * ONE)], "road")
 

@@ -1,4 +1,5 @@
 from hx import godot
+from hx.commands import godot as godot_cmd
 
 
 def test_binaries_pick_newest(tmp_path):
@@ -20,3 +21,8 @@ def test_read_project(fake_repo):
 def test_res_to_path(tmp_path):
     assert godot.res_to_path(tmp_path, "res://a/b.tscn") == tmp_path / "a" / "b.tscn"
     assert godot.res_to_path(tmp_path, "uid://x") is None
+
+
+def test_mock_default_out():
+    assert godot_cmd.mock_out("res://src/presentation/mocks/inspection_window_mock.gd", None) ==         "Game Design Document/Mocks/inspection_window.png"
+    assert godot_cmd.mock_out("res://x/y.gd", "a.png") == "a.png"

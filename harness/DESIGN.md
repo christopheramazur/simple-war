@@ -100,7 +100,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
 - **Secrets (Q31):** Windows Credential Manager via `keyring`; fallback `%USERPROFILE%\.hx\secrets.env` for WSL and containers. Never in the repo; `hx doctor` scans for committed keys. The user creates accounts and pastes keys (checklist provided).
 
 ## 5. Repetitive tasks → tools
-- **Seed verbs (Q40):** `hx status`, `hx godot check`, `hx godot test`, `hx task`, `hx report`, `hx delegate`, `hx bench`, `hx worker`, `hx doctor`.
+- **Seed verbs (Q40):** `hx status`, `hx godot check`, `hx godot test`, `hx godot mock` (UI mocks to PNG, E4Q3), `hx task`, `hx report`, `hx delegate`, `hx bench`, `hx worker`, `hx doctor`.
 - **Mining (Q26):** transcripts from all projects plus OpenCode history, mined frequently by the local model as a post-session worker job (not monthly). Candidates are filed as tasks; use and tokens saved are measured per verb.
   - *Built (sw-lbm.18):* `hx mine` groups ledger shell commands into shapes. Wrappers are read through (`uv run pytest`). The verbs come from the ledger, so all Claude Code projects are covered; OpenCode follows with sw-lbm.7.
   - Thresholds: at least 3 sessions and 5 uses. Filing: at most 3 per run, at most every 6 h, deduplicated by shape.

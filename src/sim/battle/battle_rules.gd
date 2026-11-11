@@ -42,8 +42,11 @@ var height: int = 0
 var terrain: PackedByteArray = PackedByteArray()
 
 # --- movement profiles ---
-var mv_walk: PackedInt64Array = PackedInt64Array()
-var mv_run: PackedInt64Array = PackedInt64Array()
+## Walk / run speeds in metres per second (fixed): the bases of the
+## movement.walk / movement.run stats. MovementSystem converts per tick
+## after modifiers, so effects are written in m/s like the data.
+var mv_walk_s: PackedInt64Array = PackedInt64Array()
+var mv_run_s: PackedInt64Array = PackedInt64Array()
 var mv_accel: PackedInt64Array = PackedInt64Array()
 var mv_turn: PackedInt64Array = PackedInt64Array()
 ## [profile * feature_count + feature] -> cost percent (100 = normal, 0 = impassable).
@@ -343,17 +346,13 @@ func _compile_features(t: TemplateTable, ids: PackedStringArray) -> void:
 		f_concealment.append(int(v.get("concealment_pct", 0)))
 
 
-func _per_tick(v: Variant) -> int:
-	return Fixed.round_div(DataSchema.to_fixed(v), tps)
-
-
 func _compile_movement(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 	var index := {}
 	for tid in ids:
 		var v := t.values_of(tid)
-		index[tid] = mv_walk.size()
-		mv_walk.append(_per_tick(v["walk"]))
-		mv_run.append(_per_tick(v["run"]))
+		index[tid] = mv_walk_s.size()
+		mv_walk_s.append(DataSchema.to_fixed(v["walk"]))
+		mv_run_s.append(DataSchema.to_fixed(v["run"]))
 		mv_accel.append(Fixed.round_div(DataSchema.to_fixed(v.get("accel", 1000)), tps * tps))
 		mv_turn.append(maxi(1, Fixed.round_div(int(v.get("turn_deg_per_s", 360)) * Fixed.ANGLE_FULL, 360 * tps)))
 		var costs: Dictionary = v.get("terrain_cost_pct", {})

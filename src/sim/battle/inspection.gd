@@ -75,8 +75,8 @@ static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary) 
 	var nt := DataSchema.DAMAGE_TYPES.size()
 	for d in nt:
 		stats.append(_entry(state, srow, urow, DamagePipeline.RESIST_STATS[d], Fixed.from_int(r.df_resist[df * nt + d]), hidden))
-	stats.append(_entry(state, srow, urow, &"movement.walk", r.mv_walk[mv], hidden))
-	stats.append(_entry(state, srow, urow, &"movement.run", r.mv_run[mv], hidden))
+	stats.append(_entry(state, srow, urow, &"movement.walk", r.mv_walk_s[mv], hidden))
+	stats.append(_entry(state, srow, urow, &"movement.run", r.mv_run_s[mv], hidden))
 	var w := r.ut_weapon[ut]
 	if w >= 0:
 		for m in range(r.wp_mode_start[w], r.wp_mode_start[w] + r.wp_mode_count[w]):

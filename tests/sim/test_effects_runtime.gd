@@ -218,6 +218,23 @@ func test_hook_chains_stop_at_depth_one() -> void:
 	assert_eq(hp_a - s.units.get_value(ua, &"hp"), ONE, "A took exactly one thorns hit; B's thorns didn't bounce back")
 
 
+func test_speed_modifiers_are_in_metres_per_second() -> void:
+	var s := _state()
+	var sid := _place(s, 1, 40)
+	var srow := _row(s, sid)
+	var urow := _unit(s, sid)
+	var r := _rules()
+	var profile := r.ut_movement[s.units.tmpl[urow]]
+	var feature := r.feature_at(s.units.x[urow], s.units.y[urow])
+	var cost := r.mv_cost[profile * r.feature_count() + feature]
+	var mv := MovementSystem.new()
+	var before := mv._unit_max_speed(s, srow, urow, profile, feature)
+	assert_eq(before, Fixed.round_div(Fixed.round_div(r.mv_walk_s[profile], r.tps) * 100, cost))
+	s.squad_mods = {sid: {&"movement.walk": [StatModifier.make("movement.walk", StatModifier.Kind.FLAT, ONE, "test#0")]}}
+	var after := mv._unit_max_speed(s, srow, urow, profile, feature)
+	assert_eq(after, Fixed.round_div(Fixed.round_div(r.mv_walk_s[profile] + ONE, r.tps) * 100, cost), "+1 m/s, not +1 m per tick")
+
+
 func test_rules_text() -> void:
 	var r := _rules()
 	var lines := RulesText.bundle_lines(r.fx, _b("inspired"), r.stats, r.tps)

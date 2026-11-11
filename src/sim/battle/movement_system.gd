@@ -119,11 +119,12 @@ func _unit_max_speed(state: BattleState, srow: int, urow: int, profile: int, fea
 	var cost := r.mv_cost[profile * r.feature_count() + feature]
 	if cost <= 0:
 		return 0
-	var walk := Stats.unit(state, urow, &"movement.walk", r.mv_walk[profile])
+	# Speeds are stats in m/s; per tick only after modifiers.
+	var walk := Fixed.round_div(Stats.unit(state, urow, &"movement.walk", r.mv_walk_s[profile]), r.tps)
 	var base := walk
 	if state.squads.run[srow] == 1:
 		var eff := Pools.efficacy(state, srow, BattleSquads.STAMINA)
-		var run := Stats.unit(state, urow, &"movement.run", r.mv_run[profile])
+		var run := Fixed.round_div(Stats.unit(state, urow, &"movement.run", r.mv_run_s[profile]), r.tps)
 		base = walk + Fixed.mul(run - walk, eff)
 	return Fixed.round_div(base * 100, cost)
 
