@@ -44,7 +44,7 @@ Format: **Term**: definition. *(decision IDs; former names)*
 
 ## Combat
 - **FPDR**: Fixed Point Defined Rounding, the deterministic arithmetic rule. *(R4Q8)*
-- **Accumulator**: a deterministic "every Nth" counter that replaces chance. *(R2Q6, R5Q5)*
+- **Accumulator**: a deterministic counter that replaces chance: it counts an event (seconds, hits, distance, health lost, ...) and fires at a threshold. *(R2Q6, R5Q5, E2Q9)*
 - **Defensive Profile**: the defence layers: Evasion, Block, Resistance, Flat, Percentage, Floor, Temporary HP, Absorption. *(R5Q7, R7Q1)*
 - **Evasion**: avoids a hit entirely. *(R7Q1)*
 - **Block**: a percentage chance to block a percentage of a hit. *(R6Q7)*
@@ -59,7 +59,23 @@ Format: **Term**: definition. *(decision IDs; former names)*
 - **Ambush**: an attack begun while the target hasn't detected the attacker. *(R6Q1)*
 - **Intercept**: a charge against an enemy squad that is itself charging one of yours. *(R6Q1)*
 - **Keyword**: a static squad property. *(R6Q9)*
-- **Status**: a transient condition produced by the effect language. *(R6Q9)*
+- **Status**: a transient bundle of effects on a unit or squad. *(R6Q9, E1Q2)*
+
+## Effects
+- **Effect**: one change described in the effect language: operation, target, magnitude, condition, duration, stacking, tags, source. *(E1Q2)*
+- **Bundle**: a named group of effects. Abilities, statuses, items and features are bundles. *(E1Q2, E2Q13)*
+- **Stat**: a registered value effects can change. Systems read its effective value. *(E1Q3, E3Q4)*
+- **Increased**: a percentage modifier summed with every other "increased" on the same stat before it applies. *(E2Q1)*
+- **More**: a percentage modifier that multiplies on its own, after all "increased" modifiers. *(E2Q1)*
+- **Trace**: the step-by-step calculation of an effective value, shown in the inspection window. *(E2Q1, E2Q3)*
+- **Stack**: one count of a stacking effect; "per stack" magnitudes multiply by it. *(E2Q6, E4Q2)*
+- **Selector**: picks an effect's targets, ordered by distance then ID. *(E2Q4)*
+- **Hook**: an effect that fires when an event happens, one level deep. *(E2Q5)*
+- **Tag**: a registered label on effects, abilities, weapons and damage, used for selection, resistance, restriction, Ruin and Null. *(E1Q7)*
+- **Restores**: an effect flag that refills current value when a maximum rises, instead of keeping the ratio. *(E3Q2)*
+- **Bank**: story-campaign data carried between campaigns. *(E2Q7, E3Q9)*
+- **Ability**: a bundle plus an activation (costs, cooldown, charges, ready time, range, targeting, toggle). *(E2Q10)*
+- **Inspection window**: the per-unit breakdown screen, available in planning and playback. *(E2Q3, E3Q8)*
 
 ## Objectives and scoring
 - **Zone**: an area that accrues Influence for whoever holds it. *(R6Q10)*

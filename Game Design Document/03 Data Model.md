@@ -35,12 +35,18 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 
 **Retired:** the old Statline, `weapon_skill` and Baseline Competence (R3Q7, R5Q8).
 
-## 3.4 Ability sources
-- **Detection source** (R7Q4): radius; how Instinct affects it; Instinct sink per tick (0 means on by default).
-- **Concealment source** (R7Q4): how terrain traits, activities and Instinct affect it; Instinct sink per tick (0 means on by default).
-- **Readying behaviour** (R7Q3): ready time; the behaviour it unlocks; Prowess Vacuum while readying.
-- **Auto-off defaults** (R8Q2): the band that breaks the effect (default Broken), plus player-overridable rules.
-- **Effects, statuses, Ruin effects:** these use the **effect language**, an (effect, target, magnitude) shape. The language itself is pending its own interview (R3Q9, R1Q15).
+## 3.4 Effects, bundles and abilities (§2.13)
+- **Stat registry:** derived from the schemas. Each stat has a glossary name, unit, rounding, min/max and scope (unit or squad). Every stat the rules use has a data field with a default; for example, a reaction's cost is `instinct_cost`.
+- **Effect:** `op`, `target` (selector), `magnitude` (constant, or per stack plus a stack source), `condition`, `duration` (time, distance in hexes, or a campaign bank), `stacking` (refresh, stack, independent or strongest; per source or per target), `tags`, `source`. Optional flags such as `restores`.
+- **Bundle:** a named list of effects. Statuses, items, traits, features, zone conditions and Ruin effects are bundles. Bundles are package templates: referenced by ID, inheritable, schema-validated.
+- **Accumulator:** starting value, value, step size, counted event, threshold, reset condition.
+- **Ability:** a bundle plus an activation: costs, cooldown, charges, ready time, range, targeting, toggle.
+  - **Detection source** (R7Q4): radius; how Instinct affects it; Instinct sink per tick (0 means on by default).
+  - **Concealment source** (R7Q4): how terrain traits, activities and Instinct affect it; Instinct sink per tick (0 means on by default).
+  - **Readied state** (R7Q3, E3Q6): ready time; what the state does; how long it lasts; the conditions that lose it; Prowess Vacuum while readying.
+  - **Auto-off defaults** (R8Q2): the band that breaks the effect (default Broken), plus player-overridable rules.
+- **Tags:** a moddable registry with glossary entries.
+- **Banks:** per profile and namespaced; cross-campaign reads are declared in the manifest.
 
 ## 3.5 Battle and campaign content
 - **Scenario:** battlefield, deployment, zones, victory conditions, scoring mode (primary and tiebreaker), turn limit, and end-of-battle hooks (R7Q5, R7Q6).

@@ -248,7 +248,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 
 ## 2.10 Magic and Ruin in play (R1Q15, R2Q8, R4Q21)
 - **Zones:** plots and battlefield areas carry a magic condition: Law (normal), Ruined or Null.
-- **Ruin** is a zone condition. It raises costs, lowers efficacy and restricts types, regardless of how the magic is accessed, like denial-of-service or 500 errors. Ruin effects are (effect descriptor, target descriptor, magnitude) triples in the effect language.
+- **Ruin** is a zone condition. It raises costs, lowers efficacy and restricts types, regardless of how the magic is accessed, like denial-of-service or 500 errors. Ruin effects are ordinary effects in the effect language (§2.13), selected through tags.
 - **Null:** no magic works.
 - **Raw magic** doesn't become available where the Law fails, except in "wacky" scripted circumstances.
 
@@ -268,3 +268,52 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   Players may keep waiting. The vote needs majority+1, dropping to a simple majority after another 30 s. End and Return-to-lobby both count toward ending.
 - **Host drop:** host migration runs first, then the flow above, authoritative from the new host.
 - **Ranked:** a vote-ended match is a forfeit for the disconnected side, and void if everyone dropped. There are no penalties until usage data exists.
+
+## 2.13 The effect language (sw-p2q.1, E1–E4)
+One language describes every simulation-side effect: abilities, statuses, equipment, traits and keywords, terrain features, zone conditions (including Ruin), Legend consequences, commander abilities and overworld feature effects. Items, weapons and abilities share effects the way they do in Brotato (E1Q1). The campaign trigger layer (§3.5) stays separate and *invokes* effects.
+
+### Effects and bundles (E1Q2, E2Q13)
+- An **effect** is: operation, target, magnitude, condition, duration, stacking, tags, source.
+- Abilities, statuses, items and features are named **bundles** of effects. Bundles are package templates: referenced by ID, inheritable, schema-validated.
+- The vocabulary (operations, selectors, conditions) is **closed** and engine-provided. Data never holds formulas. New vocabulary arrives with engine updates, and later through opt-in Lua operations (E1Q4).
+- **Magnitudes** are a constant, or a constant **per stack**. Stack counts come from auras, selector counts, accumulator values or pool values. There is no separate scaler category (E4Q2).
+- **No chance** (E1Q6): accumulators replace it, and their counters are visible.
+- **Tags** go on everything: effects, abilities, weapons, damage. Selection, resistances, restrictions, Ruin and Null all work through tags. The tag list is a moddable registry with glossary entries (E1Q7, E2Q10).
+
+### Stats (E1Q3, E3Q1, E3Q2, E3Q4)
+- Effects touch **registered stats** only. The registry is derived from the schemas and covers every stat, each with a glossary name, unit, rounding, min/max and scope (unit or squad). A value without a data field (for example a reaction cost) gets one, with a sensible default.
+- Systems read **effective values**, never raw data.
+- HP, temporary HP and every pool are fixed-point. One decimal is shown only when the value is fractional. Death is at HP ≤ 0, and thresholds compare exact values.
+- **Ratio-keeping:** when a maximum changes, every current/max pair keeps its ratio, unless the effect is flagged *restores*. Example: 17.5/22.5 becomes 11.66/15 when a +50% increased max wears off.
+
+### Modifier order (E2Q1)
+PoE-style wording: **"% increased"** values add together; each **"% more"** multiplies separately.
+
+base → flat → summed increased → each more in turn → override → clamp → one rounding.
+
+Every step is recorded in a **trace**, which the inspection window shows. Showing the calculation is the answer to PoE's opacity.
+
+### Applying changes (E2Q2)
+Lasting effects change computed values. Damage and other one-off changes are **queued** against their owner, and the owning system applies them; for example, the health system applies damage. All fire in a tick therefore lands simultaneously.
+
+### Selectors, hooks, stacking, durations (E2Q3–E2Q7, E3Q10)
+- **Selectors** order results deterministically: distance, then ID. "Within a distance of tagged allies/enemies" is tracked only out to the furthest range any active effect uses.
+- **Hooks:** an effect may trigger further effects one level deep (hard chain depth 1), with optional cooldowns. More hooks can be added later, and the depth rule may be relaxed.
+- **Stacking:** refresh (the default), stack, independent, or strongest, counted per source or per target.
+- **Durations:** time; overworld **distance** (hexes the holder enters by its own movement); and story-campaign **banks** (per profile and namespaced, with cross-campaign reads declared in the manifest; story campaigns only) (E3Q9).
+- **No conversion** in v1: only "extra damage as type X" (E2Q8).
+
+### Accumulators (E2Q9)
+Fields: starting value, value, step size, counted event (second, attack, hit, health lost, distance, squad casualty, …), threshold and reset condition. Tooltips name the event, e.g. "next in 2 hits", "next after 10 metres", "next after losing 10 hit points".
+
+### Abilities (E2Q10, E3Q6, E3Q7)
+- An ability is a bundle plus an **activation**: costs, cooldown, charges, ready time, range, targeting, toggle.
+- Abilities are planning orders validated against their activation. Toggles (Detection, Concealment) and reactions are abilities.
+- **Readied states:** what the state does, how long it lasts and which conditions lose it are all data.
+
+### Text and inspection (E1Q5, E2Q3, E2Q11, E2Q12, E3Q8)
+- Rules text is generated from data via localised templates with glossary terms and live values. Authors write flavour text only.
+- Show calculated numbers, never words like "recently".
+- Anything visible is inspectable, except deception-tagged effects, which show their disguise.
+- An **inspection window**, available in planning and playback, gives per-unit breakdowns behind tabs or unit cards. Comparison tooltips show how unit and squad stats would change.
+- The UI only formats values it receives from the Game API; it never computes them.

@@ -20,7 +20,7 @@ This is the authority on game design. It was rewritten after the design intervie
 
 ## Open topics (each gets its own interview, R8Q16)
 In order:
-1. **Effect language**: a Path of Exile study. Abilities, statuses and Ruin effects all depend on it (R3Q9).
+1. ~~**Effect language**~~: settled 2026-11-11 (Rounds E1–E4). See Rules Spec §2.13 and Data Model §3.4.
 2. **Timeline** grilling (R2Q9).
 3. **Narrative pass**, with art direction, audio and UI aesthetics (R4Q22, R8Q11).
 4. **AI factory wave**: the rest of the testing framework (R4Q16, R6Q24).
