@@ -108,7 +108,7 @@ func _sees(state: BattleState, o: int, t: int, conceal: int) -> bool:
 	var r := state.rules
 	var sq := state.squads
 	var d := Fixed.distance(sq.cx[o], sq.cy[o], sq.cx[t], sq.cy[t])
-	var reach := Fixed.round_div(r.sq_sight[sq.tmpl[o]] * (100 - conceal), 100)
+	var reach := Fixed.round_div(Stats.squad(state, o, &"squad.sight", r.sq_sight[sq.tmpl[o]]) * (100 - conceal), 100)
 	var det := r.sq_detection[sq.tmpl[o]]
 	if conceal > 0 and det >= 0 and sq.detect_on[o] == 1:
 		var eff := Pools.efficacy(state, o, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE)
@@ -132,7 +132,7 @@ func _scout_float(state: BattleState, player: int, t: int) -> void:
 		if sq.player[o] != player or not sq.is_active(o) or BattleRules.ARCHETYPES[r.sq_archetype[sq.tmpl[o]]] != "scout":
 			continue
 		var d := Fixed.distance(sq.cx[o], sq.cy[o], sq.cx[t], sq.cy[t])
-		if d <= r.sq_sight[sq.tmpl[o]] and d < best_d:
+		if d <= Stats.squad(state, o, &"squad.sight", r.sq_sight[sq.tmpl[o]]) and d < best_d:
 			best_d = d
 			best = o
 	if best >= 0:

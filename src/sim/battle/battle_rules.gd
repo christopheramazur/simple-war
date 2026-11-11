@@ -13,6 +13,11 @@ const ARCHETYPES: Array[String] = ["", "damage", "tank", "scout", "sapper", "sup
 const REACTIONS: Array[String] = ["halt", "fall_back", "retarget", "go_prone"]
 
 var errors: PackedStringArray = PackedStringArray()
+## Stat registry (shared, derived from the schema) and compiled bundles.
+var stats: StatRegistry
+var fx: EffectRules
+
+static var _registry: StatRegistry
 var scenario_id: String
 var data_hash: String
 
@@ -108,6 +113,10 @@ var sq_spacing: PackedInt64Array = PackedInt64Array()
 var sq_archetype: PackedInt64Array = PackedInt64Array()
 ## Member unit template indices, expanded (one entry per model), leader first.
 var sq_members: Array[PackedInt64Array] = []
+## Innate bundles (EffectRules indices) applied at spawn, per template.
+var sq_bundles: Array[PackedInt64Array] = []
+var ut_bundles: Array[PackedInt64Array] = []
+var sq_keywords: Array[PackedStringArray] = []
 ## Ability indices, -1 if none.
 var sq_detection: PackedInt64Array = PackedInt64Array()
 var sq_concealment: PackedInt64Array = PackedInt64Array()
@@ -272,6 +281,11 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 		var sorted_list: PackedStringArray = by_kind[k]
 		sorted_list.sort()
 		by_kind[k] = sorted_list
+	if _registry == null:
+		_registry = StatRegistry.from_schema()
+	stats = _registry
+	fx = EffectRules.compile(t, stats, tps)
+	errors.append_array(fx.errors)
 	_compile_features(t, by_kind.get("feature", PackedStringArray()))
 	var mv_index := _compile_movement(t, by_kind.get("movement", PackedStringArray()))
 	var df_index := _compile_defense(t, by_kind.get("defense", PackedStringArray()))
@@ -280,6 +294,13 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	var ut_index := _compile_units(t, by_kind.get("unit", PackedStringArray()), mv_index, df_index, wp_index)
 	_compile_squads(t, by_kind.get("squad", PackedStringArray()), ut_index, ab_index)
 	_compile_scenario(sc)
+
+
+func _bundle_list(v: Dictionary) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	for b: String in v.get("bundles", []):
+		out.append(fx.index_of(b))
+	return out
 
 
 func _compile_ruleset(rs: Dictionary) -> void:
@@ -409,6 +430,7 @@ func _compile_units(t: TemplateTable, ids: PackedStringArray, mv: Dictionary, df
 		ut_weapon.append(wp[v["weapon"]] if v.has("weapon") else -1)
 		ut_proficiency.append(int(v.get("proficiency_pct", 100)))
 		ut_leader.append(1 if (v.get("tags", []) as Array).has("leader") else 0)
+		ut_bundles.append(_bundle_list(v))
 	return index
 
 
@@ -436,6 +458,8 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 					others.append(ui)
 		leaders.append_array(others)
 		sq_members.append(leaders)
+		sq_bundles.append(_bundle_list(v))
+		sq_keywords.append(PackedStringArray(v.get("keywords", [])))
 		var det := -1
 		var con := -1
 		for a: String in v.get("abilities", []):

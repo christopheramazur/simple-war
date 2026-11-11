@@ -110,7 +110,9 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var victim := _nearest_target(state, urow, targets, w, pending)
 		if victim < 0:
 			continue
-		var acc := Fixed.mul_ratio(r.md_accuracy[m], r.ut_proficiency[u.tmpl[urow]], 100)
+		var accuracy := Stats.unit(state, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m])
+		var prof := Stats.unit(state, urow, &"unit.proficiency_pct", Fixed.from_int(r.ut_proficiency[u.tmpl[urow]]))
+		var acc := Fixed.mul_ratio(accuracy, prof, 100 * Fixed.ONE)
 		if is_moving:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
 			Pools.flow(state, row, BattleSquads.INSTINCT, -Fixed.from_int(r.sink("instinct_fire_moving")), &"fire_moving")
@@ -120,6 +122,8 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 				if next >= 0:
 					victim = next
 			shots_total += 1
+			if state.fx_listening.has("attack"):
+				Effects.on_event(state, "attack", sq.id_at(row), u.id_at(urow), sq.id_at(trow), u.id_at(victim), Fixed.ONE)
 			if not _roll_hit(u, urow, acc):
 				continue
 			hits_total += 1

@@ -108,22 +108,23 @@ func _squad_speed(state: BattleState, row: int, x: int, y: int) -> int:
 	var feature := r.feature_at(x, y)
 	var slowest := -1
 	for urow in Centroids.units_of(state, row):
-		var s := _unit_max_speed(state, row, r.ut_movement[state.units.tmpl[urow]], feature)
+		var s := _unit_max_speed(state, row, urow, r.ut_movement[state.units.tmpl[urow]], feature)
 		if slowest < 0 or s < slowest:
 			slowest = s
 	return maxi(slowest, 0)
 
 
-func _unit_max_speed(state: BattleState, srow: int, profile: int, feature: int) -> int:
+func _unit_max_speed(state: BattleState, srow: int, urow: int, profile: int, feature: int) -> int:
 	var r := state.rules
 	var cost := r.mv_cost[profile * r.feature_count() + feature]
 	if cost <= 0:
 		return 0
-	var walk := r.mv_walk[profile]
+	var walk := Stats.unit(state, urow, &"movement.walk", r.mv_walk[profile])
 	var base := walk
 	if state.squads.run[srow] == 1:
 		var eff := Pools.efficacy(state, srow, BattleSquads.STAMINA)
-		base = walk + Fixed.mul(r.mv_run[profile] - walk, eff)
+		var run := Stats.unit(state, urow, &"movement.run", r.mv_run[profile])
+		base = walk + Fixed.mul(run - walk, eff)
 	return Fixed.round_div(base * 100, cost)
 
 
@@ -157,7 +158,7 @@ func _move_units(state: BattleState) -> void:
 			# Settle facing toward the squad's facing.
 			facing[row] = _turn(facing[row], sq.facing[srow], r.mv_turn[profile])
 			continue
-		var top := _unit_max_speed(state, srow, profile, r.feature_at(x[row], y[row]))
+		var top := _unit_max_speed(state, srow, row, profile, r.feature_at(x[row], y[row]))
 		speed[row] = mini(speed[row] + r.mv_accel[profile], top)
 		var step := mini(speed[row], dist)
 		if step <= 0:

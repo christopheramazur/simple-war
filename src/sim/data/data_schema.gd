@@ -16,6 +16,18 @@ const DAMAGE_TYPES: Array[String] = ["kinetic", "energy", "explosive", "magic"]
 const SIMPL: Array[String] = ["stamina", "instinct", "morale", "prowess", "legend"]
 const BANDS: Array[String] = ["broken", "fraying", "neutral", "primed", "surging"]
 
+## Effect language vocabulary (GDD 02 §2.13). Closed: engine-provided.
+const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "apply_bundle"]
+const MOD_KINDS: Array[String] = ["flat", "increased", "more", "override"]
+## When an effect acts. "while" = continuously (modify); "apply"/"expire" =
+## once; "every" = periodically; hooks = on that event (depth 1, E2Q5);
+## "accumulator" = when the bundle's accumulator reaches its threshold.
+const EFFECT_WHEN: Array[String] = ["while", "apply", "expire", "every", "attack", "hit", "damaged", "kill", "casualty", "accumulator"]
+const HOOK_EVENTS: Array[String] = ["attack", "hit", "damaged", "kill", "casualty"]
+const ACC_EVENTS: Array[String] = ["second", "attack", "hit", "damaged", "casualty", "distance"]
+const SELECTS: Array[String] = ["self", "source", "other", "allies", "enemies", "squads"]
+const STACKING: Array[String] = ["refresh", "stack", "independent", "strongest"]
+
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
 	"fire_mode": {
@@ -89,9 +101,99 @@ const OBJECTS: Dictionary = {
 		"id": {"type": "string", "required": true, "enum": ["halt", "fall_back", "retarget", "go_prone"]},
 		"instinct_cost": {"type": "int", "min": 0},
 	},
+	# --- effect language (GDD 02 §2.13, 03 §3.4) ---
+	"selector": {
+		"select": {"type": "string", "required": true, "enum": SELECTS},
+		"within": {"type": "fixed", "min": 0},
+		"tags": {"type": "list:string"},
+		"max": {"type": "int", "min": 1},
+	},
+	## Stack source: magnitude is multiplied by this count (E4Q2).
+	"per": {
+		"source": {"type": "string", "required": true, "enum": ["selector", "pool", "accumulator"]},
+		"selector": {"type": "obj:selector"},
+		"pool": {"type": "string", "enum": SIMPL},
+		"each": {"type": "fixed", "min": 0},
+	},
+	"condition": {
+		"pool": {"type": "string", "enum": SIMPL},
+		"band_at_least": {"type": "string", "enum": BANDS},
+		"band_at_most": {"type": "string", "enum": BANDS},
+		"moving": {"type": "bool"},
+		"firing": {"type": "bool"},
+		"hp_below_pct": {"type": "int", "min": 0, "max": 100},
+		"has_keyword": {"type": "string"},
+	},
+	"effect": {
+		"op": {"type": "string", "required": true, "enum": EFFECT_OPS},
+		"when": {"type": "string", "enum": EFFECT_WHEN},
+		"stat": {"type": "string"},
+		"mod": {"type": "string", "enum": MOD_KINDS},
+		"amount": {"type": "fixed"},
+		"damage_type": {"type": "string", "enum": DAMAGE_TYPES},
+		"pool": {"type": "string", "enum": SIMPL},
+		"bundle": {"type": "ref:bundle"},
+		"target": {"type": "obj:selector"},
+		"per": {"type": "obj:per"},
+		"condition": {"type": "obj:condition"},
+		"every_s": {"type": "fixed", "min": 0},
+		"cooldown_s": {"type": "fixed", "min": 0},
+		"restores": {"type": "bool"},
+		"tags": {"type": "list:string"},
+	},
+	## Durations (E2Q7, E3Q9, E3Q10). Hexes and banks belong to the overworld
+	## and campaigns; inside a battle they last the whole battle.
+	"duration": {
+		"seconds": {"type": "fixed", "min": 0},
+		"turns": {"type": "int", "min": 1},
+		"hexes": {"type": "int", "min": 1},
+		"bank": {"type": "string"},
+	},
+	"stacking": {
+		"policy": {"type": "string", "enum": STACKING},
+		"per": {"type": "string", "enum": ["target", "source"]},
+		"max_stacks": {"type": "int", "min": 1},
+	},
+	## E2Q9: counts an event, fires the bundle's "accumulator" effects at the
+	## threshold and returns to start; resets early on reset_on or idle time.
+	"accumulator": {
+		"event": {"type": "string", "required": true, "enum": ACC_EVENTS},
+		"threshold": {"type": "fixed", "required": true, "min": 0},
+		"step": {"type": "fixed", "min": 0},
+		"start": {"type": "fixed", "min": 0},
+		"reset_on": {"type": "string", "enum": HOOK_EVENTS},
+		"reset_after_s": {"type": "fixed", "min": 0},
+	},
+	## Ability activation (E2Q10). Used from sw-ps1.5 on.
+	"activation": {
+		"costs": {"type": "map:fixed", "keys": SIMPL},
+		"cooldown_s": {"type": "fixed", "min": 0},
+		"charges": {"type": "int", "min": 1},
+		"ready_s": {"type": "fixed", "min": 0},
+		"range": {"type": "fixed", "min": 0},
+		"targeting": {"type": "string", "enum": ["none", "self", "squad", "point"]},
+		"toggle": {"type": "bool"},
+	},
 }
 
 const KINDS: Dictionary = {
+	"tag": {
+		"name": {"type": "string"},
+		"description": {"type": "string"},
+	},
+	## A named group of effects: statuses, items, traits, features, zone
+	## conditions, Ruin effects (E1Q2).
+	"bundle": {
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"tags": {"type": "list:string"},
+		"effects": {"type": "list:obj:effect", "required": true},
+		"duration": {"type": "obj:duration"},
+		"stacking": {"type": "obj:stacking"},
+		"accumulator": {"type": "obj:accumulator"},
+		## What deception-tagged bundles show to inspection (E2Q12).
+		"disguise": {"type": "ref:bundle"},
+	},
 	"feature": {
 		"name": {"type": "string"},
 		"blocks_los": {"type": "bool"},
@@ -133,6 +235,8 @@ const KINDS: Dictionary = {
 		"terrain_pct": {"type": "map:int"},
 		"moving_pct": {"type": "int"},
 		"firing_pct": {"type": "int"},
+		"bundle": {"type": "ref:bundle"},
+		"activation": {"type": "obj:activation"},
 	},
 	"unit": {
 		"name": {"type": "string"},
@@ -144,6 +248,7 @@ const KINDS: Dictionary = {
 		"proficiency_pct": {"type": "int", "min": 0},
 		"traits": {"type": "list:string"},
 		"tags": {"type": "list:string"},
+		"bundles": {"type": "list:ref:bundle"},
 	},
 	"squad": {
 		"name": {"type": "string"},
@@ -158,6 +263,7 @@ const KINDS: Dictionary = {
 		"abilities": {"type": "list:ref:ability"},
 		"reactions": {"type": "list:obj:reaction"},
 		"keywords": {"type": "list:string"},
+		"bundles": {"type": "list:ref:bundle"},
 		"legend_archetype": {"type": "string", "enum": ["damage", "tank", "scout", "sapper", "support"]},
 	},
 	"ruleset": {

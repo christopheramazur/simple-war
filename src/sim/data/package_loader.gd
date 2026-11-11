@@ -159,7 +159,10 @@ func _read_data(m: Dictionary, rel: String, defs: Array, index: Dictionary) -> v
 		return
 	var path: String = (m["_dir"] as String).path_join(rel)
 	var parsed: Variant = _read_json(path)
+	if parsed == null:
+		return
 	if typeof(parsed) != TYPE_DICTIONARY:
+		errors.append("%s: a data file must be an object with \"templates\" and/or \"patches\"" % path)
 		return
 	for d: Variant in parsed.get("templates", []):
 		if typeof(d) != TYPE_DICTIONARY:

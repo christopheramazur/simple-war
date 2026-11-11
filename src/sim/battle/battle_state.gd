@@ -6,6 +6,7 @@ extends SimContext
 var rules: BattleRules
 var units: BattleUnits
 var squads: BattleSquads
+var effects: BattleEffects
 ## Turns resolved so far.
 var turn: int = 0
 ## Player IDs in this battle, ascending.
@@ -26,6 +27,15 @@ var result: Dictionary = {}
 ## combat and drained in the same phase, so it is empty at every tick
 ## boundary: never hashed or saved.
 var damage_queue: PackedInt64Array = PackedInt64Array()
+## Derived caches rebuilt by EffectSystem at the start of every tick (never
+## hashed or saved): squad ID / unit ID -> {stat: Array[StatModifier]},
+## "stat|squad|unit" keys of restoring modifiers, and hook events listened to.
+var squad_mods: Dictionary = {}
+var unit_mods: Dictionary = {}
+var mod_restores: Dictionary = {}
+var fx_listening: Dictionary = {}
+## Whether last tick had modifiers (maxima must return to base when they end).
+var fx_had_mods: bool = false
 ## Derived cache, rebuilt every tick by Centroids: squad row -> unit rows.
 ## Not state: never hashed or saved.
 var squad_units: Dictionary = {}
@@ -36,8 +46,10 @@ func _init(context_id: int, battle_rules: BattleRules, seed_value: int = 0) -> v
 	rules = battle_rules
 	units = BattleUnits.new()
 	squads = BattleSquads.new()
+	effects = BattleEffects.new()
 	add_table(units)
 	add_table(squads)
+	add_table(effects)
 	zone_owner.resize(rules.zone_ids.size())
 	zone_amount.resize(rules.zone_ids.size())
 	for side in rules.sides:

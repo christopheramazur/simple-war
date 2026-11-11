@@ -47,11 +47,15 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 		var ui := members[slot]
 		var off := Formation.offset(r.sq_shape[st], slot, members.size(), r.sq_spacing[st], facing)
 		var w := r.ut_weapon[ui]
-		state.units.spawn({
+		var uid := state.units.spawn({
 			"squad": sid, "tmpl": ui, "slot": slot,
 			"x": Fixed.clamp_fixed(ax + off[0], 0, Fixed.from_int(r.width) - 1),
 			"y": Fixed.clamp_fixed(ay + off[1], 0, Fixed.from_int(r.height) - 1),
 			"facing": facing, "hp": r.ut_hp[ui], "hp_max": r.ut_hp[ui],
 			"ammo": r.wp_magazine[w] if w >= 0 else 0,
 		})
+		for b in r.ut_bundles[ui]:
+			Effects.apply(state, b, sid, uid)
+	for b in r.sq_bundles[st]:
+		Effects.apply(state, b, sid)
 	return sid

@@ -10,6 +10,7 @@ var tick_hook: Callable = Callable()
 
 
 func _init() -> void:
+	runner.add_phase(&"effects", [EffectSystem.new()] as Array[SimSystem])
 	runner.add_phase(&"move", [Centroids.new(), MovementSystem.new()] as Array[SimSystem])
 	runner.add_phase(&"sense", [Centroids.new(), VisionSystem.new(), Reactions.new()] as Array[SimSystem])
 	runner.add_phase(&"fight", [CombatSystem.new(), HealthSystem.new()] as Array[SimSystem])

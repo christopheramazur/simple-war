@@ -7,6 +7,7 @@
 	"data": [
 		"defs/terrain.json",
 		"defs/equipment.json",
+		"defs/effects.json",
 		"defs/humanity.json",
 		"defs/ruleset.json",
 		"defs/scenarios.json"

@@ -1,0 +1,65 @@
+{
+"templates": [
+	{"id": "buff", "kind": "tag", "values": {"name": "Buff"}},
+	{"id": "debuff", "kind": "tag", "values": {"name": "Debuff"}},
+	{"id": "aura", "kind": "tag", "values": {"name": "Aura"}},
+	{"id": "wound", "kind": "tag", "values": {"name": "Wound"}},
+	{"id": "trait", "kind": "tag", "values": {"name": "Trait"}},
+
+	{"id": "inspired", "kind": "bundle", "values": {
+		"name": "Inspired", "tags": ["buff"],
+		"duration": {"seconds": 10},
+		"effects": [
+			{"op": "modify", "stat": "weapon.modes.*.accuracy", "mod": "more", "amount": 20},
+			{"op": "pool_flow", "pool": "morale", "amount": 5, "when": "apply"}
+		]}},
+
+	{"id": "bleeding", "kind": "bundle", "values": {
+		"name": "Bleeding", "tags": ["debuff", "wound"],
+		"duration": {"seconds": 5},
+		"stacking": {"policy": "stack", "max_stacks": 3},
+		"effects": [
+			{"op": "damage", "damage_type": "kinetic", "amount": 1, "when": "every", "every_s": 1}
+		]}},
+
+	{"id": "hardy", "kind": "bundle", "values": {
+		"name": "Hardy", "tags": ["trait"],
+		"effects": [
+			{"op": "modify", "stat": "unit.hp", "mod": "increased", "amount": 50}
+		]}},
+
+	{"id": "rally_banner", "kind": "bundle", "values": {
+		"name": "Rally Banner", "tags": ["aura", "buff"],
+		"effects": [
+			{"op": "modify", "stat": "squad.pools.morale.capacity", "mod": "increased", "amount": 20,
+				"target": {"select": "allies", "within": 15}}
+		]}},
+
+	{"id": "safety_in_numbers", "kind": "bundle", "values": {
+		"name": "Safety in Numbers", "tags": ["trait"],
+		"effects": [
+			{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": 5,
+				"per": {"source": "selector", "selector": {"select": "allies", "within": 10}}}
+		]}},
+
+	{"id": "vengeful", "kind": "bundle", "values": {
+		"name": "Vengeful", "tags": ["trait"],
+		"effects": [
+			{"op": "apply_bundle", "bundle": "inspired", "when": "casualty", "cooldown_s": 5}
+		]}},
+
+	{"id": "steady_aim", "kind": "bundle", "values": {
+		"name": "Steady Aim", "tags": ["trait"],
+		"accumulator": {"event": "hit", "threshold": 3, "reset_on": "damaged"},
+		"effects": [
+			{"op": "pool_flow", "pool": "prowess", "amount": 2, "when": "accumulator"}
+		]}},
+
+	{"id": "thorns", "kind": "bundle", "values": {
+		"name": "Thorns", "tags": ["trait"],
+		"effects": [
+			{"op": "damage", "damage_type": "magic", "amount": 1, "when": "damaged",
+				"target": {"select": "other"}}
+		]}}
+]
+}
