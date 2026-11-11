@@ -52,6 +52,16 @@ static func restores(state: BattleState, squad_id: int, unit_id: int, stat: Stri
 	return state.mod_restores.has("%s|%d|-1" % [stat, squad_id]) or state.mod_restores.has("%s|%d|%d" % [stat, squad_id, unit_id])
 
 
+## The modifiers on a squad stat, or on a unit stat (squad's plus the
+## unit's own), for the inspection call.
+static func squad_mods(state: BattleState, srow: int, stat: StringName) -> Array[StatModifier]:
+	return _squad_mods(state, srow, stat)
+
+
+static func unit_mods(state: BattleState, urow: int, stat: StringName) -> Array[StatModifier]:
+	return _unit_mods(state, urow, stat)
+
+
 static func _squad_mods(state: BattleState, srow: int, stat: StringName) -> Array[StatModifier]:
 	var by_stat: Dictionary = state.squad_mods.get(state.squads.id_at(srow), {})
 	var out: Array[StatModifier] = []

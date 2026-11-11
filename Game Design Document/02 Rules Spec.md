@@ -325,3 +325,8 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - Anything visible is inspectable, except deception-tagged effects, which show their disguise.
 - An **inspection window**, available in planning and playback, gives per-unit breakdowns behind tabs or unit cards. Comparison tooltips show how unit and squad stats would change.
 - The UI only formats values it receives from the Game API; it never computes them.
+- **The inspection call (sw-ps1.6):** `BattleSession.inspect(player, squad)` returns, for one squad:
+  - **Squad and per-unit stats:** each with base, effective value and the step trace. Trace terms name the bundle each modifier came from, and every fire mode is listed.
+  - **Effects held:** stacks, remaining ticks, rules text and accumulator progress, e.g. "Next in 2 hits".
+  - **Own squads only:** pools and abilities (state, cooldown, charges, effective costs, rules text).
+  - **Visibility:** own squads are always inspectable; enemy squads only while seen. For anyone but the owner, deception-tagged bundles appear as their disguise, in the effects list and in the traces.

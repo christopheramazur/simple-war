@@ -113,6 +113,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var accuracy := Stats.unit(state, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m])
 		var prof := Stats.unit(state, urow, &"unit.proficiency_pct", Fixed.from_int(r.ut_proficiency[u.tmpl[urow]]))
 		var acc := Fixed.mul_ratio(accuracy, prof, 100 * Fixed.ONE)
+		var base_dmg := Stats.unit(state, urow, &"weapon.modes.*.damage", r.md_damage[m])
 		if is_moving:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
 			Pools.flow(state, row, BattleSquads.INSTINCT, -Fixed.from_int(r.sink("instinct_fire_moving")), &"fire_moving")
@@ -127,7 +128,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			if not _roll_hit(u, urow, acc):
 				continue
 			hits_total += 1
-			var dmg := r.md_damage[m]
+			var dmg := base_dmg
 			var hits_col: PackedInt64Array = u.take_column(&"hits")
 			hits_col[urow] += 1
 			var nth := hits_col[urow]

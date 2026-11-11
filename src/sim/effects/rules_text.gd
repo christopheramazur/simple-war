@@ -77,6 +77,13 @@ const EN: Dictionary = {
 	"fx.event.damaged": "HP lost",
 	"fx.event.casualty": "casualties",
 	"fx.event.distance": "metres",
+	"fx.event_one.second": "second",
+	"fx.event_one.attack": "shot",
+	"fx.event_one.hit": "hit",
+	"fx.event_one.damaged": "HP lost",
+	"fx.event_one.casualty": "casualty",
+	"fx.event_one.distance": "metre",
+	"fx.next_in": "Next in {n} {event}",
 	"stat.unit.hp": "Max HP",
 	"stat.unit.proficiency_pct": "Proficiency",
 	"stat.weapon.modes.*.accuracy": "Accuracy",
@@ -166,6 +173,12 @@ static func effect(fx: EffectRules, bd: Dictionary, e: Dictionary, registry: Sta
 	if e["cooldown"] > 0:
 		text = _f("fx.cooldown", {"text": text, "seconds": _num(Fixed.from_ratio(e["cooldown"], tps))})
 	return text
+
+
+## Accumulator progress, e.g. "Next in 2 hits" (E2Q9). `n` is fixed.
+static func next_in(event: String, n: int) -> String:
+	var word := _w(("fx.event_one." if n == Fixed.ONE else "fx.event.") + event)
+	return _f("fx.next_in", {"n": _num(n), "event": word})
 
 
 ## Activation lines for ability `ab`, then its bundle's lines (E2Q10).

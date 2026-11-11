@@ -108,6 +108,7 @@ var ab_lost_on_hits: bool = false
 
 # --- unit templates ---
 var unit_ids: PackedStringArray = PackedStringArray()
+var ut_names: PackedStringArray = PackedStringArray()
 var ut_hp: PackedInt64Array = PackedInt64Array()
 var ut_defense: PackedInt64Array = PackedInt64Array()
 var ut_movement: PackedInt64Array = PackedInt64Array()
@@ -468,6 +469,7 @@ func _compile_units(t: TemplateTable, ids: PackedStringArray, mv: Dictionary, df
 		var v := t.values_of(tid)
 		index[tid] = unit_ids.size()
 		unit_ids.append(tid)
+		ut_names.append(str(v.get("name", tid)))
 		ut_hp.append(DataSchema.to_fixed(v["hp"]))
 		ut_defense.append(df[v["defense"]])
 		ut_movement.append(mv[v["movement"]])

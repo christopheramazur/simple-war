@@ -5,6 +5,8 @@ extends RefCounted
 ##
 ## Inputs:   submit_orders, ready, submit_reaction, advance(ms).
 ## Outputs:  observe(player) - visibility-filtered state and events;
+##           inspect(player, squad) - inspection window data (stats with
+##           traces, effects, abilities);
 ##           bus.published  - presentation feed (read-only).
 ## Clock:    advance(ms) drives timers; Execute is never timed and runs at
 ##           full speed headless (`execute_turn` is synchronous).
@@ -230,6 +232,20 @@ func observe(player: int) -> Dictionary:
 		"squads": squads, "units": units, "zones": zones, "scores": scores, "events": events,
 		"result": state.result.duplicate(true),
 	}
+
+
+## The inspection window's data for one squad (Inspection), in any phase.
+## Visible means inspectable (E2Q12): own squads always, enemy squads only
+## while `player` sees them; {} otherwise. Enemy pools and abilities stay
+## hidden, and their deception-tagged effects show their disguise.
+func inspect(player: int, squad_id: int) -> Dictionary:
+	var row := state.squads.row_of(squad_id)
+	if row < 0:
+		return {}
+	var own := state.squads.player[row] == player
+	if not own and (state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not state.squads.is_active(row)):
+		return {}
+	return Inspection.squad(state, squad_id, player)
 
 
 func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> bool:

@@ -8,6 +8,7 @@
 	{"id": "detection", "kind": "tag", "values": {"name": "Detection"}},
 	{"id": "concealment", "kind": "tag", "values": {"name": "Concealment"}},
 	{"id": "reaction", "kind": "tag", "values": {"name": "Reaction"}},
+	{"id": "deception", "kind": "tag", "values": {"name": "Deception", "description": "Shown to opponents as its disguise."}},
 
 	{"id": "inspired", "kind": "bundle", "values": {
 		"name": "Inspired", "tags": ["buff"],
@@ -56,6 +57,19 @@
 		"accumulator": {"event": "hit", "threshold": 3, "reset_on": "damaged"},
 		"effects": [
 			{"op": "pool_flow", "pool": "prowess", "amount": 2, "when": "accumulator"}
+		]}},
+
+	{"id": "shaken", "kind": "bundle", "values": {
+		"name": "Shaken", "tags": ["debuff"], "duration": {"seconds": 10},
+		"effects": [
+			{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": -10}
+		]}},
+
+	{"id": "feigned_rout", "kind": "bundle", "values": {
+		"name": "Feigned rout", "tags": ["deception", "buff"], "disguise": "shaken",
+		"duration": {"seconds": 10},
+		"effects": [
+			{"op": "modify", "stat": "weapon.modes.*.accuracy", "mod": "more", "amount": 30}
 		]}},
 
 	{"id": "thorns", "kind": "bundle", "values": {
