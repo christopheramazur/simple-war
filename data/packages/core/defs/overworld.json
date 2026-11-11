@@ -1,0 +1,37 @@
+{
+"templates": [
+	{"id": "hex_plains", "kind": "hex_feature", "values": {"name": "Plains"}},
+	{"id": "hex_forest", "kind": "hex_feature", "values": {"name": "Forest", "move_cost": 5}},
+	{"id": "hex_hills", "kind": "hex_feature", "values": {"name": "Hills", "move_cost": 10}},
+	{"id": "hex_road", "kind": "hex_feature", "values": {"name": "Road", "move_cost": -5}},
+	{"id": "hex_lake", "kind": "hex_feature", "values": {"name": "Lake", "impassable": true}},
+	{"id": "hex_village", "kind": "hex_feature", "values": {
+		"name": "Village", "controllable": true, "interaction": "stable",
+		"activities": ["recruit"], "value_per_turn": 2, "sight": 2}},
+	{"id": "hex_mine", "kind": "hex_feature", "values": {
+		"name": "Mine", "controllable": true, "interaction": "stable",
+		"activities": ["convert"], "value_per_turn": 3, "sight": 1}},
+	{"id": "hex_supply_cache", "kind": "hex_feature", "values": {
+		"name": "Supply cache", "interaction": "stable", "cache_value": 5}},
+	{"id": "hex_bandit_camp", "kind": "hex_feature", "values": {
+		"name": "Bandit camp", "interaction": "uncertain", "activities": ["battle"],
+		"guard": ["rifle_squad", "rifle_squad"]}},
+
+	{"id": "test_vale", "kind": "overworld_map", "values": {
+		"name": "Test vale", "width": 16, "height": 12, "base_move_cost": 10,
+		"passes": [
+			{"op": "fill", "feature": "hex_plains"},
+			{"op": "rect", "feature": "hex_forest", "col": 2, "row": 1, "w": 4, "h": 3},
+			{"op": "rect", "feature": "hex_hills", "col": 10, "row": 8, "w": 3, "h": 3},
+			{"op": "place", "feature": "hex_lake", "col": 7, "row": 2},
+			{"op": "place", "feature": "hex_lake", "col": 8, "row": 2},
+			{"op": "line", "feature": "hex_road", "col": 0, "row": 6, "to_col": 15, "to_row": 5},
+			{"op": "place", "feature": "hex_village", "col": 1, "row": 6, "owner": 1},
+			{"op": "place", "feature": "hex_village", "col": 14, "row": 5, "owner": 2},
+			{"op": "place", "feature": "hex_mine", "col": 8, "row": 9},
+			{"op": "place", "feature": "hex_bandit_camp", "col": 11, "row": 3},
+			{"op": "scatter", "feature": "hex_supply_cache", "count": 3, "spacing": 3,
+				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]}
+		]}}
+]
+}

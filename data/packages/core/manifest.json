@@ -10,7 +10,8 @@
 		"defs/effects.json",
 		"defs/humanity.json",
 		"defs/ruleset.json",
-		"defs/scenarios.json"
+		"defs/scenarios.json",
+		"defs/overworld.json"
 	],
 	"assets": {}
 }

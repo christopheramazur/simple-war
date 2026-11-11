@@ -33,6 +33,14 @@ const STACKING: Array[String] = ["refresh", "stack", "independent", "strongest"]
 ## What loses a readying or readied ability state (E3Q6).
 const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 
+## Overworld (GDD 02 §2.9). Activities need a commander's route to end on
+## the plot; "stable" outcomes resolve during planning, "uncertain" ones at
+## the start of a turn with an uncontested commander (R6Q14).
+const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert"]
+const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
+## Map generation passes (R3Q13), applied in order with the map's seed.
+const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
+
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
 	"fire_mode": {
@@ -101,6 +109,25 @@ const OBJECTS: Dictionary = {
 	},
 	"end_hooks": {
 		"loser": {"type": "string", "enum": ["scatter"]},
+	},
+	## One map-generation pass. fill: every plot. rect: col,row,w,h. place:
+	## col,row. line: col,row to to_col,to_row. scatter: `count` plots picked
+	## with the map's seed inside the optional rect, skipping plots holding an
+	## `avoid` feature and keeping `spacing` hexes between picks. `owner`
+	## pre-assigns a controllable feature to a player.
+	"map_pass": {
+		"op": {"type": "string", "required": true, "enum": MAP_PASSES},
+		"feature": {"type": "ref:hex_feature", "required": true},
+		"col": {"type": "int", "min": 0},
+		"row": {"type": "int", "min": 0},
+		"w": {"type": "int", "min": 1},
+		"h": {"type": "int", "min": 1},
+		"to_col": {"type": "int", "min": 0},
+		"to_row": {"type": "int", "min": 0},
+		"count": {"type": "int", "min": 1},
+		"spacing": {"type": "int", "min": 0},
+		"avoid": {"type": "list:ref:hex_feature"},
+		"owner": {"type": "int", "min": 0},
 	},
 	# --- effect language (GDD 02 §2.13, 03 §3.4) ---
 	"selector": {
@@ -292,6 +319,35 @@ const KINDS: Dictionary = {
 		"pool_defaults": {"type": "map:obj:pool"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},
+	},
+	## An overworld plot feature (GDD 02 §2.9, 03 §3.5). A plot holds any
+	## number of features; they are not terrain types. move_cost adds to the
+	## map's base cost (a plot never costs less than 1). sight: radius in
+	## hexes its controller sees. cache_value: Value picked up by the first
+	## commander through; the feature is then removed. guard: neutral squads
+	## that fight whoever enters.
+	"hex_feature": {
+		"name": {"type": "string"},
+		"tags": {"type": "list:string"},
+		"move_cost": {"type": "int"},
+		"impassable": {"type": "bool"},
+		"sight": {"type": "int", "min": 0},
+		"controllable": {"type": "bool"},
+		"interaction": {"type": "string", "enum": HEX_INTERACTIONS},
+		"activities": {"type": "list:string", "enum": HEX_ACTIVITIES},
+		"value_per_turn": {"type": "int", "min": 0},
+		"cache_value": {"type": "int", "min": 0},
+		"guard": {"type": "list:ref:squad"},
+		"bundles": {"type": "list:ref:bundle"},
+	},
+	## A seeded overworld map template (R3Q13): an empty width x height hex
+	## rectangle (odd-r offset rows) that its passes fill with features.
+	"overworld_map": {
+		"name": {"type": "string"},
+		"width": {"type": "int", "required": true, "min": 1},
+		"height": {"type": "int", "required": true, "min": 1},
+		"base_move_cost": {"type": "int", "min": 1},
+		"passes": {"type": "list:obj:map_pass", "required": true},
 	},
 	"scenario": {
 		"name": {"type": "string"},
