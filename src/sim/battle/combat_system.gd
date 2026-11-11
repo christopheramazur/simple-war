@@ -10,10 +10,12 @@ extends SimSystem
 ## - Hits come from an accuracy accumulator: accuracy * proficiency (* Instinct
 ##   efficacy when firing on the move). No dice (R2Q6).
 ## - Every Nth hit is a crit (crit_every / crit_bonus_pct) (R5Q5).
-## - Damage goes through the DamagePipeline, with terrain cover as evasion.
+## - Hits are queued; HealthSystem applies the tick's hits together (E2Q2), so
+##   fire is simultaneous. Units spread fire: a target whose queued damage
+##   already covers its HP is skipped while another is in reach.
 ## - Floats: Prowess for ambush and intercept on a new engagement (R6Q1);
 ##   Legend for archetypal actions (R5Q6). Sinks: Instinct for firing on the
-##   move (R4Q6), Stamina for HP lost (R4Q5).
+##   move (R4Q6). Stamina for HP lost and damage Legend: see HealthSystem.
 
 
 func system_name() -> StringName:
@@ -91,8 +93,8 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 	var targets := Centroids.units_of(state, trow)
 	var shots_total := 0
 	var hits_total := 0
-	var damage_total := 0
-	var kills := 0
+	# unit row -> damage already queued on it this volley
+	var pending := {}
 	for urow in Centroids.units_of(state, row):
 		if u.hp[urow] <= 0:
 			continue
@@ -105,7 +107,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var m := r.pick_mode(w, is_moving)
 		if m < 0:
 			continue
-		var victim := _nearest_target(state, urow, targets, w)
+		var victim := _nearest_target(state, urow, targets, w, pending)
 		if victim < 0:
 			continue
 		var acc := Fixed.mul_ratio(r.md_accuracy[m], r.ut_proficiency[u.tmpl[urow]], 100)
@@ -113,10 +115,10 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
 			Pools.flow(state, row, BattleSquads.INSTINCT, -Fixed.from_int(r.sink("instinct_fire_moving")), &"fire_moving")
 		for _s in r.md_shots[m]:
-			if u.hp[victim] <= 0:
-				victim = _nearest_target(state, urow, targets, w)
-				if victim < 0:
-					break
+			if _covered(u, victim, pending):
+				var next := _nearest_target(state, urow, targets, w, pending)
+				if next >= 0:
+					victim = next
 			shots_total += 1
 			if not _roll_hit(u, urow, acc):
 				continue
@@ -128,21 +130,30 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			u.put_column(&"hits", hits_col)
 			if r.md_crit_every[m] > 0 and nth % r.md_crit_every[m] == 0:
 				dmg += Fixed.round_div(dmg * r.md_crit_bonus[m], 100)
-			var result := _hit(state, row, trow, victim, dmg, r.wp_type[w])
-			damage_total += result[0]
-			kills += result[1]
+			_queue(state, urow, row, trow, victim, dmg, r.wp_type[w], pending)
 			if r.md_aoe[m] > 0:
 				for other in targets:
 					if other == victim or u.hp[other] <= 0:
 						continue
 					if Fixed.distance(u.x[victim], u.y[victim], u.x[other], u.y[other]) <= r.md_aoe[m]:
-						var splash := _hit(state, row, trow, other, dmg, r.wp_type[w])
-						damage_total += splash[0]
-						kills += splash[1]
+						_queue(state, urow, row, trow, other, dmg, r.wp_type[w], pending)
 		_after_fire(state, u, urow, row, m, w)
 	if shots_total > 0:
 		state.events.push(&"squad_fired", {"squad": sq.id_at(row), "target": sq.id_at(trow),
-			"shots": shots_total, "hits": hits_total, "damage": damage_total, "kills": kills}, state.tick)
+			"shots": shots_total, "hits": hits_total}, state.tick)
+
+
+func _queue(state: BattleState, urow: int, row: int, trow: int, victim: int, dmg: int, dtype: int, pending: Dictionary) -> void:
+	var u := state.units
+	var sq := state.squads
+	Health.queue(state, u.id_at(urow), sq.id_at(row), u.id_at(victim), sq.id_at(trow), dmg, dtype)
+	pending[victim] = int(pending.get(victim, 0)) + dmg
+
+
+## True when damage already queued on the unit covers its HP (ignoring
+## defences, which only lower it).
+static func _covered(u: BattleUnits, t: int, pending: Dictionary) -> bool:
+	return int(pending.get(t, 0)) >= u.hp[t]
 
 
 ## Advances reload and cooldown; true while the unit can't fire this tick.
@@ -165,22 +176,33 @@ func _tick_timers(u: BattleUnits, urow: int, r: BattleRules) -> bool:
 	return false
 
 
-func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w: int) -> int:
+## Nearest living target in range and sight, preferring ones whose queued
+## damage doesn't already cover their HP. -1 if none in reach.
+func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w: int, pending: Dictionary) -> int:
 	var r := state.rules
 	var u := state.units
 	var best := -1
 	var best_d := 1 << 62
+	var fallback := -1
+	var fallback_d := 1 << 62
 	for t in targets:
 		if u.hp[t] <= 0:
 			continue
 		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
-		if d > r.wp_range[w] or d < r.wp_min_range[w] or d >= best_d:
+		if d > r.wp_range[w] or d < r.wp_min_range[w]:
+			continue
+		var covered := _covered(u, t, pending)
+		if (covered and d >= fallback_d) or (not covered and d >= best_d):
 			continue
 		if not r.los(u.x[urow], u.y[urow], u.x[t], u.y[t]):
 			continue
-		best_d = d
-		best = t
-	return best
+		if covered:
+			fallback_d = d
+			fallback = t
+		else:
+			best_d = d
+			best = t
+	return best if best >= 0 else fallback
 
 
 func _roll_hit(u: BattleUnits, urow: int, acc: int) -> bool:
@@ -191,70 +213,6 @@ func _roll_hit(u: BattleUnits, urow: int, acc: int) -> bool:
 		col[urow] -= Fixed.ONE
 	u.put_column(&"acc_hit", col)
 	return hit
-
-
-## Applies a hit; returns [hp damage dealt, 1 if killed else 0].
-func _hit(state: BattleState, row: int, trow: int, victim: int, dmg: int, dtype: int) -> PackedInt64Array:
-	var r := state.rules
-	var sq := state.squads
-	var u := state.units
-	var cover := r.f_cover_evasion[r.feature_at(u.x[victim], u.y[victim])]
-	var res := DamagePipeline.apply(state, victim, dmg, dtype, cover)
-	var dealt: int = res["to_hp"] + res["to_temp"]
-	var killed: bool = res["killed"]
-	if dealt > 0:
-		var lost: PackedInt64Array = sq.take_column(&"hp_lost")
-		lost[trow] += res["to_hp"]
-		sq.put_column(&"hp_lost", lost)
-		var stam := Fixed.from_ratio(res["to_hp"] * 100 * r.sink("stamina_per_hp_lost_pct"), maxi(sq.hp_max[trow], 1))
-		Pools.flow(state, trow, BattleSquads.STAMINA, -stam, &"hp_lost")
-		_legend_per_10(state, row, &"dmg_dealt", dealt, dtype)
-		_legend_per_10(state, trow, &"dmg_taken", dealt, dtype)
-	if killed:
-		state.commands.despawn(&"unit", u.id_at(victim))
-		var killer := sq.player[row]
-		state.value_score[killer] = int(state.value_score[killer]) + Fixed.round_div(r.sq_value[sq.tmpl[trow]], r.sq_members[sq.tmpl[trow]].size())
-		state.events.push(&"unit_killed", {"unit": u.id_at(victim), "squad": sq.id_at(trow), "by": sq.id_at(row)}, state.tick)
-		_count_loss(state, trow)
-	return PackedInt64Array([dealt, 1 if killed else 0])
-
-
-func _count_loss(state: BattleState, trow: int) -> void:
-	var sq := state.squads
-	var alive: PackedInt64Array = sq.take_column(&"alive")
-	alive[trow] -= 1
-	var gone := alive[trow] <= 0
-	sq.put_column(&"alive", alive)
-	if gone:
-		var d: PackedByteArray = sq.take_column(&"destroyed")
-		d[trow] = 1
-		sq.put_column(&"destroyed", d)
-		state.events.push(&"squad_destroyed", {"squad": sq.id_at(trow), "player": sq.player[trow]}, state.tick)
-
-
-## Legend for archetypal damage: dealers on damage dealt, sappers on explosive
-## damage dealt, tanks on damage taken; one float per 10 points (R5Q6).
-func _legend_per_10(state: BattleState, row: int, counter: StringName, amount: int, dtype: int) -> void:
-	var r := state.rules
-	var sq := state.squads
-	var arche := BattleRules.ARCHETYPES[r.sq_archetype[sq.tmpl[row]]]
-	var key := ""
-	if counter == &"dmg_dealt" and arche == "damage":
-		key = "legend_damage_per_10_dealt"
-	elif counter == &"dmg_dealt" and arche == "sapper" and BattleRules.DAMAGE_TYPES[dtype] == "explosive":
-		key = "legend_sapper_per_10_dealt"
-	elif counter == &"dmg_taken" and arche == "tank":
-		key = "legend_tank_per_10_taken"
-	if key.is_empty():
-		return
-	var col: PackedInt64Array = sq.take_column(counter)
-	col[row] += amount
-	var ten := 10 * Fixed.ONE  # damage is fixed-point (E3Q1)
-	var tens := col[row] / ten
-	col[row] -= tens * ten
-	sq.put_column(counter, col)
-	if tens > 0:
-		Pools.flow(state, row, BattleSquads.LEGEND, Fixed.from_int(tens * r.flt(key)), StringName("legend_" + arche))
 
 
 func _after_fire(state: BattleState, u: BattleUnits, urow: int, row: int, m: int, w: int) -> void:

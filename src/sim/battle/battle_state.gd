@@ -22,6 +22,10 @@ var value_score: Dictionary = {}
 var ledger: Dictionary = {}
 ## Empty while running; set once the battle ends.
 var result: Dictionary = {}
+## Hits queued this tick for HealthSystem (Health.STRIDE ints each). Filled by
+## combat and drained in the same phase, so it is empty at every tick
+## boundary: never hashed or saved.
+var damage_queue: PackedInt64Array = PackedInt64Array()
 ## Derived cache, rebuilt every tick by Centroids: squad row -> unit rows.
 ## Not state: never hashed or saved.
 var squad_units: Dictionary = {}
