@@ -5,8 +5,13 @@ extends SimContext
 
 var rules: OverworldRules
 var features: OverworldFeatures
+var commanders: OverworldCommanders
+var engagements: OverworldEngagements
 ## Turns resolved so far.
 var turn: int = 0
+## Planned routes: commander ID -> plots to enter, in order (start excluded).
+## Set during planning by OverworldOrders; cleared when the turn resolves.
+var routes: Dictionary = {}
 ## Derived cache, plot -> feature rows (ascending template index). Rebuilt
 ## by reindex(); never hashed or saved.
 var plot_features: Dictionary = {}
@@ -16,7 +21,11 @@ func _init(context_id: int, overworld_rules: OverworldRules, seed_value: int = 0
 	super(context_id, &"overworld", seed_value)
 	rules = overworld_rules
 	features = OverworldFeatures.new()
+	commanders = OverworldCommanders.new()
+	engagements = OverworldEngagements.new()
 	add_table(features)
+	add_table(commanders)
+	add_table(engagements)
 
 
 ## A new overworld with its map generated from the seed.
@@ -36,6 +45,29 @@ func feature_row(p: int, f: int) -> int:
 	for row in features_at(p):
 		if features.tmpl[row] == f:
 			return row
+	return -1
+
+
+## Whether two players are enemies. Alliances arrive with campaigns; until
+## then every other player is hostile.
+func hostile(a: int, b: int) -> bool:
+	return a != b
+
+
+## Guard squads on a plot (neutral guards, R4Q14): the union of its
+## features' guard lists. Empty = unguarded.
+func guard_at(p: int) -> PackedStringArray:
+	var out := PackedStringArray()
+	for row in features_at(p):
+		out.append_array(rules.hf_guard[features.tmpl[row]])
+	return out
+
+
+## The engagement on a plot (a battle tile), or -1.
+func engagement_at(p: int) -> int:
+	for row in engagements.count():
+		if engagements.plot[row] == p:
+			return engagements.id_at(row)
 	return -1
 
 
@@ -89,11 +121,18 @@ func reindex() -> void:
 
 
 func _snapshot_extra(snap: Dictionary) -> void:
-	snap["overworld"] = {"turn": turn}
+	var r := {}
+	for cid: int in routes:
+		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
+	snap["overworld"] = {"turn": turn, "routes": r}
 
 
 func _restore_extra(snap: Dictionary) -> void:
 	turn = snap["overworld"]["turn"]
+	routes = {}
+	var r: Dictionary = snap["overworld"].get("routes", {})
+	for cid: int in r:
+		routes[cid] = (r[cid] as PackedInt64Array).duplicate()
 	reindex()
 
 
@@ -102,4 +141,9 @@ func state_hash() -> PackedByteArray:
 	h.start(HashingContext.HASH_SHA256)
 	h.update(super.state_hash())
 	h.update(PackedInt64Array([turn]).to_byte_array())
+	var ids: Array = routes.keys()
+	ids.sort()
+	for cid: int in ids:
+		h.update(PackedInt64Array([cid, (routes[cid] as PackedInt64Array).size()]).to_byte_array())
+		h.update((routes[cid] as PackedInt64Array).to_byte_array())
 	return h.finish()

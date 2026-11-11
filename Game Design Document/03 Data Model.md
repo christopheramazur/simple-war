@@ -62,6 +62,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 - **Hex feature** (`hex_feature`): activities, production output and options, sight radius, controllability, garrison or guard, and interaction kind (stable or uncertain) (R4Q12, R5Q10, R6Q14).
   - **Fields:** `move_cost` (added to the map's base cost), `impassable`, `sight` (hexes), `controllable`, `interaction`, `activities` (refit, recruit, battle, convert), `value_per_turn`, `cache_value` (picked up once, then removed), `guard` (neutral squads), `bundles`.
   - **One of each per plot:** a plot holds any number of features but at most one instance of each template. Template IDs are global, so core hex features are prefixed `hex_`.
+- **Commander** (`commander`): `movement_points` per turn (same units as move costs), `sight` (hexes), `squad` (its own squad in battles), `tags`. Armies, abilities and battleforces arrive with sw-o1m.2.
 - **Map template** (`overworld_map`): seeded generation passes (R3Q13).
   - **Grid:** pointy-top hexes in a `width` × `height` rectangle of "odd-r" offset coordinates (`col`, `row`; odd rows shifted half a hex right). Maths runs in axial coordinates.
   - **Movement cost:** `base_move_cost` (default 10) plus the plot's feature costs, at least 1. Commanders' movement points use the same units.

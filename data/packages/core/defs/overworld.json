@@ -17,6 +17,11 @@
 		"name": "Bandit camp", "interaction": "uncertain", "activities": ["battle"],
 		"guard": ["rifle_squad", "rifle_squad"]}},
 
+	{"id": "field_commander", "kind": "commander", "values": {
+		"name": "Field commander", "movement_points": 60, "sight": 3, "squad": "rifle_squad"}},
+	{"id": "outrider", "kind": "commander", "values": {
+		"name": "Outrider", "movement_points": 90, "sight": 4, "squad": "scout_team"}},
+
 	{"id": "test_vale", "kind": "overworld_map", "values": {
 		"name": "Test vale", "width": 16, "height": 12, "base_move_cost": 10,
 		"passes": [

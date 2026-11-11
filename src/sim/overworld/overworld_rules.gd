@@ -29,6 +29,14 @@ var hf_cache_value: PackedInt64Array = PackedInt64Array()
 ## Guard squad template IDs (battles are built from them).
 var hf_guard: Array[PackedStringArray] = []
 
+# --- commanders ---
+var commander_ids: PackedStringArray = PackedStringArray()
+var cm_names: PackedStringArray = PackedStringArray()
+var cm_mp: PackedInt64Array = PackedInt64Array()
+var cm_sight: PackedInt64Array = PackedInt64Array()
+## The commander's squad template ID ("" = none).
+var cm_squad: PackedStringArray = PackedStringArray()
+
 # --- map ---
 var width: int = 0
 var height: int = 0
@@ -58,18 +66,24 @@ func plot_count() -> int:
 	return width * height
 
 
+func commander_index(id: String) -> int:
+	return commander_ids.find(id)
+
+
 func has_activity(feature: int, activity: String) -> bool:
 	return hf_activities[feature] & (1 << ACTIVITIES.find(activity)) != 0
 
 
 func _compile(t: TemplateTable, map: String) -> void:
-	var ids := PackedStringArray()
-	for tid in t.ids():
-		if not t.is_abstract(tid) and t.kind_of(tid) == "hex_feature":
-			ids.append(tid)
-	ids.sort()
-	for tid in ids:
+	for tid in _of_kind(t, "hex_feature"):
 		_compile_feature(tid, t.values_of(tid))
+	for tid in _of_kind(t, "commander"):
+		var v := t.values_of(tid)
+		commander_ids.append(tid)
+		cm_names.append(String(v.get("name", tid)))
+		cm_mp.append(int(v["movement_points"]))
+		cm_sight.append(int(v.get("sight", 2)))
+		cm_squad.append(String(v.get("squad", "")))
 	if not t.has(map) or t.kind_of(map) != "overworld_map":
 		errors.append("unknown overworld map '%s'" % map)
 		return
@@ -80,6 +94,15 @@ func _compile(t: TemplateTable, map: String) -> void:
 	var passes_in: Array = m["passes"]
 	for i in passes_in.size():
 		_compile_pass(i, passes_in[i])
+
+
+static func _of_kind(t: TemplateTable, kind: String) -> PackedStringArray:
+	var ids := PackedStringArray()
+	for tid in t.ids():
+		if not t.is_abstract(tid) and t.kind_of(tid) == kind:
+			ids.append(tid)
+	ids.sort()
+	return ids
 
 
 func _compile_feature(tid: String, v: Dictionary) -> void:

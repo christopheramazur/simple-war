@@ -221,6 +221,12 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Banking movement:** commanders whose plan was cut short bank 50% of their unused movement points, capped at one turn, and it expires after the next turn.
 - **Neutrals only:** guard and garrison rules apply only to neutral garrisons and features.
 - **Chase and intercept** (R3Q22): commander-vs-commander pursuit needs a chase/intercept handler. This is to be specified.
+- **Movement in play (sw-o1m.1.2):**
+  - **Simultaneous routes:** every route resolves at once, in movement-point time. A commander enters each hex when it has spent that hex's cumulative cost, so whoever gets there first arrives first. Ties go to the lower commander ID.
+  - **Stopping:** a commander stops on entering a battle tile (joining it), a guarded hex (starting a guard engagement), or a hex holding a hostile commander at that moment, including one about to leave it. So two hostile commanders can't swap hexes or pass each other. Everyone on a hex where an engagement starts or is joined stops there.
+  - **Banking:** only a commander stopped with route steps left banks. Arriving on the planned last hex, or being found there by an enemy, is not a cut plan.
+  - **Control:** a commander that passes through or ends on an unguarded hex takes its controllable features.
+  - **Pathfinding** for route drafting is the cheapest path, with ties broken by plot index. It doesn't avoid guards, because the player sees the feature but never what its forces will do, and it never continues through a battle tile.
 - **Fog of war** (R8Q4):
   - **Sight sources:** commanders, convoys, controlled features and detachments each have a sight radius in hexes.
   - **Allies:** vision is shared with allies.

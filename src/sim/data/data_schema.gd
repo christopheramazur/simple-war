@@ -340,6 +340,16 @@ const KINDS: Dictionary = {
 		"guard": {"type": "list:ref:squad"},
 		"bundles": {"type": "list:ref:bundle"},
 	},
+	## A commander (GDD 02 §2.3, §2.9): anchors an army and moves on the
+	## overworld. movement_points: per turn, in the map's move-cost units.
+	## sight: radius in hexes. squad: the commander's own squad in battles.
+	"commander": {
+		"name": {"type": "string"},
+		"tags": {"type": "list:string"},
+		"movement_points": {"type": "int", "required": true, "min": 1},
+		"sight": {"type": "int", "min": 0},
+		"squad": {"type": "ref:squad"},
+	},
 	## A seeded overworld map template (R3Q13): an empty width x height hex
 	## rectangle (odd-r offset rows) that its passes fill with features.
 	"overworld_map": {
