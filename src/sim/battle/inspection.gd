@@ -6,6 +6,7 @@ extends RefCounted
 ##
 ## Returned Dictionary:
 ##   id, player, template, name
+##   strength: {alive, start}: living units and the template's starting count
 ##   stats:   squad stats, each a stat entry (below). Pool capacities only
 ##            for the owner.
 ##   units:   [{id, template, name, hp, hp_max, stats: [stat entries]}]
@@ -53,6 +54,7 @@ static func squad(state: BattleState, squad_id: int, viewer: int = 0) -> Diction
 		units.append(_unit(state, srow, urow, hidden))
 	var out := {
 		"id": squad_id, "player": sq.player[srow], "template": r.squad_ids[st], "name": r.sq_names[st],
+		"strength": {"alive": units.size(), "start": r.sq_members[st].size()},
 		"stats": stats, "units": units, "effects": _effects(state, squad_id, hidden),
 	}
 	if owner:

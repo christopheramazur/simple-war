@@ -11,8 +11,6 @@ const W_NARROW := 360
 const TIP_W := 290
 const H := 900
 const GAP := 24
-## Placeholder: squads have no capacity in the data model yet.
-const MOCK_CAPACITY := 10
 
 const BG := Color("12151a")
 const FRAME := Color("171b21")
@@ -46,7 +44,7 @@ static func build() -> Control:
 	root.add_child(sheet)
 	sheet.add_child(_lbl("Inspection window: iteration 2", 24, TEXT))
 	sheet.add_child(_lbl("One window, four states. Live data from BattleSession.inspect (player 1 and the opponent's view) plus observe() for pools. "
-		+ "The header (pools, unit capacity, squad-wide effects) shows on every tab. Capacity 10 is a placeholder: squads have no capacity in the data yet.", 13, DIM))
+		+ "The header (pools, strength, squad-wide effects) shows on every tab. Strength = living units / starting count; Trooper 7 has been killed.", 13, DIM))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", GAP)
 	sheet.add_child(row)
@@ -88,6 +86,11 @@ static func _data() -> Dictionary:
 	var enemy: int = s.observe(2)["squads"][0]["id"]
 	var row := st.squads.row_of(mine)
 	var fx := st.rules.fx
+	var dead := Centroids.units_of(st, row)[7]
+	Health.queue(st, -1, enemy, st.units.id_at(dead), mine, 99 * ONE, 0)
+	HealthSystem.new().run(st)
+	st.commands.apply(st)
+	Centroids.update(st)
 	var units := Centroids.units_of(st, row)
 	Effects.apply(st, fx.index_of("inspired"), mine)
 	Effects.apply(st, fx.index_of("feigned_rout"), mine)
@@ -154,7 +157,9 @@ static func _header(d: Dictionary, narrow: bool) -> Control:
 	var name := _lbl(v["name"], 20, TEXT)
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(name)
-	var cap := _chip("%d / %d units" % [v["units"].size(), MOCK_CAPACITY], PANEL2, TEXT, 12)
+	var strength: Dictionary = v["strength"]
+	var full: bool = strength["alive"] == strength["start"]
+	var cap := _chip("%d / %d units" % [strength["alive"], strength["start"]], PANEL2, TEXT if full else DOWN, 12)
 	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(cap)
 	var who := _lbl(("P%d" if narrow else "Player %d") % v["player"], 13, DIM)

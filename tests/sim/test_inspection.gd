@@ -69,6 +69,19 @@ func test_plain_squad() -> void:
 	assert_eq(halt["lines"][0], "Reaction.")
 
 
+func test_strength_counts_losses() -> void:
+	var s := BattleState.new(1, _rules(), 1)
+	var sid := _place(s, 1, "rifle_squad", 40)
+	var foe := _place(s, 2, "rifle_squad", 60)
+	assert_eq(Inspection.squad(s, sid, 1)["strength"], {"alive": 8, "start": 8})
+	var last := Centroids.units_of(s, s.squads.row_of(sid))[7]
+	Health.queue(s, -1, foe, s.units.id_at(last), sid, 99 * ONE, 0)
+	HealthSystem.new().run(s)
+	s.commands.apply(s)
+	Centroids.update(s)
+	assert_eq(Inspection.squad(s, sid, 2)["strength"], {"alive": 7, "start": 8}, "public to opponents too")
+
+
 func test_trace_names_its_sources() -> void:
 	var s := BattleState.new(1, _rules(), 1)
 	var sid := _place(s, 1, "rifle_squad", 40)
