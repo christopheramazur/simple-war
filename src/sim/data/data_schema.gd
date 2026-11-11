@@ -8,7 +8,9 @@ extends RefCounted
 ##   "dict" (free-form object), "ref:<kind>" (id of a template of that kind),
 ##   "list:<type>" (array of that type), "map:<type>" (object of that type),
 ##   "obj:<name>" (object checked against OBJECTS[name]).
-## Spec keys: type, required (default false), min, max (ints), enum (strings).
+## Spec keys: type, required (default false), min, max (ints), enum (strings),
+## keys (allowed keys of a map), unit (display unit of a stat), stat (false
+## keeps a numeric field out of the stat registry; see StatRegistry).
 
 const DAMAGE_TYPES: Array[String] = ["kinetic", "energy", "explosive", "magic"]
 const SIMPL: Array[String] = ["stamina", "instinct", "morale", "prowess", "legend"]
@@ -32,7 +34,7 @@ const OBJECTS: Dictionary = {
 	},
 	"squad_member": {
 		"unit": {"type": "ref:unit", "required": true},
-		"count": {"type": "int", "required": true, "min": 1},
+		"count": {"type": "int", "required": true, "min": 1, "stat": false},
 	},
 	"pool": {
 		"capacity": {"type": "int", "min": 1},
@@ -109,11 +111,11 @@ const KINDS: Dictionary = {
 		"evasion_pct": {"type": "int", "min": 0, "max": 100},
 		"block_chance_pct": {"type": "int", "min": 0, "max": 100},
 		"block_amount_pct": {"type": "int", "min": 0, "max": 100},
-		"resist_pct": {"type": "map:int"},
+		"resist_pct": {"type": "map:int", "keys": DAMAGE_TYPES},
 		"flat": {"type": "int", "min": 0},
 		"percent": {"type": "int", "min": 0, "max": 100},
-		"floor": {"type": "map:int"},
-		"absorb": {"type": "map:obj:absorb"},
+		"floor": {"type": "map:int", "keys": DAMAGE_TYPES},
+		"absorb": {"type": "map:obj:absorb", "keys": DAMAGE_TYPES},
 	},
 	"movement": {
 		"walk": {"type": "fixed", "required": true},
@@ -152,7 +154,7 @@ const KINDS: Dictionary = {
 		"capture_rate": {"type": "int", "min": 0},
 		"sight": {"type": "fixed", "required": true},
 		"formation": {"type": "obj:formation"},
-		"pools": {"type": "map:obj:pool"},
+		"pools": {"type": "map:obj:pool", "keys": SIMPL},
 		"abilities": {"type": "list:ref:ability"},
 		"reactions": {"type": "list:obj:reaction"},
 		"keywords": {"type": "list:string"},
@@ -229,7 +231,10 @@ static func _check_value(v: Variant, fs: Dictionary, tid: String, path: String, 
 			return
 		var inner := fs.duplicate()
 		inner["type"] = t.substr(4)
+		inner.erase("keys")
 		for key: Variant in v:
+			if fs.has("keys") and not (fs["keys"] as Array).has(key):
+				errors.append("%s: '%s' has unknown key '%s' (allowed: %s)" % [tid, path, key, fs["keys"]])
 			_check_value(v[key], inner, tid, _join(path, str(key)), table, errors)
 		return
 	if t.begins_with("obj:"):
