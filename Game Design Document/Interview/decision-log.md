@@ -217,3 +217,9 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - E3Q9 Yes: namespaced profile banks; cross-campaign reads declared in the manifest; story campaigns only.
 - E3Q10 Yes: distance durations count hexes the holder enters by its own movement.
 - E3Q11 Yes: build the effect engine (registry + modifier engine with traces; fixed-point HP/pools + ratio; owner-applies with simultaneous damage; bundles/status/ability schema; port detection/concealment/reactions; Game API inspection call) before resuming M4.
+### Settled (Round E4)
+- E4Q1 Not now: the broad data-oriented convergence (one enforced writer per field, typed inboxes everywhere, zones/players/ledger as tables, a stats system owning effective values) is left as-is. Maintainability, performance, extensibility and readability get a review later. The narrower E2Q2 decision stands: damage is queued and applied by the health system, so fire is simultaneous.
+- E4Q2 Yes: no scaler category. Magnitudes are constants or "per stack"; stack counts come from auras, selector counts, accumulator values or pool values.
+- E4Q3 Yes: UI mocks are throwaway Godot Control scenes fed by Game API data, rendered headless to PNG, several variants per contact sheet. Local image generation is kept for the art pass.
+- E4Q4 Yes: the inspection window is the first contact sheet (2-3 layout variants), made while the effect engine is built.
+- E4Q5 Yes: one-screen summary, then confirmation, then GDD update, task filing and build.
