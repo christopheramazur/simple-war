@@ -325,7 +325,9 @@ const KINDS: Dictionary = {
 	## map's base cost (a plot never costs less than 1). sight: radius in
 	## hexes its controller sees. cache_value: Value picked up by the first
 	## commander through; the feature is then removed. guard: neutral squads
-	## that fight whoever enters.
+	## that fight whoever enters. activity_cost: Value paid to perform an
+	## activity here. converts_to: what the "convert" activity turns this
+	## feature into (owned by the converting player).
 	"hex_feature": {
 		"name": {"type": "string"},
 		"tags": {"type": "list:string"},
@@ -338,6 +340,8 @@ const KINDS: Dictionary = {
 		"value_per_turn": {"type": "int", "min": 0},
 		"cache_value": {"type": "int", "min": 0},
 		"guard": {"type": "list:ref:squad"},
+		"activity_cost": {"type": "int", "min": 0},
+		"converts_to": {"type": "ref:hex_feature"},
 		"bundles": {"type": "list:ref:bundle"},
 	},
 	## A commander (GDD 02 §2.3, §2.9): anchors an army and moves on the

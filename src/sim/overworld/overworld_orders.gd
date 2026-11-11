@@ -20,6 +20,35 @@ static func clear_route(s: OverworldState, player: int, commander_id: int) -> St
 	return set_route(s, player, commander_id, PackedInt64Array())
 
 
+## Plans an activity (R4Q12): refit, recruit, battle or convert. It needs
+## the route to end on a hex with a feature offering it (or, with no route,
+## the commander's own hex). Returns "" or why it was refused.
+static func set_activity(s: OverworldState, player: int, commander_id: int, activity: String) -> String:
+	var c := s.commanders
+	var row := c.row_of(commander_id)
+	if row < 0:
+		return "no such commander"
+	if c.player[row] != player:
+		return "not your commander"
+	if activity.is_empty():
+		s.activities.erase(commander_id)
+		return ""
+	if not OverworldRules.ACTIVITIES.has(activity):
+		return "unknown activity '%s'" % activity
+	if c.engagement[row] >= 0:
+		return "is in a battle"
+	var route: PackedInt64Array = s.routes.get(commander_id, PackedInt64Array())
+	var dest := c.plot[row] if route.is_empty() else route[route.size() - 1]
+	var fr := OverworldActivities.offering(s, dest, activity)
+	if fr < 0:
+		return "the route must end on a hex offering %s" % activity
+	var cost := s.rules.hf_activity_cost[s.features.tmpl[fr]]
+	if s.value_of(player) < cost:
+		return "%s costs %d Value, you have %d" % [activity, cost, s.value_of(player)]
+	s.activities[commander_id] = {"activity": activity, "plot": dest}
+	return ""
+
+
 static func validate_route(s: OverworldState, player: int, commander_id: int, plots: PackedInt64Array) -> String:
 	var c := s.commanders
 	var row := c.row_of(commander_id)

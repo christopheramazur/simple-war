@@ -83,7 +83,7 @@ func test_rules_compile() -> void:
 	assert_true(r.has_activity(v, "recruit"))
 	assert_false(r.has_activity(v, "battle"))
 	assert_eq(r.hf_guard[_f("hex_bandit_camp")], PackedStringArray(["rifle_squad", "rifle_squad"]))
-	assert_eq(r.passes.size(), 11)
+	assert_eq(r.passes.size(), 13)
 
 
 func test_bad_maps_report_errors() -> void:

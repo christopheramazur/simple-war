@@ -7,6 +7,7 @@ extends SoaTable
 
 const GUARD: int = 1       ## a neutral guard on the hex fights
 const COMMANDERS: int = 2  ## hostile commanders met
+const ACTIVITY: int = 4    ## a commander-led battle activity (R4Q12)
 
 var plot := PackedInt64Array()
 var kinds := PackedInt64Array()   ## GUARD | COMMANDERS bits

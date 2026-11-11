@@ -215,6 +215,14 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Uncertain outcomes** (negotiation, battle, interactive events) are presented at the start of a turn in which the player has a commander uncontested on the hex.
   - **Stable outcomes** (production, pickups, setting up supply lines) are handled during planning, when routing through.
 - **Control** (R6Q14, R7Q8): only Commanders flip a controllable feature, by passing through it. A garrisoned feature needs an engagement first.
+- **In play (sw-o1m.1.3):** a turn resolves as movement, then activities, then production; then uncertain features are offered for the next turn.
+  - **Caches** are picked up automatically by any commander passing through or ending on an unguarded hex. Stable outcomes are configured while drafting the route and happen as the commander moves.
+  - **Activities** are planned per commander. A commander performs one only if it ends the turn on the planned hex and isn't in a battle; the feature's `activity_cost` in Value is paid then.
+    - **Convert** replaces the feature with its `converts_to` feature, owned by the player.
+    - **Battle** starts an engagement on the hex.
+    - **Recruit and refit** are announced for armies (sw-o1m.2).
+  - **Production:** every controlled feature pays its owner its `value_per_turn`, including one taken this turn.
+  - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. What answering does belongs to the trigger layer (sw-cgl.2).
 
 ### Guards and movement
 - **Guards** (R4Q14, R5Q9, R6Q11, R6Q12): entering a guarded hex triggers an engagement. What overworld forces will do is never revealed before engagement.

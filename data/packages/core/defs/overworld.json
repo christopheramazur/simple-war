@@ -10,9 +10,14 @@
 		"activities": ["recruit"], "value_per_turn": 2, "sight": 2}},
 	{"id": "hex_mine", "kind": "hex_feature", "values": {
 		"name": "Mine", "controllable": true, "interaction": "stable",
-		"activities": ["convert"], "value_per_turn": 3, "sight": 1}},
+		"value_per_turn": 3, "sight": 1}},
 	{"id": "hex_supply_cache", "kind": "hex_feature", "values": {
 		"name": "Supply cache", "interaction": "stable", "cache_value": 5}},
+	{"id": "hex_ore_deposit", "kind": "hex_feature", "values": {
+		"name": "Ore deposit", "interaction": "stable", "activities": ["convert"],
+		"activity_cost": 5, "converts_to": "hex_mine"}},
+	{"id": "hex_shrine", "kind": "hex_feature", "values": {
+		"name": "Wayside shrine", "interaction": "uncertain", "activities": ["battle"]}},
 	{"id": "hex_bandit_camp", "kind": "hex_feature", "values": {
 		"name": "Bandit camp", "interaction": "uncertain", "activities": ["battle"],
 		"guard": ["rifle_squad", "rifle_squad"]}},
@@ -36,7 +41,9 @@
 			{"op": "place", "feature": "hex_mine", "col": 8, "row": 9},
 			{"op": "place", "feature": "hex_bandit_camp", "col": 11, "row": 3},
 			{"op": "scatter", "feature": "hex_supply_cache", "count": 3, "spacing": 3,
-				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]}
+				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]},
+			{"op": "place", "feature": "hex_ore_deposit", "col": 2, "row": 10},
+			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7}
 		]}}
 ]
 }

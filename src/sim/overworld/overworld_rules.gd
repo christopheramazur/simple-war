@@ -28,6 +28,10 @@ var hf_value_per_turn: PackedInt64Array = PackedInt64Array()
 var hf_cache_value: PackedInt64Array = PackedInt64Array()
 ## Guard squad template IDs (battles are built from them).
 var hf_guard: Array[PackedStringArray] = []
+## Value paid to perform an activity on the feature.
+var hf_activity_cost: PackedInt64Array = PackedInt64Array()
+## Feature index the "convert" activity turns it into, -1 = none.
+var hf_converts_to: PackedInt64Array = PackedInt64Array()
 
 # --- commanders ---
 var commander_ids: PackedStringArray = PackedStringArray()
@@ -77,6 +81,12 @@ func has_activity(feature: int, activity: String) -> bool:
 func _compile(t: TemplateTable, map: String) -> void:
 	for tid in _of_kind(t, "hex_feature"):
 		_compile_feature(tid, t.values_of(tid))
+	for tid in feature_ids:
+		var into := String(t.values_of(tid).get("converts_to", ""))
+		var to := feature_index(into) if into != "" else -1
+		hf_converts_to.append(to)
+		if to < 0 and has_activity(feature_index(tid), "convert"):
+			errors.append("%s: the convert activity needs 'converts_to'" % tid)
 	for tid in _of_kind(t, "commander"):
 		var v := t.values_of(tid)
 		commander_ids.append(tid)
@@ -121,6 +131,7 @@ func _compile_feature(tid: String, v: Dictionary) -> void:
 	hf_value_per_turn.append(int(v.get("value_per_turn", 0)))
 	hf_cache_value.append(int(v.get("cache_value", 0)))
 	hf_guard.append(PackedStringArray(v.get("guard", [])))
+	hf_activity_cost.append(int(v.get("activity_cost", 0)))
 
 
 func _compile_pass(i: int, v: Dictionary) -> void:

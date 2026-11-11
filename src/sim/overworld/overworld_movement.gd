@@ -74,7 +74,7 @@ static func resolve(s: OverworldState) -> void:
 					if other != cid or st[2] < last[cid]:
 						cut[other] = true
 			continue
-		_capture(s, row, to)
+		_arrive(s, row, to)
 		if st[2] == last[cid]:
 			moving[cid] = false  # route finished: being engaged later is not a cut plan
 	for row in c.count():
@@ -115,15 +115,25 @@ static func _engages(s: OverworldState, cid: int, p: int) -> bool:
 	return true
 
 
-## A commander on an unguarded hex takes its controllable features.
-static func _capture(s: OverworldState, row: int, p: int) -> void:
+## A commander on an unguarded hex takes its controllable features and
+## picks up its caches (stable outcomes, R6Q14).
+static func _arrive(s: OverworldState, row: int, p: int) -> void:
 	var player := s.commanders.player[row]
 	var f := s.features
+	var caches := PackedInt64Array()
 	for fr in s.features_at(p):
-		if s.rules.hf_controllable[f.tmpl[fr]] == 1 and f.owner[fr] != player:
+		var t := f.tmpl[fr]
+		if s.rules.hf_controllable[t] == 1 and f.owner[fr] != player:
 			var fid := f.id_at(fr)
 			s.events.push(&"feature_captured", {"feature": fid, "plot": p, "player": player, "from": f.owner[fr]}, s.tick)
 			f.set_value(fid, &"owner", player)
+		if s.rules.hf_cache_value[t] > 0:
+			caches.append(f.id_at(fr))
+	for fid in caches:
+		var amount := s.rules.hf_cache_value[f.tmpl[f.row_of(fid)]]
+		s.events.push(&"cache_picked", {"commander": s.commanders.id_at(row), "plot": p, "player": player, "value": amount}, s.tick)
+		s.add_value(player, amount, &"cache")
+		s.remove_feature(fid)
 
 
 ## Ends an engagement (its battle is over): commanders on it are free again.

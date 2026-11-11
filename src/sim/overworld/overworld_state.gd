@@ -12,6 +12,14 @@ var turn: int = 0
 ## Planned routes: commander ID -> plots to enter, in order (start excluded).
 ## Set during planning by OverworldOrders; cleared when the turn resolves.
 var routes: Dictionary = {}
+## Planned activities: commander ID -> {"activity": String, "plot": int}.
+## Set during planning; performed if the commander ends the turn there.
+var activities: Dictionary = {}
+## Value per player, the sole resource (R5Q11).
+var value: Dictionary = {}
+## Uncertain-outcome interactions presented this turn (R6Q14): [{"plot",
+## "feature" (ID), "player"}], rebuilt as each turn resolves.
+var offers: Array[Dictionary] = []
 ## Derived cache, plot -> feature rows (ascending template index). Rebuilt
 ## by reindex(); never hashed or saved.
 var plot_features: Dictionary = {}
@@ -46,6 +54,17 @@ func feature_row(p: int, f: int) -> int:
 		if features.tmpl[row] == f:
 			return row
 	return -1
+
+
+func value_of(player: int) -> int:
+	return int(value.get(player, 0))
+
+
+func add_value(player: int, amount: int, source: StringName) -> void:
+	if amount == 0:
+		return
+	value[player] = value_of(player) + amount
+	events.push(&"value_changed", {"player": player, "amount": amount, "source": source}, tick)
 
 
 ## Whether two players are enemies. Alliances arrive with campaigns; until
@@ -124,7 +143,8 @@ func _snapshot_extra(snap: Dictionary) -> void:
 	var r := {}
 	for cid: int in routes:
 		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
-	snap["overworld"] = {"turn": turn, "routes": r}
+	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true),
+		"value": value.duplicate(), "offers": offers.duplicate(true)}
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -133,6 +153,9 @@ func _restore_extra(snap: Dictionary) -> void:
 	var r: Dictionary = snap["overworld"].get("routes", {})
 	for cid: int in r:
 		routes[cid] = (r[cid] as PackedInt64Array).duplicate()
+	activities = (snap["overworld"].get("activities", {}) as Dictionary).duplicate(true)
+	value = (snap["overworld"].get("value", {}) as Dictionary).duplicate()
+	offers.assign((snap["overworld"].get("offers", []) as Array).duplicate(true))
 	reindex()
 
 
@@ -146,4 +169,17 @@ func state_hash() -> PackedByteArray:
 	for cid: int in ids:
 		h.update(PackedInt64Array([cid, (routes[cid] as PackedInt64Array).size()]).to_byte_array())
 		h.update((routes[cid] as PackedInt64Array).to_byte_array())
+	var text := ""
+	ids = activities.keys()
+	ids.sort()
+	for cid: int in ids:
+		text += "A%d:%s@%d;" % [cid, activities[cid]["activity"], activities[cid]["plot"]]
+	var players: Array = value.keys()
+	players.sort()
+	for p: int in players:
+		text += "V%d:%d;" % [p, value[p]]
+	for o in offers:
+		text += "O%d:%d:%d;" % [o["plot"], o["feature"], o["player"]]
+	if not text.is_empty():
+		h.update(text.to_utf8_buffer())
 	return h.finish()
