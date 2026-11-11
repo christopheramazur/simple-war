@@ -205,3 +205,15 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - E2Q11 Less critical than PoE (small stat/affix pool); show comparison tooltips of how unit/squad stats change. Keep scopes explicit as good practice.
 - E2Q12 Yes: visible means inspectable, except deception-tagged effects (show their disguise).
 - E2Q13 Yes: bundles are package templates, referenced by ID, inheritable, schema-validated.
+### Settled (Round E3)
+- E3Q1 Yes: HP, temporary HP and all pools are fixed-point; one decimal shown only when fractional; death at HP <= 0; thresholds compare exact values.
+- E3Q2 Yes: every current/max pair keeps its ratio when the max changes, unless the effect is flagged "restores".
+- E3Q3 Systems sit ABOVE the state: they hold no state of their own (they may have state-like context), but each piece of state has a responsible system, and anyone who wants to mutate it registers an event against that system. Data-oriented stack still required without gecs: user asked for an explanation of the current implementation, to work toward convergence (Round E4).
+- E3Q4 Derive the stat registry from schemas, and register ALL stats there: anything without a data field (e.g. a reaction cost) gets a data field with sensible defaults or calculations for whatever uses it.
+- E3Q5 User questioned why magnitude scalers need tooling; likely a consequence of composition or naming. Explained in Round E4.
+- E3Q6 Yes, plus: what the readied state does, and for how long, is data-defined; readied states can be lost under data-defined conditions.
+- E3Q7 Yes: abilities are planning orders validated against activation; toggles and reactions migrate onto abilities.
+- E3Q8 Yes: the presentation layer sits on state and the game's APIs; whenever the UI needs a value it gets it from a source and never computes its own; it only formats and presents. User asked for a cheap visual prototyping workflow for UI mocks (local image generation, or token-cheap Godot canvas prototypes) to reason about UI visually.
+- E3Q9 Yes: namespaced profile banks; cross-campaign reads declared in the manifest; story campaigns only.
+- E3Q10 Yes: distance durations count hexes the holder enters by its own movement.
+- E3Q11 Yes: build the effect engine (registry + modifier engine with traces; fixed-point HP/pools + ratio; owner-applies with simultaneous damage; bundles/status/ability schema; port detection/concealment/reactions; Game API inspection call) before resuming M4.
