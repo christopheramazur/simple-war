@@ -73,7 +73,7 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
 - Battles begin at the start of a turn (R2Q1).
 - **Battles from engagements (sw-o1m.2.3):**
   - **Start:** an engagement made during a turn becomes a battle at the start of the next one. Its players plan their battle orders in the same planning phase as the overworld.
-  - **Shared pulse:** each turn's Execute runs one battle turn in every battle, applies the battles that ended, then resolves the overworld turn. The reaction window isn't offered in these battles yet.
+  - **Shared pulse:** each turn's Execute runs one battle turn in every battle, applies the battles that ended, then resolves the overworld turn. On turns with battles, the reaction window opens after Reveal (sw-o1m.2.7): reinforcements and every battle's orders apply at Reveal, each battle's coming turn is forecast, and players react across all their battles. A player with nothing to react to is ready at once, and turns without battles skip the window. Each player's battle count sets its bonus planning and reaction time.
   - **Battlefield:** the first feature on the hex with a `battlefield`, else the map's `battle_scenario`. Sides take the scenario's two deployment areas in order: players ascending, then neutral guards.
   - **Sides:** every player with squads deployed in the engagement. A hex's neutral guards fight at full strength as a neutral side.
   - **Losses carry:** a squad fights with only the units it has left.

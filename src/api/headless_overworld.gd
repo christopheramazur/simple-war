@@ -7,13 +7,15 @@ extends RefCounted
 ## optional)}; it may call
 ## only player-scoped queries (session.observe / session.path). A
 ## controller with `battle_orders(battle_observation) -> Array` also fights
-## the battles its player is in.
+## the battles its player is in, and one with `reactions(opportunities)
+## -> Array` of {"engagement", "squad", "reaction", "trigger"} reacts in the
+## reaction window.
 
 
 ## Plays until `turns` overworld turns have resolved. Returns the session.
 static func play(session: OverworldSession, controllers: Dictionary, turns: int) -> OverworldSession:
 	var guard := 0
-	while session.turns_resolved() < turns and guard < turns * 4:
+	while session.turns_resolved() < turns and guard < turns * 5:
 		guard += 1
 		match session.clock.phase:
 			PulseClock.Phase.PLANNING:
@@ -29,6 +31,13 @@ static func play(session: OverworldSession, controllers: Dictionary, turns: int)
 							var bo := session.observe_battle(p, eid)
 							if not bo.is_empty():
 								session.submit_battle_orders(p, eid, controllers[p].battle_orders(bo))
+				for p in session.players():
+					session.ready(p)
+			PulseClock.Phase.REACTION:
+				for p in session.players():
+					if controllers[p].has_method("reactions"):
+						for re: Dictionary in controllers[p].reactions(session.reaction_opportunities(p)):
+							session.submit_reaction(p, re["engagement"], re["squad"], re["reaction"], re["trigger"])
 				for p in session.players():
 					session.ready(p)
 			PulseClock.Phase.INTERMISSION:

@@ -8,7 +8,8 @@ extends RefCounted
 ##           from a detachment), set_battleforce, set_output,
 ##           set_supply_line, rally, equip, unequip, give_item,
 ##           take_items
-##           (Planning only), save_preset, ready, advance(ms).
+##           (Planning only), save_preset, ready, advance(ms);
+##           submit_reaction (Reaction only).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
 ##           cheapest affordable route as the player knows the map.
@@ -16,9 +17,14 @@ extends RefCounted
 ##           turn (OverworldBattles) and runs one battle turn per overworld
 ##           turn on the same pulse: submit_battle_orders, reinforce and
 ##           leave_battle in Planning; observe_battle shows one.
-## Clock:    the shared PulseClock (R2Q3), without a reaction window for
-##           now. Execute runs the battle turns, applies finished battles,
-##           resolves the overworld turn, then starts new battles.
+## Clock:    the shared PulseClock (R2Q3). Reveal sends reinforcements in
+##           and applies every battle's orders. While any battle runs (and
+##           the clock config allows it), a reaction window follows: each
+##           battle's coming turn is forecast (Reactions), players react
+##           through submit_reaction, and a player with nothing to react to
+##           is ready at once (GDD 02 §2.2). Each player's battle count sets
+##           its bonus time. Execute runs the battle turns, applies finished
+##           battles, resolves the overworld turn, then starts new battles.
 ## Records:  every input is logged with its turn and phase, and the state
 ##           hash after every resolved turn is kept, so a replay (initial
 ##           state + inputs) is checked turn by turn (R8Q5, R6Q20).
@@ -52,6 +58,14 @@ var _battle_sim := BattleSim.new()
 
 var _players: PackedInt64Array = PackedInt64Array()
 var _execute_pending: bool = false
+## The clock config's own reaction_enabled: the window opens only on turns
+## with battles, and only if this allows it.
+var _reactions_allowed: bool = true
+## Reaction window: engagement ID -> Reactions.forecast opportunities.
+var _opportunities: Dictionary = {}
+## Set on entering the reaction window: ready the players with nothing to
+## react to (done in _pump, outside the clock's call stack).
+var _auto_ready: bool = false
 ## Set while rebuilding: the hashes the replay must reproduce.
 var _expected: PackedStringArray = PackedStringArray()
 var _diverged: int = -1
@@ -88,6 +102,7 @@ func _setup(t: TemplateTable, r: OverworldRules, map: String, seed_in: int, hash
 	bus = PulseBus.new()
 	bus.register_context(state)
 	var cfg := _config_from(_config_dict(clock_config if clock_config != null else ClockConfig.new()))
+	_reactions_allowed = cfg.reaction_enabled
 	cfg.reaction_enabled = false
 	clock = PulseClock.new(cfg)
 	for p in _players:
@@ -277,6 +292,43 @@ func reinforce(player: int, commander_id: int, squad_id: int) -> String:
 	return err
 
 
+## Reaction opportunities for the player during the reaction window, across
+## its battles: [{"engagement", "squad", "player", "trigger", "tick",
+## "reactions"}], by engagement then forecast order.
+func reaction_opportunities(player: int) -> Array:
+	if clock.phase != PulseClock.Phase.REACTION:
+		return []
+	var out := []
+	var eids: Array = _opportunities.keys()
+	eids.sort()
+	for eid: int in eids:
+		for o: Dictionary in _opportunities[eid]:
+			if o["player"] == player:
+				var x := o.duplicate()
+				x["engagement"] = eid
+				out.append(x)
+	return out
+
+
+## Queues a reaction for one of the player's squads in a battle (Reaction
+## phase only). "" or why not.
+func submit_reaction(player: int, engagement_id: int, squad: int, reaction: String, trigger: int) -> String:
+	if clock.phase != PulseClock.Phase.REACTION:
+		return "reactions are only accepted in the reaction window"
+	var b: OverworldBattle = battles.get(engagement_id)
+	var ok := false
+	for o: Dictionary in _opportunities.get(engagement_id, []):
+		if o["player"] == player and o["squad"] == squad and o["trigger"] == trigger and reaction in o["reactions"]:
+			ok = true
+			break
+	if b == null or not ok:
+		return "no such reaction opportunity"
+	var err := Reactions.queue(b.state, squad, reaction, trigger)
+	if err.is_empty():
+		_log(player, "reaction", {"engagement": engagement_id, "squad": squad, "reaction": reaction, "trigger": trigger})
+	return err
+
+
 ## A commander whose own squad is not fighting leaves its battle.
 func leave_battle(player: int, commander_id: int) -> String:
 	var err := _planning(player)
@@ -347,17 +399,36 @@ func _on_pulse(point: StringName, _turn: int) -> void:
 
 
 func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
-	if phase == PulseClock.Phase.EXECUTE:
-		_execute_pending = true
+	match phase:
+		PulseClock.Phase.REVEAL:
+			_reveal_battles()
+			clock.config.reaction_enabled = _reactions_allowed and not battles.is_empty()
+		PulseClock.Phase.REACTION:
+			_opportunities = {}
+			var ids: Array = battles.keys()
+			ids.sort()
+			for eid: int in ids:
+				_opportunities[eid] = Reactions.forecast((battles[eid] as OverworldBattle).state, _battle_sim)
+			_auto_ready = true
+		PulseClock.Phase.EXECUTE:
+			_execute_pending = true
 
 
 ## Runs work the clock asked for, outside the clock's own call stack.
 func _pump() -> void:
-	while _execute_pending:
+	while _execute_pending or _auto_ready:
+		if _auto_ready:
+			_auto_ready = false
+			for p in _players:
+				if clock.phase == PulseClock.Phase.REACTION and reaction_opportunities(p).is_empty():
+					clock.mark_ready(p)
+			continue
 		_execute_pending = false
+		_opportunities = {}
 		_run_battles()
 		last_events = OverworldTurn.resolve(state)
 		_start_battles()
+		_count_battles()
 		last_events.append_array(state.events.drain())
 		var h := state_hash_hex()
 		var i := turn_hashes.size()
@@ -367,6 +438,28 @@ func _pump() -> void:
 		clock.execute_finished()
 
 
+## Reveal: reinforcements join every battle and its orders apply.
+func _reveal_battles() -> void:
+	var ids: Array = battles.keys()
+	ids.sort()
+	for eid: int in ids:
+		var b: OverworldBattle = battles[eid]
+		OverworldBattles.reinforce(state, b)
+		for p in b.state.players:
+			BattleOrders.apply(b.state, p, b.orders.get(p, []))
+		b.orders = {}
+
+
+## Each player's battle count drives its bonus time (R3Q1).
+func _count_battles() -> void:
+	for p in _players:
+		var n := 0
+		for eid: int in battles:
+			if (battles[eid] as OverworldBattle).state.players.has(p):
+				n += 1
+		clock.set_battles(p, n)
+
+
 ## One battle turn in every battle, then finished battles are applied.
 func _run_battles() -> void:
 	var ids: Array = battles.keys()
@@ -374,10 +467,6 @@ func _run_battles() -> void:
 	var done := []
 	for eid: int in ids:
 		var b: OverworldBattle = battles[eid]
-		OverworldBattles.reinforce(state, b)
-		for p in b.state.players:
-			BattleOrders.apply(b.state, p, b.orders.get(p, []))
-		b.orders = {}
 		_battle_sim.execute_turn(b.state)
 		if b.state.is_over():
 			done.append(eid)
@@ -436,6 +525,7 @@ func observe(player: int) -> Dictionary:
 	o["events"] = evs
 	for bt: Dictionary in o["battles"]:
 		bt["battle"] = battles.has(bt["engagement"])
+	o["reactions"] = reaction_opportunities(player)
 	return o
 
 
@@ -488,10 +578,11 @@ func save() -> PackedByteArray:
 		events.append(e.to_dict())
 	var data := {
 		"version": SAVE_VERSION, "map": map_id, "seed": seed_value, "data_hash": data_hash,
-		"clock_config": _config_dict(clock.config), "inputs": input_log.duplicate(true),
+		"clock_config": _saved_config(), "inputs": input_log.duplicate(true),
 		"hashes": turn_hashes.duplicate(), "state": state.snapshot(), "clock": clock.snapshot(),
 		"last_events": events, "hash": state_hash_hex(),
 		"battles": _battles_dict(), "next_context": _next_context,
+		"opportunities": _opportunities.duplicate(true),
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
 
@@ -525,10 +616,19 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		s.battles[eid] = b
 		s.bus.register_context(b.state)
 	s._next_context = data.get("next_context", 100)
+	s._opportunities = data.get("opportunities", {})
 	if s.state_hash_hex() != data["hash"]:
 		last_error = "the saved state does not match its hash"
 		return null
 	return s
+
+
+## The clock config as created (reaction_enabled as allowed, not as this
+## turn has it).
+func _saved_config() -> Dictionary:
+	var d := _config_dict(clock.config)
+	d["reaction_enabled"] = _reactions_allowed
+	return d
 
 
 func _battles_dict() -> Dictionary:
@@ -597,6 +697,8 @@ func replay_inputs(inputs: Array) -> void:
 				reinforce(i["player"], p["commander"], p["squad"])
 			"leave":
 				leave_battle(i["player"], p["commander"])
+			"reaction":
+				submit_reaction(i["player"], p["engagement"], p["squad"], p["reaction"], p["trigger"])
 			"preset":
 				save_preset(i["player"], p["name"], p["prefer"], p["avoid"])
 			"ready":

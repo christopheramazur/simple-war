@@ -42,7 +42,7 @@ data                  (immutable template tables from packages)
 - **Overworld (sw-o1m.1.5):** `OverworldSession` mirrors `BattleSession`.
   - **Inputs:** `set_route` and `set_activity` (Planning only), `ready`, `advance(ms)`.
   - **Queries:** `observe` (fog-filtered, with last turn's visible events) and `path` (the cheapest affordable route as the player knows the map).
-  - **Clock:** it runs on the shared PulseClock without a reaction window.
+  - **Clock:** it runs on the shared PulseClock. On turns with battles (if the clock config allows reactions) a reaction window follows Reveal: `reaction_opportunities(player)` lists them across battles (each with its `engagement`), `submit_reaction(player, engagement, squad, reaction, trigger)` queues one, and `observe` adds `reactions`. Players with nothing to react to are readied automatically. Reactions are logged and replayed, and saves keep the window's opportunities.
   - **Drop-offs:** `set_drop_off(player, commander, step, plot)` plans one; `transfer_squad` also picks squads up from a detachment. `observe` lists detachments in sight (their squads only for allies) and the player's planned drop-offs.
   - **Logistics:** `set_output(player, feature, option)`, `set_supply_line(player, feature, plot, commander)` and `rally(player, detachment, plot, commander)`. `observe` adds the player's production and supply lines, and marks convoys (destinations only for allies).
   - **War Chest:** `equip(player, commander, item, squad, count)`, `unequip(player, commander, item, count)`, `give_item(player, from, item, count, to)` and `take_items(player, commander, detachment)`. `observe` adds each own or allied commander's `chest` and each detachment's `items`, and army squads list their equipped `items`.
