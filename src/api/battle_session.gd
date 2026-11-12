@@ -124,6 +124,15 @@ func advance(ms: int) -> void:
 	_pump()
 
 
+## The planning forecast for intent ghosts (IntentForecast): the coming
+## turn with these drafted orders, as the player knows the battle. Nothing
+## is submitted or changed. Planning only ({} otherwise).
+func forecast(player: int, orders: Array) -> Dictionary:
+	if clock.phase != PulseClock.Phase.PLANNING or not state.players.has(player):
+		return {}
+	return IntentForecast.run(state, sim, player, orders)
+
+
 ## Reaction opportunities for the player during the reaction window.
 func reaction_opportunities(player: int) -> Array:
 	if clock.phase != PulseClock.Phase.REACTION:

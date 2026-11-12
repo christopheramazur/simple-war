@@ -17,12 +17,17 @@ The simulation's rules. This document is authoritative over the code: if they di
 ### Turn sequence
 1. **Planning** (R3Q1, R4Q3): about 60 s by default, with a reserve top-up. Players issue orders in every context they're in.
    - The server forecasts interactions continuously as orders are drafted and keeps a reaction dictionary. Forecasts show *Vacuum* (pending sinks) and intent ghosts (R4Q3, R6Q2).
+   - **In play (sw-ip8.3):** `IntentForecast` runs the coming turn on a scratch copy with the player's drafted orders.
+     - **Output:** each own squad's path as ghosts, plus the contacts it would make, with the reactions it could use.
+     - **Fog:** enemies the player can't see are taken out of the copy, so the forecast never reveals them. Other players' drafts stay secret, so their squads keep their current orders.
+     - **Not yet:** *Vacuum* forecasts.
    - **Parallel-battle bonus** (R4Q2): being in more battles adds planning time, asymptotically: +10 s for the 2nd battle, a little less for each one after, reaching +60 s total at 10 battles, then +1 s per extra battle.
 2. **Ready / timeout:** final validation of all orders (R4Q3).
 3. **Reveal and reaction window** (R2Q4, R3Q4): the sim pauses after reveal, and players scan all battles and issue reactions.
    - **What a reaction is:** a restricted order, triggered by interactions that the revealed orders create (for example, A and B come into range). It costs the squad and/or the commander.
    - **Limits:** there is one reaction timing and no counter-reactions, except niche abilities.
    - **UI:** a radial popup on reactable squads, plus a scrollable reaction queue.
+   - **In play (sw-ip8.3):** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad.
    - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
    - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions exist only as upgrades or unit abilities (R2Q4).
 4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed, and while watching, the overworld is locked. Ranked may skip straight to results (R3Q2).

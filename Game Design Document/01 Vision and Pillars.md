@@ -39,6 +39,14 @@ Players of Heroes of Might and Magic and Total War (R1Q3). The competitive scene
 - **HUD:** every HUD and UI portion is individually configurable.
 - **Accessibility:** scalable UI and text size, colour-blind-safe palettes, never colour alone to convey state, and the untimed option.
 - **Localisation:** every player-facing string is a translation key from day one, glossary terms included. English only at launch.
+- **In play (sw-ip8.3):** the war room's planning UI (`src/presentation/planning/`, mock `Mocks/war_room.png`).
+  - **Model:** `BattlePlanner` keeps each battle's selection, control groups and drafted orders. Drafts are submitted as they change.
+  - **Selecting:** click (shift adds, ctrl toggles), drag box-select, double click selects every squad of that type on screen.
+  - **Orders:** right click moves, keeping the formation; alt + right click moves into a new line across the direction of travel. Right click on a visible enemy attacks it. Attack-move, hold, fall back, withdraw and run are keys and buttons.
+  - **Groups and bookmarks:** control groups 0-9 (assign, add, recall); camera bookmarks F1-F4 save the focused context, the overworld camera and the zoom.
+  - **Ability menu:** one menu across the selection, listing each ability with how many selected squads have it and whether toggles are all on.
+  - **GUIDE:** every key command is a remappable action in one planning mapping context. Pointer work stays in the view.
+  - **Not yet:** display names are English, not translation keys; touch and stick drag-select; and the configurable HUD (see the localisation and HUD items above).
 
 ## Business model (R1Q5)
 Free, except story campaigns and cosmetic, non-pay-to-win content such as faction skins. The project is not profit-driven.

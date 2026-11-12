@@ -43,6 +43,8 @@ var zoom: float = ZOOM_DEFAULT
 ## to (engagement ID -> Vector2 offset).
 var pips: Array[int] = []
 var pip_offsets: Dictionary = {}
+## Camera bookmarks (R1Q4): slot -> {"focus", "plot", "zoom"}.
+var bookmarks: Dictionary = {}
 
 var _player: int = 0
 ## The player's battles: engagement ID -> plot.
@@ -259,6 +261,29 @@ func battle_in_context() -> int:
 func look_at(p: int) -> void:
 	camera_plot = p
 	followed = -1
+	changed.emit()
+
+
+## Saves where the camera is: the focused context, the overworld camera
+## and the zoom.
+func set_bookmark(slot: int) -> void:
+	bookmarks[slot] = {"focus": focus, "plot": camera_plot, "zoom": zoom}
+	changed.emit()
+
+
+## Jumps back to a bookmark. A bookmarked battle that ended falls back to
+## its overworld view.
+func recall_bookmark(slot: int) -> void:
+	if not bookmarks.has(slot):
+		return
+	var b: Dictionary = bookmarks[slot]
+	followed = -1
+	camera_plot = b["plot"]
+	if b["focus"] != OVERWORLD and _battles.has(b["focus"]):
+		focus_battle(b["focus"])
+		return
+	focus = OVERWORLD
+	zoom = b["zoom"]
 	changed.emit()
 
 

@@ -16,7 +16,8 @@ extends RefCounted
 ## Battles:  every engagement becomes a battle at the start of the next
 ##           turn (OverworldBattles) and runs one battle turn per overworld
 ##           turn on the same pulse: submit_battle_orders, reinforce and
-##           leave_battle in Planning; observe_battle shows one.
+##           leave_battle in Planning; observe_battle shows one;
+##           forecast_battle previews drafted orders (intent ghosts).
 ## Clock:    the shared PulseClock (R2Q3). Reveal sends reinforcements in
 ##           and applies every battle's orders. While any battle runs (and
 ##           the clock config allows it), a reaction window follows: each
@@ -275,6 +276,16 @@ func submit_battle_orders(player: int, engagement_id: int, orders: Array) -> Pac
 	b.orders[player] = kept
 	_log(player, "battle_orders", {"engagement": engagement_id, "orders": kept})
 	return errs
+
+
+## The planning forecast for one of the player's battles (IntentForecast):
+## the coming battle turn with these drafted orders, as the player knows
+## it. Nothing is submitted or changed. Planning only ({} otherwise).
+func forecast_battle(player: int, engagement_id: int, orders: Array) -> Dictionary:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if clock.phase != PulseClock.Phase.PLANNING or b == null or not b.state.players.has(player):
+		return {}
+	return IntentForecast.run(b.state, _battle_sim, player, orders)
 
 
 ## Sends a squad from a staying commander's army into its battle.

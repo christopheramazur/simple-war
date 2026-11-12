@@ -6,7 +6,10 @@ extends Control
 ## was given, and reports clicks and zooms as signals for its owner.
 
 signal hex_clicked(plot: int, button: int)
-signal battle_clicked(button: int)
+## A click in a battle at a battlefield point (metres).
+signal battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: bool, double: bool)
+## A box dragged in a battle (metres).
+signal battle_box(rect: Rect2, add: bool)
 signal zoomed(factor: float)
 
 const HEX_SIZE: float = 26.0
@@ -17,6 +20,7 @@ const LINE: Color = Color("323a46")
 const TEXT: Color = Color("dde2ea")
 const SELECT: Color = Color("e6b450")
 const BATTLE: Color = Color("e8735f")
+const GHOST: Color = Color(0.85, 0.9, 1.0, 0.55)
 const PLAYER_COLORS: Dictionary = {1: Color(0.25, 0.55, 1.0), 2: Color(1.0, 0.35, 0.3), 30: Color(0.85, 0.85, 0.85)}
 ## Plot colour: the first listed feature present wins; else plains.
 const FEATURE_COLORS: Array = [
@@ -41,6 +45,10 @@ var _zoom: float = 1.0
 var _selected: int = -1
 var _selected_plot: int = -1
 var _battles: Dictionary = {}
+var _overlay: Dictionary = {}
+var _press_at: Vector2 = Vector2.ZERO
+var _box: Rect2 = Rect2()
+var _pressing: bool = false
 
 
 func _init() -> void:
@@ -67,10 +75,14 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 	queue_redraw()
 
 
-## Shows a battle (OverworldSession.observe_battle).
-func show_battle(obs: Dictionary) -> void:
+## Shows a battle (OverworldSession.observe_battle). `overlay` (all
+## optional): "selected" (squad IDs), "ghosts" and "contacts"
+## (IntentForecast), "drafts" (squad ID -> order), "reactable" (squad ID
+## -> queued reaction name or "").
+func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 	mode = "battle"
 	_obs = obs
+	_overlay = overlay
 	queue_redraw()
 
 
@@ -168,34 +180,136 @@ func plot_at(pos: Vector2) -> int:
 # --- battle ------------------------------------------------------------------
 
 func _draw_battle() -> void:
-	var w := float(_obs.get("width", 0))
-	var h := float(_obs.get("height", 0))
-	if w <= 0 or h <= 0:
+	var area := battle_area()
+	if area.size == Vector2.ZERO:
 		return
-	var pad := 6.0 if compact else 16.0
-	var k := minf((size.x - pad * 2) / w, (size.y - pad * 2) / h)
-	var area := Rect2((size - Vector2(w, h) * k) / 2.0, Vector2(w, h) * k)
+	var k := area.size.x / float(_obs["width"])
 	draw_rect(area, Color("2a3029"))
 	draw_rect(area, LINE, false, 1.0)
+	var font := get_theme_default_font()
+	var pos := {}
 	for sq: Dictionary in _obs.get("squads", []):
-		if sq.get("destroyed", false) or sq.get("withdrawn", false):
+		if not (sq.get("destroyed", false) or sq.get("withdrawn", false)):
+			pos[sq["id"]] = area.position + Vector2(sq["x"] / ONE, sq["y"] / ONE) * k
+	# Intent ghosts: the forecast path and end of each own squad.
+	var ghosts: Dictionary = _overlay.get("ghosts", {})
+	for id: int in ghosts:
+		if not pos.has(id):
 			continue
-		var c := area.position + Vector2(sq["x"] / ONE, sq["y"] / ONE) * k
+		var pts: PackedInt64Array = ghosts[id]
+		var prev: Vector2 = pos[id]
+		for j in range(0, pts.size(), 2):
+			var g := area.position + Vector2(pts[j] / ONE, pts[j + 1] / ONE) * k
+			draw_dashed_line(prev, g, GHOST, 1.5, 4.0)
+			prev = g
+		draw_arc(prev, 5.0, 0, TAU, 16, GHOST, 1.5)
+	var drafts: Dictionary = _overlay.get("drafts", {})
+	for id: int in drafts:
+		var o: Dictionary = drafts[id]
+		if o.get("type") == "attack" and pos.has(id) and pos.has(o.get("target")):
+			draw_line(pos[id], pos[o["target"]], BATTLE, 1.5)
+	var selected: Array = _overlay.get("selected", [])
+	var reactable: Dictionary = _overlay.get("reactable", {})
+	for sq: Dictionary in _obs.get("squads", []):
+		if not pos.has(sq["id"]):
+			continue
+		var c: Vector2 = pos[sq["id"]]
 		var r := clampf(2.0 + 0.6 * float(sq["alive"]), 3.0, 9.0) * (0.7 if compact else 1.0)
 		draw_circle(c, r, PLAYER_COLORS.get(sq["player"], TEXT))
+		if selected.has(sq["id"]):
+			draw_arc(c, r + 3.0, 0, TAU, 20, SELECT, 2.0)
+		if reactable.has(sq["id"]) and not compact:
+			var q: String = reactable[sq["id"]]
+			var mark := "!" if q.is_empty() else ReactionRadial.glyph(q)
+			draw_arc(c, r + 7.0, 0, TAU, 20, SELECT, 1.5)
+			draw_string(font, c + Vector2(r + 6, -r - 4), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, SELECT)
+	for ct: Dictionary in _overlay.get("contacts", []):
+		var id: int = ct["squad"]
+		if ghosts.has(id) and pos.has(id) and not compact:
+			var pts: PackedInt64Array = ghosts[id]
+			var g := area.position + Vector2(pts[pts.size() - 2] / ONE, pts[pts.size() - 1] / ONE) * k
+			draw_string(font, g + Vector2(6, 4), "⚔", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, BATTLE)
+	if _box.size != Vector2.ZERO:
+		draw_rect(_box.abs(), Color(SELECT, 0.15))
+		draw_rect(_box.abs(), SELECT, false, 1.0)
 	if not title.is_empty():
-		var font := get_theme_default_font()
 		var fs := 12 if compact else 15
+		var pad := 6.0 if compact else 16.0
 		var w_text := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var x := pad if compact else size.x - pad - w_text
 		draw_string(font, Vector2(x, pad + fs), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
 
 
+## The battlefield's rect in this view (Rect2() if no battle).
+func battle_area() -> Rect2:
+	var w := float(_obs.get("width", 0))
+	var h := float(_obs.get("height", 0))
+	if mode != "battle" or w <= 0 or h <= 0:
+		return Rect2()
+	var pad := 6.0 if compact else 16.0
+	var k := minf((size.x - pad * 2) / w, (size.y - pad * 2) / h)
+	return Rect2((size - Vector2(w, h) * k) / 2.0, Vector2(w, h) * k)
+
+
+## A view point to battlefield metres, and back.
+func to_battle(p: Vector2) -> Vector2:
+	var area := battle_area()
+	return (p - area.position) * float(_obs.get("width", 1)) / maxf(area.size.x, 1.0)
+
+
+func to_view(m: Vector2) -> Vector2:
+	var area := battle_area()
+	return area.position + m * area.size.x / float(_obs.get("width", 1))
+
+
+## The squad nearest a battlefield point within `radius` metres, or -1.
+func squad_at(m: Vector2, radius: float = 4.0) -> int:
+	var best := -1
+	var best_d := radius * radius
+	for sq: Dictionary in _obs.get("squads", []):
+		if sq.get("destroyed", false) or sq.get("withdrawn", false):
+			continue
+		var d := Vector2(sq["x"] / ONE, sq["y"] / ONE).distance_squared_to(m)
+		if d <= best_d:
+			best_d = d
+			best = sq["id"]
+	return best
+
+
 # --- input -------------------------------------------------------------------
 
 func _gui_input(event: InputEvent) -> void:
+	var mm := event as InputEventMouseMotion
+	if mm != null and _pressing and mode == "battle":
+		if mm.position.distance_to(_press_at) > 6.0:
+			_box = Rect2(_press_at, mm.position - _press_at)
+			queue_redraw()
+		accept_event()
+		return
 	var mb := event as InputEventMouseButton
-	if mb == null or not mb.pressed:
+	if mb == null:
+		return
+	if mode == "battle" and mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.pressed:
+			_pressing = true
+			_press_at = mb.position
+			_box = Rect2()
+			if mb.double_click:
+				_pressing = false
+				battle_pressed.emit(to_battle(mb.position), MOUSE_BUTTON_LEFT, mb.shift_pressed, mb.ctrl_pressed, mb.alt_pressed, true)
+		elif _pressing:
+			_pressing = false
+			if _box.size != Vector2.ZERO:
+				var a := to_battle(_box.position)
+				var b := to_battle(_box.end)
+				_box = Rect2()
+				queue_redraw()
+				battle_box.emit(Rect2(a, b - a).abs(), mb.shift_pressed)
+			else:
+				battle_pressed.emit(to_battle(mb.position), MOUSE_BUTTON_LEFT, mb.shift_pressed, mb.ctrl_pressed, mb.alt_pressed, false)
+		accept_event()
+		return
+	if not mb.pressed:
 		return
 	match mb.button_index:
 		MOUSE_BUTTON_WHEEL_UP:
@@ -206,7 +320,7 @@ func _gui_input(event: InputEvent) -> void:
 			if mode == "overworld":
 				hex_clicked.emit(plot_at(mb.position), mb.button_index)
 			else:
-				battle_clicked.emit(mb.button_index)
+				battle_pressed.emit(to_battle(mb.position), mb.button_index, mb.shift_pressed, mb.ctrl_pressed, mb.alt_pressed, false)
 		_:
 			return
 	accept_event()
