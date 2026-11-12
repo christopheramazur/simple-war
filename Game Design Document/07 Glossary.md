@@ -4,6 +4,14 @@ Defined terms. This is the source for in-game hoverable tooltips (R1Q3, R3Q10, R
 
 Format: **Term**: definition. *(decision IDs; former names)*
 
+**In play (sw-ip8.4):**
+- **Terms are data:** each term below is a `term` template in `data/packages/core/defs/glossary.json`, so mods add their own. A test fails if a term here is missing there, or the reverse: add new terms in both places.
+- **Translation keys:** `term.<id>.name` and `term.<id>.text`, plus `glossary.*` for value phrases. The English is the fallback.
+- **Linking:** `Glossary` links terms in any text by name, plural or alias, matching whole words only and longest match first. `GlossaryLabel` underlines them, and hovering shows `GlossaryTooltip`.
+- **Live values:** a term's `context` gives the value for the hovered squad or unit: a stat, a SIMPL pool, every band, the Bad Hit threshold, or units alive.
+- **Better or worse:** a value modified for the better shows green with ▲, and for the worse red with ▼, never colour alone.
+- **Mock:** `Mocks/glossary.png`.
+
 ## Time and turns
 - **Pulse**: one shared clock step. By default, one overworld turn plus one turn in every battle. *(R2Q3)*
 - **Planning**: the step in which orders are drafted and forecast. About 60 s plus reserve. *(R3Q1)*

@@ -11,7 +11,8 @@
 		"defs/humanity.json",
 		"defs/ruleset.json",
 		"defs/scenarios.json",
-		"defs/overworld.json"
+		"defs/overworld.json",
+		"defs/glossary.json"
 	],
 	"assets": {}
 }

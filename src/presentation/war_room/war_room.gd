@@ -43,6 +43,8 @@ const DIM: Color = Color("8a93a3")
 
 var session: OverworldSession
 var contexts: ViewContexts
+## Defined terms for the panel's hoverable titles (sw-ip8.4).
+var glossary: Glossary
 
 var _main: ContextView
 var _pip_layer: Control
@@ -65,10 +67,11 @@ var _reactions_box: VBoxContainer
 
 
 func _ready() -> void:
-	_build_ui()
 	if session == null:
 		session = demo_session()
 		end_turn_requested.connect(_demo_end_turn)
+	glossary = Glossary.from_templates(session.templates)
+	_build_ui()
 	_turn_seen = session.turns_resolved()
 	contexts = ViewContexts.new(player)
 	contexts.changed.connect(_queue_refresh)
@@ -188,10 +191,12 @@ func _clear(parent: Node) -> void:
 		c.queue_free()
 
 
-func _title(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_color_override("font_color", DIM)
+## A panel heading; defined terms in it are hoverable.
+func _title(text: String) -> GlossaryLabel:
+	var l := GlossaryLabel.new()
+	l.glossary = glossary
+	l.add_theme_color_override("default_color", DIM)
+	l.set_linked(text)
 	return l
 
 

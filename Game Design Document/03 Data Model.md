@@ -64,6 +64,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **One of each per plot:** a plot holds any number of features but at most one instance of each template. Template IDs are global, so core hex features are prefixed `hex_`.
 - **Commander** (`commander`): `movement_points` per turn (same units as move costs), `sight` (hexes), `squad` (its own squad in battles), `army` (starting squads besides its own), `army_cap` (squads besides its own, default 6), `tags`. Abilities and battleforces arrive with sw-o1m.2.
 - **Item** (`item`, R3Q7, R4Q10): `name`, `text`, `icon`, `tags`, `value`, and one slot: `weapon` (replaces the unit's), `defense` (replaces the unit's) or neither (a kit). `bundles` apply to the carrying unit. `fits` lists unit template IDs, unit tags or squad factions that may carry it (empty = any).
+- **Term** (`term`, GDD 07): `name`, `text` (English fallbacks for `term.<id>.name` / `.text`), `category`, `aliases`, `see`, `decisions`, `context` (`stat:<id>`, `pool:<name>`, `bad_hit`, `band`, `units`) and `lower_is_better`. The source of glossary tooltips.
 - **Battleforce preset** (`battleforce_preset`): `name`, `prefer` and `avoid` lists of squad features (legend archetype, doctrine, keywords) for auto-fill (R2Q1).
 - **Map template** (`overworld_map`): seeded generation passes (R3Q13).
   - **Grid:** pointy-top hexes in a `width` × `height` rectangle of "odd-r" offset coordinates (`col`, `row`; odd rows shifted half a hex right). Maths runs in axial coordinates.

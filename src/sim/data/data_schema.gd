@@ -407,6 +407,22 @@ const KINDS: Dictionary = {
 		"bundles": {"type": "list:ref:bundle"},
 		"fits": {"type": "list:string"},
 	},
+	## A glossary term (GDD 07, R1Q3, R3Q10, R8Q10): the source of hoverable,
+	## context-aware tooltips. `name` and `text` are the English fallbacks of
+	## the translation keys "term.<id>.name" / "term.<id>.text". `aliases`
+	## also link to it in text. `context` names where its live value comes
+	## from: "stat:<stat ID>", "pool:<SIMPL pool>", "bad_hit", "band" or
+	## "units". `lower_is_better` flips which way a modified value is good.
+	"term": {
+		"name": {"type": "string", "required": true},
+		"text": {"type": "string", "required": true},
+		"category": {"type": "string"},
+		"aliases": {"type": "list:string"},
+		"see": {"type": "list:string"},
+		"decisions": {"type": "list:string"},
+		"context": {"type": "string"},
+		"lower_is_better": {"type": "bool"},
+	},
 	## A commander (GDD 02 §2.3, §2.9): anchors an army and moves on the
 	## overworld. movement_points: per turn, in the map's move-cost units.
 	## sight: radius in hexes. squad: the commander's own squad in battles.
