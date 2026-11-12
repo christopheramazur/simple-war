@@ -53,6 +53,8 @@ var hf_produces: Array[PackedInt64Array] = []
 var hf_refit_cost: PackedInt64Array = PackedInt64Array()
 ## Scenario ID of the feature's battlefield ("" = the map's).
 var hf_battlefield: PackedStringArray = PackedStringArray()
+## Answers an uncertain feature's offer accepts (default accept, decline).
+var hf_choices: Array[PackedStringArray] = []
 
 # --- squads (what armies hold; battles compile their own) ---
 var squad_ids: PackedStringArray = PackedStringArray()
@@ -110,6 +112,9 @@ var battle_scenario: String = ""
 var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
 ## Movement points a convoy spends each turn.
 var convoy_mp: int = DEFAULT_CONVOY_MOVEMENT
+
+## Campaign scripting (TriggerRules, overworld context).
+var triggers: TriggerRules
 
 # --- battleforce presets ---
 var preset_ids: PackedStringArray = PackedStringArray()
@@ -243,6 +248,8 @@ func _compile(t: TemplateTable, map: String) -> void:
 		errors.append("unknown overworld map '%s'" % map)
 		return
 	var m := t.values_of(map)
+	triggers = TriggerRules.compile(t, PackedStringArray(m.get("triggers", [])), "overworld", feature_ids)
+	errors.append_array(triggers.errors)
 	width = int(m["width"])
 	height = int(m["height"])
 	base_cost = int(m.get("base_move_cost", DEFAULT_BASE_COST))
@@ -349,6 +356,7 @@ func _compile_feature(tid: String, v: Dictionary) -> void:
 	hf_activity_cost.append(int(v.get("activity_cost", 0)))
 	hf_refit_cost.append(int(v.get("refit_cost", 0)))
 	hf_battlefield.append(String(v.get("battlefield", "")))
+	hf_choices.append(PackedStringArray(v.get("choices", ["accept", "decline"])))
 
 
 func _compile_pass(i: int, v: Dictionary) -> void:

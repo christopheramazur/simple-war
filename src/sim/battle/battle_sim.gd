@@ -26,6 +26,9 @@ func execute_turn(state: BattleState) -> void:
 			tick_hook.call(state)
 	Centroids.update(state)
 	TurnResolution.resolve(state)
+	if state.rules.triggers != null:
+		state.rules.triggers.run(state, state.turn_log)
+	state.turn_log.append_array(state.events.drain())
 	Reactions.clear_all(state)
 	if tick_hook.is_valid():
 		tick_hook.call(state)

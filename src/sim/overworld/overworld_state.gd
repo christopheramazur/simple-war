@@ -25,6 +25,9 @@ var drops: Dictionary = {}
 ## "commander"} (one of plot and commander is -1). A line lapses when the
 ## feature changes hands.
 var supply_lines: Dictionary = {}
+## Trigger variables (campaign state) and fire counts (Triggers).
+var vars: Dictionary = {}
+var fired: Dictionary = {}
 ## Value per player, the sole resource (R5Q11).
 var value: Dictionary = {}
 ## Uncertain-outcome interactions presented this turn (R6Q14): [{"plot",
@@ -186,7 +189,8 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"supply_lines": supply_lines.duplicate(true),
 		"value": value.duplicate(), "offers": offers.duplicate(true),
 		"memory": memory.duplicate(true), "teams": teams.duplicate(),
-		"battleforces": battleforces.duplicate(true), "presets": presets.duplicate(true)}
+		"battleforces": battleforces.duplicate(true), "presets": presets.duplicate(true),
+		"vars": vars.duplicate(), "fired": fired.duplicate()}
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -204,6 +208,8 @@ func _restore_extra(snap: Dictionary) -> void:
 	teams = (snap["overworld"].get("teams", {}) as Dictionary).duplicate()
 	battleforces = (snap["overworld"].get("battleforces", {}) as Dictionary).duplicate(true)
 	presets = (snap["overworld"].get("presets", {}) as Dictionary).duplicate(true)
+	vars = (snap["overworld"].get("vars", {}) as Dictionary).duplicate()
+	fired = (snap["overworld"].get("fired", {}) as Dictionary).duplicate()
 	reindex()
 
 
@@ -237,6 +243,7 @@ func state_hash() -> PackedByteArray:
 		text += "V%d:%d;" % [p, value[p]]
 	for o in offers:
 		text += "O%d:%d:%d;" % [o["plot"], o["feature"], o["player"]]
+	text += TriggerRules.hash_text(vars, fired)
 	players = teams.keys()
 	players.sort()
 	for p: int in players:

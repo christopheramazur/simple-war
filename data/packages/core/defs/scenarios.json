@@ -42,6 +42,32 @@
 				{"player": 2, "facing": 32768, "deploy": {"x": 95, "y": 15, "w": 20, "h": 50}, "squads": []}
 			],
 			"victory": {"turn_limit": 8, "primary": "value", "score_target": 0, "annihilation": true, "withdrawal": true},
-			"end_hooks": {"loser": "scatter"}}}
+			"end_hooks": {"loser": "scatter"}}},
+		{"id": "hangar_drill", "parent": "duel_crossroads", "values": {
+			"name": "Drill: Hangars",
+			"zones": [
+				{"id": "west", "x": 55, "y": 70, "radius": 10, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1},
+				{"id": "hangar", "x": 100, "y": 50, "radius": 12, "decay": 10, "threshold": 10, "buffer": 10, "vp": 3, "locked": true},
+				{"id": "east", "x": 145, "y": 30, "radius": 10, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1}
+			],
+			"triggers": ["drill_hangar_opens", "drill_hangar_held"]}},
+
+		{"id": "drill_hangar_opens", "kind": "trigger", "values": {
+			"text": "The planetary AI opens the hangar on turn 3.",
+			"on": "turn_resolved",
+			"if": [{"check": "turn", "op": ">=", "value": 3}],
+			"do": [
+				{"do": "unlock_zone", "zone": "hangar"},
+				{"do": "message", "key": "drill.hangar_open", "text": "The hangar doors grind open."}
+			]}},
+		{"id": "drill_hangar_held", "kind": "trigger", "values": {
+			"text": "Holding the open hangar for two turns wins.",
+			"on": "turn_resolved",
+			"max_fires": 0,
+			"if": [{"check": "zone_locked", "zone": "hangar", "not": true}, {"check": "zone_owner", "zone": "hangar", "player": 1}],
+			"do": [
+				{"do": "add_var", "name": "held", "value": 1},
+				{"do": "message", "player": 1, "key": "drill.hangar_held", "text": "Shuttles are boarding."}
+			]}}
 	]
 }

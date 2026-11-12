@@ -267,7 +267,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
     - **Recruit** names one of the feature's `recruits`. The squad joins at full strength if the army has room, for `activity_cost` plus the option's cost.
     - **Refit** restores every squad of the army to full strength, for `activity_cost` plus `refit_cost` per unit restored. Planning checks the cost against the army's losses at the time; resolving charges for the losses then.
   - **Production:** every controlled feature pays its owner its `value_per_turn`, including one taken this turn.
-  - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. What answering does belongs to the trigger layer (sw-cgl.2).
+  - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. The player answers during planning with one of the feature's `choices`, once per offer; the map's triggers decide what the answer does (sw-cgl.2).
 
 ### Guards and movement
 - **Guards** (R4Q14, R5Q9, R6Q11, R6Q12): entering a guarded hex triggers an engagement. What overworld forces will do is never revealed before engagement.
@@ -342,6 +342,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 
 ## 2.11 Angels in play (R3Q17, R5Q6, R6Q17)
 - **Driven by behaviour data:** Angels are an undirected narrative force (not a player faction), driven by behaviour data through the trigger system.
+  - **In play (sw-cgl.2):** triggers place and remove features, so Angels can appear as guarded `hex_angel_host` features in front of resources. Its guard is a placeholder until the Angel roster (sw-136.2). Stealing items and the inverted auto-resolve still need their own actions.
 - **Interference:** they act as filler interference. They give battle in front of resources, eat turn timers with nonsense dialogue, and steal or move overworld items.
 - **Inverted auto-resolve:** a commander with no battleforce can temporarily disperse Angels by engaging them. This is required to clear movement-blocking Angels in the Angelfall mission, but it doesn't work in the final key battles.
 - **Accumulation:** every Angel not fought becomes one to face later. In the preventable-Angelfall campaign, Angel forces are added or replaced with squads built from the player's unchosen Legend consequences.

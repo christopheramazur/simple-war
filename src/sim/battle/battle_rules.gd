@@ -158,6 +158,10 @@ var zn_decay: PackedInt64Array = PackedInt64Array()
 var zn_threshold: PackedInt64Array = PackedInt64Array()
 var zn_buffer: PackedInt64Array = PackedInt64Array()
 var zn_vp: PackedInt64Array = PackedInt64Array()
+## 1 = the zone starts locked (no influence, no score) until a trigger opens it.
+var zn_locked: PackedByteArray = PackedByteArray()
+## Scripted triggers (TriggerRules, battle context).
+var triggers: TriggerRules
 ## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array}
 var sides: Array[Dictionary] = []
 var turn_limit: int = 10
@@ -316,6 +320,8 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	var ut_index := _compile_units(t, by_kind.get("unit", PackedStringArray()), mv_index, df_index, wp_index)
 	_compile_squads(t, by_kind.get("squad", PackedStringArray()), ut_index, ab_index)
 	_compile_scenario(sc)
+	triggers = TriggerRules.compile(t, PackedStringArray(sc.get("triggers", [])), "battle", zone_ids)
+	errors.append_array(triggers.errors)
 
 
 func _bundle_list(v: Dictionary) -> PackedInt64Array:
@@ -548,6 +554,7 @@ func _compile_scenario(sc: Dictionary) -> void:
 		zn_threshold.append(int(z.get("threshold", 10)))
 		zn_buffer.append(int(z.get("buffer", 10)))
 		zn_vp.append(int(z.get("vp", 1)))
+		zn_locked.append(1 if z.get("locked", false) else 0)
 	for s: Dictionary in sc["sides"]:
 		var d: Dictionary = s["deploy"]
 		var squads := PackedInt64Array()

@@ -5,7 +5,8 @@ extends RefCounted
 ##   2. activities of commanders that ended on their planned hex;
 ##   3. production: controlled features pay their owners Value;
 ##   4. the turn advances, and uncertain-outcome features are offered to
-##      players with a commander uncontested on their hex (R6Q14).
+##      players with a commander uncontested on their hex (R6Q14);
+##   5. the map's triggers run over the turn's events (Triggers).
 ## Fog of war memory is recorded at the start and end of the turn and as
 ## commanders move (OverworldVision).
 
@@ -23,6 +24,8 @@ static func resolve(s: OverworldState) -> Array[SimEvent]:
 	OverworldVision.update(s)
 	s.turn += 1
 	offer(s)
+	if s.rules.triggers != null:
+		s.rules.triggers.run(s, s.events.all())
 	s.end_tick()
 	return s.turn_log
 
@@ -65,4 +68,27 @@ static func offer(s: OverworldState) -> void:
 			if s.rules.hf_interaction[s.features.tmpl[fr]] == uncertain:
 				var o := {"plot": p, "feature": s.features.id_at(fr), "player": player}
 				s.offers.append(o)
-				s.events.push(&"interaction_offered", o.duplicate(), s.tick)
+				var ev := o.duplicate()
+				ev["template"] = s.rules.feature_ids[s.features.tmpl[fr]]
+				s.events.push(&"interaction_offered", ev, s.tick)
+
+
+## Answers an offer made to the player this turn with one of the feature's
+## `choices`; what that does is up to the map's triggers ("offer_answered").
+## Each offer is answered once. "" or why not.
+static func answer(s: OverworldState, player: int, fid: int, choice: String) -> String:
+	var at := -1
+	for i in s.offers.size():
+		if s.offers[i]["feature"] == fid and s.offers[i]["player"] == player:
+			at = i
+	if at < 0:
+		return "no such offer"
+	var row := s.features.row_of(fid)
+	var t := s.features.tmpl[row]
+	if not s.rules.hf_choices[t].has(choice):
+		return "no such choice"
+	var o: Dictionary = s.offers[at]
+	s.offers.remove_at(at)
+	s.events.push(&"offer_answered", {"player": player, "feature": fid, "plot": o["plot"],
+		"template": s.rules.feature_ids[t], "choice": choice}, s.tick)
+	return ""

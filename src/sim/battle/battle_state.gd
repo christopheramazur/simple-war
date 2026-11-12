@@ -15,6 +15,11 @@ var players: PackedInt64Array = PackedInt64Array()
 ## Zone runtime (index = rules zone index). owner 0 = nobody.
 var zone_owner: PackedInt64Array = PackedInt64Array()
 var zone_amount: PackedInt64Array = PackedInt64Array()
+## 1 = locked (scripted objectives): no influence, no score.
+var zone_locked: PackedByteArray = PackedByteArray()
+## Trigger variables and fire counts (Triggers).
+var vars: Dictionary = {}
+var fired: Dictionary = {}
 ## player -> Victory Points from zones (Influence score).
 var influence: Dictionary = {}
 ## player -> enemy Value destroyed (Value score).
@@ -55,6 +60,7 @@ func _init(context_id: int, battle_rules: BattleRules, seed_value: int = 0) -> v
 	add_table(abilities)
 	zone_owner.resize(rules.zone_ids.size())
 	zone_amount.resize(rules.zone_ids.size())
+	zone_locked = rules.zn_locked.duplicate()
 	for side in rules.sides:
 		players.append(side["player"])
 		influence[side["player"]] = 0
@@ -79,6 +85,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"zone_owner": zone_owner.duplicate(), "zone_amount": zone_amount.duplicate(),
 		"influence": influence.duplicate(), "value_score": value_score.duplicate(),
 		"ledger": ledger.duplicate(), "result": result.duplicate(true),
+		"zone_locked": zone_locked.duplicate(), "vars": vars.duplicate(), "fired": fired.duplicate(),
 	}
 
 
@@ -92,6 +99,9 @@ func _restore_extra(snap: Dictionary) -> void:
 	value_score = (b["value_score"] as Dictionary).duplicate()
 	ledger = (b["ledger"] as Dictionary).duplicate()
 	result = (b["result"] as Dictionary).duplicate(true)
+	zone_locked = (b.get("zone_locked", rules.zn_locked) as PackedByteArray).duplicate()
+	vars = (b.get("vars", {}) as Dictionary).duplicate()
+	fired = (b.get("fired", {}) as Dictionary).duplicate()
 
 
 ## Hash includes battle-level state beyond the tables.
@@ -111,5 +121,8 @@ func state_hash() -> PackedByteArray:
 	for p in players:
 		text += "P%d:%d:%d;" % [p, influence[p], value_score[p]]
 	text += JSON.stringify(result, "", true)
+	text += TriggerRules.hash_text(vars, fired)
+	if zone_locked.size() > 0:
+		h.update(zone_locked)
 	h.update(text.to_utf8_buffer())
 	return h.finish()

@@ -7,7 +7,7 @@ extends RefCounted
 ## Inputs:   set_route, set_drop_off, set_activity, transfer_squad (also picks up
 ##           from a detachment), set_battleforce, set_output,
 ##           set_supply_line, rally, equip, unequip, give_item,
-##           take_items
+##           take_items, answer_offer
 ##           (Planning only), save_preset, ready, advance(ms);
 ##           submit_reaction (Reaction only).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
@@ -220,6 +220,17 @@ func take_items(player: int, commander_id: int, detachment_id: int) -> String:
 		err = WarChest.take(state, player, commander_id, detachment_id)
 	if err.is_empty():
 		_log(player, "take", {"commander": commander_id, "detachment": detachment_id})
+	return err
+
+
+## Answers an offer made to the player this turn (an uncertain feature,
+## R6Q14) with one of its choices; the map's triggers decide what it does.
+func answer_offer(player: int, feature_id: int, choice: String) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = OverworldTurn.answer(state, player, feature_id, choice)
+	if err.is_empty():
+		_log(player, "answer", {"feature": feature_id, "choice": choice})
 	return err
 
 
@@ -682,6 +693,8 @@ func replay_inputs(inputs: Array) -> void:
 				set_route(i["player"], p["commander"], p["plots"])
 			"activity":
 				set_activity(i["player"], p["commander"], p["activity"], p.get("option", ""))
+			"answer":
+				answer_offer(i["player"], p["feature"], p["choice"])
 			"drop":
 				set_drop_off(i["player"], p["commander"], p["step"], p["plot"])
 			"output":

@@ -269,6 +269,8 @@ func inspect(player: int, squad_id: int) -> Dictionary:
 
 static func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> bool:
 	var d := e.data
+	if e.type == &"trigger_message":
+		return d["to"] == 0 or d["to"] == player
 	if d.has("player") and not d.has("squad"):
 		return true
 	if e.type in [&"squad_revealed", &"squad_hidden"]:

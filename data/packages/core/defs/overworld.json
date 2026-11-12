@@ -29,9 +29,39 @@
 		"activity_cost": 5, "converts_to": "hex_mine"}},
 	{"id": "hex_shrine", "kind": "hex_feature", "values": {
 		"name": "Wayside shrine", "interaction": "uncertain", "activities": ["battle"]}},
+	{"id": "hex_angel_host", "kind": "hex_feature", "values": {
+		"name": "Angel host", "tags": ["angel", "placeholder"], "interaction": "uncertain", "activities": ["battle"],
+		"guard": ["scout_team"]}},
 	{"id": "hex_bandit_camp", "kind": "hex_feature", "values": {
 		"name": "Bandit camp", "interaction": "uncertain", "activities": ["battle"],
 		"guard": ["rifle_squad", "rifle_squad"]}},
+
+	{"id": "trigger_vale", "parent": "test_vale", "values": {
+		"name": "Trigger vale",
+		"triggers": ["vale_angels_gather", "vale_shrine_blessing", "vale_village_taken"]}},
+	{"id": "vale_angels_gather", "kind": "trigger", "values": {
+		"text": "Angels gather in front of the mine on turn 2 (behaviour data, R6Q17).",
+		"on": "turn_resolved",
+		"if": [{"check": "turn", "op": ">=", "value": 2}],
+		"do": [
+			{"do": "add_feature", "feature": "hex_angel_host", "col": 8, "row": 8},
+			{"do": "add_var", "name": "angels", "value": 1},
+			{"do": "message", "key": "vale.angels_gather", "text": "Angels gather before the mine."}
+		]}},
+	{"id": "vale_shrine_blessing", "kind": "trigger", "values": {
+		"text": "Accepting the shrine's offer grants 5 Value to whoever answered.",
+		"on": "offer_answered",
+		"where": {"template": "hex_shrine", "choice": "accept"},
+		"max_fires": 0,
+		"do": [
+			{"do": "add_value", "player": "$player", "amount": 5},
+			{"do": "message", "player": "$player", "key": "vale.shrine_blessing", "text": "The shrine blesses your cause."}
+		]}},
+	{"id": "vale_village_taken", "kind": "trigger", "values": {
+		"text": "Taking player 2's village rewards player 1 once.",
+		"on": "feature_captured",
+		"where": {"player": 1, "col": 14, "row": 5},
+		"do": [{"do": "add_value", "player": 1, "amount": 10}, {"do": "set_var", "name": "village_taken", "value": 1}]}},
 
 	{"id": "field_commander", "kind": "commander", "values": {
 		"name": "Field commander", "movement_points": 60, "sight": 3, "squad": "rifle_squad",

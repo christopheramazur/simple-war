@@ -60,6 +60,10 @@ const _EVENT_FIELDS := {
 	&"item_given": [["from", "to"], ["player"], []],
 	&"items_taken": [["commander"], ["player"], ["plot"]],
 	&"items_seized": [["commander"], ["player", "by"], ["plot"]],
+	&"offer_answered": [[], ["player"], ["plot"]],
+	&"feature_added": [[], [], ["plot"]],
+	&"feature_removed": [[], [], ["plot"]],
+	&"trigger_message": [[], ["player"], []],
 }
 ## Events a hostile player sees only through sight of the plot, reduced to
 ## these keys: what forces hold is never shown to enemies (R5Q9).

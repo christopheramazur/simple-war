@@ -93,6 +93,9 @@ const OBJECTS: Dictionary = {
 		"threshold": {"type": "int", "min": 1},
 		"buffer": {"type": "int", "min": 0},
 		"vp": {"type": "int", "min": 0},
+		## A locked zone neither accrues influence nor scores until a
+		## trigger unlocks it (scripted objectives, e.g. Angelfall's hangars).
+		"locked": {"type": "bool"},
 	},
 	"side": {
 		"player": {"type": "int", "required": true, "min": 1},
@@ -388,6 +391,9 @@ const KINDS: Dictionary = {
 		"refit_cost": {"type": "int", "min": 0},
 		## The battlefield its battles are fought on (else the map's).
 		"battlefield": {"type": "ref:scenario"},
+		## Answers its offer takes (uncertain features; default accept,
+		## decline). Triggers decide what each does.
+		"choices": {"type": "list:string"},
 		"bundles": {"type": "list:ref:bundle"},
 	},
 	## Per-unit gear held in War Chests (GDD 02 §2.9, R3Q7, R4Q10). One item
@@ -406,6 +412,17 @@ const KINDS: Dictionary = {
 		"defense": {"type": "ref:defense"},
 		"bundles": {"type": "list:ref:bundle"},
 		"fits": {"type": "list:string"},
+	},
+	## A declarative trigger (GDD 03 §3.5, R3Q9, R6Q17): on an event, where
+	## its data matches, if every check holds, do the actions. See
+	## TriggerRules for the checks and actions of each context.
+	"trigger": {
+		"on": {"type": "string", "required": true},
+		"where": {"type": "dict"},
+		"if": {"type": "list:dict"},
+		"do": {"type": "list:dict", "required": true},
+		"max_fires": {"type": "int", "min": 0},
+		"text": {"type": "string"},
 	},
 	## A glossary term (GDD 07, R1Q3, R3Q10, R8Q10): the source of hoverable,
 	## context-aware tooltips. `name` and `text` are the English fallbacks of
@@ -455,6 +472,8 @@ const KINDS: Dictionary = {
 		"detachment_sight": {"type": "int", "min": 0},
 		## Movement points a convoy spends each turn.
 		"convoy_movement": {"type": "int", "min": 1},
+		## Campaign scripting for this map (TriggerRules).
+		"triggers": {"type": "list:ref:trigger"},
 	},
 	## An archetype preset for battleforce auto-fill (R2Q1): squads with a
 	## feature (legend archetype, doctrine or keyword) earlier in `prefer`
@@ -476,6 +495,7 @@ const KINDS: Dictionary = {
 		"sides": {"type": "list:obj:side", "required": true},
 		"victory": {"type": "obj:victory", "required": true},
 		"end_hooks": {"type": "obj:end_hooks"},
+		"triggers": {"type": "list:ref:trigger"},
 	},
 }
 

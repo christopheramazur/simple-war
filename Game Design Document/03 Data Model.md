@@ -76,6 +76,22 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Starts:** `starts` lists each player's starting commanders (`player`, `commander`, `col`, `row`). A match's players are those with a start or a pre-owned feature.
 - **Campaign / mission:** missions, scripted triggers, story-essential commanders, carried armies (R2Q1, R2Q13).
 - **Triggers:** the declarative trigger and effect layer, which covers about 90% of campaign scripting. Angel behaviour is data here (R6Q17).
+  - **In play (sw-cgl.2):** a `trigger` template has `on` (an event type, or `turn_resolved`), `where` (event fields to match, with `col` + `row` matching the event's plot), `if` (checks, each optionally `not`), `do` (actions) and `max_fires` (default 1; 0 = unlimited).
+  - **Attached to:** an `overworld_map` and a `scenario` each list their `triggers`. They run at the end of each overworld turn and each battle turn, in ID order per event.
+  - **Checks:**
+    - **Any context:** `var`, `turn`, `fired`, `any` (one of `of`). Comparisons use `op` (==, !=, <, <=, >, >=) against `value`.
+    - **Overworld:** `value`, `owns`, `feature_at`.
+    - **Battle:** `zone_owner`, `zone_locked`.
+  - **Actions:**
+    - **Any context:** `set_var`, `add_var`, `message` (a translation `key` with `text` fallback, to a `player` or 0 = all).
+    - **Overworld:** `add_value`, `add_feature`, `remove_feature`.
+    - **Battle:** `unlock_zone`, `lock_zone`, `end_battle`.
+  - **Using the event:** a `"$field"` value reads the triggering event's data, e.g. `"player": "$player"`.
+  - **No chains:** triggers see only their own step's events, not the ones their actions make.
+  - **State:** variables and fire counts live in the state, so they're saved, hashed and replayed.
+  - **Locked zones:** a scenario zone can start `locked`. A locked zone neither accrues influence nor scores until a trigger unlocks it.
+  - **Offers:** uncertain features take `choices` (default accept, decline). The session's `answer_offer(player, feature, choice)` emits `offer_answered`, which triggers handle.
+  - **Examples in the data:** the `trigger_vale` map (Angels gather, the shrine's blessing, a capture reward) and the `hangar_drill` scenario.
 - **Dialogue:** Dialogic is presentation only. Disposition and relationship state live in the sim (R3Q18).
 - **Factions:** Humanity, with three splinters as a doctrine layer on a shared core roster (Humanity First, CHI, Enlightened); then Lawbringers (R5Q12, R5Q16, R1Q11).
 

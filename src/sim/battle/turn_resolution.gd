@@ -17,6 +17,8 @@ static func resolve_zones(state: BattleState) -> void:
 	var r := state.rules
 	var sq := state.squads
 	for z in r.zone_ids.size():
+		if state.zone_locked.size() > z and state.zone_locked[z] == 1:
+			continue  # locked by a scripted objective
 		var owner := state.zone_owner[z]
 		var amount := state.zone_amount[z]
 		# Vacuum applies only while the zone is at or above its threshold
