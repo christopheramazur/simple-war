@@ -61,7 +61,7 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Planning:** a commander plans one drop-off a turn: after a route step (or before moving), on that hex or 1 hex off the route. Off the route, it costs that hex's movement cost, and the route's later steps must still fit the budget. Shortening the route past the drop-off cancels it. A battle tile takes no drop-offs.
   - **What drops:** the battleforce as planned, with the commander's own squad kept out. A commander with nothing else to drop can't plan one.
   - **Timing:** the drop-off happens on the movement timeline, and later steps come that much later. A commander pulled into an engagement before then drops nothing.
-  - **Detachment:** the dropped squads leave the army and hold the hex without a commander. A second drop-off by the same player there joins the same detachment. Detachments don't move (convoys come with sw-o1m.2.5).
+  - **Detachment:** the dropped squads leave the army and hold the hex without a commander. A second drop-off by the same player there joins the same detachment. A detachment stays put unless rallied as a convoy (§2.9, sw-o1m.2.5).
   - **Garrison:** a detachment never takes features (only commanders flip control, R7Q8). A hostile commander entering its hex stops and engages it first.
   - **Fighting:** a detachment dropped onto guards, or meeting hostile forces, is pulled into the engagement. Its strongest squads fight, within the battleforce caps. The commander that dropped it stays free.
   - **Results:** survivors stay on the hex. A detachment on the losing side of a decided battle scatters, and one with no squads left is gone. Draws leave it.
@@ -84,7 +84,7 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
     - **Winners** left on the hex then take its features and caches.
     - **Draws** end the engagement with nothing cleared.
   - **Reinforcements:** a commander staying in its battle (its own squad deployed) can send squads from the rest of its army. They join at its side's deployment area before the next battle turn, while its squads still fighting are under the battleforce squad cap.
-  - **Leaving:** a commander whose own squad isn't deployed may leave during planning and move that turn. Its battleforce fights on, and survivors return to its army when the battle ends. Convoys carrying them back come with sw-o1m.2.5.
+  - **Leaving:** a commander whose own squad isn't deployed may leave during planning and move that turn. Its battleforce fights on, and survivors return to its army when the battle ends. If its commander left, they form a convoy rallied to it instead (R8Q3, sw-o1m.2.5).
 - A typical battle is about 8 turns:
   - T1: scouting and positioning.
   - T2: first casualties.
@@ -294,6 +294,17 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Convoy merging:** convoys on the same hex along the same supply line merge for interaction, with squads configurable together and items forming one war chest, until they split.
 - **Intent:** this design encourages multiple commanders, consolidating battleforces and protecting supply lines.
 - **For now:** simple squad, item and resource tiles. Faction or allegiance variants come later.
+- **In play (sw-o1m.2.5):**
+  - **Production:** a feature's `produces` lists squads it can make. Its owner selects one (the first by default). Each turn it advances one step; on reaching the option's `turns`, the squad is made for the option's `cost` in Value. While the owner can't pay, it waits, ready to go.
+  - **No supply line:** produced squads join the owner's detachment holding the feature's hex, which garrisons it until a commander picks them up.
+  - **Supply lines:** the owner sends a feature's output to a plot or to one of its commanders. Each squad leaves as a convoy on that line, and changing the line redirects convoys already on it. Capturing the feature resets its output and progress, and its line lapses.
+  - **Rallies:** a player sends any of its detachments to a plot or a commander, which makes it a convoy; rallying it nowhere halts it. Survivors of a commander that left its battle rally to it (R8Q3).
+  - **Convoy movement:** a convoy is a detachment with a destination. Each turn it walks the cheapest path it knows, around hexes it knows are guarded, for the map's `convoy_movement` points. It moves on the commanders' timeline, after commanders at equal times.
+  - **Interception:** like any detachment, a convoy entering a hex with hostile forces or guards, or entered by a hostile commander, is pulled into an engagement and stops. Survivors of a battle it wins carry on.
+  - **Arrival:** at its plot, a convoy holds the hex, joining the player's detachment there. At its commander's hex, its squads join the army up to the cap, and the rest halt there. A convoy whose commander is gone halts where it is.
+  - **Merging:** after movement, convoys of one player on the same hex and line merge into one.
+  - **Fog:** convoys are sight sources like detachments. Enemies in sight see a convoy and where it moves, but not what it holds or where it's going.
+  - **Items** produced by features come with the War Chest (sw-o1m.2.6).
 
 ### Economy (R2Q15, R5Q11, R6Q15)
 - **Value is the sole resource.** It recruits commanders and squads and buys equipment. Supplies, Materiel and Manpower collapse into Value for now.

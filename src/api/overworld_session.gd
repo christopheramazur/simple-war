@@ -5,7 +5,8 @@ extends RefCounted
 ## use. Mirrors BattleSession.
 ##
 ## Inputs:   set_route, set_drop_off, set_activity, transfer_squad (also picks up
-##           from a detachment), set_battleforce
+##           from a detachment), set_battleforce, set_output,
+##           set_supply_line, rally
 ##           (Planning only), save_preset, ready, advance(ms).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
@@ -129,6 +130,38 @@ func set_drop_off(player: int, commander_id: int, step: int, plot: int) -> Strin
 		err = OverworldOrders.set_drop_off(state, player, commander_id, step, plot)
 	if err.is_empty():
 		_log(player, "drop", {"commander": commander_id, "step": step, "plot": plot})
+	return err
+
+
+## Selects which production option an owned feature makes. "" or why not.
+func set_output(player: int, feature_id: int, option: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = Convoys.set_output(state, player, feature_id, option)
+	if err.is_empty():
+		_log(player, "output", {"feature": feature_id, "option": option})
+	return err
+
+
+## Sends an owned feature's output along a supply line to a plot or one of
+## the player's commanders (both -1 clears it). "" or why not.
+func set_supply_line(player: int, feature_id: int, plot: int, commander: int = -1) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = Convoys.set_line(state, player, feature_id, plot, commander)
+	if err.is_empty():
+		_log(player, "supply", {"feature": feature_id, "plot": plot, "commander": commander})
+	return err
+
+
+## Sends a detachment as a convoy to a plot or one of the player's
+## commanders (both -1 halts it). "" or why not.
+func rally(player: int, detachment_id: int, plot: int, commander: int = -1) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = Convoys.rally(state, player, detachment_id, plot, commander)
+	if err.is_empty():
+		_log(player, "rally", {"detachment": detachment_id, "plot": plot, "commander": commander})
 	return err
 
 
@@ -498,6 +531,12 @@ func replay_inputs(inputs: Array) -> void:
 				set_activity(i["player"], p["commander"], p["activity"], p.get("option", ""))
 			"drop":
 				set_drop_off(i["player"], p["commander"], p["step"], p["plot"])
+			"output":
+				set_output(i["player"], p["feature"], p["option"])
+			"supply":
+				set_supply_line(i["player"], p["feature"], p["plot"], p["commander"])
+			"rally":
+				rally(i["player"], p["detachment"], p["plot"], p["commander"])
 			"transfer":
 				transfer_squad(i["player"], p["squad"], p["to"])
 			"battleforce":

@@ -16,6 +16,7 @@ extends RefCounted
 ##   - Pick-up: a commander of the same player on its hex takes squads back
 ##     during planning (OverworldOrders.transfer_squad).
 ##   - Sight: each detachment sees the map's `detachment_sight` radius.
+##   - Convoys (Convoys) are detachments with a destination.
 
 
 ## Detachment IDs on a plot, ascending.
@@ -48,8 +49,10 @@ static func drop(s: OverworldState, cid: int, p: int) -> int:
 		return -1
 	var player := s.commanders.get_value(cid, &"player")
 	var did := -1
+	var d := s.detachments
 	for other in at(s, p):
-		if s.detachments.get_value(other, &"player") == player:
+		var orow := d.row_of(other)
+		if d.player[orow] == player and not Convoys.is_convoy(s, orow) and d.engagement[orow] < 0:
 			did = other
 			break
 	if did < 0:

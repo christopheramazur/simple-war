@@ -2,10 +2,10 @@ class_name OverworldVision
 extends RefCounted
 ## Fog of war on the overworld (GDD 02 §2.9, R8Q4).
 ##   - Sight sources: commanders (cm_sight), controlled features (hf_sight)
-##     and detachments (the map's detachment_sight) see every plot within
-##     their radius in hexes. Every source sees its own plot. Convoys join
-##     with sw-o1m.2.5. There is no line of sight on the overworld yet:
-##     terrain does not block.
+##     and detachments, convoys included (the map's detachment_sight), see
+##     every plot within their radius in hexes. Every source sees its own
+##     plot. There is no line of sight on the overworld yet: terrain does
+##     not block.
 ##   - Allies: a player sees what every non-hostile player's sources see.
 ##   - Memory: each player remembers, per explored plot, the features last
 ##     seen there and the turn it was seen (OverworldState.memory). Plots are
@@ -46,12 +46,22 @@ const _EVENT_FIELDS := {
 	&"battleforce_dropped": [["commander"], ["player"], ["plot"]],
 	&"squad_picked_up": [["commander"], ["player"], ["plot"]],
 	&"detachment_disbanded": [[], ["player"], ["plot"]],
+	&"squad_produced": [[], ["player"], ["plot"]],
+	&"convoy_moved": [[], ["player"], ["from", "to"]],
+	&"convoy_delivered": [["commander"], ["player"], ["plot"]],
+	&"convoy_arrived": [[], ["player"], ["plot"]],
+	&"convoy_halted": [[], ["player"], ["plot"]],
+	&"convoys_merged": [[], ["player"], ["plot"]],
+	&"convoy_rallied": [["commander"], ["player"], ["plot"]],
 }
 ## Events a hostile player sees only through sight of the plot, reduced to
 ## these keys: what forces hold is never shown to enemies (R5Q9).
 const _HOSTILE := {
 	&"battleforce_dropped": ["detachment", "player", "plot"],
 	&"squad_picked_up": ["detachment", "player", "plot"],
+	&"squad_produced": ["feature", "player", "plot", "detachment"],
+	&"convoy_delivered": ["detachment", "player", "plot"],
+	&"convoy_rallied": ["detachment", "player", "plot"],
 }
 ## Events everyone sees, reduced to these keys without sight (battle tiles).
 const _PUBLIC := {
@@ -203,8 +213,12 @@ static func known_offering(s: OverworldState, player: int, p: int, activity: Str
 ##     engaged now) and
 ##     "battleforce_plan" for own ones;
 ##     what a hostile army holds is never shown (R5Q9);
-##   detachments in sight: [{"id", "player", "plot", "engagement"}], with
-##     "squads" (OverworldArmies.view) for own and allied ones only;
+##   detachments in sight, convoys included: [{"id", "player", "plot",
+##     "engagement", "convoy"}], with "squads" (OverworldArmies.view) and
+##     "dest_plot", "dest_commander", "line" for own and allied ones only;
+##   production of own producing features: feature ID -> {"output",
+##     "progress"}; own supply lines (feature ID -> {"player", "plot",
+##     "commander"});
 ##   battles: every engagement {"engagement", "plot"}, plus "kinds" and
 ##     "since" (turn) when in sight;
 ##   own routes, drop-offs, activities and offers.
@@ -244,9 +258,13 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	var dets := []
 	for row in d.count():
 		if mask[d.plot[row]] == 1:
-			var x := {"id": d.id_at(row), "player": d.player[row], "plot": d.plot[row], "engagement": d.engagement[row]}
+			var x := {"id": d.id_at(row), "player": d.player[row], "plot": d.plot[row], "engagement": d.engagement[row],
+				"convoy": Convoys.is_convoy(s, row)}
 			if not s.hostile(player, d.player[row]):
 				x["squads"] = Detachments.view(s, d.id_at(row))
+				x["dest_plot"] = d.dest_plot[row]
+				x["dest_commander"] = d.dest_commander[row]
+				x["line"] = d.line[row]
 			dets.append(x)
 	var e := s.engagements
 	var battles := []
@@ -260,6 +278,15 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	for cid: int in s.routes:
 		if own.has(cid):
 			routes[cid] = (s.routes[cid] as PackedInt64Array).duplicate()
+	var production := {}
+	var f := s.features
+	for row in f.count():
+		if f.owner[row] == player and s.rules.production_count(f.tmpl[row]) > 0:
+			production[f.id_at(row)] = {"output": f.output[row], "progress": f.progress[row]}
+	var lines := {}
+	for fid: int in s.supply_lines:
+		if s.supply_lines[fid]["player"] == player:
+			lines[fid] = (s.supply_lines[fid] as Dictionary).duplicate()
 	var drops := {}
 	for cid: int in s.drops:
 		if own.has(cid):
@@ -274,7 +301,7 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 			offers.append(o.duplicate())
 	return {"turn": s.turn, "player": player, "value": s.value_of(player), "plots": plots,
 		"commanders": cmds, "detachments": dets, "battles": battles, "routes": routes, "drops": drops,
-		"activities": acts, "offers": offers,
+		"activities": acts, "offers": offers, "production": production, "supply_lines": lines,
 		"presets": (s.presets.get(player, {}) as Dictionary).duplicate(true)}
 
 

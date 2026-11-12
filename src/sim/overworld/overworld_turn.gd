@@ -39,6 +39,7 @@ static func produce(s: OverworldState) -> void:
 	players.sort()
 	for p: int in players:
 		s.add_value(p, totals[p], &"production")
+	Convoys.produce(s)
 
 
 ## Uncertain outcomes (negotiation, battle, interactive events) are presented

@@ -9,8 +9,9 @@ extends RefCounted
 
 
 ## Plots to enter from `from` to `to` (start excluded, `to` included), or
-## empty if unreachable or `from == to`.
-static func find(s: OverworldState, from: int, to: int, player: int = 0) -> PackedInt64Array:
+## empty if unreachable or `from == to`. Plots marked 1 in `avoid` are
+## never entered, except `to`.
+static func find(s: OverworldState, from: int, to: int, player: int = 0, avoid: PackedByteArray = PackedByteArray()) -> PackedInt64Array:
 	var r := s.rules
 	var n := r.plot_count()
 	if from == to or from < 0 or to < 0 or from >= n or to >= n:
@@ -42,7 +43,7 @@ static func find(s: OverworldState, from: int, to: int, player: int = 0) -> Pack
 			continue  # a battle tile ends movement: nothing continues past it
 		for q in Hex.neighbours(p, r.width, r.height):
 			var c := costs[q]
-			if c < 0 or done[q] == 1:
+			if c < 0 or done[q] == 1 or (q != to and not avoid.is_empty() and avoid[q] == 1):
 				continue
 			var d := dist[p] + c
 			if dist[q] < 0 or d < dist[q]:

@@ -18,6 +18,9 @@ extends RefCounted
 ## cost of the hex 1 off the route if it is dropped there; later steps come
 ## that much later. A commander in an engagement by then drops nothing. A
 ## detachment dropped where it must fight starts or joins an engagement.
+## Convoys (Convoys) walk their planned paths on the same timeline, after
+## commanders at equal times; they stop where an engagement starts or is
+## joined, and on reaching their commander. Afterwards Convoys.settle runs.
 ## Every commander on a hex where an engagement starts or is joined stops
 ## there. A commander that passes through or ends on an unguarded hex takes
 ## its controllable features (R6Q14, R7Q8).
@@ -30,8 +33,9 @@ const BANK_PCT: int = 50
 
 static func resolve(s: OverworldState) -> void:
 	var c := s.commanders
-	# [time, commander ID, order]: order 2i+2 enters route step i, 2i+3 is
-	# a drop-off after step i, 1 a drop-off before moving.
+	# [time, 0, commander ID, order]: order 2i+2 enters route step i, 2i+3
+	# is a drop-off after step i, 1 a drop-off before moving.
+	# [time, 1, convoy ID, step index]: a convoy enters its path's step.
 	var steps := []
 	var moving := {}       # commander ID -> still following its route
 	var last := {}         # commander ID -> index of its last reachable step
@@ -60,29 +64,42 @@ static func resolve(s: OverworldState) -> void:
 			if cost < 0 or not Hex.adjacent(at, route[i], s.rules.width) or t + cost > budget:
 				break
 			t += cost
-			steps.append([t, cid, 2 * i + 2])
+			steps.append([t, 0, cid, 2 * i + 2])
 			last[cid] = i
 			at = route[i]
 			if int(drop.get("step", -2)) == i:
 				t = _plan_drop(s, cid, at, drop, t, budget, 2 * i + 3, steps)
 		moving[cid] = last.has(cid)
 		spent[cid] = 0
+	var paths := {}        # convoy ID -> plots it plans to enter
+	var convoying := {}    # convoy ID -> still following its path
+	var masks := {}
+	for did in Convoys.ids(s):
+		if s.detachments.get_value(did, &"engagement") >= 0:
+			continue
+		var pl: Array = Convoys.plan(s, did, masks)
+		paths[did] = pl[0]
+		convoying[did] = not (pl[0] as PackedInt64Array).is_empty()
+		for i in (pl[0] as PackedInt64Array).size():
+			steps.append([(pl[1] as PackedInt64Array)[i], 1, did, i])
 	steps.sort_custom(func(a: Array, b: Array) -> bool:
-		if a[0] != b[0]:
-			return a[0] < b[0]
-		if a[1] != b[1]:
-			return a[1] < b[1]
-		return a[2] < b[2])
+		for k in 4:
+			if a[k] != b[k]:
+				return a[k] < b[k]
+		return false)
 	for st: Array in steps:
-		var cid: int = st[1]
-		var order: int = st[2]
+		if st[1] == 1:
+			_convoy_step(s, st[2], paths[st[2]], st[3], moving, cut, last, at_step, convoying)
+			continue
+		var cid: int = st[2]
+		var order: int = st[3]
 		if order % 2 == 1:
 			var drop_at: int = s.drops[cid]["plot"]
 			var did := _drop(s, cid)
 			if did >= 0:
 				spent[cid] = st[0]
 				if _engages(s, s.detachments.get_value(did, &"player"), drop_at):
-					_stop_all(s, drop_at, moving, cut, last, at_step)
+					_stop_all(s, drop_at, moving, cut, last, at_step, convoying)
 			continue
 		if not moving.get(cid, false):
 			continue
@@ -95,12 +112,13 @@ static func resolve(s: OverworldState) -> void:
 		at_step[cid] = i
 		s.events.push(&"commander_moved", {"commander": cid, "from": from, "to": to}, s.tick)
 		if _engages(s, c.player[row], to):
-			_stop_all(s, to, moving, cut, last, at_step)
+			_stop_all(s, to, moving, cut, last, at_step, convoying)
 		else:
 			arrive(s, row, to)
 			if i == last[cid]:
 				moving[cid] = false  # route finished: being engaged later is not a cut plan
 		OverworldVision.glimpse(s, c.player[row], to, s.rules.cm_sight[c.tmpl[row]])
+	Convoys.settle(s)
 	for row in c.count():
 		var cid := c.id_at(row)
 		var bank := 0
@@ -120,7 +138,7 @@ static func _plan_drop(s: OverworldState, cid: int, at: int, drop: Dictionary, t
 		cost = s.move_cost(p)
 		if cost < 0 or not Hex.adjacent(at, p, s.rules.width) or t + cost > budget:
 			return t
-	steps.append([t + cost, cid, order])
+	steps.append([t + cost, 0, cid, order])
 	return t + cost
 
 
@@ -139,12 +157,35 @@ static func _drop(s: OverworldState, cid: int) -> int:
 
 ## Everyone moving on plot p stops there. Stopping on the route's last hex
 ## is arriving, not a cut plan.
-static func _stop_all(s: OverworldState, p: int, moving: Dictionary, cut: Dictionary, last: Dictionary, at_step: Dictionary) -> void:
+static func _stop_all(s: OverworldState, p: int, moving: Dictionary, cut: Dictionary, last: Dictionary, at_step: Dictionary, convoying: Dictionary) -> void:
 	for other in Commanders.at(s, p):
 		if moving.get(other, false):
 			moving[other] = false
 			if int(at_step.get(other, -1)) < int(last[other]):
 				cut[other] = true
+	for did in Detachments.at(s, p):
+		convoying[did] = false
+
+
+## A convoy enters step i of its path: it may be intercepted there, or
+## reach its commander.
+static func _convoy_step(s: OverworldState, did: int, path: PackedInt64Array, i: int, moving: Dictionary, cut: Dictionary, last: Dictionary, at_step: Dictionary, convoying: Dictionary) -> void:
+	if not convoying.get(did, false) or not s.detachments.is_alive(did):
+		return
+	var d := s.detachments
+	var row := d.row_of(did)
+	var player := d.player[row]
+	var from := d.plot[row]
+	var to := path[i]
+	d.set_value(did, &"plot", to)
+	s.events.push(&"convoy_moved", {"detachment": did, "player": player, "from": from, "to": to}, s.tick)
+	OverworldVision.glimpse(s, player, to, s.rules.detachment_sight)
+	if _engages(s, player, to):
+		_stop_all(s, to, moving, cut, last, at_step, convoying)
+	elif d.dest_commander[row] >= 0 and Convoys.deliver(s, did):
+		convoying[did] = false
+	elif i == path.size() - 1:
+		convoying[did] = false
 
 
 ## Starts or joins an engagement if forces of `player` arriving on plot p
@@ -196,6 +237,7 @@ static func arrive(s: OverworldState, row: int, p: int) -> void:
 			var fid := f.id_at(fr)
 			s.events.push(&"feature_captured", {"feature": fid, "plot": p, "player": player, "from": f.owner[fr]}, s.tick)
 			f.set_value(fid, &"owner", player)
+			Convoys.on_captured(s, fid)
 		if s.rules.hf_cache_value[t] > 0:
 			caches.append(f.id_at(fr))
 	for fid in caches:

@@ -10,6 +10,7 @@ const DEFAULT_BASE_COST: int = 10
 const DEFAULT_ARMY_CAP: int = 6
 const DEFAULT_BATTLEFORCE_SQUADS: int = 4
 const DEFAULT_DETACHMENT_SIGHT: int = 1
+const DEFAULT_CONVOY_MOVEMENT: int = 40
 
 var errors: PackedStringArray = PackedStringArray()
 var map_id: String = ""
@@ -37,6 +38,8 @@ var hf_activity_cost: PackedInt64Array = PackedInt64Array()
 var hf_converts_to: PackedInt64Array = PackedInt64Array()
 ## Recruit options: [squad index, cost, squad index, cost, ...].
 var hf_recruits: Array[PackedInt64Array] = []
+## Production options: [squad index, turns, cost, squad index, ...].
+var hf_produces: Array[PackedInt64Array] = []
 ## Value per lost unit restored by refitting here.
 var hf_refit_cost: PackedInt64Array = PackedInt64Array()
 ## Scenario ID of the feature's battlefield ("" = the map's).
@@ -80,6 +83,8 @@ var bf_cap_value: int = 0
 var battle_scenario: String = ""
 ## Sight radius of a detachment, in hexes.
 var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
+## Movement points a convoy spends each turn.
+var convoy_mp: int = DEFAULT_CONVOY_MOVEMENT
 
 # --- battleforce presets ---
 var preset_ids: PackedStringArray = PackedStringArray()
@@ -113,6 +118,11 @@ func commander_index(id: String) -> int:
 
 func squad_index(id: String) -> int:
 	return squad_ids.find(id)
+
+
+## Production options of feature f.
+func production_count(f: int) -> int:
+	return hf_produces[f].size() / 3
 
 
 ## The cost of recruiting squad index `sq` at feature f, or -1 if not offered.
@@ -161,6 +171,10 @@ func _compile(t: TemplateTable, map: String) -> void:
 		for o: Dictionary in t.values_of(tid).get("recruits", []):
 			rec.append_array([squad_index(String(o["squad"])), int(o["cost"])])
 		hf_recruits.append(rec)
+		var prod := PackedInt64Array()
+		for o: Dictionary in t.values_of(tid).get("produces", []):
+			prod.append_array([squad_index(String(o["squad"])), int(o["turns"]), int(o.get("cost", 0))])
+		hf_produces.append(prod)
 		var f := feature_index(tid)
 		if rec.is_empty() == has_activity(f, "recruit"):
 			errors.append("%s: the recruit activity and 'recruits' go together" % tid)
@@ -194,6 +208,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 	bf_cap_value = int(bf.get("value", 0))
 	battle_scenario = String(m.get("battle_scenario", ""))
 	detachment_sight = int(m.get("detachment_sight", DEFAULT_DETACHMENT_SIGHT))
+	convoy_mp = int(m.get("convoy_movement", DEFAULT_CONVOY_MOVEMENT))
 	var starts_in: Array = m.get("starts", [])
 	for i in starts_in.size():
 		var v: Dictionary = starts_in[i]

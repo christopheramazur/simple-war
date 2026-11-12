@@ -12,6 +12,9 @@
 	{"id": "hex_depot", "kind": "hex_feature", "values": {
 		"name": "Supply depot", "controllable": true, "interaction": "stable",
 		"activities": ["refit"], "refit_cost": 1, "sight": 1}},
+	{"id": "hex_barracks", "kind": "hex_feature", "values": {
+		"name": "Barracks", "controllable": true, "interaction": "stable", "sight": 1,
+		"produces": [{"squad": "rifle_squad", "turns": 3, "cost": 2}, {"squad": "scout_team", "turns": 2, "cost": 1}]}},
 	{"id": "hex_mine", "kind": "hex_feature", "values": {
 		"name": "Mine", "controllable": true, "interaction": "stable",
 		"value_per_turn": 3, "sight": 1}},
@@ -44,6 +47,7 @@
 		"name": "Test vale", "width": 16, "height": 12, "base_move_cost": 10,
 		"battleforce": {"squads": 3, "value": 250},
 		"battle_scenario": "ow_field",
+		"convoy_movement": 40,
 		"passes": [
 			{"op": "fill", "feature": "hex_plains"},
 			{"op": "rect", "feature": "hex_forest", "col": 2, "row": 1, "w": 4, "h": 3},
@@ -59,7 +63,8 @@
 				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]},
 			{"op": "place", "feature": "hex_ore_deposit", "col": 2, "row": 10},
 			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7},
-			{"op": "place", "feature": "hex_depot", "col": 6, "row": 4}
+			{"op": "place", "feature": "hex_depot", "col": 6, "row": 4},
+			{"op": "place", "feature": "hex_barracks", "col": 8, "row": 7}
 		],
 		"starts": [
 			{"player": 1, "commander": "field_commander", "col": 2, "row": 6},

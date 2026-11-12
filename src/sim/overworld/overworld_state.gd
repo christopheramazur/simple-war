@@ -20,6 +20,10 @@ var activities: Dictionary = {}
 ## Planned drop-offs (R4Q13): commander ID -> {"step" (route index the
 ## drop follows, -1 = before moving), "plot"}. Cleared when the turn resolves.
 var drops: Dictionary = {}
+## Supply lines (R5Q10, R6Q13): producing feature ID -> {"player", "plot",
+## "commander"} (one of plot and commander is -1). A line lapses when the
+## feature changes hands.
+var supply_lines: Dictionary = {}
 ## Value per player, the sole resource (R5Q11).
 var value: Dictionary = {}
 ## Uncertain-outcome interactions presented this turn (R6Q14): [{"plot",
@@ -176,6 +180,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 	for cid: int in routes:
 		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
 	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true), "drops": drops.duplicate(true),
+		"supply_lines": supply_lines.duplicate(true),
 		"value": value.duplicate(), "offers": offers.duplicate(true),
 		"memory": memory.duplicate(true), "teams": teams.duplicate(),
 		"battleforces": battleforces.duplicate(true), "presets": presets.duplicate(true)}
@@ -189,6 +194,7 @@ func _restore_extra(snap: Dictionary) -> void:
 		routes[cid] = (r[cid] as PackedInt64Array).duplicate()
 	activities = (snap["overworld"].get("activities", {}) as Dictionary).duplicate(true)
 	drops = (snap["overworld"].get("drops", {}) as Dictionary).duplicate(true)
+	supply_lines = (snap["overworld"].get("supply_lines", {}) as Dictionary).duplicate(true)
 	value = (snap["overworld"].get("value", {}) as Dictionary).duplicate()
 	offers.assign((snap["overworld"].get("offers", []) as Array).duplicate(true))
 	memory = (snap["overworld"].get("memory", {}) as Dictionary).duplicate(true)
@@ -217,6 +223,11 @@ func state_hash() -> PackedByteArray:
 	ids.sort()
 	for cid: int in ids:
 		text += "D%d:%d@%d;" % [cid, drops[cid]["step"], drops[cid]["plot"]]
+	ids = supply_lines.keys()
+	ids.sort()
+	for fid: int in ids:
+		var sl: Dictionary = supply_lines[fid]
+		text += "S%d:%d:%d:%d;" % [fid, sl["player"], sl["plot"], sl["commander"]]
 	var players: Array = value.keys()
 	players.sort()
 	for p: int in players:

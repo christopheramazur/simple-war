@@ -116,6 +116,13 @@ const OBJECTS: Dictionary = {
 		"squad": {"type": "ref:squad", "required": true},
 		"cost": {"type": "int", "required": true, "min": 0},
 	},
+	## A squad a feature produces (R5Q10): one every `turns` turns while
+	## selected, for `cost` Value each (0 = free).
+	"production_option": {
+		"squad": {"type": "ref:squad", "required": true},
+		"turns": {"type": "int", "required": true, "min": 1},
+		"cost": {"type": "int", "min": 0},
+	},
 	## Battleforce caps (R2Q1): most squads, and most total strength (Value
 	## scaled by units alive; 0 = no limit).
 	"battleforce_cap": {
@@ -363,6 +370,9 @@ const KINDS: Dictionary = {
 		"converts_to": {"type": "ref:hex_feature"},
 		## Squads the recruit activity offers here.
 		"recruits": {"type": "list:obj:recruit_option"},
+		## Squads it can produce for its owner; the owner selects one (the
+		## first by default) and may run a supply line from it.
+		"produces": {"type": "list:obj:production_option"},
 		## Value per lost unit the refit activity restores here.
 		"refit_cost": {"type": "int", "min": 0},
 		## The battlefield its battles are fought on (else the map's).
@@ -399,6 +409,8 @@ const KINDS: Dictionary = {
 		"battle_scenario": {"type": "ref:scenario"},
 		## Sight radius of a detachment (dropped-off squads), in hexes.
 		"detachment_sight": {"type": "int", "min": 0},
+		## Movement points a convoy spends each turn.
+		"convoy_movement": {"type": "int", "min": 1},
 	},
 	## An archetype preset for battleforce auto-fill (R2Q1): squads with a
 	## feature (legend archetype, doctrine or keyword) earlier in `prefer`

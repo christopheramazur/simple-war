@@ -10,7 +10,8 @@ extends RefCounted
 ## Reinforcing: any squad deployed in the engagement but not yet in the
 ## battle (a reinforcement planned this turn) is spawned at its side's
 ## deployment area before the next battle turn.
-## Finishing: survivors carry their units alive back to their armies; the
+## Finishing: survivors carry their units alive back to their armies (those
+## of a commander that left form a convoy rallied to it, R8Q3); the
 ## destroyed and the scattered are gone. A commander whose own squad is gone
 ## is defeated, and the rest of its army scatters. A detachment on the
 ## losing side of a decided battle scatters; one with no squads left is
@@ -133,6 +134,7 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 	var winner: int = res["winner"]
 	var bids: Array = b.links.keys()
 	bids.sort()
+	var left := {}  # commander that left the battle -> its surviving squads
 	for bid: int in bids:
 		var id: int = b.links[bid]
 		if id < 0 or s.squads.row_of(id) < 0:
@@ -140,8 +142,17 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 		var row := bq.row_of(bid)
 		if row < 0 or bq.destroyed[row] == 1 or bq.alive[row] <= 0:
 			s.squads.despawn(id)
-		else:
-			s.squads.set_value(id, &"alive", bq.alive[row])
+			continue
+		s.squads.set_value(id, &"alive", bq.alive[row])
+		var holder := s.squads.get_value(id, &"holder")
+		if holder >= 0 and s.commanders.get_value(holder, &"engagement") != b.engagement:
+			var mine: PackedInt64Array = left.get(holder, PackedInt64Array())
+			mine.append(id)
+			left[holder] = mine
+	var holders: Array = left.keys()
+	holders.sort()
+	for cid: int in holders:
+		Convoys.rally_survivors(s, cid, b.plot, left[cid])
 	_end(s, b.engagement, b.plot, 0 if winner == NEUTRAL else winner, String(res["reason"]), winner != 0)
 
 
