@@ -6,7 +6,10 @@ extends RefCounted
 ## planned hex and is not in a battle. The Value cost is paid on performing.
 ##   convert: the feature becomes its converts_to feature, owned by the player.
 ##   battle:  an engagement starts on the hex (battles begin at turn start).
-##   recruit, refit: emit activity_performed; armies (sw-o1m.2) act on it.
+##   recruit: the squad named by the plan joins the army at full strength,
+##            if the army has room; costs activity_cost + the option's cost.
+##   refit:   every squad of the army returns to full strength; costs
+##            activity_cost + refit_cost per unit restored.
 
 
 ## The row of the first feature (by template order) on plot p that offers
@@ -29,7 +32,9 @@ static func resolve(s: OverworldState) -> void:
 		var a: Dictionary = s.activities[cid]
 		var activity: String = a["activity"]
 		var p: int = a["plot"]
+		var option: String = a.get("option", "")
 		var why := ""
+		var cost := 0
 		var fr := offering(s, p, activity)
 		if c.plot[row] != p:
 			why = "did not reach the hex"
@@ -37,15 +42,32 @@ static func resolve(s: OverworldState) -> void:
 			why = "is in a battle"
 		elif fr < 0:
 			why = "no longer offered here"
-		elif s.value_of(c.player[row]) < s.rules.hf_activity_cost[s.features.tmpl[fr]]:
-			why = "not enough Value"
+		else:
+			var t := s.features.tmpl[fr]
+			cost = s.rules.hf_activity_cost[t]
+			match activity:
+				"recruit":
+					var sq := s.rules.squad_index(option)
+					var price := s.rules.recruit_cost(t, sq) if sq >= 0 else -1
+					if price < 0:
+						why = "no longer offered here"
+					elif OverworldArmies.count(s, cid) >= OverworldArmies.cap(s, cid):
+						why = "the army is full"
+					cost += maxi(price, 0)
+				"refit":
+					var lost := OverworldArmies.losses(s, cid)
+					if lost == 0:
+						why = "the army has no losses"
+					cost += lost * s.rules.hf_refit_cost[t]
+			if why.is_empty() and s.value_of(c.player[row]) < cost:
+				why = "not enough Value"
 		if not why.is_empty():
 			s.events.push(&"activity_cancelled", {"commander": cid, "plot": p, "activity": activity, "reason": why}, s.tick)
 			continue
-		_perform(s, row, fr, activity)
+		_perform(s, row, fr, activity, option, cost)
 
 
-static func _perform(s: OverworldState, row: int, fr: int, activity: String) -> void:
+static func _perform(s: OverworldState, row: int, fr: int, activity: String, option: String, cost: int) -> void:
 	var c := s.commanders
 	var f := s.features
 	var cid := c.id_at(row)
@@ -53,7 +75,7 @@ static func _perform(s: OverworldState, row: int, fr: int, activity: String) -> 
 	var p := f.plot[fr]
 	var t := f.tmpl[fr]
 	var fid := f.id_at(fr)
-	s.add_value(player, -s.rules.hf_activity_cost[t], &"activity")
+	s.add_value(player, -cost, &"activity")
 	s.events.push(&"activity_performed", {"commander": cid, "plot": p, "activity": activity, "feature": fid}, s.tick)
 	match activity:
 		"convert":
@@ -61,6 +83,12 @@ static func _perform(s: OverworldState, row: int, fr: int, activity: String) -> 
 			s.remove_feature(fid)
 			var nid := s.add_feature(p, into, player if s.rules.hf_controllable[into] == 1 else 0)
 			s.events.push(&"feature_converted", {"plot": p, "from": fid, "to": nid, "player": player}, s.tick)
+		"recruit":
+			var sid := OverworldArmies.add(s, cid, s.rules.squad_index(option))
+			s.events.push(&"squad_recruited", {"commander": cid, "squad": sid, "tmpl": option, "plot": p}, s.tick)
+		"refit":
+			var n := OverworldArmies.refit(s, cid)
+			s.events.push(&"army_refitted", {"commander": cid, "plot": p, "units": n}, s.tick)
 		"battle":
 			var eid := s.engagement_at(p)
 			if eid < 0:

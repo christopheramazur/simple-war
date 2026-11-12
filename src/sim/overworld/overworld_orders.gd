@@ -22,8 +22,9 @@ static func clear_route(s: OverworldState, player: int, commander_id: int) -> St
 
 ## Plans an activity (R4Q12): refit, recruit, battle or convert. It needs
 ## the route to end on a hex with a feature offering it (or, with no route,
-## the commander's own hex). Returns "" or why it was refused.
-static func set_activity(s: OverworldState, player: int, commander_id: int, activity: String) -> String:
+## the commander's own hex). Recruit names the squad in `option`. Returns ""
+## or why it was refused.
+static func set_activity(s: OverworldState, player: int, commander_id: int, activity: String, option: String = "") -> String:
 	var c := s.commanders
 	var row := c.row_of(commander_id)
 	if row < 0:
@@ -44,9 +45,55 @@ static func set_activity(s: OverworldState, player: int, commander_id: int, acti
 	if t < 0:
 		return "the route must end on a hex offering %s" % activity
 	var cost := s.rules.hf_activity_cost[t]
+	match activity:
+		"recruit":
+			var sq := s.rules.squad_index(option)
+			var price := s.rules.recruit_cost(t, sq) if sq >= 0 else -1
+			if price < 0:
+				return "this hex does not recruit '%s'" % option
+			if OverworldArmies.count(s, commander_id) >= OverworldArmies.cap(s, commander_id):
+				return "the army is full (%d squads)" % OverworldArmies.cap(s, commander_id)
+			cost += price
+		"refit":
+			var lost := OverworldArmies.losses(s, commander_id)
+			if lost == 0:
+				return "the army has no losses to refit"
+			cost += lost * s.rules.hf_refit_cost[t]
 	if s.value_of(player) < cost:
 		return "%s costs %d Value, you have %d" % [activity, cost, s.value_of(player)]
-	s.activities[commander_id] = {"activity": activity, "plot": dest}
+	s.activities[commander_id] = {"activity": activity, "plot": dest, "option": option}
+	return ""
+
+
+## Friendly commanders sharing a hex trade squads freely during planning
+## (R7Q9). Takes effect at once. Returns "" or why it was refused.
+static func transfer_squad(s: OverworldState, player: int, squad_id: int, to_commander: int) -> String:
+	var q := s.squads
+	var row := q.row_of(squad_id)
+	if row < 0:
+		return "no such squad"
+	var c := s.commanders
+	var from := q.holder[row]
+	var fr := c.row_of(from)
+	var tr := c.row_of(to_commander)
+	if fr < 0 or c.player[fr] != player:
+		return "not your squad"
+	if tr < 0:
+		return "no such commander"
+	if c.player[tr] != player:
+		return "not your commander"
+	if from == to_commander:
+		return "already in that army"
+	if q.own[row] == 1:
+		return "a commander's own squad stays with it"
+	if c.plot[fr] != c.plot[tr]:
+		return "the commanders must share a hex"
+	if c.engagement[fr] >= 0 or c.engagement[tr] >= 0:
+		return "a commander in a battle cannot trade"
+	if OverworldArmies.count(s, to_commander) >= OverworldArmies.cap(s, to_commander):
+		return "the receiving army is full (%d squads)" % OverworldArmies.cap(s, to_commander)
+	OverworldArmies.move(s, squad_id, to_commander)
+	s.events.push(&"squad_transferred", {"squad": squad_id, "from": from, "to": to_commander, "player": player}, s.tick)
 	return ""
 
 

@@ -7,7 +7,14 @@ extends RefCounted
 static func spawn(s: OverworldState, player: int, commander: String, p: int) -> int:
 	var t := s.rules.commander_index(commander)
 	assert(t >= 0, "Commanders.spawn: unknown commander '%s'" % commander)
-	return s.commanders.spawn({&"player": player, &"tmpl": t, &"plot": p})
+	return spawn_index(s, player, t, p)
+
+
+## Spawns commander template t with its own squad and starting army.
+static func spawn_index(s: OverworldState, player: int, t: int, p: int) -> int:
+	var cid := s.commanders.spawn({&"player": player, &"tmpl": t, &"plot": p})
+	OverworldArmies.muster(s, cid)
+	return cid
 
 
 ## Movement points available this turn: the template's per-turn points plus

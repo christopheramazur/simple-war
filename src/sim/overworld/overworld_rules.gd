@@ -7,6 +7,7 @@ const ACTIVITIES: Array[String] = DataSchema.HEX_ACTIVITIES
 const INTERACTIONS: Array[String] = DataSchema.HEX_INTERACTIONS
 const PASSES: Array[String] = DataSchema.MAP_PASSES
 const DEFAULT_BASE_COST: int = 10
+const DEFAULT_ARMY_CAP: int = 6
 
 var errors: PackedStringArray = PackedStringArray()
 var map_id: String = ""
@@ -32,6 +33,19 @@ var hf_guard: Array[PackedStringArray] = []
 var hf_activity_cost: PackedInt64Array = PackedInt64Array()
 ## Feature index the "convert" activity turns it into, -1 = none.
 var hf_converts_to: PackedInt64Array = PackedInt64Array()
+## Recruit options: [squad index, cost, squad index, cost, ...].
+var hf_recruits: Array[PackedInt64Array] = []
+## Value per lost unit restored by refitting here.
+var hf_refit_cost: PackedInt64Array = PackedInt64Array()
+
+# --- squads (what armies hold; battles compile their own) ---
+var squad_ids: PackedStringArray = PackedStringArray()
+var sq_names: PackedStringArray = PackedStringArray()
+## Battle value (R6Q15).
+var sq_value: PackedInt64Array = PackedInt64Array()
+## Units at full strength: the members' counts summed.
+var sq_size: PackedInt64Array = PackedInt64Array()
+var sq_tags: Array[PackedStringArray] = []
 
 # --- commanders ---
 var commander_ids: PackedStringArray = PackedStringArray()
@@ -40,6 +54,11 @@ var cm_mp: PackedInt64Array = PackedInt64Array()
 var cm_sight: PackedInt64Array = PackedInt64Array()
 ## The commander's squad template ID ("" = none).
 var cm_squad: PackedStringArray = PackedStringArray()
+## The commander's own squad as a squad index, -1 = none.
+var cm_own_squad: PackedInt64Array = PackedInt64Array()
+## Starting squads besides its own (squad indices).
+var cm_army: Array[PackedInt64Array] = []
+var cm_army_cap: PackedInt64Array = PackedInt64Array()
 
 # --- map ---
 var width: int = 0
@@ -76,11 +95,34 @@ func commander_index(id: String) -> int:
 	return commander_ids.find(id)
 
 
+func squad_index(id: String) -> int:
+	return squad_ids.find(id)
+
+
+## The cost of recruiting squad index `sq` at feature f, or -1 if not offered.
+func recruit_cost(f: int, sq: int) -> int:
+	var r := hf_recruits[f]
+	for i in range(0, r.size(), 2):
+		if r[i] == sq:
+			return r[i + 1]
+	return -1
+
+
 func has_activity(feature: int, activity: String) -> bool:
 	return hf_activities[feature] & (1 << ACTIVITIES.find(activity)) != 0
 
 
 func _compile(t: TemplateTable, map: String) -> void:
+	for tid in _of_kind(t, "squad"):
+		var v := t.values_of(tid)
+		squad_ids.append(tid)
+		sq_names.append(String(v.get("name", tid)))
+		sq_value.append(int(v.get("value", 0)))
+		var size := 0
+		for m: Dictionary in v.get("members", []):
+			size += int(m.get("count", 1))
+		sq_size.append(size)
+		sq_tags.append(PackedStringArray(v.get("keywords", [])))
 	for tid in _of_kind(t, "hex_feature"):
 		_compile_feature(tid, t.values_of(tid))
 	for tid in feature_ids:
@@ -89,6 +131,13 @@ func _compile(t: TemplateTable, map: String) -> void:
 		hf_converts_to.append(to)
 		if to < 0 and has_activity(feature_index(tid), "convert"):
 			errors.append("%s: the convert activity needs 'converts_to'" % tid)
+		var rec := PackedInt64Array()
+		for o: Dictionary in t.values_of(tid).get("recruits", []):
+			rec.append_array([squad_index(String(o["squad"])), int(o["cost"])])
+		hf_recruits.append(rec)
+		var f := feature_index(tid)
+		if rec.is_empty() == has_activity(f, "recruit"):
+			errors.append("%s: the recruit activity and 'recruits' go together" % tid)
 	for tid in _of_kind(t, "commander"):
 		var v := t.values_of(tid)
 		commander_ids.append(tid)
@@ -96,6 +145,14 @@ func _compile(t: TemplateTable, map: String) -> void:
 		cm_mp.append(int(v["movement_points"]))
 		cm_sight.append(int(v.get("sight", 2)))
 		cm_squad.append(String(v.get("squad", "")))
+		cm_own_squad.append(squad_index(String(v.get("squad", ""))))
+		var army := PackedInt64Array()
+		for sq: String in v.get("army", []):
+			army.append(squad_index(sq))
+		cm_army.append(army)
+		cm_army_cap.append(int(v.get("army_cap", DEFAULT_ARMY_CAP)))
+		if army.size() > cm_army_cap[cm_army_cap.size() - 1]:
+			errors.append("%s: starts with more squads than its army_cap" % tid)
 	if not t.has(map) or t.kind_of(map) != "overworld_map":
 		errors.append("unknown overworld map '%s'" % map)
 		return
@@ -159,6 +216,7 @@ func _compile_feature(tid: String, v: Dictionary) -> void:
 	hf_cache_value.append(int(v.get("cache_value", 0)))
 	hf_guard.append(PackedStringArray(v.get("guard", [])))
 	hf_activity_cost.append(int(v.get("activity_cost", 0)))
+	hf_refit_cost.append(int(v.get("refit_cost", 0)))
 
 
 func _compile_pass(i: int, v: Dictionary) -> void:

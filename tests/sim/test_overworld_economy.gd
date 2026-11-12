@@ -121,15 +121,18 @@ func test_activity_needs_the_route_to_end_there() -> void:
 	assert_true(s.activities.is_empty(), "activities last one turn")
 
 
-func test_recruit_is_announced_for_armies() -> void:
+func test_recruit_is_performed() -> void:
 	var s := _s()
 	var a := _cmd(s, 1, 2, 6)
 	OverworldOrders.set_route(s, 1, a, _route([Vector2i(1, 6)]))
-	assert_eq(OverworldOrders.set_activity(s, 1, a, "recruit"), "")
+	s.value[1] = 4
+	assert_eq(OverworldOrders.set_activity(s, 1, a, "recruit", "scout_team"), "")
 	var ev := OverworldTurn.resolve(s)
 	var done: Array = _of(ev, &"activity_performed")
 	assert_eq(done.size(), 1)
 	assert_eq(done[0].data["activity"], "recruit")
+	assert_eq(_of(ev, &"squad_recruited").size(), 1)
+	assert_eq(OverworldArmies.count(s, a), 3, "two starting rifle squads and the new scouts")
 
 
 func test_battle_activity_starts_an_engagement() -> void:

@@ -42,6 +42,12 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Garrisons:** drop-off covers every case where forces are needed but oversight isn't, including neutral garrisons that cause battles (R5Q9).
 - **Story-essential commanders** (R2Q13): they revive only on easy; otherwise their death fails the mission.
 - **Friendly commanders** sharing a hex trade squads and items freely during planning (R7Q9).
+- **Armies in play (sw-o1m.2.1):**
+  - **Composition:** an army is the commander's own squad plus the squads it holds, up to its template's `army_cap`. The own squad doesn't count toward the cap and is never traded.
+  - **Losses persist:** squads keep their losses between battles until refitted.
+  - **Starting armies** come from the commander template's `army`.
+  - **Trading:** two of a player's commanders on one hex, neither in a battle, trade squads during planning. A trade takes effect at once, within the receiver's cap. Trading with allies waits for campaigns.
+  - **Hidden from enemies:** what a hostile army holds is never shown, even when its commander is in sight (R5Q9). Allies see each other's armies.
 
 ## 2.4 Battles
 ### Start and duration
@@ -220,7 +226,8 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Activities** are planned per commander. A commander performs one only if it ends the turn on the planned hex and isn't in a battle; the feature's `activity_cost` in Value is paid then.
     - **Convert** replaces the feature with its `converts_to` feature, owned by the player.
     - **Battle** starts an engagement on the hex.
-    - **Recruit and refit** are announced for armies (sw-o1m.2).
+    - **Recruit** names one of the feature's `recruits`. The squad joins at full strength if the army has room, for `activity_cost` plus the option's cost.
+    - **Refit** restores every squad of the army to full strength, for `activity_cost` plus `refit_cost` per unit restored. Planning checks the cost against the army's losses at the time; resolving charges for the losses then.
   - **Production:** every controlled feature pays its owner its `value_per_turn`, including one taken this turn.
   - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. What answering does belongs to the trigger layer (sw-cgl.2).
 

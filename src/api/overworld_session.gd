@@ -4,7 +4,8 @@ extends RefCounted
 ## the human UI, AI controllers, the network layer, tests and the AI factory
 ## use. Mirrors BattleSession.
 ##
-## Inputs:   set_route, set_activity (Planning only), ready, advance(ms).
+## Inputs:   set_route, set_activity, transfer_squad (Planning only),
+##           ready, advance(ms).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
 ##           cheapest affordable route as the player knows the map.
@@ -64,7 +65,7 @@ func _setup(r: OverworldRules, map: String, seed_in: int, hash_hex: String, cloc
 	data_hash = hash_hex
 	state = OverworldState.create(1, rules, seed_in)
 	for st in rules.starts:
-		state.commanders.spawn({&"player": st["player"], &"tmpl": st["commander"], &"plot": st["plot"]})
+		Commanders.spawn_index(state, st["player"], st["commander"], st["plot"])
 	OverworldVision.update(state)
 	_players = rules.players()
 	bus = PulseBus.new()
@@ -104,13 +105,24 @@ func set_route(player: int, commander_id: int, plots: PackedInt64Array) -> Strin
 	return err
 
 
-## Plans (or, with "", clears) a commander's activity. "" or why not.
-func set_activity(player: int, commander_id: int, activity: String) -> String:
+## Plans (or, with "", clears) a commander's activity; recruit names the
+## squad in `option`. "" or why not.
+func set_activity(player: int, commander_id: int, activity: String, option: String = "") -> String:
 	var err := _planning(player)
 	if err.is_empty():
-		err = OverworldOrders.set_activity(state, player, commander_id, activity)
+		err = OverworldOrders.set_activity(state, player, commander_id, activity, option)
 	if err.is_empty():
-		_log(player, "activity", {"commander": commander_id, "activity": activity})
+		_log(player, "activity", {"commander": commander_id, "activity": activity, "option": option})
+	return err
+
+
+## Moves a squad between two of the player's commanders on one hex (R7Q9).
+func transfer_squad(player: int, squad_id: int, to_commander: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = OverworldOrders.transfer_squad(state, player, squad_id, to_commander)
+	if err.is_empty():
+		_log(player, "transfer", {"squad": squad_id, "to": to_commander})
 	return err
 
 
@@ -278,7 +290,9 @@ func replay_inputs(inputs: Array) -> void:
 			"route":
 				set_route(i["player"], p["commander"], p["plots"])
 			"activity":
-				set_activity(i["player"], p["commander"], p["activity"])
+				set_activity(i["player"], p["commander"], p["activity"], p.get("option", ""))
+			"transfer":
+				transfer_squad(i["player"], p["squad"], p["to"])
 			"ready":
 				ready(i["player"])
 			"advance":

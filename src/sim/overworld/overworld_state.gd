@@ -7,6 +7,7 @@ var rules: OverworldRules
 var features: OverworldFeatures
 var commanders: OverworldCommanders
 var engagements: OverworldEngagements
+var squads: OverworldSquads
 ## Turns resolved so far.
 var turn: int = 0
 ## Planned routes: commander ID -> plots to enter, in order (start excluded).
@@ -38,9 +39,11 @@ func _init(context_id: int, overworld_rules: OverworldRules, seed_value: int = 0
 	features = OverworldFeatures.new()
 	commanders = OverworldCommanders.new()
 	engagements = OverworldEngagements.new()
+	squads = OverworldSquads.new()
 	add_table(features)
 	add_table(commanders)
 	add_table(engagements)
+	add_table(squads)
 
 
 ## A new overworld with its map generated from the seed.
@@ -193,7 +196,7 @@ func state_hash() -> PackedByteArray:
 	ids = activities.keys()
 	ids.sort()
 	for cid: int in ids:
-		text += "A%d:%s@%d;" % [cid, activities[cid]["activity"], activities[cid]["plot"]]
+		text += "A%d:%s:%s@%d;" % [cid, activities[cid]["activity"], activities[cid].get("option", ""), activities[cid]["plot"]]
 	var players: Array = value.keys()
 	players.sort()
 	for p: int in players:

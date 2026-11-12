@@ -110,6 +110,12 @@ const OBJECTS: Dictionary = {
 	"end_hooks": {
 		"loser": {"type": "string", "enum": ["scatter"]},
 	},
+	## A squad a feature's recruit activity offers, and its price in Value
+	## (separate from the squad's battle value, R6Q15).
+	"recruit_option": {
+		"squad": {"type": "ref:squad", "required": true},
+		"cost": {"type": "int", "required": true, "min": 0},
+	},
 	## A commander a player starts a match on this map with.
 	"map_start": {
 		"player": {"type": "int", "required": true, "min": 1},
@@ -349,6 +355,10 @@ const KINDS: Dictionary = {
 		"guard": {"type": "list:ref:squad"},
 		"activity_cost": {"type": "int", "min": 0},
 		"converts_to": {"type": "ref:hex_feature"},
+		## Squads the recruit activity offers here.
+		"recruits": {"type": "list:obj:recruit_option"},
+		## Value per lost unit the refit activity restores here.
+		"refit_cost": {"type": "int", "min": 0},
 		"bundles": {"type": "list:ref:bundle"},
 	},
 	## A commander (GDD 02 §2.3, §2.9): anchors an army and moves on the
@@ -360,6 +370,10 @@ const KINDS: Dictionary = {
 		"movement_points": {"type": "int", "required": true, "min": 1},
 		"sight": {"type": "int", "min": 0},
 		"squad": {"type": "ref:squad"},
+		## Squads the commander starts with, besides its own.
+		"army": {"type": "list:ref:squad"},
+		## Most squads the army holds, besides the commander's own.
+		"army_cap": {"type": "int", "min": 0},
 	},
 	## A seeded overworld map template (R3Q13): an empty width x height hex
 	## rectangle (odd-r offset rows) that its passes fill with features.

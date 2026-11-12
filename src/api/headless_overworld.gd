@@ -3,7 +3,8 @@ extends RefCounted
 ## Plays overworld turns through the Game API with one controller per player,
 ## at full speed and without presentation (R6Q24, R7Q14). A controller is any
 ## object with `plan(observation, session) -> Array` of {"commander",
-## "route" (PackedInt64Array), "activity" (String, optional)}; it may call
+## "route" (PackedInt64Array), "activity" and "option" (Strings,
+## optional)}; it may call
 ## only player-scoped queries (session.observe / session.path).
 
 
@@ -18,7 +19,7 @@ static func play(session: OverworldSession, controllers: Dictionary, turns: int)
 					for o: Dictionary in controllers[p].plan(session.observe(p), session):
 						session.set_route(p, o["commander"], o["route"])
 						if not String(o.get("activity", "")).is_empty():
-							session.set_activity(p, o["commander"], o["activity"])
+							session.set_activity(p, o["commander"], o["activity"], o.get("option", ""))
 				for p in session.players():
 					session.ready(p)
 			PulseClock.Phase.INTERMISSION:

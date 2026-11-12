@@ -7,7 +7,11 @@
 	{"id": "hex_lake", "kind": "hex_feature", "values": {"name": "Lake", "impassable": true}},
 	{"id": "hex_village", "kind": "hex_feature", "values": {
 		"name": "Village", "controllable": true, "interaction": "stable",
-		"activities": ["recruit"], "value_per_turn": 2, "sight": 2}},
+		"activities": ["recruit"], "value_per_turn": 2, "sight": 2,
+		"recruits": [{"squad": "rifle_squad", "cost": 6}, {"squad": "scout_team", "cost": 4}]}},
+	{"id": "hex_depot", "kind": "hex_feature", "values": {
+		"name": "Supply depot", "controllable": true, "interaction": "stable",
+		"activities": ["refit"], "refit_cost": 1, "sight": 1}},
 	{"id": "hex_mine", "kind": "hex_feature", "values": {
 		"name": "Mine", "controllable": true, "interaction": "stable",
 		"value_per_turn": 3, "sight": 1}},
@@ -23,9 +27,11 @@
 		"guard": ["rifle_squad", "rifle_squad"]}},
 
 	{"id": "field_commander", "kind": "commander", "values": {
-		"name": "Field commander", "movement_points": 60, "sight": 3, "squad": "rifle_squad"}},
+		"name": "Field commander", "movement_points": 60, "sight": 3, "squad": "rifle_squad",
+		"army": ["rifle_squad", "rifle_squad"], "army_cap": 6}},
 	{"id": "outrider", "kind": "commander", "values": {
-		"name": "Outrider", "movement_points": 90, "sight": 4, "squad": "scout_team"}},
+		"name": "Outrider", "movement_points": 90, "sight": 4, "squad": "scout_team",
+		"army": ["scout_team"], "army_cap": 2}},
 
 	{"id": "test_vale", "kind": "overworld_map", "values": {
 		"name": "Test vale", "width": 16, "height": 12, "base_move_cost": 10,
@@ -43,7 +49,8 @@
 			{"op": "scatter", "feature": "hex_supply_cache", "count": 3, "spacing": 3,
 				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]},
 			{"op": "place", "feature": "hex_ore_deposit", "col": 2, "row": 10},
-			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7}
+			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7},
+			{"op": "place", "feature": "hex_depot", "col": 6, "row": 4}
 		],
 		"starts": [
 			{"player": 1, "commander": "field_commander", "col": 2, "row": 6},
