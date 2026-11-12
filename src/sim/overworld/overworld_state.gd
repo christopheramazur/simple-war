@@ -28,6 +28,11 @@ var memory: Dictionary = {}
 ## Alliances: player -> team. Players on one team are allies; a player not
 ## listed is a team of its own. Set up by campaigns and matches.
 var teams: Dictionary = {}
+## Battleforce plans (OverworldBattleforce): commander ID -> {"preset",
+## "squads" (PackedInt64Array), "lead"}. Kept across turns.
+var battleforces: Dictionary = {}
+## Players' own battleforce presets: player -> {name -> {"prefer", "avoid"}}.
+var presets: Dictionary = {}
 ## Derived cache, plot -> feature rows (ascending template index). Rebuilt
 ## by reindex(); never hashed or saved.
 var plot_features: Dictionary = {}
@@ -165,7 +170,8 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
 	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true),
 		"value": value.duplicate(), "offers": offers.duplicate(true),
-		"memory": memory.duplicate(true), "teams": teams.duplicate()}
+		"memory": memory.duplicate(true), "teams": teams.duplicate(),
+		"battleforces": battleforces.duplicate(true), "presets": presets.duplicate(true)}
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -179,6 +185,8 @@ func _restore_extra(snap: Dictionary) -> void:
 	offers.assign((snap["overworld"].get("offers", []) as Array).duplicate(true))
 	memory = (snap["overworld"].get("memory", {}) as Dictionary).duplicate(true)
 	teams = (snap["overworld"].get("teams", {}) as Dictionary).duplicate()
+	battleforces = (snap["overworld"].get("battleforces", {}) as Dictionary).duplicate(true)
+	presets = (snap["overworld"].get("presets", {}) as Dictionary).duplicate(true)
 	reindex()
 
 
@@ -207,6 +215,19 @@ func state_hash() -> PackedByteArray:
 	players.sort()
 	for p: int in players:
 		text += "T%d:%d;" % [p, teams[p]]
+	ids = battleforces.keys()
+	ids.sort()
+	for cid: int in ids:
+		var bf: Dictionary = battleforces[cid]
+		text += "B%d:%s:%s:%s;" % [cid, bf["preset"], bf["lead"], ",".join(Array(bf["squads"]).map(func(x: int) -> String: return str(x)))]
+	players = presets.keys()
+	players.sort()
+	for p: int in players:
+		var names: Array = (presets[p] as Dictionary).keys()
+		names.sort()
+		for n: String in names:
+			var pr: Dictionary = presets[p][n]
+			text += "P%d:%s:%s:%s;" % [p, n, ",".join(pr["prefer"]), ",".join(pr["avoid"])]
 	var mem := PackedInt64Array()
 	players = memory.keys()
 	players.sort()

@@ -33,8 +33,16 @@
 		"name": "Outrider", "movement_points": 90, "sight": 4, "squad": "scout_team",
 		"army": ["scout_team"], "army_cap": 2}},
 
+	{"id": "preset_recon", "kind": "battleforce_preset", "values": {
+		"name": "Recon", "prefer": ["scout"]}},
+	{"id": "preset_assault", "kind": "battleforce_preset", "values": {
+		"name": "Assault", "prefer": ["damage", "sapper"], "avoid": ["scout"]}},
+	{"id": "preset_hold", "kind": "battleforce_preset", "values": {
+		"name": "Hold the line", "prefer": ["tank", "damage"]}},
+
 	{"id": "test_vale", "kind": "overworld_map", "values": {
 		"name": "Test vale", "width": 16, "height": 12, "base_move_cost": 10,
+		"battleforce": {"squads": 3, "value": 250},
 		"passes": [
 			{"op": "fill", "feature": "hex_plains"},
 			{"op": "rect", "feature": "hex_forest", "col": 2, "row": 1, "w": 4, "h": 3},

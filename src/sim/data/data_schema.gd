@@ -116,6 +116,12 @@ const OBJECTS: Dictionary = {
 		"squad": {"type": "ref:squad", "required": true},
 		"cost": {"type": "int", "required": true, "min": 0},
 	},
+	## Battleforce caps (R2Q1): most squads, and most total strength (Value
+	## scaled by units alive; 0 = no limit).
+	"battleforce_cap": {
+		"squads": {"type": "int", "min": 1},
+		"value": {"type": "int", "min": 0},
+	},
 	## A commander a player starts a match on this map with.
 	"map_start": {
 		"player": {"type": "int", "required": true, "min": 1},
@@ -385,6 +391,15 @@ const KINDS: Dictionary = {
 		"base_move_cost": {"type": "int", "min": 1},
 		"passes": {"type": "list:obj:map_pass", "required": true},
 		"starts": {"type": "list:obj:map_start"},
+		"battleforce": {"type": "obj:battleforce_cap"},
+	},
+	## An archetype preset for battleforce auto-fill (R2Q1): squads with a
+	## feature (legend archetype, doctrine or keyword) earlier in `prefer`
+	## come first, strongest first within a rank; `avoid` is never picked.
+	"battleforce_preset": {
+		"name": {"type": "string"},
+		"prefer": {"type": "list:string"},
+		"avoid": {"type": "list:string"},
 	},
 	"scenario": {
 		"name": {"type": "string"},

@@ -48,6 +48,15 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Starting armies** come from the commander template's `army`.
   - **Trading:** two of a player's commanders on one hex, neither in a battle, trade squads during planning. A trade takes effect at once, within the receiver's cap. Trading with allies waits for campaigns.
   - **Hidden from enemies:** what a hostile army holds is never shown, even when its commander is in sight (R5Q9). Allies see each other's armies.
+- **Battleforces in play (sw-o1m.2.2):**
+  - **Caps:** the map's `battleforce` sets the most squads and the most total **strength**. Strength is a squad's Value scaled by its units alive.
+  - **Lead:** the commander's own squad leads the battleforce and counts toward the caps, unless the plan keeps it out (the drop-off case).
+  - **Auto-fill:** strongest first, adding every squad that still fits, so a weakened squad can still fill the last gap. A wiped-out squad never fights.
+  - **Archetype presets** (`battleforce_preset` data) rank squads by the first `prefer` feature they have and never pick an `avoid` one. A squad's features are its legend archetype, doctrine and keywords.
+  - **Player presets** are saved by name with the game. A player's own preset wins a name clash with a data preset.
+  - **Hand-picking:** a plan may list squads instead of using auto-fill, as long as they fit the caps.
+  - **Plans persist** across turns. When a commander is pulled into an engagement, its battleforce is picked from the plan and marked deployed there. Ending the engagement releases it.
+  - **Fog:** only the owner (and allies) learn what was deployed.
 
 ## 2.4 Battles
 ### Start and duration

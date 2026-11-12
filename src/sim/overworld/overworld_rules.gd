@@ -8,6 +8,7 @@ const INTERACTIONS: Array[String] = DataSchema.HEX_INTERACTIONS
 const PASSES: Array[String] = DataSchema.MAP_PASSES
 const DEFAULT_BASE_COST: int = 10
 const DEFAULT_ARMY_CAP: int = 6
+const DEFAULT_BATTLEFORCE_SQUADS: int = 4
 
 var errors: PackedStringArray = PackedStringArray()
 var map_id: String = ""
@@ -69,6 +70,14 @@ var base_cost: int = DEFAULT_BASE_COST
 var passes: Array[Dictionary] = []
 ## Starting commanders: {player, commander (index), plot}.
 var starts: Array[Dictionary] = []
+## Battleforce caps: squads, and total strength (0 = no limit).
+var bf_cap_squads: int = DEFAULT_BATTLEFORCE_SQUADS
+var bf_cap_value: int = 0
+
+# --- battleforce presets ---
+var preset_ids: PackedStringArray = PackedStringArray()
+var pr_prefer: Array[PackedStringArray] = []
+var pr_avoid: Array[PackedStringArray] = []
 
 
 static func compile(t: TemplateTable, map: String, hash_hex: String = "") -> OverworldRules:
@@ -122,7 +131,17 @@ func _compile(t: TemplateTable, map: String) -> void:
 		for m: Dictionary in v.get("members", []):
 			size += int(m.get("count", 1))
 		sq_size.append(size)
-		sq_tags.append(PackedStringArray(v.get("keywords", [])))
+		# Squad features presets sort on: legend archetype, doctrine, keywords.
+		var tags := PackedStringArray(v.get("keywords", []))
+		for k: String in ["legend_archetype", "doctrine"]:
+			if v.has(k):
+				tags.append(String(v[k]))
+		sq_tags.append(tags)
+	for tid in _of_kind(t, "battleforce_preset"):
+		var v := t.values_of(tid)
+		preset_ids.append(tid)
+		pr_prefer.append(PackedStringArray(v.get("prefer", [])))
+		pr_avoid.append(PackedStringArray(v.get("avoid", [])))
 	for tid in _of_kind(t, "hex_feature"):
 		_compile_feature(tid, t.values_of(tid))
 	for tid in feature_ids:
@@ -163,6 +182,9 @@ func _compile(t: TemplateTable, map: String) -> void:
 	var passes_in: Array = m["passes"]
 	for i in passes_in.size():
 		_compile_pass(i, passes_in[i])
+	var bf: Dictionary = m.get("battleforce", {})
+	bf_cap_squads = int(bf.get("squads", DEFAULT_BATTLEFORCE_SQUADS))
+	bf_cap_value = int(bf.get("value", 0))
 	var starts_in: Array = m.get("starts", [])
 	for i in starts_in.size():
 		var v: Dictionary = starts_in[i]

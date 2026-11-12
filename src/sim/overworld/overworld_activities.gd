@@ -95,5 +95,8 @@ static func _perform(s: OverworldState, row: int, fr: int, activity: String, opt
 				eid = s.engagements.spawn({&"plot": p, &"kinds": OverworldEngagements.ACTIVITY, &"turn": s.turn})
 				s.events.push(&"engagement_started", {"engagement": eid, "plot": p, "kinds": OverworldEngagements.ACTIVITY}, s.tick)
 			for other in Commanders.at(s, p):
+				if c.engagement[c.row_of(other)] == eid:
+					continue
 				c.set_value(other, &"engagement", eid)
 				s.events.push(&"commander_engaged", {"commander": other, "engagement": eid, "plot": p}, s.tick)
+				OverworldBattleforce.deploy(s, other, eid)

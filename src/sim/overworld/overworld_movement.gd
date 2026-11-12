@@ -113,6 +113,7 @@ static func _engages(s: OverworldState, cid: int, p: int) -> bool:
 		if c.engagement[orow] != eid:
 			c.set_value(other, &"engagement", eid)
 			s.events.push(&"commander_engaged", {"commander": other, "engagement": eid, "plot": p}, s.tick)
+			OverworldBattleforce.deploy(s, other, eid)
 	return true
 
 
@@ -146,6 +147,7 @@ static func end_engagement(s: OverworldState, eid: int) -> void:
 	var erow := s.engagements.row_of(eid)
 	if erow < 0:
 		return
+	OverworldBattleforce.release(s, eid)
 	var p := s.engagements.plot[erow]
 	s.engagements.despawn(eid)
 	s.events.push(&"engagement_ended", {"engagement": eid, "plot": p}, s.tick)

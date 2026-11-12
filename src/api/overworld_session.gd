@@ -4,8 +4,8 @@ extends RefCounted
 ## the human UI, AI controllers, the network layer, tests and the AI factory
 ## use. Mirrors BattleSession.
 ##
-## Inputs:   set_route, set_activity, transfer_squad (Planning only),
-##           ready, advance(ms).
+## Inputs:   set_route, set_activity, transfer_squad, set_battleforce
+##           (Planning only), save_preset, ready, advance(ms).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
 ##           cheapest affordable route as the player knows the map.
@@ -113,6 +113,27 @@ func set_activity(player: int, commander_id: int, activity: String, option: Stri
 		err = OverworldOrders.set_activity(state, player, commander_id, activity, option)
 	if err.is_empty():
 		_log(player, "activity", {"commander": commander_id, "activity": activity, "option": option})
+	return err
+
+
+## Sets a commander's battleforce plan: a preset name ("" = strongest) or
+## hand-picked squads, and whether the commander's own squad leads it.
+func set_battleforce(player: int, commander_id: int, preset: String, squads: PackedInt64Array = PackedInt64Array(), lead: bool = true) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = OverworldBattleforce.set_plan(state, player, commander_id, preset, squads, lead)
+	if err.is_empty():
+		_log(player, "battleforce", {"commander": commander_id, "preset": preset, "squads": squads.duplicate(), "lead": lead})
+	return err
+
+
+## Saves one of the player's own battleforce presets (any phase).
+func save_preset(player: int, name: String, prefer: PackedStringArray, avoid: PackedStringArray = PackedStringArray()) -> String:
+	if not _players.has(player):
+		return "unknown player"
+	var err := OverworldBattleforce.save_preset(state, player, name, prefer, avoid)
+	if err.is_empty():
+		_log(player, "preset", {"name": name, "prefer": prefer.duplicate(), "avoid": avoid.duplicate()})
 	return err
 
 
@@ -293,6 +314,10 @@ func replay_inputs(inputs: Array) -> void:
 				set_activity(i["player"], p["commander"], p["activity"], p.get("option", ""))
 			"transfer":
 				transfer_squad(i["player"], p["squad"], p["to"])
+			"battleforce":
+				set_battleforce(i["player"], p["commander"], p["preset"], p["squads"], p["lead"])
+			"preset":
+				save_preset(i["player"], p["name"], p["prefer"], p["avoid"])
 			"ready":
 				ready(i["player"])
 			"advance":
