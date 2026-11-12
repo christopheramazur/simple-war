@@ -87,6 +87,13 @@ data                  (immutable template tables from packages)
   - **Selecting another commander** inside a battle exits to that commander.
   - **Deselect-all** exits to the current battle's overworld location.
 - **Zoom transition:** zooming past a threshold with a battle hex in context transitions to that battle at the default zoom.
+- **In play (sw-ip8.2):** `ViewContexts` (presentation state, fed by `observe`) holds the focus (overworld or one battle), the followed and selected commander, the selected hex, zoom and the picture-in-picture views. The war room scene (`src/presentation/war_room/`, runs standalone on a demo with two battles) projects it. Mock: `Mocks/war_room.png`.
+  - **Battles shown:** only the player's own battles (an own commander or detachment fights there). The focused one fills the main view; up to 3 more sit in movable picture-in-picture views. Clicking a PiP swaps it with the focused battle, which takes its place.
+  - **Battles menu:** focus any battle, pin or unpin it, or exit to the overworld.
+  - **Keys:** Tab / Shift+Tab swap battles (Tab tabs in from the overworld, into the followed or selected commander's battle first), Esc exits, F follows the selected commander, Backspace or a right click deselects all, the mouse wheel zooms.
+  - **Zoom transition:** zooming in to 3x on the overworld enters the battle on the hex in context: the selected hex, else the selected commander's hex, else the camera's. The battle opens at 1x.
+  - **Battles ending:** a focused battle that ends exits as if by Esc; pinned ones close.
+  - **Selecting** a commander that fights in the focused battle stays in it; any other exits to that commander.
 
 ## 4.9 Tools (R8Q7, R8Q6)
 - **Now:** authoring tools are Godot editor plugins and data tools; `custom_graph_editor` is used for trigger and dialogue graphs. Angelfall is built with them.
