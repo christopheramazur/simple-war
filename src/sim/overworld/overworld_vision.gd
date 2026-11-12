@@ -1,10 +1,11 @@
 class_name OverworldVision
 extends RefCounted
 ## Fog of war on the overworld (GDD 02 §2.9, R8Q4).
-##   - Sight sources: commanders (cm_sight) and controlled features (hf_sight)
-##     see every plot within their radius in hexes. Every source sees its own
-##     plot. Convoys and detachments join with armies (sw-o1m.2). There is no
-##     line of sight on the overworld yet: terrain does not block.
+##   - Sight sources: commanders (cm_sight), controlled features (hf_sight)
+##     and detachments (the map's detachment_sight) see every plot within
+##     their radius in hexes. Every source sees its own plot. Convoys join
+##     with sw-o1m.2.5. There is no line of sight on the overworld yet:
+##     terrain does not block.
 ##   - Allies: a player sees what every non-hostile player's sources see.
 ##   - Memory: each player remembers, per explored plot, the features last
 ##     seen there and the turn it was seen (OverworldState.memory). Plots are
@@ -42,6 +43,15 @@ const _EVENT_FIELDS := {
 	&"squad_reinforced": [[], ["player"], []],
 	&"commander_defeated": [[], ["player"], ["plot"]],
 	&"commander_left_battle": [["commander"], ["player"], ["plot"]],
+	&"battleforce_dropped": [["commander"], ["player"], ["plot"]],
+	&"squad_picked_up": [["commander"], ["player"], ["plot"]],
+	&"detachment_disbanded": [[], ["player"], ["plot"]],
+}
+## Events a hostile player sees only through sight of the plot, reduced to
+## these keys: what forces hold is never shown to enemies (R5Q9).
+const _HOSTILE := {
+	&"battleforce_dropped": ["detachment", "player", "plot"],
+	&"squad_picked_up": ["detachment", "player", "plot"],
 }
 ## Events everyone sees, reduced to these keys without sight (battle tiles).
 const _PUBLIC := {
@@ -66,6 +76,10 @@ static func sight(s: OverworldState, player: int) -> PackedByteArray:
 		var owner := f.owner[row]
 		if owner > 0 and not s.hostile(player, owner):
 			_mark(s, out, f.plot[row], r.hf_sight[f.tmpl[row]])
+	var d := s.detachments
+	for row in d.count():
+		if not s.hostile(player, d.player[row]):
+			_mark(s, out, d.plot[row], r.detachment_sight)
 	return out
 
 
@@ -84,6 +98,8 @@ static func players(s: OverworldState) -> Array:
 	for row in f.count():
 		if f.owner[row] > 0:
 			seen[f.owner[row]] = true
+	for row in s.detachments.count():
+		seen[s.detachments.player[row]] = true
 	var out: Array = seen.keys()
 	out.sort()
 	return out
@@ -187,9 +203,11 @@ static func known_offering(s: OverworldState, player: int, p: int, activity: Str
 ##     engaged now) and
 ##     "battleforce_plan" for own ones;
 ##     what a hostile army holds is never shown (R5Q9);
+##   detachments in sight: [{"id", "player", "plot", "engagement"}], with
+##     "squads" (OverworldArmies.view) for own and allied ones only;
 ##   battles: every engagement {"engagement", "plot"}, plus "kinds" and
 ##     "since" (turn) when in sight;
-##   own routes, activities and offers.
+##   own routes, drop-offs, activities and offers.
 static func observe(s: OverworldState, player: int) -> Dictionary:
 	var mask := sight(s, player)
 	var mem: Dictionary = s.memory.get(player, {})
@@ -222,6 +240,14 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 			cmds.append(d)
 		if c.player[row] == player:
 			own[c.id_at(row)] = true
+	var d := s.detachments
+	var dets := []
+	for row in d.count():
+		if mask[d.plot[row]] == 1:
+			var x := {"id": d.id_at(row), "player": d.player[row], "plot": d.plot[row], "engagement": d.engagement[row]}
+			if not s.hostile(player, d.player[row]):
+				x["squads"] = Detachments.view(s, d.id_at(row))
+			dets.append(x)
 	var e := s.engagements
 	var battles := []
 	for row in e.count():
@@ -234,6 +260,10 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	for cid: int in s.routes:
 		if own.has(cid):
 			routes[cid] = (s.routes[cid] as PackedInt64Array).duplicate()
+	var drops := {}
+	for cid: int in s.drops:
+		if own.has(cid):
+			drops[cid] = (s.drops[cid] as Dictionary).duplicate()
 	var acts := {}
 	for cid: int in s.activities:
 		if own.has(cid):
@@ -243,7 +273,8 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 		if o["player"] == player:
 			offers.append(o.duplicate())
 	return {"turn": s.turn, "player": player, "value": s.value_of(player), "plots": plots,
-		"commanders": cmds, "battles": battles, "routes": routes, "activities": acts, "offers": offers,
+		"commanders": cmds, "detachments": dets, "battles": battles, "routes": routes, "drops": drops,
+		"activities": acts, "offers": offers,
 		"presets": (s.presets.get(player, {}) as Dictionary).duplicate(true)}
 
 
@@ -258,25 +289,32 @@ static func filter_events(s: OverworldState, player: int, events: Array[SimEvent
 	var out: Array[SimEvent] = []
 	for ev in events:
 		var spec: Array = _EVENT_FIELDS.get(ev.type, [[], [], []])
-		var shown := false
+		var allied := false
 		for k: String in spec[0]:
 			var row := s.commanders.row_of(int(ev.data.get(k, -1)))
-			shown = shown or (row >= 0 and not s.hostile(player, s.commanders.player[row]))
+			allied = allied or (row >= 0 and not s.hostile(player, s.commanders.player[row]))
 		for k: String in spec[1]:
 			var who := int(ev.data.get(k, 0))
-			shown = shown or (who > 0 and not s.hostile(player, who))
+			allied = allied or (who > 0 and not s.hostile(player, who))
+		var seen := false
 		for k: String in spec[2]:
 			var p := int(ev.data.get(k, -1))
-			shown = shown or (mem.has(p) and (mem[p] as PackedInt64Array)[0] == turn)
-		if shown:
+			seen = seen or (mem.has(p) and (mem[p] as PackedInt64Array)[0] == turn)
+		if allied or (seen and not _HOSTILE.has(ev.type)):
 			out.append(ev)
+		elif seen:
+			out.append(_redact(ev, _HOSTILE[ev.type]))
 		elif _PUBLIC.has(ev.type):
-			var data := {}
-			for k: String in _PUBLIC[ev.type]:
-				data[k] = ev.data[k]
-			var redacted := SimEvent.new(ev.type, data)
-			redacted.source = ev.source
-			redacted.seq = ev.seq
-			redacted.tick = ev.tick
-			out.append(redacted)
+			out.append(_redact(ev, _PUBLIC[ev.type]))
 	return out
+
+
+static func _redact(ev: SimEvent, keys: Array) -> SimEvent:
+	var data := {}
+	for k: String in keys:
+		data[k] = ev.data[k]
+	var redacted := SimEvent.new(ev.type, data)
+	redacted.source = ev.source
+	redacted.seq = ev.seq
+	redacted.tick = ev.tick
+	return redacted

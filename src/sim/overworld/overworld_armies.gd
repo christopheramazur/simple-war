@@ -67,16 +67,36 @@ static func refit(s: OverworldState, cid: int) -> int:
 	return n
 
 
-## Moves a squad to another commander's army (R7Q9). Checks are the caller's.
+## Moves a squad to another commander's army (R7Q9), out of its army or
+## detachment. Checks are the caller's.
 static func move(s: OverworldState, squad_id: int, to_cid: int) -> void:
 	s.squads.set_value(squad_id, &"holder", to_cid)
+	s.squads.set_value(squad_id, &"detachment", -1)
+
+
+## The player owning a squad, through its commander or detachment (0 if
+## neither exists).
+static func player_of(s: OverworldState, squad_id: int) -> int:
+	var q := s.squads
+	var row := q.row_of(squad_id)
+	if row < 0:
+		return 0
+	if q.detachment[row] >= 0:
+		var dr := s.detachments.row_of(q.detachment[row])
+		return s.detachments.player[dr] if dr >= 0 else 0
+	var cr := s.commanders.row_of(q.holder[row])
+	return s.commanders.player[cr] if cr >= 0 else 0
 
 
 ## The army as plain data: [{"id", "tmpl", "alive", "size", "own"}].
 static func view(s: OverworldState, cid: int) -> Array:
+	return view_ids(s, of(s, cid))
+
+
+static func view_ids(s: OverworldState, ids: PackedInt64Array) -> Array:
 	var q := s.squads
 	var out := []
-	for id in of(s, cid):
+	for id in ids:
 		var row := q.row_of(id)
 		out.append({"id": id, "tmpl": q.tmpl[row], "alive": q.alive[row], "size": q.size[row], "own": q.own[row] == 1})
 	return out

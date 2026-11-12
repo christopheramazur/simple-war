@@ -11,7 +11,13 @@ extends RefCounted
 ##   - holds a hostile commander at that moment, including one just about to
 ##     leave it: both stop and engage. Two commanders swapping hexes at the
 ##     same instant therefore meet. Full chase and intercept (R3Q22) is still
-##     to be specified.
+##     to be specified;
+##   - holds a hostile detachment (a garrison must be engaged first, R7Q8).
+## Drop-offs (R4Q13, R5Q9) are entries on the same timeline: after the
+## planned route step (or before moving), at that time plus the movement
+## cost of the hex 1 off the route if it is dropped there; later steps come
+## that much later. A commander in an engagement by then drops nothing. A
+## detachment dropped where it must fight starts or joins an engagement.
 ## Every commander on a hex where an engagement starts or is joined stops
 ## there. A commander that passes through or ends on an unguarded hex takes
 ## its controllable features (R6Q14, R7Q8).
@@ -24,30 +30,41 @@ const BANK_PCT: int = 50
 
 static func resolve(s: OverworldState) -> void:
 	var c := s.commanders
-	var steps := []        # [time, commander ID, step index]
+	# [time, commander ID, order]: order 2i+2 enters route step i, 2i+3 is
+	# a drop-off after step i, 1 a drop-off before moving.
+	var steps := []
 	var moving := {}       # commander ID -> still following its route
 	var last := {}         # commander ID -> index of its last reachable step
+	var at_step := {}      # commander ID -> index of the last step entered
 	var spent := {}        # commander ID -> points spent so far
 	var cut := {}          # commander ID -> stopped by an engagement
 	var ids: Array = s.routes.keys()
+	for cid: int in s.drops:
+		if not s.routes.has(cid):
+			ids.append(cid)
 	ids.sort()
 	for cid: int in ids:
 		var row := c.row_of(cid)
 		if row < 0 or c.engagement[row] >= 0:
 			continue
-		var route: PackedInt64Array = s.routes[cid]
+		var route: PackedInt64Array = s.routes.get(cid, PackedInt64Array())
+		var drop: Dictionary = s.drops.get(cid, {})
 		var budget := Commanders.budget(s, row)
 		var t := 0
 		var at := c.plot[row]
+		if int(drop.get("step", -2)) == -1:
+			t = _plan_drop(s, cid, at, drop, t, budget, 1, steps)
 		for i in route.size():
 			var cost := s.move_cost(route[i])
 			# Routes were valid when set; stop at a step that no longer is.
 			if cost < 0 or not Hex.adjacent(at, route[i], s.rules.width) or t + cost > budget:
 				break
 			t += cost
-			steps.append([t, cid, i])
+			steps.append([t, cid, 2 * i + 2])
 			last[cid] = i
 			at = route[i]
+			if int(drop.get("step", -2)) == i:
+				t = _plan_drop(s, cid, at, drop, t, budget, 2 * i + 3, steps)
 		moving[cid] = last.has(cid)
 		spent[cid] = 0
 	steps.sort_custom(func(a: Array, b: Array) -> bool:
@@ -58,24 +75,30 @@ static func resolve(s: OverworldState) -> void:
 		return a[2] < b[2])
 	for st: Array in steps:
 		var cid: int = st[1]
+		var order: int = st[2]
+		if order % 2 == 1:
+			var drop_at: int = s.drops[cid]["plot"]
+			var did := _drop(s, cid)
+			if did >= 0:
+				spent[cid] = st[0]
+				if _engages(s, s.detachments.get_value(did, &"player"), drop_at):
+					_stop_all(s, drop_at, moving, cut, last, at_step)
+			continue
 		if not moving.get(cid, false):
 			continue
-		var to: int = (s.routes[cid] as PackedInt64Array)[st[2]]
+		var i := (order - 2) / 2
+		var to: int = (s.routes[cid] as PackedInt64Array)[i]
 		var row := c.row_of(cid)
 		var from := c.plot[row]
 		c.set_value(cid, &"plot", to)
 		spent[cid] = st[0]
+		at_step[cid] = i
 		s.events.push(&"commander_moved", {"commander": cid, "from": from, "to": to}, s.tick)
-		if _engages(s, cid, to):
-			for other in Commanders.at(s, to):
-				if moving.get(other, false):
-					moving[other] = false
-					# Stopping on the route's last hex is arriving, not a cut plan.
-					if other != cid or st[2] < last[cid]:
-						cut[other] = true
+		if _engages(s, c.player[row], to):
+			_stop_all(s, to, moving, cut, last, at_step)
 		else:
 			arrive(s, row, to)
-			if st[2] == last[cid]:
+			if i == last[cid]:
 				moving[cid] = false  # route finished: being engaged later is not a cut plan
 		OverworldVision.glimpse(s, c.player[row], to, s.rules.cm_sight[c.tmpl[row]])
 	for row in c.count():
@@ -87,18 +110,59 @@ static func resolve(s: OverworldState) -> void:
 		c.set_value(cid, &"banked", bank)
 
 
-## Starts or joins an engagement if the commander must stop on plot p, and
-## pulls everyone on the hex into it. Returns whether it stopped.
-static func _engages(s: OverworldState, cid: int, p: int) -> bool:
+## Schedules a drop-off after time t at the commander's hex `at`: on it,
+## or on a passable hex next to it for that hex's movement cost, if the
+## budget allows. Returns the time after it.
+static func _plan_drop(s: OverworldState, cid: int, at: int, drop: Dictionary, t: int, budget: int, order: int, steps: Array) -> int:
+	var p: int = drop["plot"]
+	var cost := 0
+	if p != at:
+		cost = s.move_cost(p)
+		if cost < 0 or not Hex.adjacent(at, p, s.rules.width) or t + cost > budget:
+			return t
+	steps.append([t + cost, cid, order])
+	return t + cost
+
+
+## Performs a commander's planned drop-off unless it is held in an
+## engagement. Returns the detachment ID or -1.
+static func _drop(s: OverworldState, cid: int) -> int:
+	var row := s.commanders.row_of(cid)
+	if row < 0 or s.commanders.engagement[row] >= 0:
+		return -1
+	var p: int = s.drops[cid]["plot"]
+	var did := Detachments.drop(s, cid, p)
+	if did >= 0:
+		OverworldVision.glimpse(s, s.commanders.player[row], p, s.rules.detachment_sight)
+	return did
+
+
+## Everyone moving on plot p stops there. Stopping on the route's last hex
+## is arriving, not a cut plan.
+static func _stop_all(s: OverworldState, p: int, moving: Dictionary, cut: Dictionary, last: Dictionary, at_step: Dictionary) -> void:
+	for other in Commanders.at(s, p):
+		if moving.get(other, false):
+			moving[other] = false
+			if int(at_step.get(other, -1)) < int(last[other]):
+				cut[other] = true
+
+
+## Starts or joins an engagement if forces of `player` arriving on plot p
+## must fight there, and pulls every commander and detachment on the hex
+## into it. Returns whether there is one now.
+static func _engages(s: OverworldState, player: int, p: int) -> bool:
 	var c := s.commanders
-	var player := c.player[c.row_of(cid)]
 	var kinds := 0
 	if not s.guard_at(p).is_empty():
 		kinds |= OverworldEngagements.GUARD
 	var here := Commanders.at(s, p)
 	for other in here:
-		if other != cid and s.hostile(player, c.player[c.row_of(other)]):
+		if s.hostile(player, c.player[c.row_of(other)]):
 			kinds |= OverworldEngagements.COMMANDERS
+	var held := Detachments.at(s, p)
+	for did in held:
+		if s.hostile(player, s.detachments.get_value(did, &"player")):
+			kinds |= OverworldEngagements.DETACHMENTS
 	var eid := s.engagement_at(p)
 	if eid < 0 and kinds == 0:
 		return false
@@ -114,6 +178,9 @@ static func _engages(s: OverworldState, cid: int, p: int) -> bool:
 			c.set_value(other, &"engagement", eid)
 			s.events.push(&"commander_engaged", {"commander": other, "engagement": eid, "plot": p}, s.tick)
 			OverworldBattleforce.deploy(s, other, eid)
+	for did in held:
+		if s.detachments.get_value(did, &"engagement") != eid:
+			Detachments.deploy(s, did, eid)
 	return true
 
 
@@ -144,6 +211,10 @@ static func end_engagement(s: OverworldState, eid: int) -> void:
 	for row in c.count():
 		if c.engagement[row] == eid:
 			c.set_value(c.id_at(row), &"engagement", -1)
+	var d := s.detachments
+	for row in d.count():
+		if d.engagement[row] == eid:
+			d.set_value(d.id_at(row), &"engagement", -1)
 	var erow := s.engagements.row_of(eid)
 	if erow < 0:
 		return

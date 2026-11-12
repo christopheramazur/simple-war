@@ -43,6 +43,7 @@ data                  (immutable template tables from packages)
   - **Inputs:** `set_route` and `set_activity` (Planning only), `ready`, `advance(ms)`.
   - **Queries:** `observe` (fog-filtered, with last turn's visible events) and `path` (the cheapest affordable route as the player knows the map).
   - **Clock:** it runs on the shared PulseClock without a reaction window.
+  - **Drop-offs:** `set_drop_off(player, commander, step, plot)` plans one; `transfer_squad` also picks squads up from a detachment. `observe` lists detachments in sight (their squads only for allies) and the player's planned drop-offs.
   - **Battles:** every engagement's battle runs in the same session, one battle turn per overworld turn. The inputs are `submit_battle_orders`, `reinforce` and `leave_battle`. `observe_battle` shows a battle to the players fighting in it. The turn hash combines the overworld's and every battle's.
   - **Records:** every input is logged, and the state hash after every turn is kept. `rebuild` replays a save from its inputs and names the first turn whose hash differs.
   - **Headless play:** `HeadlessOverworld` plays turns with any controllers. `ExpandController` is the first rule-based profile: it takes features and caches, converts ore it can afford, and explores.

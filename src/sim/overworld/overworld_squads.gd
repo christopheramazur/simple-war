@@ -1,10 +1,13 @@
 class_name OverworldSquads
 extends SoaTable
 ## One row per squad held on the overworld (GDD 02 §2.3): commanders'
-## armies now; detachments and convoys (sw-o1m.2.4, .5) hold squads too.
-## Written only through OverworldArmies.
+## armies and detachments (convoys come with sw-o1m.2.5). A squad has either
+## a holder or a detachment, the other -1. Written only through
+## OverworldArmies and Detachments.
 
-var holder := PackedInt64Array()   ## commander ID holding the squad
+var holder := PackedInt64Array()   ## commander ID holding the squad, -1 = none
+## Detachment holding the squad, -1 = none.
+var detachment := PackedInt64Array()
 var tmpl := PackedInt64Array()     ## OverworldRules squad index
 var alive := PackedInt64Array()    ## units alive
 var size := PackedInt64Array()     ## units at full strength
@@ -19,3 +22,4 @@ func _init() -> void:
 	for c: StringName in [&"holder", &"tmpl", &"alive", &"size", &"own"]:
 		declare(c, 0)
 	declare(&"deployed", -1)
+	declare(&"detachment", -1)

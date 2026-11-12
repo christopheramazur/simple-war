@@ -9,6 +9,7 @@ const PASSES: Array[String] = DataSchema.MAP_PASSES
 const DEFAULT_BASE_COST: int = 10
 const DEFAULT_ARMY_CAP: int = 6
 const DEFAULT_BATTLEFORCE_SQUADS: int = 4
+const DEFAULT_DETACHMENT_SIGHT: int = 1
 
 var errors: PackedStringArray = PackedStringArray()
 var map_id: String = ""
@@ -77,6 +78,8 @@ var bf_cap_squads: int = DEFAULT_BATTLEFORCE_SQUADS
 var bf_cap_value: int = 0
 ## Scenario ID engagements are fought on by default.
 var battle_scenario: String = ""
+## Sight radius of a detachment, in hexes.
+var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
 
 # --- battleforce presets ---
 var preset_ids: PackedStringArray = PackedStringArray()
@@ -190,6 +193,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 	bf_cap_squads = int(bf.get("squads", DEFAULT_BATTLEFORCE_SQUADS))
 	bf_cap_value = int(bf.get("value", 0))
 	battle_scenario = String(m.get("battle_scenario", ""))
+	detachment_sight = int(m.get("detachment_sight", DEFAULT_DETACHMENT_SIGHT))
 	var starts_in: Array = m.get("starts", [])
 	for i in starts_in.size():
 		var v: Dictionary = starts_in[i]

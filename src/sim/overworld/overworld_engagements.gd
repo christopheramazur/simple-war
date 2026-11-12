@@ -8,9 +8,10 @@ extends SoaTable
 const GUARD: int = 1       ## a neutral guard on the hex fights
 const COMMANDERS: int = 2  ## hostile commanders met
 const ACTIVITY: int = 4    ## a commander-led battle activity (R4Q12)
+const DETACHMENTS: int = 8 ## a hostile detachment met (R5Q9)
 
 var plot := PackedInt64Array()
-var kinds := PackedInt64Array()   ## GUARD | COMMANDERS bits
+var kinds := PackedInt64Array()   ## GUARD | COMMANDERS | ACTIVITY | DETACHMENTS bits
 var turn := PackedInt64Array()    ## overworld turn it began
 
 

@@ -12,8 +12,9 @@ extends RefCounted
 ## deployment area before the next battle turn.
 ## Finishing: survivors carry their units alive back to their armies; the
 ## destroyed and the scattered are gone. A commander whose own squad is gone
-## is defeated, and the rest of its army scatters. A win over guards clears
-## them for good. The engagement ends, and winners on the hex take its
+## is defeated, and the rest of its army scatters. A detachment on the
+## losing side of a decided battle scatters; one with no squads left is
+## gone. A win over guards clears them for good. The engagement ends, and winners on the hex take its
 ## features and caches. An engagement with only one side is won unopposed.
 
 ## Battle player ID of neutral guards.
@@ -88,12 +89,12 @@ static func _side(areas: Array, i: int, player: int, squads: PackedInt64Array, a
 		"squads": squads, "alive": alive}
 
 
-## Overworld squads deployed in eid, by owning player (holder's player).
+## Overworld squads deployed in eid, by owning player (through their
+## commander or detachment).
 static func _groups(s: OverworldState, eid: int) -> Dictionary:
 	var out := {}
 	for id in OverworldBattleforce.deployed_in(s, eid):
-		var holder := s.squads.get_value(id, &"holder")
-		var pl := s.commanders.get_value(holder, &"player")
+		var pl := OverworldArmies.player_of(s, id)
 		if not out.has(pl):
 			out[pl] = []
 		(out[pl] as Array).append(id)
@@ -109,7 +110,7 @@ static func reinforce(s: OverworldState, b: OverworldBattle) -> void:
 	for id in OverworldBattleforce.deployed_in(s, b.engagement):
 		if linked.has(id):
 			continue
-		var pl := s.commanders.get_value(s.squads.get_value(id, &"holder"), &"player")
+		var pl := OverworldArmies.player_of(s, id)
 		var side := {}
 		for sd in b.rules.sides:
 			if sd["player"] == pl:
@@ -141,7 +142,7 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 			s.squads.despawn(id)
 		else:
 			s.squads.set_value(id, &"alive", bq.alive[row])
-	_end(s, b.engagement, b.plot, 0 if winner == NEUTRAL else winner, String(res["reason"]))
+	_end(s, b.engagement, b.plot, 0 if winner == NEUTRAL else winner, String(res["reason"]), winner != 0)
 
 
 ## Ends an engagement nobody opposes: its one side wins.
@@ -156,10 +157,12 @@ static func finish_unopposed(s: OverworldState, eid: int) -> void:
 		for cid in Commanders.at(s, p):
 			if s.commanders.get_value(cid, &"engagement") == eid:
 				winner = s.commanders.get_value(cid, &"player")
-	_end(s, eid, p, winner, "unopposed")
+	_end(s, eid, p, winner, "unopposed", winner > 0)
 
 
-static func _end(s: OverworldState, eid: int, p: int, winner: int, reason: String) -> void:
+## Ends engagement eid on plot p. `winner` is the winning player (0 =
+## neutral guards or nobody); `decided` is false for a draw.
+static func _end(s: OverworldState, eid: int, p: int, winner: int, reason: String, decided: bool) -> void:
 	var c := s.commanders
 	var engaged := []
 	for row in c.count():
@@ -168,6 +171,17 @@ static func _end(s: OverworldState, eid: int, p: int, winner: int, reason: Strin
 	engaged.sort()
 	for cid: int in engaged:
 		_check_defeat(s, cid)
+	var d := s.detachments
+	var held := []
+	for row in d.count():
+		if d.engagement[row] == eid:
+			held.append(d.id_at(row))
+	held.sort()
+	for did: int in held:
+		if Detachments.squads_of(s, did).is_empty():
+			Detachments.disband(s, did, "destroyed")
+		elif decided and (winner == 0 or s.hostile(winner, d.get_value(did, &"player"))):
+			Detachments.disband(s, did, "defeated")
 	if winner > 0 and (s.engagements.get_value(eid, &"kinds") & OverworldEngagements.GUARD) != 0:
 		for row in s.features_at(p):
 			if not s.rules.hf_guard[s.features.tmpl[row]].is_empty() and s.features.cleared[row] == 0:

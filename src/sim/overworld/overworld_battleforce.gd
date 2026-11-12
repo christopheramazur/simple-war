@@ -47,7 +47,8 @@ static func preset(s: OverworldState, player: int, name: String) -> Dictionary:
 
 
 ## The squads that would fight if the commander were engaged now, in order.
-static func pick(s: OverworldState, cid: int) -> PackedInt64Array:
+## `drop` keeps the commander's own squad out (a drop-off).
+static func pick(s: OverworldState, cid: int, drop: bool = false) -> PackedInt64Array:
 	var q := s.squads
 	var r := s.rules
 	var c := s.commanders
@@ -61,7 +62,7 @@ static func pick(s: OverworldState, cid: int) -> PackedInt64Array:
 		if q.alive[row] <= 0 or q.deployed[row] >= 0:
 			continue
 		if q.own[row] == 1:
-			if plan["lead"]:
+			if plan["lead"] and not drop:
 				out.append(id)
 				total += strength(s, row)
 			continue

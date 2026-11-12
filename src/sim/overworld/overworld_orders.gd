@@ -13,6 +13,11 @@ static func set_route(s: OverworldState, player: int, commander_id: int, plots: 
 			s.routes.erase(commander_id)
 		else:
 			s.routes[commander_id] = plots.duplicate()
+		# A planned drop-off the new route no longer allows is dropped.
+		if s.drops.has(commander_id):
+			var d: Dictionary = s.drops[commander_id]
+			if not validate_drop_off(s, player, commander_id, d["step"], d["plot"]).is_empty():
+				s.drops.erase(commander_id)
 	return err
 
 
@@ -66,17 +71,21 @@ static func set_activity(s: OverworldState, player: int, commander_id: int, acti
 
 
 ## Friendly commanders sharing a hex trade squads freely during planning
-## (R7Q9). Takes effect at once. Returns "" or why it was refused.
+## (R7Q9), and a commander picks up squads from the player's detachment on
+## its hex. Takes effect at once. Returns "" or why it was refused.
 static func transfer_squad(s: OverworldState, player: int, squad_id: int, to_commander: int) -> String:
 	var q := s.squads
 	var row := q.row_of(squad_id)
 	if row < 0:
 		return "no such squad"
 	var c := s.commanders
+	var d := s.detachments
 	var from := q.holder[row]
+	var did := q.detachment[row]
 	var fr := c.row_of(from)
+	var dr := d.row_of(did) if did >= 0 else -1
 	var tr := c.row_of(to_commander)
-	if fr < 0 or c.player[fr] != player:
+	if (fr < 0 or c.player[fr] != player) and (dr < 0 or d.player[dr] != player):
 		return "not your squad"
 	if tr < 0:
 		return "no such commander"
@@ -86,14 +95,76 @@ static func transfer_squad(s: OverworldState, player: int, squad_id: int, to_com
 		return "already in that army"
 	if q.own[row] == 1:
 		return "a commander's own squad stays with it"
-	if c.plot[fr] != c.plot[tr]:
-		return "the commanders must share a hex"
-	if c.engagement[fr] >= 0 or c.engagement[tr] >= 0:
-		return "a commander in a battle cannot trade"
+	var from_plot := d.plot[dr] if dr >= 0 else c.plot[fr]
+	if from_plot != c.plot[tr]:
+		return "the commanders must share a hex" if dr < 0 else "the commander must be on the detachment's hex"
+	var from_engaged := d.engagement[dr] >= 0 if dr >= 0 else c.engagement[fr] >= 0
+	if from_engaged or c.engagement[tr] >= 0:
+		return "a commander in a battle cannot trade" if dr < 0 else "a detachment in a battle cannot be picked up"
 	if OverworldArmies.count(s, to_commander) >= OverworldArmies.cap(s, to_commander):
 		return "the receiving army is full (%d squads)" % OverworldArmies.cap(s, to_commander)
 	OverworldArmies.move(s, squad_id, to_commander)
-	s.events.push(&"squad_transferred", {"squad": squad_id, "from": from, "to": to_commander, "player": player}, s.tick)
+	if dr >= 0:
+		s.events.push(&"squad_picked_up", {"squad": squad_id, "detachment": did, "commander": to_commander,
+			"player": player, "plot": from_plot}, s.tick)
+		if Detachments.squads_of(s, did).is_empty():
+			Detachments.disband(s, did, "picked_up")
+	else:
+		s.events.push(&"squad_transferred", {"squad": squad_id, "from": from, "to": to_commander, "player": player}, s.tick)
+	return ""
+
+
+## Plans a drop-off (R4Q13, R5Q9): after entering route step `step` (-1 =
+## before moving), the commander drops its battleforce, planned with its
+## own squad kept out, on that hex or on one next to it. A hex off the route
+## costs its movement cost, so the route's later steps must still fit the
+## budget. `plot` -1 clears it. Returns "" or why it was refused.
+static func set_drop_off(s: OverworldState, player: int, commander_id: int, step: int, plot: int) -> String:
+	if plot < 0:
+		var row := s.commanders.row_of(commander_id)
+		if row < 0:
+			return "no such commander"
+		if s.commanders.player[row] != player:
+			return "not your commander"
+		s.drops.erase(commander_id)
+		return ""
+	var err := validate_drop_off(s, player, commander_id, step, plot)
+	if err.is_empty():
+		s.drops[commander_id] = {"step": step, "plot": plot}
+	return err
+
+
+static func validate_drop_off(s: OverworldState, player: int, commander_id: int, step: int, plot: int) -> String:
+	var c := s.commanders
+	var row := c.row_of(commander_id)
+	if row < 0:
+		return "no such commander"
+	if c.player[row] != player:
+		return "not your commander"
+	if c.engagement[row] >= 0:
+		return "is in a battle"
+	var route: PackedInt64Array = s.routes.get(commander_id, PackedInt64Array())
+	if step < -1 or step >= route.size():
+		return "step %d is not on the route" % (step + 1)
+	var at := c.plot[row] if step < 0 else route[step]
+	var costs := OverworldVision.known_costs(s, player)
+	var extra := 0
+	if plot != at:
+		if plot >= s.rules.plot_count() or not Hex.adjacent(at, plot, s.rules.width):
+			return "a battleforce is dropped on the route or 1 hex off it"
+		extra = costs[plot]
+		if extra < 0:
+			return "that hex is impassable"
+	if s.engagement_at(plot) >= 0:
+		return "a battleforce cannot be dropped onto a battle"
+	if OverworldBattleforce.pick(s, commander_id, true).is_empty():
+		return "the battleforce has no squads to drop off (the commander's own squad stays)"
+	var spent := extra
+	for p in route:
+		spent += costs[p]
+	var budget := Commanders.budget(s, row)
+	if spent > budget:
+		return "needs %d movement points, has %d" % [spent, budget]
 	return ""
 
 

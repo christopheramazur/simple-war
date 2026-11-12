@@ -4,7 +4,8 @@ extends RefCounted
 ## the human UI, AI controllers, the network layer, tests and the AI factory
 ## use. Mirrors BattleSession.
 ##
-## Inputs:   set_route, set_activity, transfer_squad, set_battleforce
+## Inputs:   set_route, set_drop_off, set_activity, transfer_squad (also picks up
+##           from a detachment), set_battleforce
 ##           (Planning only), save_preset, ready, advance(ms).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
@@ -116,6 +117,18 @@ func set_route(player: int, commander_id: int, plots: PackedInt64Array) -> Strin
 		err = OverworldOrders.set_route(state, player, commander_id, plots)
 	if err.is_empty():
 		_log(player, "route", {"commander": commander_id, "plots": plots.duplicate()})
+	return err
+
+
+## Plans (or, with plot -1, clears) a commander's drop-off: after route step
+## `step` (-1 = before moving), its battleforce without its own squad is
+## dropped on that hex or one next to it. "" or why not.
+func set_drop_off(player: int, commander_id: int, step: int, plot: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = OverworldOrders.set_drop_off(state, player, commander_id, step, plot)
+	if err.is_empty():
+		_log(player, "drop", {"commander": commander_id, "step": step, "plot": plot})
 	return err
 
 
@@ -483,6 +496,8 @@ func replay_inputs(inputs: Array) -> void:
 				set_route(i["player"], p["commander"], p["plots"])
 			"activity":
 				set_activity(i["player"], p["commander"], p["activity"], p.get("option", ""))
+			"drop":
+				set_drop_off(i["player"], p["commander"], p["step"], p["plot"])
 			"transfer":
 				transfer_squad(i["player"], p["squad"], p["to"])
 			"battleforce":

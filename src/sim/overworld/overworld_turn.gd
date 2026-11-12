@@ -16,6 +16,7 @@ static func resolve(s: OverworldState) -> Array[SimEvent]:
 	OverworldVision.update(s)
 	OverworldMovement.resolve(s)
 	s.routes = {}
+	s.drops = {}
 	OverworldActivities.resolve(s)
 	s.activities = {}
 	produce(s)

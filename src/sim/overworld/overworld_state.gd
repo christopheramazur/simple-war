@@ -8,6 +8,7 @@ var features: OverworldFeatures
 var commanders: OverworldCommanders
 var engagements: OverworldEngagements
 var squads: OverworldSquads
+var detachments: OverworldDetachments
 ## Turns resolved so far.
 var turn: int = 0
 ## Planned routes: commander ID -> plots to enter, in order (start excluded).
@@ -16,6 +17,9 @@ var routes: Dictionary = {}
 ## Planned activities: commander ID -> {"activity": String, "plot": int}.
 ## Set during planning; performed if the commander ends the turn there.
 var activities: Dictionary = {}
+## Planned drop-offs (R4Q13): commander ID -> {"step" (route index the
+## drop follows, -1 = before moving), "plot"}. Cleared when the turn resolves.
+var drops: Dictionary = {}
 ## Value per player, the sole resource (R5Q11).
 var value: Dictionary = {}
 ## Uncertain-outcome interactions presented this turn (R6Q14): [{"plot",
@@ -45,10 +49,12 @@ func _init(context_id: int, overworld_rules: OverworldRules, seed_value: int = 0
 	commanders = OverworldCommanders.new()
 	engagements = OverworldEngagements.new()
 	squads = OverworldSquads.new()
+	detachments = OverworldDetachments.new()
 	add_table(features)
 	add_table(commanders)
 	add_table(engagements)
 	add_table(squads)
+	add_table(detachments)
 
 
 ## A new overworld with its map generated from the seed.
@@ -169,7 +175,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 	var r := {}
 	for cid: int in routes:
 		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
-	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true),
+	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true), "drops": drops.duplicate(true),
 		"value": value.duplicate(), "offers": offers.duplicate(true),
 		"memory": memory.duplicate(true), "teams": teams.duplicate(),
 		"battleforces": battleforces.duplicate(true), "presets": presets.duplicate(true)}
@@ -182,6 +188,7 @@ func _restore_extra(snap: Dictionary) -> void:
 	for cid: int in r:
 		routes[cid] = (r[cid] as PackedInt64Array).duplicate()
 	activities = (snap["overworld"].get("activities", {}) as Dictionary).duplicate(true)
+	drops = (snap["overworld"].get("drops", {}) as Dictionary).duplicate(true)
 	value = (snap["overworld"].get("value", {}) as Dictionary).duplicate()
 	offers.assign((snap["overworld"].get("offers", []) as Array).duplicate(true))
 	memory = (snap["overworld"].get("memory", {}) as Dictionary).duplicate(true)
@@ -206,6 +213,10 @@ func state_hash() -> PackedByteArray:
 	ids.sort()
 	for cid: int in ids:
 		text += "A%d:%s:%s@%d;" % [cid, activities[cid]["activity"], activities[cid].get("option", ""), activities[cid]["plot"]]
+	ids = drops.keys()
+	ids.sort()
+	for cid: int in ids:
+		text += "D%d:%d@%d;" % [cid, drops[cid]["step"], drops[cid]["plot"]]
 	var players: Array = value.keys()
 	players.sort()
 	for p: int in players:

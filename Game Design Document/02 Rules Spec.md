@@ -57,6 +57,16 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Hand-picking:** a plan may list squads instead of using auto-fill, as long as they fit the caps.
   - **Plans persist** across turns. When a commander is pulled into an engagement, its battleforce is picked from the plan and marked deployed there. Ending the engagement releases it.
   - **Fog:** only the owner (and allies) learn what was deployed.
+- **Drop-offs and detachments in play (sw-o1m.2.4):**
+  - **Planning:** a commander plans one drop-off a turn: after a route step (or before moving), on that hex or 1 hex off the route. Off the route, it costs that hex's movement cost, and the route's later steps must still fit the budget. Shortening the route past the drop-off cancels it. A battle tile takes no drop-offs.
+  - **What drops:** the battleforce as planned, with the commander's own squad kept out. A commander with nothing else to drop can't plan one.
+  - **Timing:** the drop-off happens on the movement timeline, and later steps come that much later. A commander pulled into an engagement before then drops nothing.
+  - **Detachment:** the dropped squads leave the army and hold the hex without a commander. A second drop-off by the same player there joins the same detachment. Detachments don't move (convoys come with sw-o1m.2.5).
+  - **Garrison:** a detachment never takes features (only commanders flip control, R7Q8). A hostile commander entering its hex stops and engages it first.
+  - **Fighting:** a detachment dropped onto guards, or meeting hostile forces, is pulled into the engagement. Its strongest squads fight, within the battleforce caps. The commander that dropped it stays free.
+  - **Results:** survivors stay on the hex. A detachment on the losing side of a decided battle scatters, and one with no squads left is gone. Draws leave it.
+  - **Pick-up:** during planning, a commander of the same player on the hex takes squads back into its army, within its cap. An emptied detachment is gone.
+  - **Fog:** a detachment is a sight source (`detachment_sight`). Enemies in sight see that it is there, but never what it holds.
 
 ## 2.4 Battles
 ### Start and duration
@@ -271,7 +281,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Memory:** explored hexes keep their last-seen state.
   - **Battle hexes:** their contents are hidden without sight.
   - **In play (sw-o1m.1.4):**
-    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't.
+    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't. Detachments are sources too (sw-o1m.2.4).
     - **Memory** records each explored hex's features (and owners) and the turn they were last seen. It's recorded at the start and end of every turn and around every hex a commander enters, so hexes glimpsed on the way are explored too. Commanders are never remembered, only seen.
     - **Battle tiles are public:** every player knows where battles are, because a route onto one ends there. What's in a battle (who and why) needs sight.
     - **Orders use what the player knows.** Pathfinding, route costs and planned activities see unexplored hexes as open ground and explored ones as last seen. Movement uses the truth, so a route into an unseen lake stops at its shore without banking.

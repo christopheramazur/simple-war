@@ -397,6 +397,8 @@ const KINDS: Dictionary = {
 		## The battlefield engagements are fought on by default: terrain,
 		## zones, victory, and two deployment areas the sides are given.
 		"battle_scenario": {"type": "ref:scenario"},
+		## Sight radius of a detachment (dropped-off squads), in hexes.
+		"detachment_sight": {"type": "int", "min": 0},
 	},
 	## An archetype preset for battleforce auto-fill (R2Q1): squads with a
 	## feature (legend archetype, doctrine or keyword) earlier in `prefer`
