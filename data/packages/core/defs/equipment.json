@@ -77,6 +77,23 @@
 			"activation": {"ready_s": 3, "readying_prowess_per_s": 2, "lose_on": ["move", "damaged"], "cooldown_s": 10}}},
 		{"id": "dug_in", "kind": "bundle", "values": {
 			"name": "Dug in", "tags": ["buff"], "duration": {"turns": 2},
-			"effects": [{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": 15}]}}
+			"effects": [{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": 15}]}},
+
+		{"id": "camo_netting_cover", "kind": "bundle", "values": {
+			"name": "Camo netting", "tags": ["buff"],
+			"effects": [{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": 5}]}},
+
+		{"id": "lmg_kit", "kind": "item", "values": {
+			"name": "Light machine gun", "icon": "weapon_lmg", "tags": ["weapon", "heavy"], "value": 30,
+			"weapon": "lmg", "fits": ["humanity"]}},
+		{"id": "marksman_rifle_kit", "kind": "item", "values": {
+			"name": "Marksman rifle", "icon": "weapon_rifle", "tags": ["weapon", "precision"], "value": 25,
+			"weapon": "marksman_rifle", "fits": ["humanity"]}},
+		{"id": "carapace_plates", "kind": "item", "values": {
+			"name": "Carapace plates", "icon": "armour", "tags": ["armour"], "value": 20,
+			"defense": "carapace", "fits": ["humanity"]}},
+		{"id": "camo_netting", "kind": "item", "values": {
+			"name": "Camo netting", "icon": "kit", "tags": ["kit"], "value": 10,
+			"text": "Harder to hit.", "bundles": ["camo_netting_cover"]}}
 	]
 }

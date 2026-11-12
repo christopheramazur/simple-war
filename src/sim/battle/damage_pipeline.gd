@@ -17,7 +17,7 @@ const RESIST_STATS: Array[StringName] = [&"defense.resist_pct.kinetic", &"defens
 static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_pct: int) -> Dictionary:
 	var r := state.rules
 	var u := state.units
-	var prof := r.ut_defense[u.tmpl[row]]
+	var prof := u.defense[row]
 	var nt := BattleRules.DAMAGE_TYPES.size()
 	var out := {"evaded": false, "blocked": 0, "resisted": 0, "flat": 0, "percent": 0,
 		"floored": 0, "to_temp": 0, "to_hp": 0, "absorbed": 0, "killed": false, "terms": []}

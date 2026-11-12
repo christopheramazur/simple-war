@@ -116,6 +116,9 @@ var ut_hp: PackedInt64Array = PackedInt64Array()
 var ut_defense: PackedInt64Array = PackedInt64Array()
 var ut_movement: PackedInt64Array = PackedInt64Array()
 var ut_weapon: PackedInt64Array = PackedInt64Array()
+## Template ID -> index, for gear that overrides a unit's (War Chest items).
+var weapon_index: Dictionary = {}
+var defense_index: Dictionary = {}
 var ut_proficiency: PackedInt64Array = PackedInt64Array()
 var ut_leader: PackedByteArray = PackedByteArray()
 
@@ -307,6 +310,8 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	var mv_index := _compile_movement(t, by_kind.get("movement", PackedStringArray()))
 	var df_index := _compile_defense(t, by_kind.get("defense", PackedStringArray()))
 	var wp_index := _compile_weapons(t, by_kind.get("weapon", PackedStringArray()))
+	weapon_index = wp_index
+	defense_index = df_index
 	var ab_index := _compile_abilities(t, by_kind.get("ability", PackedStringArray()))
 	var ut_index := _compile_units(t, by_kind.get("unit", PackedStringArray()), mv_index, df_index, wp_index)
 	_compile_squads(t, by_kind.get("squad", PackedStringArray()), ut_index, ab_index)

@@ -44,7 +44,7 @@ func _engage(state: BattleState, row: int) -> void:
 	var chosen := -1
 	if sq.is_active(row) and sq.alive[row] > 0 and not (sq.order[row] in [BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW]):
 		var me := sq.player[row]
-		var reach := r.squad_range(sq.tmpl[row])
+		var reach := sq.reach[row]
 		if sq.order[row] == BattleSquads.Order.ATTACK:
 			var trow := sq.row_of(sq.target[row])
 			if trow >= 0 and sq.is_active(trow) and sq.seen_by[trow] & BattleSquads.bit(me) != 0 \
@@ -98,7 +98,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 	for urow in Centroids.units_of(state, row):
 		if u.hp[urow] <= 0:
 			continue
-		var w := r.ut_weapon[u.tmpl[urow]]
+		var w := u.weapon[urow]
 		if w < 0:
 			continue
 		if _tick_timers(u, urow, r):
@@ -170,7 +170,7 @@ func _tick_timers(u: BattleUnits, urow: int, r: BattleRules) -> bool:
 		u.put_column(&"reload", rl)
 		if done:
 			var ammo: PackedInt64Array = u.take_column(&"ammo")
-			ammo[urow] = r.wp_magazine[r.ut_weapon[u.tmpl[urow]]]
+			ammo[urow] = r.wp_magazine[u.weapon[urow]]
 			u.put_column(&"ammo", ammo)
 		return true
 	if u.cooldown[urow] > 0:

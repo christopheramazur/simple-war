@@ -88,7 +88,8 @@ static func player_of(s: OverworldState, squad_id: int) -> int:
 	return s.commanders.player[cr] if cr >= 0 else 0
 
 
-## The army as plain data: [{"id", "tmpl", "alive", "size", "own"}].
+## The army as plain data: [{"id", "tmpl", "alive", "size", "own",
+## "items"}], "items" being what each squad has equipped (WarChest.view).
 static func view(s: OverworldState, cid: int) -> Array:
 	return view_ids(s, of(s, cid))
 
@@ -98,5 +99,6 @@ static func view_ids(s: OverworldState, ids: PackedInt64Array) -> Array:
 	var out := []
 	for id in ids:
 		var row := q.row_of(id)
-		out.append({"id": id, "tmpl": q.tmpl[row], "alive": q.alive[row], "size": q.size[row], "own": q.own[row] == 1})
+		out.append({"id": id, "tmpl": q.tmpl[row], "alive": q.alive[row], "size": q.size[row], "own": q.own[row] == 1,
+			"items": WarChest.view(s, WarChest.on_squad(s, id))})
 	return out

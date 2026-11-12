@@ -11,6 +11,12 @@ const DEFAULT_ARMY_CAP: int = 6
 const DEFAULT_BATTLEFORCE_SQUADS: int = 4
 const DEFAULT_DETACHMENT_SIGHT: int = 1
 const DEFAULT_CONVOY_MOVEMENT: int = 40
+## Item slots: a unit carries at most one item per slot.
+const SLOT_WEAPON: int = 0
+const SLOT_DEFENSE: int = 1
+const SLOT_KIT: int = 2
+## Values per production option in hf_produces.
+const PRODUCTION_STRIDE: int = 5
 
 var errors: PackedStringArray = PackedStringArray()
 var map_id: String = ""
@@ -30,6 +36,8 @@ var hf_interaction: PackedInt64Array = PackedInt64Array()
 var hf_activities: PackedInt64Array = PackedInt64Array()
 var hf_value_per_turn: PackedInt64Array = PackedInt64Array()
 var hf_cache_value: PackedInt64Array = PackedInt64Array()
+## Item caches: [item, count] pairs picked up by the first commander through.
+var hf_items: Array[PackedInt64Array] = []
 ## Guard squad template IDs (battles are built from them).
 var hf_guard: Array[PackedStringArray] = []
 ## Value paid to perform an activity on the feature.
@@ -38,7 +46,8 @@ var hf_activity_cost: PackedInt64Array = PackedInt64Array()
 var hf_converts_to: PackedInt64Array = PackedInt64Array()
 ## Recruit options: [squad index, cost, squad index, cost, ...].
 var hf_recruits: Array[PackedInt64Array] = []
-## Production options: [squad index, turns, cost, squad index, ...].
+## Production options: [squad (-1 = item), turns, cost, item (-1), count]
+## per option (PRODUCTION_STRIDE values).
 var hf_produces: Array[PackedInt64Array] = []
 ## Value per lost unit restored by refitting here.
 var hf_refit_cost: PackedInt64Array = PackedInt64Array()
@@ -53,6 +62,22 @@ var sq_value: PackedInt64Array = PackedInt64Array()
 ## Units at full strength: the members' counts summed.
 var sq_size: PackedInt64Array = PackedInt64Array()
 var sq_tags: Array[PackedStringArray] = []
+## Per member slot (leaders first, then template order, as battles spawn
+## them): the keys an item's `fits` matches (unit ID, unit tags, faction).
+var sq_member_keys: Array[Array] = []
+
+# --- items (War Chest, R4Q10) ---
+var item_ids: PackedStringArray = PackedStringArray()
+var it_names: PackedStringArray = PackedStringArray()
+var it_icons: PackedStringArray = PackedStringArray()
+var it_tags: Array[PackedStringArray] = []
+var it_value: PackedInt64Array = PackedInt64Array()
+var it_slot: PackedInt64Array = PackedInt64Array()
+## Weapon / defense template IDs ("" = none) and bundle IDs.
+var it_weapon: PackedStringArray = PackedStringArray()
+var it_defense: PackedStringArray = PackedStringArray()
+var it_bundles: Array[PackedStringArray] = []
+var it_fits: Array[PackedStringArray] = []
 
 # --- commanders ---
 var commander_ids: PackedStringArray = PackedStringArray()
@@ -122,7 +147,22 @@ func squad_index(id: String) -> int:
 
 ## Production options of feature f.
 func production_count(f: int) -> int:
-	return hf_produces[f].size() / 3
+	return hf_produces[f].size() / PRODUCTION_STRIDE
+
+
+func item_index(id: String) -> int:
+	return item_ids.find(id)
+
+
+## Whether item `it` may be carried by member slot `slot` of squad `sq`.
+func item_fits(it: int, sq: int, slot: int) -> bool:
+	if it_fits[it].is_empty():
+		return true
+	var keys: PackedStringArray = sq_member_keys[sq][slot]
+	for k in it_fits[it]:
+		if keys.has(k):
+			return true
+	return false
 
 
 ## The cost of recruiting squad index `sq` at feature f, or -1 if not offered.
@@ -139,8 +179,11 @@ func has_activity(feature: int, activity: String) -> bool:
 
 
 func _compile(t: TemplateTable, map: String) -> void:
+	for tid in _of_kind(t, "item"):
+		_compile_item(tid, t.values_of(tid))
 	for tid in _of_kind(t, "squad"):
 		var v := t.values_of(tid)
+		_compile_members(t, v)
 		squad_ids.append(tid)
 		sq_names.append(String(v.get("name", tid)))
 		sq_value.append(int(v.get("value", 0)))
@@ -173,7 +216,10 @@ func _compile(t: TemplateTable, map: String) -> void:
 		hf_recruits.append(rec)
 		var prod := PackedInt64Array()
 		for o: Dictionary in t.values_of(tid).get("produces", []):
-			prod.append_array([squad_index(String(o["squad"])), int(o["turns"]), int(o.get("cost", 0))])
+			if o.has("squad") == o.has("item"):
+				errors.append("%s: a production option names one squad or one item" % tid)
+			prod.append_array([squad_index(String(o.get("squad", ""))), int(o["turns"]), int(o.get("cost", 0)),
+				item_index(String(o.get("item", ""))), int(o.get("count", 1))])
 		hf_produces.append(prod)
 		var f := feature_index(tid)
 		if rec.is_empty() == has_activity(f, "recruit"):
@@ -245,6 +291,41 @@ static func _of_kind(t: TemplateTable, kind: String) -> PackedStringArray:
 	return ids
 
 
+func _compile_item(tid: String, v: Dictionary) -> void:
+	item_ids.append(tid)
+	it_names.append(String(v.get("name", tid)))
+	it_icons.append(String(v.get("icon", "")))
+	it_tags.append(PackedStringArray(v.get("tags", [])))
+	it_value.append(int(v.get("value", 0)))
+	var w := String(v.get("weapon", ""))
+	var d := String(v.get("defense", ""))
+	if w != "" and d != "":
+		errors.append("%s: an item fills one slot (a weapon or a defense, not both)" % tid)
+	it_slot.append(SLOT_WEAPON if w != "" else (SLOT_DEFENSE if d != "" else SLOT_KIT))
+	it_weapon.append(w)
+	it_defense.append(d)
+	it_bundles.append(PackedStringArray(v.get("bundles", [])))
+	it_fits.append(PackedStringArray(v.get("fits", [])))
+
+
+## Member slots in battle order (leaders first, BattleRules._compile_squads)
+## with the keys items' `fits` match.
+func _compile_members(t: TemplateTable, v: Dictionary) -> void:
+	var leaders := []
+	var others := []
+	for m: Dictionary in v.get("members", []):
+		var uid := String(m["unit"])
+		var uv := t.values_of(uid) if t.has(uid) else {}
+		var keys := PackedStringArray([uid])
+		keys.append_array(PackedStringArray(uv.get("tags", [])))
+		keys.append(String(v.get("faction", "")))
+		var lead := (uv.get("tags", []) as Array).has("leader")
+		for _i in int(m.get("count", 1)):
+			(leaders if lead else others).append(keys)
+	leaders.append_array(others)
+	sq_member_keys.append(leaders)
+
+
 func _compile_feature(tid: String, v: Dictionary) -> void:
 	feature_ids.append(tid)
 	hf_names.append(String(v.get("name", tid)))
@@ -260,6 +341,10 @@ func _compile_feature(tid: String, v: Dictionary) -> void:
 	hf_activities.append(bits)
 	hf_value_per_turn.append(int(v.get("value_per_turn", 0)))
 	hf_cache_value.append(int(v.get("cache_value", 0)))
+	var grants := PackedInt64Array()
+	for g: Dictionary in v.get("items", []):
+		grants.append_array([item_index(String(g["item"])), int(g.get("count", 1))])
+	hf_items.append(grants)
 	hf_guard.append(PackedStringArray(v.get("guard", [])))
 	hf_activity_cost.append(int(v.get("activity_cost", 0)))
 	hf_refit_cost.append(int(v.get("refit_cost", 0)))

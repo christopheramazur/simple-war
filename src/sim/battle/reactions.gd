@@ -37,7 +37,7 @@ static func in_contact(state: BattleState, a: int, b: int) -> bool:
 	var sq := state.squads
 	if sq.engaged[a] == sq.id_at(b) or sq.engaged[b] == sq.id_at(a):
 		return true
-	var reach := maxi(state.rules.squad_range(sq.tmpl[a]), state.rules.squad_range(sq.tmpl[b]))
+	var reach := maxi(sq.reach[a], sq.reach[b])
 	return Fixed.distance(sq.cx[a], sq.cy[a], sq.cx[b], sq.cy[b]) <= reach \
 		and (sq.seen_by[a] & BattleSquads.bit(sq.player[b]) != 0 or sq.seen_by[b] & BattleSquads.bit(sq.player[a]) != 0)
 

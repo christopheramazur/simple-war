@@ -9,6 +9,7 @@ var commanders: OverworldCommanders
 var engagements: OverworldEngagements
 var squads: OverworldSquads
 var detachments: OverworldDetachments
+var items: OverworldItems
 ## Turns resolved so far.
 var turn: int = 0
 ## Planned routes: commander ID -> plots to enter, in order (start excluded).
@@ -54,11 +55,13 @@ func _init(context_id: int, overworld_rules: OverworldRules, seed_value: int = 0
 	engagements = OverworldEngagements.new()
 	squads = OverworldSquads.new()
 	detachments = OverworldDetachments.new()
+	items = OverworldItems.new()
 	add_table(features)
 	add_table(commanders)
 	add_table(engagements)
 	add_table(squads)
 	add_table(detachments)
+	add_table(items)
 
 
 ## A new overworld with its map generated from the seed.

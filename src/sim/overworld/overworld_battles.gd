@@ -53,10 +53,14 @@ static func build(t: TemplateTable, hash_hex: String, s: OverworldState, eid: in
 	for pl: int in players:
 		var sq := PackedInt64Array()
 		var alive := PackedInt64Array()
+		var gear := []
 		for id: int in groups[pl]:
 			sq.append(br.squad_index(s.rules.squad_ids[s.squads.get_value(id, &"tmpl")]))
 			alive.append(s.squads.get_value(id, &"alive"))
-		sides.append(_side(areas, sides.size(), pl, sq, alive))
+			gear.append(WarChest.gear(s, id, s.squads.get_value(id, &"alive")))
+		var side := _side(areas, sides.size(), pl, sq, alive)
+		side["gear"] = gear
+		sides.append(side)
 		owned.append(groups[pl])
 	if not guards.is_empty():
 		var sq := PackedInt64Array()
@@ -120,7 +124,9 @@ static func reinforce(s: OverworldState, b: OverworldBattle) -> void:
 			continue  # a side that was not in the battle cannot join it mid-way
 		var d: PackedInt64Array = side["deploy"]
 		var st := b.rules.squad_index(s.rules.squad_ids[s.squads.get_value(id, &"tmpl")])
-		var bid := BattleSetup.spawn_squad(b.state, pl, st, d[0] + d[2] / 2, d[1] + d[3] / 2, side["facing"], s.squads.get_value(id, &"alive"))
+		var alive := s.squads.get_value(id, &"alive")
+		var bid := BattleSetup.spawn_squad(b.state, pl, st, d[0] + d[2] / 2, d[1] + d[3] / 2, side["facing"], alive,
+			WarChest.gear(s, id, alive))
 		b.links[bid] = id
 		s.events.push(&"squad_reinforced", {"engagement": b.engagement, "squad": id, "player": pl}, s.tick)
 	Centroids.update(b.state)
@@ -141,6 +147,7 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 			continue
 		var row := bq.row_of(bid)
 		if row < 0 or bq.destroyed[row] == 1 or bq.alive[row] <= 0:
+			WarChest.scavenge(s, id)
 			s.squads.despawn(id)
 			continue
 		s.squads.set_value(id, &"alive", bq.alive[row])
@@ -222,6 +229,7 @@ static func _check_defeat(s: OverworldState, cid: int) -> void:
 	for id in OverworldArmies.of(s, cid):
 		q.despawn(id)
 	c.despawn(cid)
+	WarChest.tidy(s)
 	s.routes.erase(cid)
 	s.activities.erase(cid)
 	s.battleforces.erase(cid)

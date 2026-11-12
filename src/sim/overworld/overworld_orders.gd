@@ -72,7 +72,8 @@ static func set_activity(s: OverworldState, player: int, commander_id: int, acti
 
 ## Friendly commanders sharing a hex trade squads freely during planning
 ## (R7Q9), and a commander picks up squads from the player's detachment on
-## its hex. Takes effect at once. Returns "" or why it was refused.
+## its hex (taking its War Chest with the last one). Takes effect at once.
+## Returns "" or why it was refused.
 static func transfer_squad(s: OverworldState, player: int, squad_id: int, to_commander: int) -> String:
 	var q := s.squads
 	var row := q.row_of(squad_id)
@@ -108,6 +109,7 @@ static func transfer_squad(s: OverworldState, player: int, squad_id: int, to_com
 		s.events.push(&"squad_picked_up", {"squad": squad_id, "detachment": did, "commander": to_commander,
 			"player": player, "plot": from_plot}, s.tick)
 		if Detachments.squads_of(s, did).is_empty():
+			WarChest.hand_over(s, did, to_commander)
 			Detachments.disband(s, did, "picked_up")
 	else:
 		s.events.push(&"squad_transferred", {"squad": squad_id, "from": from, "to": to_commander, "player": player}, s.tick)

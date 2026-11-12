@@ -66,7 +66,7 @@ static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary) 
 	var r := state.rules
 	var u := state.units
 	var ut := u.tmpl[urow]
-	var df := r.ut_defense[ut]
+	var df := u.defense[urow]
 	var mv := r.ut_movement[ut]
 	var stats := [
 		_entry(state, srow, urow, &"unit.hp", r.ut_hp[ut], hidden),
@@ -79,7 +79,7 @@ static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary) 
 		stats.append(_entry(state, srow, urow, DamagePipeline.RESIST_STATS[d], Fixed.from_int(r.df_resist[df * nt + d]), hidden))
 	stats.append(_entry(state, srow, urow, &"movement.walk", r.mv_walk_s[mv], hidden))
 	stats.append(_entry(state, srow, urow, &"movement.run", r.mv_run_s[mv], hidden))
-	var w := r.ut_weapon[ut]
+	var w := u.weapon[urow]
 	if w >= 0:
 		for m in range(r.wp_mode_start[w], r.wp_mode_start[w] + r.wp_mode_count[w]):
 			stats.append(_entry(state, srow, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m], hidden, r.md_name[m]))

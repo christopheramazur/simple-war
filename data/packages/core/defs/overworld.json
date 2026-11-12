@@ -14,12 +14,16 @@
 		"activities": ["refit"], "refit_cost": 1, "sight": 1}},
 	{"id": "hex_barracks", "kind": "hex_feature", "values": {
 		"name": "Barracks", "controllable": true, "interaction": "stable", "sight": 1,
-		"produces": [{"squad": "rifle_squad", "turns": 3, "cost": 2}, {"squad": "scout_team", "turns": 2, "cost": 1}]}},
+		"produces": [{"squad": "rifle_squad", "turns": 3, "cost": 2}, {"squad": "scout_team", "turns": 2, "cost": 1},
+			{"item": "carapace_plates", "count": 2, "turns": 2, "cost": 1}]}},
 	{"id": "hex_mine", "kind": "hex_feature", "values": {
 		"name": "Mine", "controllable": true, "interaction": "stable",
 		"value_per_turn": 3, "sight": 1}},
 	{"id": "hex_supply_cache", "kind": "hex_feature", "values": {
 		"name": "Supply cache", "interaction": "stable", "cache_value": 5}},
+	{"id": "hex_arms_cache", "kind": "hex_feature", "values": {
+		"name": "Arms cache", "interaction": "stable",
+		"items": [{"item": "lmg_kit", "count": 2}, {"item": "carapace_plates", "count": 4}]}},
 	{"id": "hex_ore_deposit", "kind": "hex_feature", "values": {
 		"name": "Ore deposit", "interaction": "stable", "activities": ["convert"],
 		"activity_cost": 5, "converts_to": "hex_mine"}},
@@ -64,7 +68,8 @@
 			{"op": "place", "feature": "hex_ore_deposit", "col": 2, "row": 10},
 			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7},
 			{"op": "place", "feature": "hex_depot", "col": 6, "row": 4},
-			{"op": "place", "feature": "hex_barracks", "col": 8, "row": 7}
+			{"op": "place", "feature": "hex_barracks", "col": 8, "row": 7},
+			{"op": "place", "feature": "hex_arms_cache", "col": 13, "row": 10}
 		],
 		"starts": [
 			{"player": 1, "commander": "field_commander", "col": 2, "row": 6},

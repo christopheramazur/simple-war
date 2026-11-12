@@ -13,24 +13,28 @@ static func create(context_id: int, rules: BattleRules, seed_value: int) -> Batt
 
 
 ## Deploys a side's squads; returns their IDs in order. A side may carry
-## "alive" (units per squad, e.g. overworld losses); default full strength.
+## "alive" (units per squad, e.g. overworld losses; default full strength)
+## and "gear" (per squad, as spawn_squad takes it).
 static func deploy_side(state: BattleState, side: Dictionary) -> PackedInt64Array:
 	var d: PackedInt64Array = side["deploy"]
 	var list: PackedInt64Array = side["squads"]
 	var alive: PackedInt64Array = side.get("alive", PackedInt64Array())
+	var gear: Array = side.get("gear", [])
 	var n := list.size()
 	var ids := PackedInt64Array()
 	for i in n:
 		var ax := d[0] + d[2] / 2
 		var ay := d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * n)
-		ids.append(spawn_squad(state, side["player"], list[i], ax, ay, side["facing"], alive[i] if i < alive.size() else -1))
+		ids.append(spawn_squad(state, side["player"], list[i], ax, ay, side["facing"], alive[i] if i < alive.size() else -1,
+			gear[i] if i < gear.size() else []))
 	return ids
 
 
 ## Spawns one squad and its units; returns the squad ID. `units` < 0 = all
 ## members; otherwise only the first `units` members (losses come off the
-## end of the member list).
-static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: int, facing: int, units: int = -1) -> int:
+## end of the member list). `gear` (WarChest.gear), per member: {"weapon",
+## "defense" (template IDs, "" = the unit's own), "bundles"}.
+static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: int, facing: int, units: int = -1, gear: Array = []) -> int:
 	var r := state.rules
 	var members := r.sq_members[st]
 	if units >= 0 and units < members.size():
@@ -47,13 +51,29 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 	for p in 5:
 		values[BattleSquads.POOLS[p]] = r.sq_pool_start[st * 5 + p]
 		values[BattleSquads.CAPS[p]] = r.sq_pool_cap[st * 5 + p]
+	var weapons := PackedInt64Array()
+	var defenses := PackedInt64Array()
+	var reach := 0
+	for slot in members.size():
+		var g: Dictionary = gear[slot] if slot < gear.size() else {}
+		var w := r.ut_weapon[members[slot]]
+		if String(g.get("weapon", "")) != "":
+			w = r.weapon_index[g["weapon"]]
+		var df := r.ut_defense[members[slot]]
+		if String(g.get("defense", "")) != "":
+			df = r.defense_index[g["defense"]]
+		weapons.append(w)
+		defenses.append(df)
+		if w >= 0:
+			reach = maxi(reach, r.wp_range[w])
+	values["reach"] = reach
 	var sid := state.squads.spawn(values)
 	for slot in members.size():
 		var ui := members[slot]
 		var off := Formation.offset(r.sq_shape[st], slot, members.size(), r.sq_spacing[st], facing)
-		var w := r.ut_weapon[ui]
+		var w := weapons[slot]
 		var uid := state.units.spawn({
-			"squad": sid, "tmpl": ui, "slot": slot,
+			"squad": sid, "tmpl": ui, "weapon": w, "defense": defenses[slot], "slot": slot,
 			"x": Fixed.clamp_fixed(ax + off[0], 0, Fixed.from_int(r.width) - 1),
 			"y": Fixed.clamp_fixed(ay + off[1], 0, Fixed.from_int(r.height) - 1),
 			"facing": facing, "hp": r.ut_hp[ui], "hp_max": r.ut_hp[ui],
@@ -61,6 +81,9 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 		})
 		for b in r.ut_bundles[ui]:
 			Effects.apply(state, b, sid, uid)
+		if slot < gear.size():
+			for b: String in (gear[slot] as Dictionary).get("bundles", PackedStringArray()):
+				Effects.apply(state, r.fx.index_of(b), sid, uid)
 	for b in r.sq_bundles[st]:
 		Effects.apply(state, b, sid)
 	Abilities.spawn_for(state, sid, st)

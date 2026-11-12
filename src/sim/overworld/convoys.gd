@@ -1,10 +1,11 @@
 class_name Convoys
 extends RefCounted
 ## Production, supply lines and convoys (GDD 02 §2.9, R5Q10, R6Q13, R8Q3).
-##   - Production: a feature with `produces` options makes squads for its
-##     owner: the selected option (the first by default) advances one turn
-##     per overworld turn, and on reaching its `turns` the squad is made for
-##     its `cost` in Value (waiting while the owner can't pay). Capturing the
+##   - Production: a feature with `produces` options makes squads or items
+##     for its owner: the selected option (the first by default) advances
+##     one turn per overworld turn, and on reaching its `turns` the squad or
+##     items are made for its `cost` in Value (waiting while the owner can't
+##     pay). Items go into the receiving detachment's War Chest (WarChest). Capturing the
 ##     feature resets its progress and output, and its supply line lapses.
 ##   - Without a supply line, produced squads join the owner's detachment
 ##     holding the feature's hex: a garrison commanders pick up from.
@@ -151,22 +152,21 @@ static func produce(s: OverworldState) -> void:
 		var n := s.rules.production_count(t)
 		if owner <= 0 or n == 0:
 			continue
-		var o := clampi(f.output[row], 0, n - 1) * 3
+		var o := clampi(f.output[row], 0, n - 1) * OverworldRules.PRODUCTION_STRIDE
 		var opts := s.rules.hf_produces[t]
-		var sq := opts[o]
 		var turns := opts[o + 1]
 		var cost := opts[o + 2]
 		var progress := mini(f.progress[row] + 1, turns)
 		if progress >= turns and s.value_of(owner) >= cost:
 			s.add_value(owner, -cost, &"production")
-			_make(s, fid, owner, f.plot[row], sq)
+			_make(s, fid, owner, f.plot[row], opts[o], opts[o + 3], opts[o + 4])
 			progress = 0
 		f.set_value(fid, &"progress", progress)
 
 
-## A produced squad joins the line's convoy leaving the hex, or the owner's
-## detachment holding it.
-static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int) -> void:
+## A produced squad (or `count` items of template `item`) joins the line's
+## convoy leaving the hex, or the owner's detachment holding it.
+static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int, item: int, count: int) -> void:
 	var d := s.detachments
 	var sl: Dictionary = s.supply_lines.get(fid, {})
 	var did := -1
@@ -183,6 +183,11 @@ static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int) -> v
 			v[&"dest_commander"] = sl["commander"]
 			v[&"line"] = fid
 		did = d.spawn(v)
+	if sq < 0:
+		WarChest.add(s, item, count, -1, did, -1)
+		s.events.push(&"item_produced", {"feature": fid, "player": owner, "plot": p, "item": item,
+			"count": count, "detachment": did}, s.tick)
+		return
 	var size := s.rules.sq_size[sq]
 	var id := s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": sq, &"alive": size, &"size": size})
 	s.events.push(&"squad_produced", {"feature": fid, "player": owner, "plot": p, "squad": id,
@@ -254,8 +259,9 @@ static func deliver(s: OverworldState, did: int) -> bool:
 		OverworldArmies.move(s, id, cid)
 		moved.append(id)
 	var player := d.player[row]
+	var items := WarChest.hand_over(s, did, cid)
 	s.events.push(&"convoy_delivered", {"detachment": did, "commander": cid, "player": player,
-		"plot": d.plot[row], "squads": moved}, s.tick)
+		"plot": d.plot[row], "squads": moved, "items": items}, s.tick)
 	if Detachments.squads_of(s, did).is_empty():
 		d.despawn(did)
 	else:
@@ -264,7 +270,8 @@ static func deliver(s: OverworldState, did: int) -> bool:
 
 
 ## After movement: convoys arrive, reach their commanders, halt if their
-## commander is gone, and those sharing a hex and a line merge.
+## commander is gone, and those sharing a hex and a line merge. Then
+## unguarded chests sharing a hex with hostile forces are seized.
 static func settle(s: OverworldState) -> void:
 	var d := s.detachments
 	for did in ids(s):
@@ -289,10 +296,12 @@ static func settle(s: OverworldState) -> void:
 				continue
 			for id in Detachments.squads_of(s, convoys[j]):
 				s.squads.set_value(id, &"detachment", convoys[i])
+			WarChest.hand_over(s, convoys[j], -1, convoys[i])
 			s.events.push(&"convoys_merged", {"detachment": convoys[j], "into": convoys[i], "player": d.player[a],
 				"plot": d.plot[a]}, s.tick)
 			d.despawn(convoys[j])
 			a = d.row_of(convoys[i])
+	WarChest.seize_all(s)
 
 
 ## Arrived at its plot: it holds the hex, joining the player's detachment
@@ -309,6 +318,7 @@ static func _arrive(s: OverworldState, did: int) -> void:
 		if other != did and d.player[orow] == player and not is_convoy(s, orow) and d.engagement[orow] < 0:
 			for id in Detachments.squads_of(s, did):
 				s.squads.set_value(id, &"detachment", other)
+			WarChest.hand_over(s, did, -1, other)
 			d.despawn(did)
 			return
 

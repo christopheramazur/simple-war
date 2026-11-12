@@ -180,7 +180,9 @@ static func _convoy_step(s: OverworldState, did: int, path: PackedInt64Array, i:
 	d.set_value(did, &"plot", to)
 	s.events.push(&"convoy_moved", {"detachment": did, "player": player, "from": from, "to": to}, s.tick)
 	OverworldVision.glimpse(s, player, to, s.rules.detachment_sight)
-	if _engages(s, player, to):
+	if Detachments.squads_of(s, did).is_empty() and WarChest.seize(s, did, to):
+		convoying[did] = false
+	elif _engages(s, player, to):
 		_stop_all(s, to, moving, cut, last, at_step, convoying)
 	elif d.dest_commander[row] >= 0 and Convoys.deliver(s, did):
 		convoying[did] = false
@@ -200,7 +202,10 @@ static func _engages(s: OverworldState, player: int, p: int) -> bool:
 	for other in here:
 		if s.hostile(player, c.player[c.row_of(other)]):
 			kinds |= OverworldEngagements.COMMANDERS
-	var held := Detachments.at(s, p)
+	var held := PackedInt64Array()
+	for did in Detachments.at(s, p):
+		if not Detachments.squads_of(s, did).is_empty():
+			held.append(did)  # a chest with no squads is seized, not fought
 	for did in held:
 		if s.hostile(player, s.detachments.get_value(did, &"player")):
 			kinds |= OverworldEngagements.DETACHMENTS
@@ -225,8 +230,9 @@ static func _engages(s: OverworldState, player: int, p: int) -> bool:
 	return true
 
 
-## A commander on an unguarded hex takes its controllable features and
-## picks up its caches (stable outcomes, R6Q14).
+## A commander on an unguarded hex takes its controllable features, picks
+## up its caches (stable outcomes, R6Q14) and seizes hostile chests left
+## without squads.
 static func arrive(s: OverworldState, row: int, p: int) -> void:
 	var player := s.commanders.player[row]
 	var f := s.features
@@ -238,13 +244,19 @@ static func arrive(s: OverworldState, row: int, p: int) -> void:
 			s.events.push(&"feature_captured", {"feature": fid, "plot": p, "player": player, "from": f.owner[fr]}, s.tick)
 			f.set_value(fid, &"owner", player)
 			Convoys.on_captured(s, fid)
-		if s.rules.hf_cache_value[t] > 0:
+		if s.rules.hf_cache_value[t] > 0 or not s.rules.hf_items[t].is_empty():
 			caches.append(f.id_at(fr))
+	var cid := s.commanders.id_at(row)
 	for fid in caches:
 		var amount := s.rules.hf_cache_value[f.tmpl[f.row_of(fid)]]
-		s.events.push(&"cache_picked", {"commander": s.commanders.id_at(row), "plot": p, "player": player, "value": amount}, s.tick)
-		s.add_value(player, amount, &"cache")
+		if amount > 0:
+			s.events.push(&"cache_picked", {"commander": cid, "plot": p, "player": player, "value": amount}, s.tick)
+			s.add_value(player, amount, &"cache")
+		if not s.rules.hf_items[f.tmpl[f.row_of(fid)]].is_empty():
+			WarChest.pick_up(s, cid, fid)
 		s.remove_feature(fid)
+	for did in Detachments.at(s, p):
+		WarChest.seize(s, did, p)
 
 
 ## Ends an engagement (its battle is over): commanders on it are free again.

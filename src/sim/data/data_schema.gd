@@ -116,12 +116,20 @@ const OBJECTS: Dictionary = {
 		"squad": {"type": "ref:squad", "required": true},
 		"cost": {"type": "int", "required": true, "min": 0},
 	},
-	## A squad a feature produces (R5Q10): one every `turns` turns while
-	## selected, for `cost` Value each (0 = free).
+	## A squad or item a feature produces (R5Q10): one every `turns` turns
+	## while selected, for `cost` Value each (0 = free). Names exactly one
+	## of `squad` and `item`.
 	"production_option": {
-		"squad": {"type": "ref:squad", "required": true},
+		"squad": {"type": "ref:squad"},
+		"item": {"type": "ref:item"},
+		"count": {"type": "int", "min": 1},
 		"turns": {"type": "int", "required": true, "min": 1},
 		"cost": {"type": "int", "min": 0},
+	},
+	## Items an item cache holds, picked up by the first commander through.
+	"item_grant": {
+		"item": {"type": "ref:item", "required": true},
+		"count": {"type": "int", "min": 1},
 	},
 	## Battleforce caps (R2Q1): most squads, and most total strength (Value
 	## scaled by units alive; 0 = no limit).
@@ -365,6 +373,9 @@ const KINDS: Dictionary = {
 		"activities": {"type": "list:string", "enum": HEX_ACTIVITIES},
 		"value_per_turn": {"type": "int", "min": 0},
 		"cache_value": {"type": "int", "min": 0},
+		## Items the first commander through picks up into its War Chest;
+		## the feature is then removed, like a cache.
+		"items": {"type": "list:obj:item_grant"},
 		"guard": {"type": "list:ref:squad"},
 		"activity_cost": {"type": "int", "min": 0},
 		"converts_to": {"type": "ref:hex_feature"},
@@ -378,6 +389,23 @@ const KINDS: Dictionary = {
 		## The battlefield its battles are fought on (else the map's).
 		"battlefield": {"type": "ref:scenario"},
 		"bundles": {"type": "list:ref:bundle"},
+	},
+	## Per-unit gear held in War Chests (GDD 02 §2.9, R3Q7, R4Q10). One item
+	## equips one unit and fills one of its slots: `weapon` replaces the
+	## unit's weapon, `defense` its defense, and an item with neither is a
+	## kit. Its `bundles` apply to the carrying unit. `fits` lists unit
+	## template IDs, unit tags or squad factions that may carry it (empty =
+	## any unit). `value` is its worth in Value.
+	"item": {
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"icon": {"type": "string"},
+		"tags": {"type": "list:string"},
+		"value": {"type": "int", "min": 0},
+		"weapon": {"type": "ref:weapon"},
+		"defense": {"type": "ref:defense"},
+		"bundles": {"type": "list:ref:bundle"},
+		"fits": {"type": "list:string"},
 	},
 	## A commander (GDD 02 §2.3, §2.9): anchors an army and moves on the
 	## overworld. movement_points: per turn, in the map's move-cost units.

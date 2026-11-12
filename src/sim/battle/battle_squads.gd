@@ -31,6 +31,8 @@ var cx := PackedInt64Array()            ## centroid of living units, fixed
 var cy := PackedInt64Array()
 var alive := PackedInt64Array()         ## living units
 var hp_max := PackedInt64Array()        ## total starting HP, fixed
+## Longest weapon range among its units at spawn (fixed): engagement reach.
+var reach := PackedInt64Array()
 var hp_lost := PackedInt64Array()
 var destroyed := PackedByteArray()
 var withdrawn := PackedByteArray()
@@ -57,7 +59,7 @@ var c_legend := PackedInt64Array()
 func _init() -> void:
 	super(&"squad")
 	for c: StringName in [&"player", &"tmpl", &"order", &"tx", &"ty", &"run", &"facing", &"ax", &"ay",
-			&"cx", &"cy", &"alive", &"hp_max", &"hp_lost", &"destroyed", &"withdrawn",
+			&"cx", &"cy", &"alive", &"hp_max", &"reach", &"hp_lost", &"destroyed", &"withdrawn",
 			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken",
 			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
 			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:

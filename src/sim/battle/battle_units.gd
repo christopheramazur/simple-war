@@ -5,6 +5,10 @@ extends SoaTable
 
 var squad := PackedInt64Array()        ## owning squad ID
 var tmpl := PackedInt64Array()         ## BattleRules unit template index
+## Weapon (-1 = none) and defense profile indices: the template's, or an
+## item's from the War Chest (R3Q7).
+var weapon := PackedInt64Array()
+var defense := PackedInt64Array()
 var slot := PackedInt64Array()         ## formation slot within the squad
 var x := PackedInt64Array()            ## fixed
 var y := PackedInt64Array()            ## fixed
@@ -26,7 +30,7 @@ var fired_tick := PackedInt64Array()   ## last tick it fired, -1 never
 
 func _init() -> void:
 	super(&"unit")
-	for c: StringName in [&"squad", &"tmpl", &"slot", &"x", &"y", &"facing", &"speed", &"moving",
+	for c: StringName in [&"squad", &"tmpl", &"weapon", &"defense", &"slot", &"x", &"y", &"facing", &"speed", &"moving",
 			&"hp", &"hp_max", &"temp_hp", &"cooldown", &"ammo", &"reload", &"acc_hit", &"acc_evade",
 			&"acc_block", &"hits"]:
 		declare(c, 0)

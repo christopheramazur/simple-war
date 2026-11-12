@@ -53,6 +53,13 @@ const _EVENT_FIELDS := {
 	&"convoy_halted": [[], ["player"], ["plot"]],
 	&"convoys_merged": [[], ["player"], ["plot"]],
 	&"convoy_rallied": [["commander"], ["player"], ["plot"]],
+	&"item_produced": [[], ["player"], ["plot"]],
+	&"items_picked": [["commander"], ["player"], ["plot"]],
+	&"item_equipped": [["commander"], ["player"], []],
+	&"item_unequipped": [["commander"], ["player"], []],
+	&"item_given": [["from", "to"], ["player"], []],
+	&"items_taken": [["commander"], ["player"], ["plot"]],
+	&"items_seized": [["commander"], ["player", "by"], ["plot"]],
 }
 ## Events a hostile player sees only through sight of the plot, reduced to
 ## these keys: what forces hold is never shown to enemies (R5Q9).
@@ -62,6 +69,10 @@ const _HOSTILE := {
 	&"squad_produced": ["feature", "player", "plot", "detachment"],
 	&"convoy_delivered": ["detachment", "player", "plot"],
 	&"convoy_rallied": ["detachment", "player", "plot"],
+	&"item_produced": ["feature", "player", "plot", "detachment"],
+	&"items_picked": ["commander", "player", "plot", "feature"],
+	&"items_taken": ["commander", "detachment", "player", "plot"],
+	&"items_seized": ["detachment", "player", "plot", "by", "commander"],
 }
 ## Events everyone sees, reduced to these keys without sight (battle tiles).
 const _PUBLIC := {
@@ -208,14 +219,16 @@ static func known_offering(s: OverworldState, player: int, p: int, activity: Str
 ##   plots: explored plot -> {"visible", "turn" (now if visible, else when
 ##     last seen), "features": [{"id", "tmpl", "owner"}]};
 ##   commanders in sight: [{"id", "player", "tmpl", "plot", "engagement"}],
-##     with "army" (OverworldArmies.view) for own and allied commanders,
+##     with "army" (OverworldArmies.view, equipped items included) and
+##     "chest" (WarChest.chest_view) for own and allied commanders,
 ##     plus "battleforce" (deployed squads, or those that would fight if
 ##     engaged now) and
 ##     "battleforce_plan" for own ones;
 ##     what a hostile army holds is never shown (R5Q9);
 ##   detachments in sight, convoys included: [{"id", "player", "plot",
-##     "engagement", "convoy"}], with "squads" (OverworldArmies.view) and
-##     "dest_plot", "dest_commander", "line" for own and allied ones only;
+##     "engagement", "convoy"}], with "squads" (OverworldArmies.view),
+##     "items" (its War Chest, WarChest.view) and "dest_plot",
+##     "dest_commander", "line" for own and allied ones only;
 ##   production of own producing features: feature ID -> {"output",
 ##     "progress"}; own supply lines (feature ID -> {"player", "plot",
 ##     "commander"});
@@ -248,6 +261,7 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 				"plot": c.plot[row], "engagement": c.engagement[row]}
 			if not s.hostile(player, c.player[row]):
 				d["army"] = OverworldArmies.view(s, c.id_at(row))
+				d["chest"] = WarChest.chest_view(s, c.id_at(row))
 			if c.player[row] == player:
 				d["battleforce"] = OverworldBattleforce.of(s, c.id_at(row))
 				d["battleforce_plan"] = OverworldBattleforce.plan_of(s, c.id_at(row)).duplicate(true)
@@ -262,6 +276,7 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 				"convoy": Convoys.is_convoy(s, row)}
 			if not s.hostile(player, d.player[row]):
 				x["squads"] = Detachments.view(s, d.id_at(row))
+				x["items"] = WarChest.view(s, WarChest.of_detachment(s, d.id_at(row)))
 				x["dest_plot"] = d.dest_plot[row]
 				x["dest_commander"] = d.dest_commander[row]
 				x["line"] = d.line[row]

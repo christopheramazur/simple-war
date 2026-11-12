@@ -6,7 +6,8 @@ extends RefCounted
 ##
 ## Inputs:   set_route, set_drop_off, set_activity, transfer_squad (also picks up
 ##           from a detachment), set_battleforce, set_output,
-##           set_supply_line, rally
+##           set_supply_line, rally, equip, unequip, give_item,
+##           take_items
 ##           (Planning only), save_preset, ready, advance(ms).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
@@ -162,6 +163,47 @@ func rally(player: int, detachment_id: int, plot: int, commander: int = -1) -> S
 		err = Convoys.rally(state, player, detachment_id, plot, commander)
 	if err.is_empty():
 		_log(player, "rally", {"detachment": detachment_id, "plot": plot, "commander": commander})
+	return err
+
+
+## Equips `count` items of a stack in a commander's War Chest to a squad
+## of its army (R4Q10). "" or why not.
+func equip(player: int, commander_id: int, item_id: int, squad_id: int, count: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = WarChest.equip(state, player, commander_id, item_id, squad_id, count)
+	if err.is_empty():
+		_log(player, "equip", {"commander": commander_id, "item": item_id, "squad": squad_id, "count": count})
+	return err
+
+
+## Returns `count` equipped items to the commander's War Chest.
+func unequip(player: int, commander_id: int, item_id: int, count: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = WarChest.unequip(state, player, commander_id, item_id, count)
+	if err.is_empty():
+		_log(player, "unequip", {"commander": commander_id, "item": item_id, "count": count})
+	return err
+
+
+## Hands items between friendly commanders sharing a hex (R7Q9).
+func give_item(player: int, from_commander: int, item_id: int, count: int, to_commander: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = WarChest.give(state, player, from_commander, item_id, count, to_commander)
+	if err.is_empty():
+		_log(player, "give", {"from": from_commander, "item": item_id, "count": count, "to": to_commander})
+	return err
+
+
+## A commander takes the War Chest of the player's detachment on its hex.
+func take_items(player: int, commander_id: int, detachment_id: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = WarChest.take(state, player, commander_id, detachment_id)
+	if err.is_empty():
+		_log(player, "take", {"commander": commander_id, "detachment": detachment_id})
 	return err
 
 
@@ -537,6 +579,14 @@ func replay_inputs(inputs: Array) -> void:
 				set_supply_line(i["player"], p["feature"], p["plot"], p["commander"])
 			"rally":
 				rally(i["player"], p["detachment"], p["plot"], p["commander"])
+			"equip":
+				equip(i["player"], p["commander"], p["item"], p["squad"], p["count"])
+			"unequip":
+				unequip(i["player"], p["commander"], p["item"], p["count"])
+			"give":
+				give_item(i["player"], p["from"], p["item"], p["count"], p["to"])
+			"take":
+				take_items(i["player"], p["commander"], p["detachment"])
 			"transfer":
 				transfer_squad(i["player"], p["squad"], p["to"])
 			"battleforce":

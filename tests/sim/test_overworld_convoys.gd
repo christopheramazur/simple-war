@@ -86,7 +86,7 @@ func test_selecting_output() -> void:
 	var s := _s()
 	var fid := _barracks(s)
 	assert_eq(Convoys.set_output(s, 2, fid, 1), "not your feature")
-	assert_eq(Convoys.set_output(s, 1, fid, 2), "no such output")
+	assert_eq(Convoys.set_output(s, 1, fid, 3), "no such output")
 	var depot := s.features.id_at(s.feature_row(P(6, 4), _rules().feature_index("hex_depot")))
 	s.features.set_value(depot, &"owner", 1)
 	assert_eq(Convoys.set_output(s, 1, depot, 0), "this feature produces nothing")

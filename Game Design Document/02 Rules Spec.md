@@ -304,7 +304,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Arrival:** at its plot, a convoy holds the hex, joining the player's detachment there. At its commander's hex, its squads join the army up to the cap, and the rest halt there. A convoy whose commander is gone halts where it is.
   - **Merging:** after movement, convoys of one player on the same hex and line merge into one.
   - **Fog:** convoys are sight sources like detachments. Enemies in sight see a convoy and where it moves, but not what it holds or where it's going.
-  - **Items** produced by features come with the War Chest (sw-o1m.2.6).
+  - **Items:** an option may produce items instead of a squad (`count` per batch). They go into the War Chest of the receiving detachment or convoy, and travel the same supply lines.
 
 ### Economy (R2Q15, R5Q11, R6Q15)
 - **Value is the sole resource.** It recruits commanders and squads and buys equipment. Supplies, Materiel and Manpower collapse into Value for now.
@@ -318,6 +318,16 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Availability:** usable anywhere on the overworld outside battle.
 - **Refitting** vehicles, monsters and unique units needs special plots.
 - **Later:** auto-equip rules.
+- **In play (sw-o1m.2.6):**
+  - **Items are per-unit gear** (R3Q7): one item equips one unit and fills one of its three slots. A weapon item replaces the unit's weapon, a defense item its defense, and a kit adds its bundles. An item's `fits` limits which units may carry it (by unit ID, unit tag or squad faction).
+  - **Chests:** every commander, detachment and convoy has a War Chest. Identical items in one place stack. Equipped items belong to their squad and travel with it, through trades, drop-offs and convoys.
+  - **Equipping:** a commander outside battle equips items from its chest to squads of its army that aren't in a battle, and unequips them back. A squad takes as many as it has units that fit with the slot free, at full strength. The army view lists each squad's items (the equipped tab), and the chest view lists, per stack, the squads with room for it (the detail view).
+  - **Casualties:** a squad keeps its items. In battle they go to its first surviving members that fit, leaders first. A refitted squad carries them all again. A destroyed squad's items are scavenged into its commander's or detachment's chest.
+  - **Trading:** friendly commanders sharing a hex hand items over during planning (R7Q9). A commander takes the whole chest of its player's detachment on its hex; one left with nothing is disbanded. A convoy reaching its commander hands over its chest; merging convoys merge chests (R6Q13).
+  - **Pickups:** a feature with `items` is a cache: the first commander through takes them into its chest and the feature is removed. The pickup event lists what it found, for the UI to offer equipping.
+  - **Unguarded chests:** a detachment or convoy with no squads can't fight. A hostile commander on its hex, or else a hostile detachment with squads, seizes its chest; guards destroy it.
+  - **Lost:** a defeated commander's chest, and a destroyed or defeated detachment's, are lost with them.
+  - **Fog:** allies see chests and equipped items; enemies never do.
 
 ## 2.10 Magic and Ruin in play (R1Q15, R2Q8, R4Q21)
 - **Zones:** plots and battlefield areas carry a magic condition: Law (normal), Ruined or Null.

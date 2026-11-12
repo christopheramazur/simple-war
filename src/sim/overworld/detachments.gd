@@ -97,7 +97,7 @@ static func deploy(s: OverworldState, did: int, eid: int) -> void:
 		"player": s.detachments.get_value(did, &"player"), "squads": ids}, s.tick)
 
 
-## Removes a detachment and every squad it still holds.
+## Removes a detachment, every squad it still holds and its War Chest.
 static func disband(s: OverworldState, did: int, reason: String) -> void:
 	var d := s.detachments
 	var row := d.row_of(did)
@@ -108,6 +108,7 @@ static func disband(s: OverworldState, did: int, reason: String) -> void:
 	for id in squads_of(s, did):
 		s.squads.despawn(id)
 	d.despawn(did)
+	WarChest.tidy(s)
 	s.events.push(&"detachment_disbanded", {"detachment": did, "player": player, "plot": p, "reason": reason}, s.tick)
 
 

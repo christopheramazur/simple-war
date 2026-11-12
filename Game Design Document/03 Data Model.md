@@ -17,7 +17,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 | Movement Profile | Movement types and speeds, acceleration, deceleration, turning rate; feature cost tables (R6Q8) |
 | Offensive Profile | Base proficiencies plus equipped weapon stats; fire modes, reload cycles (R6Q8) |
 | Traits | |
-| Equipment | Per-unit gear (R3Q7) |
+| Equipment | Per-unit gear (R3Q7); items in War Chests override a unit's weapon or defense, or add bundles |
 | Tags | e.g. `leader` (R6Q5) |
 
 ## 3.3 Squad (command unit) (R5Q8)
@@ -60,9 +60,10 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 - **Scenario:** battlefield, deployment, zones, victory conditions, scoring mode (primary and tiebreaker), turn limit, and end-of-battle hooks (R7Q5, R7Q6).
 - **Zone:** decay, threshold, buffer, scoring VP, and magic condition (Law, Ruined or Null) (R7Q5, R4Q21).
 - **Hex feature** (`hex_feature`): activities, production output and options, sight radius, controllability, garrison or guard, and interaction kind (stable or uncertain) (R4Q12, R5Q10, R6Q14).
-  - **Fields:** `move_cost` (added to the map's base cost), `impassable`, `sight` (hexes), `controllable`, `interaction`, `activities` (refit, recruit, battle, convert), `value_per_turn`, `cache_value` (picked up once, then removed), `guard` (neutral squads), `activity_cost` (Value per activity), `converts_to` (required by the convert activity), `recruits` (squad and Value cost per option; goes with the recruit activity), `refit_cost` (Value per unit restored), `produces` (squad, `turns` per squad, Value `cost`; the owner selects one), `battlefield` (scenario its battles use), `bundles`.
+  - **Fields:** `move_cost` (added to the map's base cost), `impassable`, `sight` (hexes), `controllable`, `interaction`, `activities` (refit, recruit, battle, convert), `value_per_turn`, `cache_value` (picked up once, then removed), `guard` (neutral squads), `activity_cost` (Value per activity), `converts_to` (required by the convert activity), `recruits` (squad and Value cost per option; goes with the recruit activity), `refit_cost` (Value per unit restored), `produces` (a squad or an `item` with a `count`, `turns` per batch, Value `cost`; the owner selects one), `items` (an item cache: item and `count` pairs, picked up once, then removed), `battlefield` (scenario its battles use), `bundles`.
   - **One of each per plot:** a plot holds any number of features but at most one instance of each template. Template IDs are global, so core hex features are prefixed `hex_`.
 - **Commander** (`commander`): `movement_points` per turn (same units as move costs), `sight` (hexes), `squad` (its own squad in battles), `army` (starting squads besides its own), `army_cap` (squads besides its own, default 6), `tags`. Abilities and battleforces arrive with sw-o1m.2.
+- **Item** (`item`, R3Q7, R4Q10): `name`, `text`, `icon`, `tags`, `value`, and one slot: `weapon` (replaces the unit's), `defense` (replaces the unit's) or neither (a kit). `bundles` apply to the carrying unit. `fits` lists unit template IDs, unit tags or squad factions that may carry it (empty = any).
 - **Battleforce preset** (`battleforce_preset`): `name`, `prefer` and `avoid` lists of squad features (legend archetype, doctrine, keywords) for auto-fill (R2Q1).
 - **Map template** (`overworld_map`): seeded generation passes (R3Q13).
   - **Grid:** pointy-top hexes in a `width` × `height` rectangle of "odd-r" offset coordinates (`col`, `row`; odd rows shifted half a hex right). Maths runs in axial coordinates.
