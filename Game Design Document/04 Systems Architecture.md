@@ -98,6 +98,12 @@ data                  (immutable template tables from packages)
 ## 4.9 Tools (R8Q7, R8Q6)
 - **Now:** authoring tools are Godot editor plugins and data tools; `custom_graph_editor` is used for trigger and dialogue graphs. Angelfall is built with them.
 - **Later:** the in-game player campaign editor reuses the same formats and validators.
+- **In play (sw-cgl.3):** the `simple_war_tools` editor plugin adds a **War Data** main screen (`WarDataPanel`, which also runs standalone).
+  - **Template:** templates by kind. For the selected one, the panel shows its flattened values with the template that set each (provenance) and its definition text to edit. You can Validate, Apply, or Add it as a new template to a chosen data file.
+  - **Edits are textual:** `PackageEditor` replaces only that template's span in its JSON file, so formatting and diffs survive. An edit is checked against the whole package first (schema, every map and scenario compiling, the glossary) and refused if anything breaks.
+  - **Triggers:** a map's or scenario's triggers drawn with `custom_graph_editor` (`TriggerGraph`). The nodes are events, triggers, variables, zones and features, and links show what reads or writes what. Selecting a trigger opens its template. The graph is a view; edits happen in the definition text.
+  - **Problems:** everything the package would fail to load with.
+  - **Dialogue graphs** wait for a dialogue data model (sw-cgl.4).
 
 ## 4.10 Addons (R8Q13)
 - **Keep:** dialogic (presentation only), gut (tests), guide (input).

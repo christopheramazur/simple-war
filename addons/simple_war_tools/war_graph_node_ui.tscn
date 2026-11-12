@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/simple_war_tools/war_graph_node_ui.gd" id="1"]
+
+[node name="WarGraphNodeUI" type="Control"]
+custom_minimum_size = Vector2(200, 52)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 200.0
+offset_bottom = 52.0
+script = ExtResource("1")

@@ -22,7 +22,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | `GD-Agentic-Skills/skills/godot-*/` | Skill modules (`SKILL.md`, `references/`, `scripts/`). Load **only** the module §12 names, never all of them. |
 | `data/` | Content packages (official content uses the mod package format). Schema: GDD `03 Data Model.md`. Gameplay data lives here, not in scenes. The old `data/defaults` JSON is archived in `Game Design Document/History/data/`. |
 | `src/` | Game code (`.gd` + `.tscn`). |
-| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller` (under evaluation for UI ideas), `guide`. Update this row when adding or removing addons. |
+| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller` (under evaluation for UI ideas), `guide`, `simple_war_tools` (ours: the War Data editor screen). Update this row when adding or removing addons. |
 | `harness/` | Agent harness: the `hx` CLI, telemetry ledger, benchmarks. See `harness/README.md`; decisions and reasons are in `harness/DESIGN.md`. |
 | `.agents/skills/` | Client-agnostic agent skills (e.g. `beads`). |
 
