@@ -21,7 +21,7 @@
 			"name": "Civilian", "hp": 6, "size_class": "medium", "defense": "no_armour", "movement": "foot",
 			"proficiency_pct": 50, "tags": ["civilian"]}},
 		{"id": "jeff", "kind": "unit", "values": {
-			"name": "Jeff", "hp": 10, "size_class": "medium", "defense": "no_armour", "movement": "foot",
+			"name": "Jeff", "hp": 14, "size_class": "medium", "defense": "no_armour", "movement": "foot",
 			"weapon": "old_revolver", "proficiency_pct": 90, "tags": ["leader", "civilian"]}},
 		{"id": "cr0_unit", "kind": "unit", "values": {
 			"name": "CR-0 robot", "hp": 16, "size_class": "medium", "defense": "cr0_plating", "movement": "heavy_foot",
@@ -41,7 +41,7 @@
 			"name": "Civilians", "value": 20, "keywords": ["civilian"],
 			"members": [{"unit": "civilian", "count": 6}]}},
 		{"id": "jeff_squad", "parent": "civilian_base", "values": {
-			"name": "Jeff and the stragglers", "value": 40, "sight": 40, "keywords": ["civilian"],
+			"name": "Jeff and the stragglers", "value": 40, "sight": 40, "keywords": ["leader"],
 			"members": [{"unit": "jeff", "count": 1}, {"unit": "civilian", "count": 2}]}},
 		{"id": "cr0_patrol", "kind": "squad", "values": {
 			"name": "CR-0 patrol", "faction": "planetary_ai", "value": 90, "capture_rate": 0, "sight": 50,
@@ -50,7 +50,7 @@
 			"members": [{"unit": "cr0_unit", "count": 3}]}},
 		{"id": "angel_base", "kind": "squad", "abstract": true, "values": {
 			"faction": "angel", "capture_rate": 10, "sight": 50,
-			"formation": {"shape": "wedge", "spacing": 3}, "keywords": ["angel"]}},
+			"formation": {"shape": "wedge", "spacing": 3}, "keywords": ["angel", "hunter"]}},
 		{"id": "angel_host", "parent": "angel_base", "values": {
 			"name": "Angel host", "value": 100, "legend_archetype": "damage",
 			"members": [{"unit": "seraph", "count": 3}]}},
@@ -90,7 +90,7 @@
 				{"op": "place", "feature": "hex_spaceport", "col": 10, "row": 3}
 			],
 			"starts": [{"player": 1, "commander": "jeff_commander", "col": 1, "row": 4}],
-			"triggers": ["af_intro", "af_dispersed", "af_angels_hunt", "af_evacuated"]}},
+			"triggers": ["af_intro", "af_dispersed", "af_angels_hunt", "af_evacuated", "af_jeff_lost"]}},
 
 		{"id": "af_intro", "kind": "trigger", "values": {
 			"text": "Jeff sets the scene on the first turn.",
@@ -117,9 +117,19 @@
 			"text": "Winning the spaceport battle completes the evacuation.",
 			"on": "battle_resolved",
 			"where": {"winner": 1, "col": 10, "row": 3},
+			"if": [{"check": "var", "name": "failed", "op": "==", "value": 0}],
 			"do": [
 				{"do": "set_var", "name": "evacuated", "value": 1},
-				{"do": "message", "key": "angelfall.evacuated", "text": "The last shuttle lifts off."}
+				{"do": "end_mission", "outcome": "won", "key": "angelfall.won", "text": "The last shuttle lifts off. Angelfall: evacuation complete."}
+			]}},
+
+		{"id": "af_jeff_lost", "kind": "trigger", "values": {
+			"text": "Jeff is story-essential: his death fails the mission (R2Q13; revival on easy comes with difficulty settings).",
+			"on": "commander_defeated",
+			"where": {"template": "jeff_commander"},
+			"do": [
+				{"do": "set_var", "name": "failed", "value": 1},
+				{"do": "end_mission", "outcome": "lost", "key": "angelfall.jeff_lost", "text": "Jeff has fallen. Without him, the evacuation fails."}
 			]}},
 
 		{"id": "angelfall_spaceport", "kind": "scenario", "values": {

@@ -17,8 +17,9 @@ extends RefCounted
 ##   default >=) against "value" (default 1).
 ## Actions: set_var, add_var, message (translation "key" with "text"
 ##   fallback, to "player", 0 = all) in any context; overworld: add_value,
-##   add_feature, remove_feature; battle: unlock_zone, lock_zone,
-##   end_battle.
+##   add_feature, remove_feature, end_mission ("outcome" won or lost, with a
+##   message "key" / "text"; the first one stands); battle: unlock_zone,
+##   lock_zone, end_battle.
 ## Triggers see the events of their own step only, not those their actions
 ## make (no chains; use variables across turns).
 
@@ -31,7 +32,7 @@ const CHECKS: Dictionary = {
 }
 const COMMON_ACTIONS: Array[String] = ["set_var", "add_var", "message"]
 const ACTIONS: Dictionary = {
-	"overworld": ["add_value", "add_feature", "remove_feature"],
+	"overworld": ["add_value", "add_feature", "remove_feature", "end_mission"],
 	"battle": ["unlock_zone", "lock_zone", "end_battle"],
 }
 const TURN_RESOLVED: StringName = &"turn_resolved"
@@ -122,5 +123,7 @@ func _check_action(tid: String, a: Dictionary, names: PackedStringArray) -> void
 		errors.append("%s: unknown zone '%s'" % [tid, a.get("zone", "")])
 	if kind in ["add_feature", "remove_feature"] and not names.has(String(a.get("feature", ""))):
 		errors.append("%s: unknown feature '%s'" % [tid, a.get("feature", "")])
+	if kind == "end_mission" and not String(a.get("outcome", "")) in ["won", "lost"]:
+		errors.append("%s: end_mission needs an outcome, won or lost" % tid)
 	if kind in ["set_var", "add_var"] and String(a.get("name", "")).is_empty():
 		errors.append("%s: %s needs a name" % [tid, kind])

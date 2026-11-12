@@ -66,6 +66,7 @@ const _EVENT_FIELDS := {
 	&"trigger_message": [[], ["player"], []],
 	&"guard_dispersed": [[], ["player"], ["plot"]],
 	&"guard_returned": [[], [], ["plot"]],
+	&"mission_ended": [[], [], []],
 }
 ## Events a hostile player sees only through sight of the plot, reduced to
 ## these keys: what forces hold is never shown to enemies (R5Q9).
@@ -82,6 +83,7 @@ const _HOSTILE := {
 }
 ## Events everyone sees, reduced to these keys without sight (battle tiles).
 const _PUBLIC := {
+	&"mission_ended": ["outcome", "key", "text", "turn"],
 	&"engagement_started": ["engagement", "plot"],
 	&"engagement_ended": ["engagement", "plot"],
 	&"battle_started": ["engagement", "plot"],

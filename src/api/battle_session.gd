@@ -237,7 +237,8 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 	var zones := []
 	for z in rules.zone_ids.size():
 		zones.append({"id": rules.zone_ids[z], "x": rules.zn_x[z], "y": rules.zn_y[z], "radius": rules.zn_radius[z],
-			"owner": state.zone_owner[z], "amount": state.zone_amount[z], "threshold": rules.zn_threshold[z]})
+			"owner": state.zone_owner[z], "amount": state.zone_amount[z], "threshold": rules.zn_threshold[z],
+			"locked": state.zone_locked.size() > z and state.zone_locked[z] == 1})
 	var scores := {}
 	for p in state.players:
 		scores[p] = {"influence": state.influence[p], "value": state.value_score[p]}

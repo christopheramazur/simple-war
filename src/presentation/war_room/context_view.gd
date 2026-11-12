@@ -24,6 +24,8 @@ const GHOST: Color = Color(0.85, 0.9, 1.0, 0.55)
 const PLAYER_COLORS: Dictionary = {1: Color(0.25, 0.55, 1.0), 2: Color(1.0, 0.35, 0.3), 30: Color(0.85, 0.85, 0.85)}
 ## Plot colour: the first listed feature present wins; else plains.
 const FEATURE_COLORS: Array = [
+	["hex_spaceport", Color("9fb3c8")], ["hex_angel_blockade", Color("d9d2f2")], ["hex_cliffs", Color("4a4440")],
+	["hex_frontier_town", Color("b9a46a")],
 	["hex_lake", Color("2d4f6e")], ["hex_village", Color("b9a46a")], ["hex_barracks", Color("9a7f5e")],
 	["hex_depot", Color("8f8a6c")], ["hex_mine", Color("6f6a64")], ["hex_bandit_camp", Color("7a4a42")],
 	["hex_shrine", Color("8d7aa8")], ["hex_supply_cache", Color("c8b25c")], ["hex_arms_cache", Color("c8b25c")],
@@ -45,6 +47,8 @@ var _zoom: float = 1.0
 var _selected: int = -1
 var _selected_plot: int = -1
 var _battles: Dictionary = {}
+## Own commanders' planned routes: commander ID -> plots.
+var _routes: Dictionary = {}
 var _overlay: Dictionary = {}
 var _press_at: Vector2 = Vector2.ZERO
 var _box: Rect2 = Rect2()
@@ -72,6 +76,7 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 	_battles = {}
 	for eid in ctx.battles():
 		_battles[ctx.battle_plot(eid)] = eid
+	_routes = obs.get("routes", {})
 	queue_redraw()
 
 
@@ -135,6 +140,15 @@ func _draw_overworld() -> void:
 			draw_arc(c, s * 0.62, 0, TAU, 24, BATTLE, 3.0)
 		if p == _selected_plot:
 			draw_polyline(pts, SELECT, 2.5)
+	for cmd: Dictionary in _obs.get("commanders", []):
+		var route: PackedInt64Array = _routes.get(cmd["id"], PackedInt64Array())
+		var prev := o + _centre(cmd["plot"])
+		for p in route:
+			var nxt := o + _centre(p)
+			draw_dashed_line(prev, nxt, SELECT, 2.0, 6.0)
+			prev = nxt
+		if not route.is_empty():
+			draw_arc(prev, s * 0.2, 0, TAU, 12, SELECT, 2.0)
 	for cmd: Dictionary in _obs.get("commanders", []):
 		var c := o + _centre(cmd["plot"])
 		var r := s * 0.36

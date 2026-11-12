@@ -259,6 +259,7 @@ static func _check_defeat(s: OverworldState, cid: int) -> void:
 		return  # a commander without a squad of its own cannot fall in battle
 	var player := c.player[row]
 	var p := c.plot[row]
+	var tmpl := s.rules.commander_ids[c.tmpl[row]]
 	for id in OverworldArmies.of(s, cid):
 		q.despawn(id)
 	c.despawn(cid)
@@ -266,7 +267,7 @@ static func _check_defeat(s: OverworldState, cid: int) -> void:
 	s.routes.erase(cid)
 	s.activities.erase(cid)
 	s.battleforces.erase(cid)
-	s.events.push(&"commander_defeated", {"commander": cid, "player": player, "plot": p}, s.tick)
+	s.events.push(&"commander_defeated", {"commander": cid, "player": player, "plot": p, "template": tmpl}, s.tick)
 
 
 ## Plain data for saves.

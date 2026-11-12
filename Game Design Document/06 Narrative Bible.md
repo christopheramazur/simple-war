@@ -125,6 +125,16 @@ Development order: the Humanity base for Duel first, with the three splinters as
   - **Battle `angelfall_spaceport`:**
     - **The objective:** both hangar zones start locked. When player 1 takes the control console, the planetary AI opens them; it nudges the player on turn 2 if nobody has.
     - **Evacuating:** each turn civilians hold an open hangar, a shuttle lifts off (`shuttles`). The influence the hangars score wins the battle.
+- **Playable slice (sw-cf6, M4):** the project's main scene is `src/presentation/angelfall/angelfall.tscn`, the war room on `angelfall_frontier`.
+  - **Overworld controls:**
+    - Select Jeff, then right-click a hex to route him as far as he gets this turn.
+    - The commander panel sets the battleforce: strongest first, "No battleforce (disperses Angels)", or a preset. It also sends towns' civilians to him along supply lines.
+    - Space ends the turn.
+  - **Battles:** use the planning UI (sw-ip8.3). The Angels fight with `GuardController`: they hunt civilians first and sweep to zones when they see nobody.
+  - **Messages and outcome:** messages collect in the side panel, and a banner shows the mission's outcome.
+  - **Ending the mission:** `end_mission` triggers decide it. Winning the spaceport means won; Jeff's death means lost (R2Q13). Revival on easy waits for difficulty settings.
+  - **Proven headless:** a scripted playthrough (`EvacuationController`) disperses the blockade and wins on several seeds, replays exactly, and a lone Jeff at the spaceport loses.
+  - **Mock:** `Mocks/angelfall.png`.
 
 ## 6.10 Open
 The timeline interview, then the narrative pass: characters, plot outline, art direction, audio and UI aesthetics (R8Q16).

@@ -462,13 +462,18 @@ func _pump() -> void:
 		clock.execute_finished()
 
 
-## Reveal: reinforcements join every battle and its orders apply.
+## Reveal: reinforcements join every battle, the neutral side (guards,
+## Angels) gets its orders from GuardController, and every side's orders
+## apply.
 func _reveal_battles() -> void:
 	var ids: Array = battles.keys()
 	ids.sort()
 	for eid: int in ids:
 		var b: OverworldBattle = battles[eid]
 		OverworldBattles.reinforce(state, b)
+		var n := OverworldBattles.NEUTRAL
+		if b.state.players.has(n):
+			b.orders[n] = GuardController.orders(BattleSession.observe_state(b.state, n), b.rules, n)
 		for p in b.state.players:
 			BattleOrders.apply(b.state, p, b.orders.get(p, []))
 		b.orders = {}
@@ -550,6 +555,7 @@ func observe(player: int) -> Dictionary:
 	for bt: Dictionary in o["battles"]:
 		bt["battle"] = battles.has(bt["engagement"])
 	o["reactions"] = reaction_opportunities(player)
+	o["outcome"] = state.outcome.duplicate()
 	return o
 
 

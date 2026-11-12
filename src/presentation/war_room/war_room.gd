@@ -40,6 +40,10 @@ const DIM: Color = Color("8a93a3")
 ## the first battle), "pip" (focus the first, pin the second) or "plan"
 ## (focus the first, select its squads and draft a move into a new line).
 @export var demo_view: String = ""
+## A map to play (with no session given): the war room makes its own
+## session and plays `player` against the map's guards and triggers.
+@export var map_id: String = ""
+@export var map_seed: int = 1
 
 var session: OverworldSession
 var contexts: ViewContexts
@@ -64,12 +68,19 @@ var _radial: ReactionRadial
 var _radial_opp: Dictionary = {}
 var _orders_box: VBoxContainer
 var _reactions_box: VBoxContainer
+var _commander_box: VBoxContainer
+var _log_box: VBoxContainer
+var _banner: PanelContainer
+var _banner_text: Label
+## Messages from triggers, newest last: [translated text].
+var messages: PackedStringArray = PackedStringArray()
+var _log_turn: int = -1
 
 
 func _ready() -> void:
 	if session == null:
-		session = demo_session()
-		end_turn_requested.connect(_demo_end_turn)
+		session = demo_session() if map_id.is_empty() else play_session(map_id, map_seed)
+		end_turn_requested.connect(_end_turn)
 	glossary = Glossary.from_templates(session.templates)
 	_build_ui()
 	_turn_seen = session.turns_resolved()
@@ -96,6 +107,12 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if contexts != null and contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
+
+
+## A session on a map from the core package, at turn 1.
+static func play_session(map: String, seed_value: int) -> OverworldSession:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	return OverworldSession.create(l.templates, l.data_hash, map, seed_value)
 
 
 ## A demo: test_vale with player 1 fighting the bandit camp and player 2's
@@ -169,6 +186,8 @@ func _build_ui() -> void:
 	col.add_child(_title("Commanders"))
 	_cmds = VBoxContainer.new()
 	col.add_child(_cmds)
+	_commander_box = VBoxContainer.new()
+	col.add_child(_commander_box)
 	_orders_box = VBoxContainer.new()
 	col.add_child(_orders_box)
 	var scroll := ScrollContainer.new()
@@ -177,8 +196,23 @@ func _build_ui() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_reactions_box = VBoxContainer.new()
 	_reactions_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_reactions_box)
+	_log_box = VBoxContainer.new()
+	_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var stack := VBoxContainer.new()
+	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stack.add_child(_reactions_box)
+	stack.add_child(_log_box)
+	scroll.add_child(stack)
 	col.add_child(scroll)
+	_banner = PanelContainer.new()
+	_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_banner.offset_top = 16
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner_text = Label.new()
+	_banner_text.add_theme_font_size_override("font_size", 20)
+	_banner.add_child(_banner_text)
+	_banner.hide()
+	stage.add_child(_banner)
 	var end := Button.new()
 	end.text = "End turn (Space)"
 	end.pressed.connect(func() -> void: end_turn_requested.emit())
@@ -241,9 +275,13 @@ func _refresh() -> void:
 	_refresh_commanders()
 	_refresh_orders()
 	_refresh_reactions()
+	_refresh_commander()
+	_refresh_log()
 	var where := "Overworld" if contexts.focus == ViewContexts.OVERWORLD else battle_name(contexts.focus)
 	var follow := "" if contexts.followed < 0 else "  ·  following %d" % contexts.followed
 	var armed := "  ·  ATTACK-MOVE: right click a point" if _attack_armed else ""
+	if not _hud_note.is_empty():
+		armed += "  ·  " + _hud_note
 	_hud.text = "  %s%s  ·  %s  ·  zoom %.2f  ·  turn %d%s   [Tab swap · Esc exit · F follow · wheel zoom · Space end turn]" % [
 		where, follow, session.phase_name().capitalize(), contexts.zoom, session.turns_resolved() + 1, armed]
 
@@ -315,7 +353,10 @@ func _refresh_commanders() -> void:
 
 func _on_hex_clicked(p: int, button: int) -> void:
 	if button == MOUSE_BUTTON_RIGHT:
-		contexts.deselect_all()
+		if _own_selected() >= 0 and p >= 0:
+			route_to(p)
+		else:
+			contexts.deselect_all()
 		return
 	if p < 0:
 		return
@@ -552,9 +593,131 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+# --- overworld orders ----------------------------------------------------------
+
+## The selected commander if it is the player's own, else -1.
+func _own_selected() -> int:
+	var cid := contexts.selected
+	if cid < 0 or not session.state.commanders.is_alive(cid):
+		return -1
+	return cid if session.state.commanders.get_value(cid, &"player") == player else -1
+
+
+## Routes the selected commander toward a hex (as far as it gets this
+## turn, by the cheapest way the player knows). "" or why not.
+func route_to(p: int) -> String:
+	var cid := _own_selected()
+	if cid < 0:
+		return "no commander selected"
+	var path := session.path(player, cid, p)
+	var err := "no way there" if path.is_empty() else session.set_route(player, cid, path)
+	_hud_note = err
+	_queue_refresh()
+	return err
+
+
+var _hud_note: String = ""
+
+
+## Battleforce for the selected commander: preset "" (strongest first),
+## "none" (no battleforce: disperses Angels) or a named preset.
+func set_battleforce(preset: String, lead: bool) -> String:
+	var cid := _own_selected()
+	if cid < 0:
+		return "no commander selected"
+	var err := session.set_battleforce(player, cid, preset, PackedInt64Array(), lead)
+	_hud_note = err
+	_queue_refresh()
+	return err
+
+
+func _refresh_commander() -> void:
+	_clear(_commander_box)
+	var cid := _own_selected()
+	if cid < 0 or session.clock.phase != PulseClock.Phase.PLANNING:
+		return
+	var me := {}
+	var obs := session.observe(player)
+	for c: Dictionary in obs["commanders"]:
+		if c["id"] == cid:
+			me = c
+	if me.is_empty():
+		return
+	_commander_box.add_child(_title("Commander %d: battleforce" % (cid & 0xffff)))
+	var plan: Dictionary = me.get("battleforce_plan", {})
+	var pick := OptionButton.new()
+	var choices: Array = [["Strongest first", ""], ["No battleforce (disperses Angels)", OverworldBattleforce.NONE]]
+	for pid in session.rules.preset_ids:
+		choices.append([String(pid).trim_prefix("preset_").capitalize(), String(pid)])
+	for i in choices.size():
+		pick.add_item(choices[i][0])
+		pick.set_item_metadata(i, choices[i][1])
+		if choices[i][1] == String(plan.get("preset", "")):
+			pick.select(i)
+	var lead := CheckBox.new()
+	lead.text = "Commander's own squad fights"
+	lead.button_pressed = bool(plan.get("lead", true))
+	pick.item_selected.connect(func(i: int) -> void:
+		var preset: String = pick.get_item_metadata(i)
+		set_battleforce(preset, false if preset == OverworldBattleforce.NONE else lead.button_pressed))
+	lead.toggled.connect(func(on: bool) -> void: set_battleforce(String(plan.get("preset", "")), on))
+	_commander_box.add_child(pick)
+	_commander_box.add_child(lead)
+	var production: Dictionary = obs.get("production", {})
+	if production.is_empty():
+		return
+	_commander_box.add_child(_title("Supply lines"))
+	var lines: Dictionary = obs.get("supply_lines", {})
+	var fids: Array = production.keys()
+	fids.sort()
+	for fid: int in fids:
+		var row := session.state.features.row_of(fid)
+		var b := Button.new()
+		var fp := session.state.features.plot[row]
+		var name := "%s (%d,%d)" % [session.rules.hf_names[session.state.features.tmpl[row]], fp % session.rules.width, fp / session.rules.width]
+		var to_me: bool = lines.has(fid) and lines[fid]["commander"] == cid
+		b.text = ("✓ %s sends to this commander" if to_me else "%s: send output here") % name
+		b.disabled = to_me
+		b.pressed.connect(func() -> void:
+			_hud_note = session.set_supply_line(player, fid, -1, cid)
+			_queue_refresh())
+		_commander_box.add_child(b)
+
+
+## Trigger messages and the mission's outcome.
+func _refresh_log() -> void:
+	if session.turns_resolved() != _log_turn:
+		_log_turn = session.turns_resolved()
+		for e: Dictionary in session.observe(player).get("events", []):
+			if e["type"] in [&"trigger_message", &"mission_ended"]:
+				var d: Dictionary = e["data"] if e.has("data") else e
+				messages.append(_say(String(d.get("key", "")), String(d.get("text", ""))))
+	_clear(_log_box)
+	if not messages.is_empty():
+		_log_box.add_child(_title("Messages"))
+		for i in range(messages.size() - 1, maxi(messages.size() - 8, 0) - 1, -1):
+			var l := _title(messages[i])
+			l.add_theme_color_override("default_color", Color("dde2ea"))
+			_log_box.add_child(l)
+	var outcome: Dictionary = session.observe(player).get("outcome", {})
+	_banner.visible = not outcome.is_empty()
+	if _banner.visible:
+		var won: bool = outcome["outcome"] == "won"
+		_banner_text.text = ("✔ Mission won — " if won else "✖ Mission lost — ") + _say(String(outcome["key"]), String(outcome["text"]))
+		_banner_text.add_theme_color_override("font_color", Color("74d18a") if won else Color("e8735f"))
+
+
+## A message's translation, its text as the fallback.
+static func _say(key: String, fallback: String) -> String:
+	var s := String(TranslationServer.translate(key)) if not key.is_empty() else key
+	return fallback if s.is_empty() or s == key else s
+
+
 ## Readies every player until planning comes round again, stopping at a
-## reaction window that offers this player something.
-func _demo_end_turn() -> void:
+## reaction window that offers this player something. The drafts were
+## consumed: the next planning starts clean.
+func _end_turn() -> void:
+	_hud_note = ""
 	for i in 4:
 		for p in session.players():
 			session.ready(p)
@@ -563,6 +726,12 @@ func _demo_end_turn() -> void:
 			break
 		if ph == PulseClock.Phase.REACTION and not session.reaction_opportunities(player).is_empty():
 			break
+	if session.turns_resolved() != _turn_seen:
+		_turn_seen = session.turns_resolved()
+		for eid: int in planners:
+			(planners[eid] as BattlePlanner).drafts = {}
+		_forecasts = {}
+		_reacted = {}
 	contexts.sync(session.observe(player))
 	_queue_refresh()
 

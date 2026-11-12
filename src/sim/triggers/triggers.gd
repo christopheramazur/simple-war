@@ -149,6 +149,12 @@ static func _act(state: SimContext, a: Dictionary, tid: String, data: Dictionary
 				var fid := s.features.id_at(row)
 				s.remove_feature(fid)
 				s.events.push(&"feature_removed", {"plot": p, "feature": fid, "tmpl": t, "rule": tid}, s.tick)
+		"end_mission":
+			var s := state as OverworldState
+			if s.outcome.is_empty():
+				s.outcome = {"outcome": String(a["outcome"]), "key": String(a.get("key", "")),
+					"text": String(a.get("text", "")), "turn": s.turn}
+				s.events.push(&"mission_ended", s.outcome.duplicate(), s.tick)
 		"unlock_zone", "lock_zone":
 			var b := state as BattleState
 			var z := b.rules.zone_ids.find(String(a["zone"]))

@@ -27,6 +27,9 @@ var drops: Dictionary = {}
 var supply_lines: Dictionary = {}
 ## Trigger variables (campaign state) and fire counts (Triggers).
 var vars: Dictionary = {}
+## How the mission ended ({} = still running): {"outcome" (won / lost),
+## "key", "text", "turn"}, set by a trigger's end_mission.
+var outcome: Dictionary = {}
 var fired: Dictionary = {}
 ## Value per player, the sole resource (R5Q11).
 var value: Dictionary = {}
@@ -190,7 +193,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"value": value.duplicate(), "offers": offers.duplicate(true),
 		"memory": memory.duplicate(true), "teams": teams.duplicate(),
 		"battleforces": battleforces.duplicate(true), "presets": presets.duplicate(true),
-		"vars": vars.duplicate(), "fired": fired.duplicate()}
+		"vars": vars.duplicate(), "fired": fired.duplicate(), "outcome": outcome.duplicate()}
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -210,6 +213,7 @@ func _restore_extra(snap: Dictionary) -> void:
 	presets = (snap["overworld"].get("presets", {}) as Dictionary).duplicate(true)
 	vars = (snap["overworld"].get("vars", {}) as Dictionary).duplicate()
 	fired = (snap["overworld"].get("fired", {}) as Dictionary).duplicate()
+	outcome = (snap["overworld"].get("outcome", {}) as Dictionary).duplicate()
 	reindex()
 
 
@@ -244,6 +248,8 @@ func state_hash() -> PackedByteArray:
 	for o in offers:
 		text += "O%d:%d:%d;" % [o["plot"], o["feature"], o["player"]]
 	text += TriggerRules.hash_text(vars, fired)
+	if not outcome.is_empty():
+		text += "M%s@%d;" % [outcome["outcome"], outcome["turn"]]
 	players = teams.keys()
 	players.sort()
 	for p: int in players:
