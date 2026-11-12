@@ -163,11 +163,17 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 	_end(s, b.engagement, b.plot, 0 if winner == NEUTRAL else winner, String(res["reason"]), winner != 0)
 
 
-## Ends an engagement nobody opposes: its one side wins.
+## Ends an engagement nobody opposes: its one side wins. Commanders that
+## brought no squads against guards win only if every guard can be
+## dispersed (R3Q17: Angels give way to a commander with no battleforce,
+## for their dispersal_turns); any other guard holds.
 static func finish_unopposed(s: OverworldState, eid: int) -> void:
 	var e := s.engagements
 	var p := e.plot[e.row_of(eid)]
 	var groups := _groups(s, eid)
+	if groups.is_empty() and not s.guard_at(p).is_empty():
+		_face_guards(s, eid, p)
+		return
 	var winner := 0
 	if groups.size() == 1:
 		winner = groups.keys()[0]
@@ -176,6 +182,33 @@ static func finish_unopposed(s: OverworldState, eid: int) -> void:
 			if s.commanders.get_value(cid, &"engagement") == eid:
 				winner = s.commanders.get_value(cid, &"player")
 	_end(s, eid, p, winner, "unopposed", winner > 0)
+
+
+## Commanders with no battleforce against guards: dispersible guards
+## scatter until their return turn; others hold the hex.
+static func _face_guards(s: OverworldState, eid: int, p: int) -> void:
+	var player := 0
+	for cid in Commanders.at(s, p):
+		if s.commanders.get_value(cid, &"engagement") == eid:
+			player = s.commanders.get_value(cid, &"player")
+	var f := s.features
+	var guards := []
+	for row in s.features_at(p):
+		if not s.rules.hf_guard[f.tmpl[row]].is_empty() and f.cleared[row] == 0:
+			guards.append(f.id_at(row))
+	var dispersible := not guards.is_empty()
+	for fid: int in guards:
+		dispersible = dispersible and s.rules.hf_dispersal[f.tmpl[f.row_of(fid)]] > 0
+	if not dispersible or player == 0:
+		_end(s, eid, p, 0, "unopposed", true)
+		return
+	for fid: int in guards:
+		var turns := s.rules.hf_dispersal[f.tmpl[f.row_of(fid)]]
+		f.set_value(fid, &"cleared", 1)
+		f.set_value(fid, &"returns", s.turn + turns)
+		s.events.push(&"guard_dispersed", {"plot": p, "feature": fid, "player": player, "turns": turns,
+			"template": s.rules.feature_ids[f.tmpl[f.row_of(fid)]]}, s.tick)
+	_end(s, eid, p, player, "dispersed", true)
 
 
 ## Ends engagement eid on plot p. `winner` is the winning player (0 =

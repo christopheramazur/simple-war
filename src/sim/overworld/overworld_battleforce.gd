@@ -34,9 +34,16 @@ static func plan_of(s: OverworldState, cid: int) -> Dictionary:
 
 ## {"prefer", "avoid"} for a preset name as `player` sees it, or {} if
 ## unknown. "" is plain strongest-first.
+## The built-in preset that commits no squads beyond the commander's own
+## (and none at all without "lead"): engaging Angels with no battleforce
+## disperses them (R3Q17).
+const NONE: String = "none"
+
 static func preset(s: OverworldState, player: int, name: String) -> Dictionary:
 	if name.is_empty():
 		return {"prefer": PackedStringArray(), "avoid": PackedStringArray()}
+	if name == NONE:
+		return {"prefer": PackedStringArray(), "avoid": PackedStringArray(), "none": true}
 	var own: Dictionary = s.presets.get(player, {})
 	if own.has(name):
 		return own[name]
@@ -68,6 +75,8 @@ static func pick(s: OverworldState, cid: int, drop: bool = false) -> PackedInt64
 			continue
 		free.append(id)
 	var chosen: PackedInt64Array = plan["squads"]
+	if chosen.is_empty() and preset(s, player, plan["preset"]).get("none", false):
+		return out  # no battleforce (the inverted auto-resolve, R3Q17)
 	if chosen.is_empty():
 		var pre := preset(s, player, plan["preset"])
 		if pre.is_empty():

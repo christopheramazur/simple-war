@@ -1,0 +1,176 @@
+{
+	"templates": [
+		{"id": "old_revolver", "kind": "weapon", "values": {
+			"name": "Old revolver", "range": 20, "damage_type": "kinetic", "magazine": 6, "reload_ticks": 30,
+			"modes": {"snap": {"shots": 1, "cooldown_ticks": 10, "accuracy": "0.5", "damage": 4, "moving": true}}}},
+		{"id": "arc_carbine", "kind": "weapon", "values": {
+			"name": "Arc carbine", "range": 30, "damage_type": "energy", "magazine": 20, "reload_ticks": 20,
+			"modes": {"burst": {"shots": 2, "cooldown_ticks": 12, "accuracy": "0.5", "damage": 3, "moving": true}}}},
+		{"id": "radiant_lance", "kind": "weapon", "values": {
+			"name": "Radiant lance", "range": 6, "damage_type": "magic", "magazine": 0, "reload_ticks": 0,
+			"modes": {"strike": {"shots": 1, "cooldown_ticks": 10, "accuracy": "0.7", "damage": 6, "moving": true}}}},
+		{"id": "choir_light", "kind": "weapon", "values": {
+			"name": "Choir light", "range": 35, "damage_type": "magic", "magazine": 0, "reload_ticks": 0,
+			"modes": {"hymn": {"shots": 2, "cooldown_ticks": 20, "accuracy": "0.4", "damage": 3}}}},
+
+		{"id": "cr0_plating", "kind": "defense", "values": {"flat": 1, "resist_pct": {"kinetic": 20}}},
+		{"id": "angelic_veil", "kind": "defense", "values": {"evasion_pct": 20, "resist_pct": {"kinetic": 30, "explosive": 30}}},
+		{"id": "angel_flight", "kind": "movement", "values": {"walk": 4, "run": 8, "accel": 16, "turn_deg_per_s": 720}},
+
+		{"id": "civilian", "kind": "unit", "values": {
+			"name": "Civilian", "hp": 6, "size_class": "medium", "defense": "no_armour", "movement": "foot",
+			"proficiency_pct": 50, "tags": ["civilian"]}},
+		{"id": "jeff", "kind": "unit", "values": {
+			"name": "Jeff", "hp": 10, "size_class": "medium", "defense": "no_armour", "movement": "foot",
+			"weapon": "old_revolver", "proficiency_pct": 90, "tags": ["leader", "civilian"]}},
+		{"id": "cr0_unit", "kind": "unit", "values": {
+			"name": "CR-0 robot", "hp": 16, "size_class": "medium", "defense": "cr0_plating", "movement": "heavy_foot",
+			"weapon": "arc_carbine", "proficiency_pct": 100, "tags": ["robot"]}},
+		{"id": "seraph", "kind": "unit", "values": {
+			"name": "Seraph", "hp": 12, "size_class": "medium", "defense": "angelic_veil", "movement": "angel_flight",
+			"weapon": "radiant_lance", "proficiency_pct": 100, "tags": ["angel"]}},
+		{"id": "cantor", "kind": "unit", "values": {
+			"name": "Cantor", "hp": 8, "size_class": "medium", "defense": "angelic_veil", "movement": "angel_flight",
+			"weapon": "choir_light", "proficiency_pct": 100, "tags": ["angel"]}},
+
+		{"id": "civilian_base", "kind": "squad", "abstract": true, "values": {
+			"faction": "civilian", "capture_rate": 10, "sight": 30,
+			"formation": {"shape": "blob", "spacing": 2},
+			"abilities": ["halt", "fall_back"], "legend_archetype": "support"}},
+		{"id": "civilian_group", "parent": "civilian_base", "values": {
+			"name": "Civilians", "value": 20, "keywords": ["civilian"],
+			"members": [{"unit": "civilian", "count": 6}]}},
+		{"id": "jeff_squad", "parent": "civilian_base", "values": {
+			"name": "Jeff and the stragglers", "value": 40, "sight": 40, "keywords": ["civilian"],
+			"members": [{"unit": "jeff", "count": 1}, {"unit": "civilian", "count": 2}]}},
+		{"id": "cr0_patrol", "kind": "squad", "values": {
+			"name": "CR-0 patrol", "faction": "planetary_ai", "value": 90, "capture_rate": 0, "sight": 50,
+			"formation": {"shape": "line", "spacing": 3}, "abilities": ["halt", "retarget"],
+			"keywords": ["robot"], "legend_archetype": "tank",
+			"members": [{"unit": "cr0_unit", "count": 3}]}},
+		{"id": "angel_base", "kind": "squad", "abstract": true, "values": {
+			"faction": "angel", "capture_rate": 10, "sight": 50,
+			"formation": {"shape": "wedge", "spacing": 3}, "keywords": ["angel"]}},
+		{"id": "angel_host", "parent": "angel_base", "values": {
+			"name": "Angel host", "value": 100, "legend_archetype": "damage",
+			"members": [{"unit": "seraph", "count": 3}]}},
+		{"id": "angel_choir", "parent": "angel_base", "values": {
+			"name": "Angel choir", "value": 80, "legend_archetype": "support",
+			"members": [{"unit": "cantor", "count": 4}]}},
+
+		{"id": "jeff_commander", "kind": "commander", "values": {
+			"name": "Jeff", "tags": ["story_essential"], "movement_points": 50, "sight": 3, "squad": "jeff_squad",
+			"army": ["civilian_group", "cr0_patrol"], "army_cap": 5}},
+
+		{"id": "hex_frontier_town", "kind": "hex_feature", "values": {
+			"name": "Frontier town", "controllable": true, "interaction": "stable", "sight": 2,
+			"produces": [{"squad": "civilian_group", "turns": 2, "cost": 0}]}},
+		{"id": "hex_cliffs", "kind": "hex_feature", "values": {"name": "Cliffs", "impassable": true}},
+		{"id": "hex_angel_blockade", "kind": "hex_feature", "values": {
+			"name": "Angel blockade", "tags": ["angel"], "guard": ["angel_host"], "dispersal_turns": 3}},
+		{"id": "hex_spaceport", "kind": "hex_feature", "values": {
+			"name": "Spaceport", "tags": ["angel"], "sight": 1, "guard": ["angel_host", "angel_choir"],
+			"battlefield": "angelfall_spaceport"}},
+
+		{"id": "angelfall_frontier", "kind": "overworld_map", "values": {
+			"name": "Angelfall: the frontier", "width": 12, "height": 8, "base_move_cost": 10,
+			"battleforce": {"squads": 4, "value": 0},
+			"battle_scenario": "ow_field",
+			"passes": [
+				{"op": "fill", "feature": "hex_plains"},
+				{"op": "rect", "feature": "hex_forest", "col": 2, "row": 0, "w": 3, "h": 2},
+				{"op": "rect", "feature": "hex_hills", "col": 3, "row": 6, "w": 3, "h": 2},
+				{"op": "rect", "feature": "hex_cliffs", "col": 7, "row": 0, "w": 1, "h": 3},
+				{"op": "rect", "feature": "hex_cliffs", "col": 7, "row": 4, "w": 1, "h": 4},
+				{"op": "line", "feature": "hex_road", "col": 0, "row": 4, "to_col": 11, "to_row": 3},
+				{"op": "place", "feature": "hex_frontier_town", "col": 1, "row": 4, "owner": 1},
+				{"op": "place", "feature": "hex_frontier_town", "col": 4, "row": 1, "owner": 1},
+				{"op": "place", "feature": "hex_frontier_town", "col": 5, "row": 6, "owner": 1},
+				{"op": "place", "feature": "hex_angel_blockade", "col": 7, "row": 3},
+				{"op": "place", "feature": "hex_spaceport", "col": 10, "row": 3}
+			],
+			"starts": [{"player": 1, "commander": "jeff_commander", "col": 1, "row": 4}],
+			"triggers": ["af_intro", "af_dispersed", "af_angels_hunt", "af_evacuated"]}},
+
+		{"id": "af_intro", "kind": "trigger", "values": {
+			"text": "Jeff sets the scene on the first turn.",
+			"on": "turn_resolved",
+			"do": [{"do": "message", "key": "angelfall.intro",
+				"text": "Jeff: The sky's wrong. Get everyone to the spaceport. The robots are with us; the angels are not."}]}},
+		{"id": "af_dispersed", "kind": "trigger", "values": {
+			"text": "Every dispersed Angel is one to face later (R3Q17): counted for the campaign.",
+			"on": "guard_dispersed", "max_fires": 0,
+			"do": [
+				{"do": "add_var", "name": "angels_dispersed", "value": 1},
+				{"do": "message", "player": "$player", "key": "angelfall.dispersed",
+					"text": "Jeff: They scatter when you come alone. They'll be back."}
+			]}},
+		{"id": "af_angels_hunt", "kind": "trigger", "values": {
+			"text": "Angels hunt the civilians: a blockade falls across the southern town's road on turn 4.",
+			"on": "turn_resolved",
+			"if": [{"check": "turn", "op": ">=", "value": 4}],
+			"do": [
+				{"do": "add_feature", "feature": "hex_angel_blockade", "col": 5, "row": 5},
+				{"do": "message", "key": "angelfall.hunt", "text": "Jeff: They're going for the town in the hills."}
+			]}},
+		{"id": "af_evacuated", "kind": "trigger", "values": {
+			"text": "Winning the spaceport battle completes the evacuation.",
+			"on": "battle_resolved",
+			"where": {"winner": 1, "col": 10, "row": 3},
+			"do": [
+				{"do": "set_var", "name": "evacuated", "value": 1},
+				{"do": "message", "key": "angelfall.evacuated", "text": "The last shuttle lifts off."}
+			]}},
+
+		{"id": "angelfall_spaceport", "kind": "scenario", "values": {
+			"name": "Angelfall: the spaceport",
+			"ruleset": "standard",
+			"width": 160, "height": 100, "ticks_per_turn": 100,
+			"terrain_default": "open",
+			"terrain": [
+				{"feature": "road", "x": 0, "y": 48, "w": 160, "h": 4},
+				{"feature": "ruins", "x": 70, "y": 30, "w": 14, "h": 10},
+				{"feature": "ruins", "x": 70, "y": 60, "w": 14, "h": 10}
+			],
+			"zones": [
+				{"id": "control", "x": 45, "y": 50, "radius": 10, "decay": 10, "threshold": 10, "buffer": 0, "vp": 0},
+				{"id": "hangar_a", "x": 135, "y": 25, "radius": 12, "decay": 10, "threshold": 10, "buffer": 10, "vp": 3, "locked": true},
+				{"id": "hangar_b", "x": 135, "y": 75, "radius": 12, "decay": 10, "threshold": 10, "buffer": 10, "vp": 3, "locked": true}
+			],
+			"sides": [
+				{"player": 1, "facing": 0, "deploy": {"x": 5, "y": 20, "w": 20, "h": 60},
+					"squads": ["jeff_squad", "civilian_group", "civilian_group", "cr0_patrol"]},
+				{"player": 2, "facing": 16384, "deploy": {"x": 70, "y": 2, "w": 20, "h": 12},
+					"squads": ["angel_host", "angel_choir"]}
+			],
+			"victory": {"turn_limit": 12, "primary": "influence", "score_target": 12, "annihilation": true, "withdrawal": true},
+			"end_hooks": {"loser": "scatter"},
+			"triggers": ["af_ai_hint", "af_ai_console", "af_shuttle"]}},
+
+		{"id": "af_ai_hint", "kind": "trigger", "values": {
+			"text": "The planetary AI asks for the control console on turn 2 if nobody has reached it.",
+			"on": "turn_resolved",
+			"if": [{"check": "turn", "op": ">=", "value": 2}, {"check": "zone_locked", "zone": "hangar_a"}],
+			"do": [{"do": "message", "player": 1, "key": "angelfall.ai_hint",
+				"text": "Planetary AI: I am locked out of the hangars. Someone must reach the control console."}]}},
+		{"id": "af_ai_console", "kind": "trigger", "values": {
+			"text": "Holding the control console lets the planetary AI open both hangars (R7Q7).",
+			"on": "turn_resolved",
+			"if": [{"check": "zone_owner", "zone": "control", "player": 1}],
+			"do": [
+				{"do": "unlock_zone", "zone": "hangar_a"},
+				{"do": "unlock_zone", "zone": "hangar_b"},
+				{"do": "message", "key": "angelfall.hangars_open", "text": "Planetary AI: hangar controls restored. Bring the civilians."}
+			]}},
+		{"id": "af_shuttle", "kind": "trigger", "values": {
+			"text": "Each turn civilians hold an open hangar, a shuttle lifts off (robots have Capture Rate 0).",
+			"on": "turn_resolved", "max_fires": 0,
+			"if": [{"check": "any", "of": [
+				{"check": "zone_owner", "zone": "hangar_a", "player": 1},
+				{"check": "zone_owner", "zone": "hangar_b", "player": 1}]}],
+			"do": [
+				{"do": "add_var", "name": "shuttles", "value": 1},
+				{"do": "message", "player": 1, "key": "angelfall.shuttle", "text": "A shuttle lifts off."}
+			]}}
+	]
+}

@@ -380,6 +380,10 @@ const KINDS: Dictionary = {
 		## the feature is then removed, like a cache.
 		"items": {"type": "list:obj:item_grant"},
 		"guard": {"type": "list:ref:squad"},
+		## Inverted auto-resolve (R3Q17): a commander engaging with no
+		## battleforce disperses this guard for this many turns (0 = never,
+		## e.g. the final Angels).
+		"dispersal_turns": {"type": "int", "min": 0},
 		"activity_cost": {"type": "int", "min": 0},
 		"converts_to": {"type": "ref:hex_feature"},
 		## Squads the recruit activity offers here.

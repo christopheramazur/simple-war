@@ -13,6 +13,8 @@ var cleared := PackedInt64Array()
 var output := PackedInt64Array()
 ## Turns of production towards the next squad.
 var progress := PackedInt64Array()
+## Turn a dispersed guard returns on (-1 = not dispersed).
+var returns := PackedInt64Array()
 
 
 func _init() -> void:
@@ -24,3 +26,4 @@ func _init() -> void:
 	declare(&"cleared", 0)
 	declare(&"output", 0)
 	declare(&"progress", 0)
+	declare(&"returns", -1)

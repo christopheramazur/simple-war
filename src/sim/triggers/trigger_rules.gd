@@ -85,10 +85,12 @@ static func hash_text(vars: Dictionary, fired: Dictionary) -> String:
 	return text
 
 
-## Runs these triggers over one step's events (Triggers.fire).
-func run(state: SimContext, events: Array) -> void:
+## Runs these triggers over one step's events (Triggers.fire), plus
+## "turn_resolved" unless `turn_end` is false (events after the turn's own
+## pass, e.g. battles starting).
+func run(state: SimContext, events: Array, turn_end: bool = true) -> void:
 	if not triggers.is_empty():
-		Triggers.fire(state, triggers, by_event, events)
+		Triggers.fire(state, triggers, by_event, events, turn_end)
 
 
 func is_empty() -> bool:

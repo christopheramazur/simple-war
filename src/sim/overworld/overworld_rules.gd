@@ -55,6 +55,9 @@ var hf_refit_cost: PackedInt64Array = PackedInt64Array()
 var hf_battlefield: PackedStringArray = PackedStringArray()
 ## Answers an uncertain feature's offer accepts (default accept, decline).
 var hf_choices: Array[PackedStringArray] = []
+## Turns a guard stays dispersed by a commander with no battleforce (0 =
+## it can't be).
+var hf_dispersal: PackedInt64Array = PackedInt64Array()
 
 # --- squads (what armies hold; battles compile their own) ---
 var squad_ids: PackedStringArray = PackedStringArray()
@@ -357,6 +360,7 @@ func _compile_feature(tid: String, v: Dictionary) -> void:
 	hf_refit_cost.append(int(v.get("refit_cost", 0)))
 	hf_battlefield.append(String(v.get("battlefield", "")))
 	hf_choices.append(PackedStringArray(v.get("choices", ["accept", "decline"])))
+	hf_dispersal.append(int(v.get("dispersal_turns", 0)))
 
 
 func _compile_pass(i: int, v: Dictionary) -> void:

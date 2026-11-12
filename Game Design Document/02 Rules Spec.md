@@ -345,6 +345,9 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **In play (sw-cgl.2):** triggers place and remove features, so Angels can appear as guarded `hex_angel_host` features in front of resources. Its guard is a placeholder until the Angel roster (sw-136.2). Stealing items and the inverted auto-resolve still need their own actions.
 - **Interference:** they act as filler interference. They give battle in front of resources, eat turn timers with nonsense dialogue, and steal or move overworld items.
 - **Inverted auto-resolve:** a commander with no battleforce can temporarily disperse Angels by engaging them. This is required to clear movement-blocking Angels in the Angelfall mission, but it doesn't work in the final key battles.
+  - **In play (sw-136.2):** a commander engages with no battleforce by planning the built-in `none` preset without its own squad (`lead` off).
+    - **Dispersible guards:** if every guard on the hex has `dispersal_turns`, they are dispersed (`guard_dispersed`, for triggers to count) and come back after that many full turns (`guard_returned`). The commander takes the hex.
+    - **Any other guard holds:** the engagement ends with no battle. Before this rule, a commander with no squads cleared any guard.
 - **Accumulation:** every Angel not fought becomes one to face later. In the preventable-Angelfall campaign, Angel forces are added or replaced with squads built from the player's unchosen Legend consequences.
 
 ## 2.12 Disconnects (multiplayer) (R6Q23, R7Q10, R7Q11)

@@ -12,7 +12,8 @@
 		"defs/ruleset.json",
 		"defs/scenarios.json",
 		"defs/overworld.json",
-		"defs/glossary.json"
+		"defs/glossary.json",
+		"defs/angelfall.json"
 	],
 	"assets": {}
 }

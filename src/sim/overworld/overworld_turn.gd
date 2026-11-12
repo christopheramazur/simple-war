@@ -14,6 +14,7 @@ extends RefCounted
 ## Returns the turn's events in order.
 static func resolve(s: OverworldState) -> Array[SimEvent]:
 	s.begin_turn()
+	return_guards(s)
 	OverworldVision.update(s)
 	OverworldMovement.resolve(s)
 	s.routes = {}
@@ -28,6 +29,20 @@ static func resolve(s: OverworldState) -> Array[SimEvent]:
 		s.rules.triggers.run(s, s.events.all())
 	s.end_tick()
 	return s.turn_log
+
+
+## Dispersed guards whose time is up come back (R3Q17).
+static func return_guards(s: OverworldState) -> void:
+	var f := s.features
+	var ids := f.ids()
+	ids.sort()
+	for fid in ids:
+		var row := f.row_of(fid)
+		if f.returns[row] >= 0 and s.turn >= f.returns[row]:
+			f.set_value(fid, &"cleared", 0)
+			f.set_value(fid, &"returns", -1)
+			s.events.push(&"guard_returned", {"plot": f.plot[row], "feature": fid,
+				"template": s.rules.feature_ids[f.tmpl[row]]}, s.tick)
 
 
 ## Every controlled feature pays its owner its Value per turn (R5Q10).

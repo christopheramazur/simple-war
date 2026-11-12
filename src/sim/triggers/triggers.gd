@@ -9,9 +9,10 @@ extends RefCounted
 ## Runs compiled triggers (TriggerRules.triggers / by_event) over `events`
 ## (SimEvents of this step) plus "turn_resolved". Called through
 ## TriggerRules.run.
-static func fire(state: SimContext, triggers: Array[Dictionary], by_event: Dictionary, events: Array) -> void:
+static func fire(state: SimContext, triggers: Array[Dictionary], by_event: Dictionary, events: Array, turn_end: bool = true) -> void:
 	var list := events.duplicate()
-	list.append(SimEvent.new(&"turn_resolved", {"turn": state.get("turn")}))
+	if turn_end:
+		list.append(SimEvent.new(&"turn_resolved", {"turn": state.get("turn")}))
 	for e: SimEvent in list:
 		for i: int in by_event.get(e.type, []):
 			var trg: Dictionary = triggers[i]

@@ -111,6 +111,20 @@ Development order: the Humanity base for Duel first, with the three splinters as
 - **Allies:** the planetary AI's robotic forces aid Jeff and guard civilians. They have **Capture Rate 0**, so civilians must be present for shuttles to take off.
 - **Enemy:** Angels hunt the civilians. Movement-blocking Angels must be cleared by a commander with no battleforce (the inverted auto-resolve).
 - **Development role:** Angelfall is the first vertical slice and the proving ground for the campaign tools.
+- **In play (sw-136.2):** content lives in `data/packages/core/defs/angelfall.json`. Numbers are first-pass and wait for playtests.
+  - **Roster:**
+    - **Civilians:** unarmed, 6 HP, CR 10.
+    - **Jeff:** his squad is Jeff with an old revolver plus two stragglers. The `jeff_commander` is tagged `story_essential`, and his army is civilians and a CR-0 patrol.
+    - **CR-0 robots:** arc carbines, plating, CR 0, so they guard but can't board.
+    - **Angels:** an Angel host (seraphs with short-range radiant lances) and an Angel choir (cantors with ranged choir light). Both deal magic damage, fly over terrain, and wear a veil that shrugs off mundane bullets and blasts.
+  - **Overworld `angelfall_frontier`:**
+    - **Towns:** three frontier towns produce civilians for free.
+    - **The blockade:** cliffs wall off the spaceport, except a road hex held by a dispersible Angel blockade.
+    - **The spaceport:** held by Angels that can't be dispersed. It's fought on `angelfall_spaceport`.
+    - **Triggers:** Jeff's intro; dispersed Angels are counted in `angels_dispersed`; a second blockade cuts off the hill town on turn 4; winning the spaceport sets `evacuated`.
+  - **Battle `angelfall_spaceport`:**
+    - **The objective:** both hangar zones start locked. When player 1 takes the control console, the planetary AI opens them; it nudges the player on turn 2 if nobody has.
+    - **Evacuating:** each turn civilians hold an open hangar, a shuttle lifts off (`shuttles`). The influence the hangars score wins the battle.
 
 ## 6.10 Open
 The timeline interview, then the narrative pass: characters, plot outline, art direction, audio and UI aesthetics (R8Q16).

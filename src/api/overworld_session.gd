@@ -450,6 +450,8 @@ func _pump() -> void:
 		_run_battles()
 		last_events = OverworldTurn.resolve(state)
 		_start_battles()
+		if rules.triggers != null:
+			rules.triggers.run(state, state.events.all(), false)  # battles starting, guards dispersed
 		_count_battles()
 		last_events.append_array(state.events.drain())
 		var h := state_hash_hex()
