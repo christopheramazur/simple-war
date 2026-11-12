@@ -10,10 +10,17 @@ extends RefCounted
 ##   - commanders never share a target. Ties go to the lower plot index.
 
 var player: int
+var _fighter: ZoneController
 
 
 func _init(player_id: int) -> void:
 	player = player_id
+	_fighter = ZoneController.new(player_id)
+
+
+## Battles are fought by a ZoneController profile.
+func battle_orders(obs: Dictionary) -> Array:
+	return _fighter.orders(obs)
 
 
 func plan(obs: Dictionary, session: OverworldSession) -> Array:

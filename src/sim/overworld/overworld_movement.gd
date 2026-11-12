@@ -74,7 +74,7 @@ static func resolve(s: OverworldState) -> void:
 					if other != cid or st[2] < last[cid]:
 						cut[other] = true
 		else:
-			_arrive(s, row, to)
+			arrive(s, row, to)
 			if st[2] == last[cid]:
 				moving[cid] = false  # route finished: being engaged later is not a cut plan
 		OverworldVision.glimpse(s, c.player[row], to, s.rules.cm_sight[c.tmpl[row]])
@@ -119,7 +119,7 @@ static func _engages(s: OverworldState, cid: int, p: int) -> bool:
 
 ## A commander on an unguarded hex takes its controllable features and
 ## picks up its caches (stable outcomes, R6Q14).
-static func _arrive(s: OverworldState, row: int, p: int) -> void:
+static func arrive(s: OverworldState, row: int, p: int) -> void:
 	var player := s.commanders.player[row]
 	var f := s.features
 	var caches := PackedInt64Array()

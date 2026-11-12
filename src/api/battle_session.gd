@@ -179,6 +179,17 @@ func _pump() -> void:
 ## What `player` may know: own squads in full, enemy squads only while seen,
 ## public scores and zones, and this turn's events that involve what they see.
 func observe(player: int) -> Dictionary:
+	var d := observe_state(state, player)
+	d["phase"] = phase_name()
+	d["remaining_ms"] = clock.remaining_ms(player)
+	d["reserve_ms"] = clock.reserve_ms(player)
+	return d
+
+
+## The clock-free part of observe, for any battle state (also battles run by
+## the overworld session on the shared pulse).
+static func observe_state(state: BattleState, player: int) -> Dictionary:
+	var rules := state.rules
 	var sq := state.squads
 	var u := state.units
 	var me := BattleSquads.bit(player)
@@ -226,8 +237,7 @@ func observe(player: int) -> Dictionary:
 		if _event_visible(e, player, visible):
 			events.append(e.to_dict())
 	return {
-		"player": player, "turn": state.turn + 1, "phase": phase_name(),
-		"remaining_ms": clock.remaining_ms(player), "reserve_ms": clock.reserve_ms(player),
+		"player": player, "turn": state.turn + 1,
 		"width": rules.width, "height": rules.height,
 		"squads": squads, "units": units, "zones": zones, "scores": scores, "events": events,
 		"result": state.result.duplicate(true),
@@ -248,7 +258,7 @@ func inspect(player: int, squad_id: int) -> Dictionary:
 	return Inspection.squad(state, squad_id, player)
 
 
-func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> bool:
+static func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> bool:
 	var d := e.data
 	if d.has("player") and not d.has("squad"):
 		return true

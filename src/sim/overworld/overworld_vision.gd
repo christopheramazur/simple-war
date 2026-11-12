@@ -36,11 +36,19 @@ const _EVENT_FIELDS := {
 	&"army_refitted": [["commander"], [], []],
 	&"squad_transferred": [[], ["player"], []],
 	&"battleforce_deployed": [["commander"], ["player"], []],
+	&"battle_started": [[], [], ["plot"]],
+	&"battle_resolved": [[], ["winner"], ["plot"]],
+	&"guard_cleared": [[], ["player"], ["plot"]],
+	&"squad_reinforced": [[], ["player"], []],
+	&"commander_defeated": [[], ["player"], ["plot"]],
+	&"commander_left_battle": [["commander"], ["player"], ["plot"]],
 }
 ## Events everyone sees, reduced to these keys without sight (battle tiles).
 const _PUBLIC := {
 	&"engagement_started": ["engagement", "plot"],
 	&"engagement_ended": ["engagement", "plot"],
+	&"battle_started": ["engagement", "plot"],
+	&"battle_resolved": ["engagement", "plot"],
 }
 
 

@@ -24,6 +24,24 @@
 					"squads": ["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"]}
 			],
 			"victory": {"turn_limit": 10, "primary": "influence", "score_target": 20, "annihilation": true, "withdrawal": true},
+			"end_hooks": {"loser": "scatter"}}},
+		{"id": "ow_field", "kind": "scenario", "values": {
+			"name": "Overworld field",
+			"ruleset": "standard",
+			"width": 120, "height": 80, "ticks_per_turn": 100,
+			"terrain_default": "open",
+			"terrain": [
+				{"feature": "forest", "x": 50, "y": 10, "w": 20, "h": 15},
+				{"feature": "ruins", "x": 54, "y": 50, "w": 12, "h": 10}
+			],
+			"zones": [
+				{"id": "centre", "x": 60, "y": 40, "radius": 12, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1}
+			],
+			"sides": [
+				{"player": 1, "facing": 0, "deploy": {"x": 5, "y": 15, "w": 20, "h": 50}, "squads": []},
+				{"player": 2, "facing": 32768, "deploy": {"x": 95, "y": 15, "w": 20, "h": 50}, "squads": []}
+			],
+			"victory": {"turn_limit": 8, "primary": "value", "score_target": 0, "annihilation": true, "withdrawal": true},
 			"end_hooks": {"loser": "scatter"}}}
 	]
 }

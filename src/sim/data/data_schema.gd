@@ -365,6 +365,8 @@ const KINDS: Dictionary = {
 		"recruits": {"type": "list:obj:recruit_option"},
 		## Value per lost unit the refit activity restores here.
 		"refit_cost": {"type": "int", "min": 0},
+		## The battlefield its battles are fought on (else the map's).
+		"battlefield": {"type": "ref:scenario"},
 		"bundles": {"type": "list:ref:bundle"},
 	},
 	## A commander (GDD 02 §2.3, §2.9): anchors an army and moves on the
@@ -392,6 +394,9 @@ const KINDS: Dictionary = {
 		"passes": {"type": "list:obj:map_pass", "required": true},
 		"starts": {"type": "list:obj:map_start"},
 		"battleforce": {"type": "obj:battleforce_cap"},
+		## The battlefield engagements are fought on by default: terrain,
+		## zones, victory, and two deployment areas the sides are given.
+		"battle_scenario": {"type": "ref:scenario"},
 	},
 	## An archetype preset for battleforce auto-fill (R2Q1): squads with a
 	## feature (legend archetype, doctrine or keyword) earlier in `prefer`

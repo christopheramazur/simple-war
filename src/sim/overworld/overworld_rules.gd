@@ -38,6 +38,8 @@ var hf_converts_to: PackedInt64Array = PackedInt64Array()
 var hf_recruits: Array[PackedInt64Array] = []
 ## Value per lost unit restored by refitting here.
 var hf_refit_cost: PackedInt64Array = PackedInt64Array()
+## Scenario ID of the feature's battlefield ("" = the map's).
+var hf_battlefield: PackedStringArray = PackedStringArray()
 
 # --- squads (what armies hold; battles compile their own) ---
 var squad_ids: PackedStringArray = PackedStringArray()
@@ -73,6 +75,8 @@ var starts: Array[Dictionary] = []
 ## Battleforce caps: squads, and total strength (0 = no limit).
 var bf_cap_squads: int = DEFAULT_BATTLEFORCE_SQUADS
 var bf_cap_value: int = 0
+## Scenario ID engagements are fought on by default.
+var battle_scenario: String = ""
 
 # --- battleforce presets ---
 var preset_ids: PackedStringArray = PackedStringArray()
@@ -185,6 +189,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 	var bf: Dictionary = m.get("battleforce", {})
 	bf_cap_squads = int(bf.get("squads", DEFAULT_BATTLEFORCE_SQUADS))
 	bf_cap_value = int(bf.get("value", 0))
+	battle_scenario = String(m.get("battle_scenario", ""))
 	var starts_in: Array = m.get("starts", [])
 	for i in starts_in.size():
 		var v: Dictionary = starts_in[i]
@@ -239,6 +244,7 @@ func _compile_feature(tid: String, v: Dictionary) -> void:
 	hf_guard.append(PackedStringArray(v.get("guard", [])))
 	hf_activity_cost.append(int(v.get("activity_cost", 0)))
 	hf_refit_cost.append(int(v.get("refit_cost", 0)))
+	hf_battlefield.append(String(v.get("battlefield", "")))
 
 
 func _compile_pass(i: int, v: Dictionary) -> void:

@@ -61,6 +61,20 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
 ## 2.4 Battles
 ### Start and duration
 - Battles begin at the start of a turn (R2Q1).
+- **Battles from engagements (sw-o1m.2.3):**
+  - **Start:** an engagement made during a turn becomes a battle at the start of the next one. Its players plan their battle orders in the same planning phase as the overworld.
+  - **Shared pulse:** each turn's Execute runs one battle turn in every battle, applies the battles that ended, then resolves the overworld turn. The reaction window isn't offered in these battles yet.
+  - **Battlefield:** the first feature on the hex with a `battlefield`, else the map's `battle_scenario`. Sides take the scenario's two deployment areas in order: players ascending, then neutral guards.
+  - **Sides:** every player with squads deployed in the engagement. A hex's neutral guards fight at full strength as a neutral side.
+  - **Losses carry:** a squad fights with only the units it has left.
+  - **Unopposed:** an engagement with only one side (such as a battle activity on an unguarded hex) is won at once.
+  - **Results:** survivors return to their armies with their remaining units; destroyed and scattered squads are gone.
+    - **Defeat:** a commander whose own squad is gone is defeated, and the rest of its army scatters.
+    - **Guards:** beating a hex's guards clears them for good.
+    - **Winners** left on the hex then take its features and caches.
+    - **Draws** end the engagement with nothing cleared.
+  - **Reinforcements:** a commander staying in its battle (its own squad deployed) can send squads from the rest of its army. They join at its side's deployment area before the next battle turn, while its squads still fighting are under the battleforce squad cap.
+  - **Leaving:** a commander whose own squad isn't deployed may leave during planning and move that turn. Its battleforce fights on, and survivors return to its army when the battle ends. Convoys carrying them back come with sw-o1m.2.5.
 - A typical battle is about 8 turns:
   - T1: scouting and positioning.
   - T2: first casualties.

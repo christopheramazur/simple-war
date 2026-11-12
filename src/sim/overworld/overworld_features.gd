@@ -7,6 +7,8 @@ extends SoaTable
 var plot := PackedInt64Array()   ## plot index (row * width + col)
 var tmpl := PackedInt64Array()   ## OverworldRules feature index
 var owner := PackedInt64Array()  ## controlling player, 0 = neutral
+## 1 = its guard was beaten (the feature stays unguarded).
+var cleared := PackedInt64Array()
 
 
 func _init() -> void:
@@ -14,3 +16,5 @@ func _init() -> void:
 	declare(&"plot", 0)
 	declare(&"tmpl", 0)
 	declare(&"owner", 0)
+	# 1 = its guard was beaten: the feature is unguarded from then on.
+	declare(&"cleared", 0)

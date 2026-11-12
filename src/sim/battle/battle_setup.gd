@@ -7,27 +7,34 @@ extends RefCounted
 static func create(context_id: int, rules: BattleRules, seed_value: int) -> BattleState:
 	var state := BattleState.new(context_id, rules, seed_value)
 	for side in rules.sides:
-		_deploy_side(state, side)
+		deploy_side(state, side)
 	Centroids.update(state)
 	return state
 
 
-static func _deploy_side(state: BattleState, side: Dictionary) -> void:
-	var r := state.rules
+## Deploys a side's squads; returns their IDs in order. A side may carry
+## "alive" (units per squad, e.g. overworld losses); default full strength.
+static func deploy_side(state: BattleState, side: Dictionary) -> PackedInt64Array:
 	var d: PackedInt64Array = side["deploy"]
 	var list: PackedInt64Array = side["squads"]
+	var alive: PackedInt64Array = side.get("alive", PackedInt64Array())
 	var n := list.size()
+	var ids := PackedInt64Array()
 	for i in n:
-		var st := list[i]
 		var ax := d[0] + d[2] / 2
 		var ay := d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * n)
-		spawn_squad(state, side["player"], st, ax, ay, side["facing"])
+		ids.append(spawn_squad(state, side["player"], list[i], ax, ay, side["facing"], alive[i] if i < alive.size() else -1))
+	return ids
 
 
-## Spawns one squad and its units; returns the squad ID.
-static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: int, facing: int) -> int:
+## Spawns one squad and its units; returns the squad ID. `units` < 0 = all
+## members; otherwise only the first `units` members (losses come off the
+## end of the member list).
+static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: int, facing: int, units: int = -1) -> int:
 	var r := state.rules
 	var members := r.sq_members[st]
+	if units >= 0 and units < members.size():
+		members = members.slice(0, units)
 	var hp_total := 0
 	for ui in members:
 		hp_total += r.ut_hp[ui]

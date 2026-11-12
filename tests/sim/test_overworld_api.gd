@@ -106,7 +106,7 @@ func test_headless_scenario_is_deterministic() -> void:
 		if a.state.features.owner[row] > 0:
 			owned += 1
 	assert_gt(owned, 2, "took more than the two starting villages")
-	assert_gt(a.state.engagements.count(), 0, "the outriders met")
+	assert_gt(a._next_context, 100, "the outriders met and fought a battle")
 	assert_gt(a.state.memory[1].size(), 60, "explored")
 	assert_gt(a.state.memory[2].size(), 60)
 	var c := HeadlessOverworld.play(_session(8), _controllers(), 8)

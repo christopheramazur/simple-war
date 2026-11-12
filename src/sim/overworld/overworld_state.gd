@@ -96,7 +96,8 @@ func hostile(a: int, b: int) -> bool:
 func guard_at(p: int) -> PackedStringArray:
 	var out := PackedStringArray()
 	for row in features_at(p):
-		out.append_array(rules.hf_guard[features.tmpl[row]])
+		if features.cleared[row] == 0:
+			out.append_array(rules.hf_guard[features.tmpl[row]])
 	return out
 
 

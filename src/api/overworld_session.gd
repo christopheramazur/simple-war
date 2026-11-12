@@ -9,8 +9,13 @@ extends RefCounted
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
 ##           events (OverworldVision); path(player, commander, to) - the
 ##           cheapest affordable route as the player knows the map.
-## Clock:    the shared PulseClock (R2Q3). The overworld has no reaction
-##           window; Execute resolves one overworld turn synchronously.
+## Battles:  every engagement becomes a battle at the start of the next
+##           turn (OverworldBattles) and runs one battle turn per overworld
+##           turn on the same pulse: submit_battle_orders, reinforce and
+##           leave_battle in Planning; observe_battle shows one.
+## Clock:    the shared PulseClock (R2Q3), without a reaction window for
+##           now. Execute runs the battle turns, applies finished battles,
+##           resolves the overworld turn, then starts new battles.
 ## Records:  every input is logged with its turn and phase, and the state
 ##           hash after every resolved turn is kept, so a replay (initial
 ##           state + inputs) is checked turn by turn (R8Q5, R6Q20).
@@ -21,6 +26,7 @@ const SAVE_VERSION: int = 1
 static var last_error: String = ""
 
 var map_id: String
+var templates: TemplateTable
 var seed_value: int
 var data_hash: String
 var rules: OverworldRules
@@ -33,6 +39,13 @@ var input_log: Array = []
 var turn_hashes: PackedStringArray = PackedStringArray()
 ## Every event of the last resolved turn (unfiltered; observe filters).
 var last_events: Array[SimEvent] = []
+## Battles in progress: engagement ID -> OverworldBattle.
+var battles: Dictionary = {}
+## Problems building battles (bad battlefield data); such engagements end.
+var errors: PackedStringArray = PackedStringArray()
+var _next_context: int = 100
+## One sim runs every battle (it holds no per-battle state).
+var _battle_sim := BattleSim.new()
 
 var _players: PackedInt64Array = PackedInt64Array()
 var _execute_pending: bool = false
@@ -53,12 +66,13 @@ static func create(templates: TemplateTable, hash_hex: String, map: String, seed
 		last_error = "map '%s' has no players" % map
 		return null
 	var s := OverworldSession.new()
-	s._setup(r, map, seed_in, hash_hex, clock_config)
+	s._setup(templates, r, map, seed_in, hash_hex, clock_config)
 	s.clock.start()
 	return s
 
 
-func _setup(r: OverworldRules, map: String, seed_in: int, hash_hex: String, clock_config: ClockConfig) -> void:
+func _setup(t: TemplateTable, r: OverworldRules, map: String, seed_in: int, hash_hex: String, clock_config: ClockConfig) -> void:
+	templates = t
 	rules = r
 	map_id = map
 	seed_value = seed_in
@@ -137,6 +151,72 @@ func save_preset(player: int, name: String, prefer: PackedStringArray, avoid: Pa
 	return err
 
 
+## Orders for the player's squads in one battle this turn (BattleOrders).
+## Replaces earlier ones; returns errors, keeping the valid orders.
+func submit_battle_orders(player: int, engagement_id: int, orders: Array) -> PackedStringArray:
+	var errs := PackedStringArray()
+	var err := _planning(player)
+	var b: OverworldBattle = battles.get(engagement_id)
+	if err.is_empty() and (b == null or not b.state.players.has(player)):
+		err = "not in that battle"
+	if not err.is_empty():
+		errs.append(err)
+		return errs
+	var kept := []
+	for i in orders.size():
+		var e := BattleOrders.validate(b.state, player, orders[i])
+		if e.is_empty():
+			kept.append((orders[i] as Dictionary).duplicate(true))
+		else:
+			errs.append("order %d: %s" % [i, e])
+	b.orders[player] = kept
+	_log(player, "battle_orders", {"engagement": engagement_id, "orders": kept})
+	return errs
+
+
+## Sends a squad from a staying commander's army into its battle.
+func reinforce(player: int, commander_id: int, squad_id: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		var eid := state.commanders.get_value(commander_id, &"engagement") if state.commanders.is_alive(commander_id) else -1
+		var b: OverworldBattle = battles.get(eid)
+		if b == null:
+			err = "is not in a battle"
+		else:
+			err = OverworldOrders.reinforce(state, player, commander_id, squad_id, _in_field(b, commander_id))
+	if err.is_empty():
+		_log(player, "reinforce", {"commander": commander_id, "squad": squad_id})
+	return err
+
+
+## A commander whose own squad is not fighting leaves its battle.
+func leave_battle(player: int, commander_id: int) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = OverworldOrders.leave_battle(state, player, commander_id)
+	if err.is_empty():
+		_log(player, "leave", {"commander": commander_id})
+	return err
+
+
+## The commander's squads still fighting in battle b, plus those on the way.
+func _in_field(b: OverworldBattle, cid: int) -> int:
+	var n := 0
+	var linked := {}
+	for bid: int in b.links:
+		var id: int = b.links[bid]
+		linked[id] = true
+		if id < 0 or not state.squads.is_alive(id) or state.squads.get_value(id, &"holder") != cid:
+			continue
+		var row := b.state.squads.row_of(bid)
+		if row >= 0 and b.state.squads.is_active(row):
+			n += 1
+	for id in OverworldBattleforce.deployed_in(state, b.engagement):
+		if not linked.has(id) and state.squads.get_value(id, &"holder") == cid:
+			n += 1
+	return n
+
+
 ## Moves a squad between two of the player's commanders on one hex (R7Q9).
 func transfer_squad(player: int, squad_id: int, to_commander: int) -> String:
 	var err := _planning(player)
@@ -187,13 +267,69 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 func _pump() -> void:
 	while _execute_pending:
 		_execute_pending = false
+		_run_battles()
 		last_events = OverworldTurn.resolve(state)
-		var h := state.state_hash_hex()
+		_start_battles()
+		last_events.append_array(state.events.drain())
+		var h := state_hash_hex()
 		var i := turn_hashes.size()
 		turn_hashes.append(h)
 		if _diverged < 0 and i < _expected.size() and _expected[i] != h:
 			_diverged = i + 1
 		clock.execute_finished()
+
+
+## One battle turn in every battle, then finished battles are applied.
+func _run_battles() -> void:
+	var ids: Array = battles.keys()
+	ids.sort()
+	var done := []
+	for eid: int in ids:
+		var b: OverworldBattle = battles[eid]
+		OverworldBattles.reinforce(state, b)
+		for p in b.state.players:
+			BattleOrders.apply(b.state, p, b.orders.get(p, []))
+		b.orders = {}
+		_battle_sim.execute_turn(b.state)
+		if b.state.is_over():
+			done.append(eid)
+	for eid: int in done:
+		var b: OverworldBattle = battles[eid]
+		OverworldBattles.finish(state, b)
+		bus.unregister_context(b.context_id)
+		battles.erase(eid)
+
+
+## Battles begin at the start of a turn (R2Q1): every engagement without one
+## gets it now, or ends at once if nobody opposes.
+func _start_battles() -> void:
+	for eid in state.engagements.ids():
+		if battles.has(eid) or not state.engagements.is_alive(eid):
+			continue
+		var before := errors.size()
+		var b := OverworldBattles.build(templates, data_hash, state, eid, _next_context,
+			(seed_value * 7919 + _next_context) & 0x7fffffff, errors)
+		if b == null:
+			if errors.size() > before:
+				push_warning("OverworldSession: %s" % errors[errors.size() - 1])
+			OverworldBattles.finish_unopposed(state, eid)
+			continue
+		_next_context += 1
+		battles[eid] = b
+		bus.register_context(b.state)
+
+
+## The overworld's hash combined with every battle's (desync checks).
+func state_hash_hex() -> String:
+	var h := HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(state.state_hash())
+	var ids: Array = battles.keys()
+	ids.sort()
+	for eid: int in ids:
+		h.update(PackedInt64Array([eid, _next_context]).to_byte_array())
+		h.update((battles[eid] as OverworldBattle).state.state_hash())
+	return h.finish().hex_encode()
 
 
 # --- queries ---------------------------------------------------------------
@@ -210,6 +346,27 @@ func observe(player: int) -> Dictionary:
 	for e in OverworldVision.filter_events(state, player, last_events):
 		evs.append(e.to_dict())
 	o["events"] = evs
+	for bt: Dictionary in o["battles"]:
+		bt["battle"] = battles.has(bt["engagement"])
+	return o
+
+
+## One battle as `player` sees it ({} unless the player fights in it): the
+## battle observation, plus "engagement" and "links" (battle squad ID ->
+## overworld squad ID, own squads only).
+func observe_battle(player: int, engagement_id: int) -> Dictionary:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if b == null or not b.state.players.has(player):
+		return {}
+	var o := BattleSession.observe_state(b.state, player)
+	o["engagement"] = engagement_id
+	o["phase"] = phase_name()
+	var mine := {}
+	for bid: int in b.links:
+		var id: int = b.links[bid]
+		if id >= 0 and b.state.squads.row_of(bid) >= 0 and b.state.squads.player[b.state.squads.row_of(bid)] == player:
+			mine[bid] = id
+	o["links"] = mine
 	return o
 
 
@@ -245,7 +402,8 @@ func save() -> PackedByteArray:
 		"version": SAVE_VERSION, "map": map_id, "seed": seed_value, "data_hash": data_hash,
 		"clock_config": _config_dict(clock.config), "inputs": input_log.duplicate(true),
 		"hashes": turn_hashes.duplicate(), "state": state.snapshot(), "clock": clock.snapshot(),
-		"last_events": events, "hash": state.state_hash_hex(),
+		"last_events": events, "hash": state_hash_hex(),
+		"battles": _battles_dict(), "next_context": _next_context,
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
 
@@ -262,7 +420,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		return null
 	var r := OverworldRules.compile(templates, data["map"], hash_hex)
 	var s := OverworldSession.new()
-	s._setup(r, data["map"], data["seed"], hash_hex, _config_from(data["clock_config"]))
+	s._setup(templates, r, data["map"], data["seed"], hash_hex, _config_from(data["clock_config"]))
 	s.state.restore(data["state"])
 	s.clock.restore(data["clock"])
 	s.input_log = data["inputs"]
@@ -273,10 +431,23 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		ev.seq = e["seq"]
 		ev.tick = e["tick"]
 		s.last_events.append(ev)
-	if s.state.state_hash_hex() != data["hash"]:
+	var bd: Dictionary = data.get("battles", {})
+	for eid: int in bd:
+		var b := OverworldBattles.from_dict(templates, hash_hex, bd[eid])
+		s.battles[eid] = b
+		s.bus.register_context(b.state)
+	s._next_context = data.get("next_context", 100)
+	if s.state_hash_hex() != data["hash"]:
 		last_error = "the saved state does not match its hash"
 		return null
 	return s
+
+
+func _battles_dict() -> Dictionary:
+	var out := {}
+	for eid: int in battles:
+		out[eid] = OverworldBattles.to_dict(battles[eid])
+	return out
 
 
 ## Replays a save's inputs from the start without trusting its snapshot,
@@ -297,7 +468,7 @@ static func rebuild(bytes: PackedByteArray, templates: TemplateTable, hash_hex: 
 	if s._diverged > 0:
 		last_error = "turn %d did not reproduce its recorded hash" % s._diverged
 		return null
-	if s.turn_hashes.size() != (data["hashes"] as PackedStringArray).size() or s.state.state_hash_hex() != data["hash"]:
+	if s.turn_hashes.size() != (data["hashes"] as PackedStringArray).size() or s.state_hash_hex() != data["hash"]:
 		last_error = "inputs did not reproduce the saved state"
 		return null
 	return s
@@ -316,6 +487,12 @@ func replay_inputs(inputs: Array) -> void:
 				transfer_squad(i["player"], p["squad"], p["to"])
 			"battleforce":
 				set_battleforce(i["player"], p["commander"], p["preset"], p["squads"], p["lead"])
+			"battle_orders":
+				submit_battle_orders(i["player"], p["engagement"], p["orders"])
+			"reinforce":
+				reinforce(i["player"], p["commander"], p["squad"])
+			"leave":
+				leave_battle(i["player"], p["commander"])
 			"preset":
 				save_preset(i["player"], p["name"], p["prefer"], p["avoid"])
 			"ready":

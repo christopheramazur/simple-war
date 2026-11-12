@@ -129,3 +129,61 @@ static func validate_route(s: OverworldState, player: int, commander_id: int, pl
 	if spent > budget:
 		return "needs %d movement points, has %d" % [spent, budget]
 	return ""
+
+
+## A commander staying in its battle (its own squad deployed there) sends a
+## squad from the rest of its army in as a reinforcement (R3Q3). It joins
+## the battle before the next battle turn. `in_field` is how many of the
+## commander's squads are still fighting there; the battleforce squad cap
+## applies to them. Returns "" or why it was refused.
+static func reinforce(s: OverworldState, player: int, commander_id: int, squad_id: int, in_field: int) -> String:
+	var c := s.commanders
+	var row := c.row_of(commander_id)
+	if row < 0:
+		return "no such commander"
+	if c.player[row] != player:
+		return "not your commander"
+	var eid := c.engagement[row]
+	if eid < 0:
+		return "is not in a battle"
+	var q := s.squads
+	var staying := false
+	for id in OverworldArmies.of(s, commander_id):
+		var r := q.row_of(id)
+		staying = staying or (q.own[r] == 1 and q.deployed[r] == eid)
+	if not staying:
+		return "only a commander staying in the battle brings reinforcements"
+	var sr := q.row_of(squad_id)
+	if sr < 0 or q.holder[sr] != commander_id:
+		return "that squad is not in this army"
+	if q.deployed[sr] >= 0:
+		return "that squad is already in a battle"
+	if q.alive[sr] <= 0:
+		return "that squad has no units left"
+	if in_field >= s.rules.bf_cap_squads:
+		return "the battleforce cap is %d squads" % s.rules.bf_cap_squads
+	q.set_value(squad_id, &"deployed", eid)
+	return ""
+
+
+## A commander whose own squad is not deployed leaves its battle (R2Q1): it
+## can move again; the squads it deployed fight on. Returns "" or why not.
+static func leave_battle(s: OverworldState, player: int, commander_id: int) -> String:
+	var c := s.commanders
+	var row := c.row_of(commander_id)
+	if row < 0:
+		return "no such commander"
+	if c.player[row] != player:
+		return "not your commander"
+	var eid := c.engagement[row]
+	if eid < 0:
+		return "is not in a battle"
+	var q := s.squads
+	for id in OverworldArmies.of(s, commander_id):
+		var r := q.row_of(id)
+		if q.own[r] == 1 and q.deployed[r] == eid:
+			return "its own squad is fighting: it cannot leave"
+	c.set_value(commander_id, &"engagement", -1)
+	s.events.push(&"commander_left_battle", {"commander": commander_id, "engagement": eid,
+		"player": player, "plot": c.plot[row]}, s.tick)
+	return ""

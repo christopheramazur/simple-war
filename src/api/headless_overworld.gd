@@ -5,7 +5,9 @@ extends RefCounted
 ## object with `plan(observation, session) -> Array` of {"commander",
 ## "route" (PackedInt64Array), "activity" and "option" (Strings,
 ## optional)}; it may call
-## only player-scoped queries (session.observe / session.path).
+## only player-scoped queries (session.observe / session.path). A
+## controller with `battle_orders(battle_observation) -> Array` also fights
+## the battles its player is in.
 
 
 ## Plays until `turns` overworld turns have resolved. Returns the session.
@@ -20,6 +22,13 @@ static func play(session: OverworldSession, controllers: Dictionary, turns: int)
 						session.set_route(p, o["commander"], o["route"])
 						if not String(o.get("activity", "")).is_empty():
 							session.set_activity(p, o["commander"], o["activity"], o.get("option", ""))
+					if controllers[p].has_method("battle_orders"):
+						var eids: Array = session.battles.keys()
+						eids.sort()
+						for eid: int in eids:
+							var bo := session.observe_battle(p, eid)
+							if not bo.is_empty():
+								session.submit_battle_orders(p, eid, controllers[p].battle_orders(bo))
 				for p in session.players():
 					session.ready(p)
 			PulseClock.Phase.INTERMISSION:
