@@ -67,6 +67,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Grid:** pointy-top hexes in a `width` × `height` rectangle of "odd-r" offset coordinates (`col`, `row`; odd rows shifted half a hex right). Maths runs in axial coordinates.
   - **Movement cost:** `base_move_cost` (default 10) plus the plot's feature costs, at least 1. Commanders' movement points use the same units.
   - **Passes**, in order: `fill`, `rect`, `place`, `line` (a hex line between two plots) and `scatter` (`count` seeded picks, with `avoid` features and `spacing`). `owner` pre-assigns a controllable feature.
+  - **Starts:** `starts` lists each player's starting commanders (`player`, `commander`, `col`, `row`). A match's players are those with a start or a pre-owned feature.
 - **Campaign / mission:** missions, scripted triggers, story-essential commanders, carried armies (R2Q1, R2Q13).
 - **Triggers:** the declarative trigger and effect layer, which covers about 90% of campaign scripting. Angel behaviour is data here (R6Q17).
 - **Dialogue:** Dialogic is presentation only. Disposition and relationship state live in the sim (R3Q18).

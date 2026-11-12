@@ -48,6 +48,8 @@ var base_cost: int = DEFAULT_BASE_COST
 ## Compiled passes: {op (PASSES index), feature, col, row, w, h, to_col,
 ## to_row, count, spacing, avoid (PackedInt64Array), owner}.
 var passes: Array[Dictionary] = []
+## Starting commanders: {player, commander (index), plot}.
+var starts: Array[Dictionary] = []
 
 
 static func compile(t: TemplateTable, map: String, hash_hex: String = "") -> OverworldRules:
@@ -104,6 +106,31 @@ func _compile(t: TemplateTable, map: String) -> void:
 	var passes_in: Array = m["passes"]
 	for i in passes_in.size():
 		_compile_pass(i, passes_in[i])
+	var starts_in: Array = m.get("starts", [])
+	for i in starts_in.size():
+		var v: Dictionary = starts_in[i]
+		var cm := commander_index(String(v["commander"]))
+		if cm < 0:
+			errors.append("%s start %d: unknown commander '%s'" % [map, i, v["commander"]])
+		elif not Hex.in_bounds(int(v["col"]), int(v["row"]), width, height):
+			errors.append("%s start %d: outside the %dx%d map" % [map, i, width, height])
+		else:
+			starts.append({"player": int(v["player"]), "commander": cm,
+				"plot": Hex.plot(int(v["col"]), int(v["row"]), width)})
+
+
+## Players of a match on this map: those with a start or a pre-owned
+## feature, ascending.
+func players() -> PackedInt64Array:
+	var seen := {}
+	for st in starts:
+		seen[st["player"]] = true
+	for p in passes:
+		if p["owner"] > 0:
+			seen[p["owner"]] = true
+	var out := PackedInt64Array(seen.keys())
+	out.sort()
+	return out
 
 
 static func _of_kind(t: TemplateTable, kind: String) -> PackedStringArray:

@@ -39,6 +39,12 @@ data                  (immutable template tables from packages)
 - **Observations:** visibility-filtered state plus events, honouring fog, Detection and Concealment (R8Q1, R8Q4). On the overworld these are `OverworldVision.observe` and `OverworldVision.filter_events`.
 - **Clock:** real-time pacing for humans, and fast-forward (as fast as possible) for headless runs.
 - **Callers:** the human UI, AI controllers, the network layer, test bots and the AI factory all use the same API.
+- **Overworld (sw-o1m.1.5):** `OverworldSession` mirrors `BattleSession`.
+  - **Inputs:** `set_route` and `set_activity` (Planning only), `ready`, `advance(ms)`.
+  - **Queries:** `observe` (fog-filtered, with last turn's visible events) and `path` (the cheapest affordable route as the player knows the map).
+  - **Clock:** it runs on the shared PulseClock without a reaction window.
+  - **Records:** every input is logged, and the state hash after every turn is kept. `rebuild` replays a save from its inputs and names the first turn whose hash differs.
+  - **Headless play:** `HeadlessOverworld` plays turns with any controllers. `ExpandController` is the first rule-based profile: it takes features and caches, converts ore it can afford, and explores.
 
 ## 4.5 Client/server split (R3Q11)
 - **Always split:** the client and server are separate even in single-player. A client only receives and simulates what its server tells it.

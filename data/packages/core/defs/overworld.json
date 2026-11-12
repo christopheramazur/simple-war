@@ -44,6 +44,12 @@
 				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]},
 			{"op": "place", "feature": "hex_ore_deposit", "col": 2, "row": 10},
 			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7}
+		],
+		"starts": [
+			{"player": 1, "commander": "field_commander", "col": 2, "row": 6},
+			{"player": 1, "commander": "outrider", "col": 1, "row": 5},
+			{"player": 2, "commander": "field_commander", "col": 13, "row": 5},
+			{"player": 2, "commander": "outrider", "col": 14, "row": 4}
 		]}}
 ]
 }

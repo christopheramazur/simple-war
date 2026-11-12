@@ -110,6 +110,13 @@ const OBJECTS: Dictionary = {
 	"end_hooks": {
 		"loser": {"type": "string", "enum": ["scatter"]},
 	},
+	## A commander a player starts a match on this map with.
+	"map_start": {
+		"player": {"type": "int", "required": true, "min": 1},
+		"commander": {"type": "ref:commander", "required": true},
+		"col": {"type": "int", "required": true, "min": 0},
+		"row": {"type": "int", "required": true, "min": 0},
+	},
 	## One map-generation pass. fill: every plot. rect: col,row,w,h. place:
 	## col,row. line: col,row to to_col,to_row. scatter: `count` plots picked
 	## with the map's seed inside the optional rect, skipping plots holding an
@@ -356,12 +363,14 @@ const KINDS: Dictionary = {
 	},
 	## A seeded overworld map template (R3Q13): an empty width x height hex
 	## rectangle (odd-r offset rows) that its passes fill with features.
+	## `starts` places each player's starting commanders.
 	"overworld_map": {
 		"name": {"type": "string"},
 		"width": {"type": "int", "required": true, "min": 1},
 		"height": {"type": "int", "required": true, "min": 1},
 		"base_move_cost": {"type": "int", "min": 1},
 		"passes": {"type": "list:obj:map_pass", "required": true},
+		"starts": {"type": "list:obj:map_start"},
 	},
 	"scenario": {
 		"name": {"type": "string"},
