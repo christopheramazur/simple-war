@@ -223,3 +223,15 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - E4Q3 Yes: UI mocks are throwaway Godot Control scenes fed by Game API data, rendered headless to PNG, several variants per contact sheet. Local image generation is kept for the art pass.
 - E4Q4 Yes: the inspection window is the first contact sheet (2-3 layout variants), made while the effect engine is built.
 - E4Q5 Yes: one-screen summary, then confirmation, then GDD update, task filing and build.
+### Settled (Round A1: AI factory and testing framework, sw-p2q.4)
+- A1Q1 First loop is simple: the AI learns to win a game. Faster wins score more; leaving the game is penalised. Scoring criteria for completion come next; balance and test-campaign work come later, one step at a time.
+- A1Q2 Overworld and battles together from the start. Basic template: an open overworld of about 10 hexes high by 20 wide.
+- A1Q3 A profile's mask limits what the AI thinks it is scored against: it can hide criteria, change their weights, or both, and can change over the course of the game. Masks set strength and also promote diverse decision-making against one scenario.
+- A1Q4 Yes: the fuzz seed adds deterministic decision noise (tie-breaks, small weight jitter); fuzz strength is a gene.
+- A1Q5 Faction is not a separating factor. Start with 10 profiles; each generation randomly picks 2 of them (duplicates allowed, weighted toward older profiles) as side 1 and side 2.
+- A1Q6 Start with the proposed criteria library (win, VP margin, Value efficiency, objective time, tempo, pressure health, exploration, economy) and state-conditioned weight schedules; workshop it in a separate session with a dedicated search of comparable projects (HoMM, Civilization and similar AIs).
+- A1Q7 Runs are set by resource allocation plus number of iterations, at selectable intensities (background while the user works, up to about 90% of machine resources); an interrupted run saves its results and stops cleanly between iterations.
+- A1Q8 Yes: curated profiles as package data (a moddable `controller_profile` kind); every evaluated genome, its lineage, scores, criteria, mask and schedule in DuckDB; an export promotes a genome to package data.
+- A1Q9 Regression metric baselines run on demand only for now.
+- A1Q10 Record per-system performance trends; budgets are revisited later.
+- A1Q11 Feel testing is human playtests for the foreseeable future.
