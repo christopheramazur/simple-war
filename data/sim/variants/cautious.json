@@ -1,0 +1,8 @@
+{
+	"name": "cautious",
+	"text": "Both sides fall back once a squad has lost half its HP.",
+	"controllers": {
+		"1": {"profile": "zone", "params": {"fall_back_pct": 50}},
+		"2": {"profile": "zone", "params": {"fall_back_pct": 50}}
+	}
+}

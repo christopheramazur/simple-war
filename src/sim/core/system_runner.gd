@@ -8,6 +8,11 @@ extends RefCounted
 var hash_every_tick: bool = false
 ## Per-tick hashes (hex) recorded while `hash_every_tick` is on.
 var tick_hashes: PackedStringArray = PackedStringArray()
+## Harness profiling (GDD 05 §5.2, per-system performance): when on, wall
+## time per system class in microseconds accumulates in `profile`. Never
+## part of the state.
+var profiling: bool = false
+var profile: Dictionary = {}
 
 var _phase_names: Array[StringName] = []
 var _phases: Array[Array] = []
@@ -32,11 +37,23 @@ func order() -> PackedStringArray:
 func step(ctx: SimContext) -> void:
 	for systems: Array in _phases:
 		for s: SimSystem in systems:
-			s.run(ctx)
+			if profiling:
+				var t0 := Time.get_ticks_usec()
+				s.run(ctx)
+				var key := _system_name(s)
+				profile[key] = int(profile.get(key, 0)) + Time.get_ticks_usec() - t0
+			else:
+				s.run(ctx)
 		ctx.commands.apply(ctx)
 	ctx.end_tick()
 	if hash_every_tick:
 		tick_hashes.append(ctx.state_hash_hex())
+
+
+static func _system_name(s: SimSystem) -> String:
+	var script := s.get_script() as Script
+	var n := String(script.get_global_name()) if script != null else ""
+	return n if not n.is_empty() else s.get_class()
 
 
 func step_n(ctx: SimContext, ticks: int) -> void:

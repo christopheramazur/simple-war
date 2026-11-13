@@ -24,6 +24,9 @@ const ASSET_EXTENSIONS: Array[String] = ["png", "webp", "jpg", "jpeg", "ogg", "w
 var errors: PackedStringArray = PackedStringArray()
 var packages: Array[Dictionary] = []
 var templates: TemplateTable
+## The merged template definitions the table was built from (patches
+## applied), for harness variants (SimVariant).
+var defs: Array = []
 var data_hash: String = ""
 ## Asset id ("pkg:id") -> absolute path.
 var assets: Dictionary = {}
@@ -83,6 +86,7 @@ func _load(dirs: PackedStringArray) -> void:
 		var asset_map: Dictionary = m.get("assets", {})
 		for aid: String in asset_map:
 			_register_asset(m, aid, asset_map[aid])
+	self.defs = defs
 	templates = TemplateTable.build(defs)
 	errors.append_array(templates.errors)
 	if templates.is_valid():

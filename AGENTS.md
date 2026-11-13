@@ -86,6 +86,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | Import + script check | `harness/bin/hx godot check` (errors only; `--no-import` to parse scripts only). `harness/` and `GD-Agentic-Skills/` carry a `.gdignore` |
 | Game tests | `harness/bin/hx godot test` (GUT summary and failures); writing tests: see `testing-patterns` |
 | UI mock to PNG | `harness/bin/hx godot mock res://src/presentation/mocks/<name>_mock.gd` (opens a window briefly; writes `Game Design Document/Mocks/<name>.png`) |
+| Harness runs (scenario × variant) | `harness/bin/hx sim run duel_crossroads --variant baseline --variant cautious --seeds 3` (results in `harness/data/sim.duckdb`; `hx sim report`) |
 | Harness tests | `uv run --project harness pytest -q` |
 
 ## 8. Task tracking

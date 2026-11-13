@@ -8,6 +8,7 @@ extends Node2D
 ## plays a demo Duel.
 ##
 ## Replay source, in order: the `replay_path` export, a `--replay=<path>`
+## (with `--variant=<variant.json>` for harness runs under a variant)
 ## user argument (after `--`), else the demo.
 ## Controls: Space pause, +/- speed, Left/Right previous/next turn, Home
 ## restart, mouse wheel zoom, right-drag or arrow keys pan.
@@ -61,12 +62,20 @@ func _load_replay() -> void:
 		_error = "content failed to load: " + "; ".join(loader.errors)
 		return
 	var path := replay_path
+	var variant_path := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--replay="):
 			path = arg.substr(9)
+		elif arg.begins_with("--variant="):
+			variant_path = arg.substr(10)
 	if not path.is_empty():
+		# Harness runs under a variant replay with the same patched content.
+		var variant := SimVariant.load_file(variant_path)
+		if not variant.apply(loader):
+			_error = "variant: " + "; ".join(variant.errors)
+			return
 		var bytes := FileAccess.get_file_as_bytes(path)
-		recorder = ReplayRecorder.from_save(bytes, loader.templates, loader.data_hash)
+		recorder = ReplayRecorder.from_save(bytes, variant.templates, variant.data_hash)
 		if recorder == null:
 			_error = "could not rebuild replay %s with the installed content" % path
 		return

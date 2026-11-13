@@ -1,0 +1,5 @@
+{
+	"name": "idle_defender",
+	"text": "Player 2 gives no orders: a floor for player 1's profile.",
+	"controllers": {"2": {"profile": "idle"}}
+}

@@ -8,6 +8,12 @@ The game is built to be played very fast without graphics (R6Q24). That makes th
 - **Replays:** every run produces a replay for visual inspection.
 - **Verbs:** `hx sim` verbs drive the runs.
 - **Later:** QA extends to testing against map templates (R5Q20).
+- **In play (sw-884.1):** `hx sim run <scenario>... --variant <name>... --seeds N --jobs J`.
+  - **Runs:** each run is one headless Godot process (`res://src/api/sim_runner.gd`) playing a battle scenario or an overworld map through the Game API.
+  - **Results:** runs and metrics go to DuckDB (`harness/data/sim.duckdb`: `sim_batch`, `sim_run`, `sim_metric`). The verbs `hx sim report`, `list` and `variants` read them.
+  - **Replays:** every run leaves its JSON report and its replay save in `harness/data/sim/runs/<batch>/`. Battle replays open in the replay viewer with `--replay=<path>`, plus `--variant=<file>` for a run under a variant.
+  - **Variants** (`SimVariant`, `data/sim/variants/*.json`): `patches` merge into template values, so a variant has its own data hash; `controllers` set each player's profile (`zone`, `expand`, `evacuation`, `idle`, with params); `turns` caps overworld runs. Examples: `cautious`, `idle_defender`, `tough_angels`.
+  - **Determinism:** measuring is read-only. A run's state hash is the same with or without metrics, and the hash is stored with each run.
 
 ## 5.2 Metrics library (R7Q17)
 These metrics serve balance, feel and performance analysis, and the AI factory's scoring:
@@ -20,6 +26,19 @@ These metrics serve balance, feel and performance analysis, and the AI factory's
 - per-system performance
 
 The per-battle SIMPL ledger (R6Q3) is a primary input.
+
+**In play (sw-884.1):** `SimMetrics` produces rows of (metric, player, value), where player 0 means the whole run.
+- **Battles:**
+  - `vp`, `value_destroyed`, `value_lost`, `units_lost`, `squads_lost`;
+  - `band.<pool>.<band>`: squad-ticks spent in each pressure band;
+  - `ledger.<pool>`: net SIMPL flow;
+  - milestones `first_contact_tick`, `first_casualty_tick`, `first_capture_turn`;
+  - `turns`;
+  - `perf.<System>_usec`: per-system wall time, from profiling in `SystemRunner`.
+- **Overworld runs:**
+  - `value`, `value_earned`, `hexes_explored`, `fog_revealed_pct`, `features_owned`, `commanders_alive`;
+  - `turns`, `battles`, `first_battle_turn`, `first_capture_turn`, and the mission outcome.
+- **Not yet:** metrics for the battles inside an overworld run.
 
 ## 5.3 Pressure Lab (R6Q6)
 A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitivity) against scenarios. It is used to find which tropes emerge (R5Q3).
