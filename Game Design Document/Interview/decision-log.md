@@ -235,3 +235,16 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 - A1Q9 Regression metric baselines run on demand only for now.
 - A1Q10 Record per-system performance trends; budgets are revisited later.
 - A1Q11 Feel testing is human playtests for the foreseeable future.
+### Settled (Round B1: AI fitness criteria, sw-p2q.7)
+Research and the full criteria tables: `ai-fitness-criteria-research.md`. The designer accepted every recommendation.
+- B1Q1 One criteria library, two uses: FITNESS (what the GA selects on, per training run, with a weight schedule) and DECISIONS (what a profile's utility process weighs, through its mask). Each criterion has an end-of-game form and a decision-time form estimated from the observation.
+- B1Q2 Fitness = Result + 0.25 x Speed (wins only) + 0.1 x Margin + lambda x (scheduled strategic criteria). Lambda starts at 0.3 and anneals to 0 over about 50 generations, or sooner once the population beats the hall of fame more than 60% of the time. Reason: victory-based fitness beat proxy fitness in StarCraft and Planet Wars GP work.
+- B1Q3 A turn-limit draw scores as a loss for both sides (anti-stall); a slow loss earns nothing.
+- B1Q4 Forfeiting or quitting the game scores -1 (below a loss). Withdrawing a battleforce from a battle is a legitimate move with no direct penalty; its Value consequences still count.
+- B1Q5 Library v1. Outcome: Result, Speed, Margin (battle VP / overworld Value). Strategic: Value efficiency, Force ratio, Objective control, Economy, Exploration, Commander safety, Tempo/initiative (low weight), Pressure differential (own vs inflicted, never own alone, per R4Q4).
+- B1Q6 Schedules: weight = base x product of gates; each gate is a piecewise-linear curve over one condition, held at least k = 3 turns (hysteresis). Conditions: overworld and battle turn, first contact, fog revealed %, force ratio, commander threatened, Value banked, ahead/behind (also gates infeasible goals off).
+- B1Q7 Anti-gaming guards: Value destroyed counts enemy players only (neutrals and civilians tracked separately); Exploration saturates at a target %; Economy rewards Value earned, not banked; Value efficiency with no fighting = neutral 0.5.
+- B1Q8 Diversity: hall of fame plus a MAP-Elites-style behaviour archive (aggression x expansion, caution optional); curated "feels" come from archive cells. AlphaStar-style exploiter slots not adopted for now (an option to revisit).
+- B1Q9 Difficulty comes from masks, fuzz strength and visible behaviour limits (commander caps, think budget). No resource or information cheats.
+- B1Q10 Build the missing metrics: per-player result; battle metrics inside overworld runs; per-turn series; per-player milestones; objective hold time; Value split by victim; idle turns; forfeit events.
+- B1Q11 Evaluation protocol: every pairing plays both sides on at least 3 seeds or map variants; a hard per-decision think-time limit; NTBEA as an optional tuner for small genomes (masks, schedule knots). Until sw-884.5 lands, map variation carries the variance.
