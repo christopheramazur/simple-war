@@ -59,6 +59,8 @@ func test_battle_metrics() -> void:
 	assert_true(names.keys().any(func(k: String) -> bool: return k.begins_with("band.morale.")), "time in pressure bands")
 	assert_true(names.keys().any(func(k: String) -> bool: return k.begins_with("ledger.")), "the SIMPL ledger")
 	assert_true(names.has("perf.CombatSystem_usec"), "per-system performance")
+	assert_true(names.has("band_changes.morale") or names.has("band_changes.stamina"), "band crossings (Pressure Lab)")
+	assert_true(names.has("first_break_tick"))
 	var ticks := 0.0
 	for row: Dictionary in rows:
 		if String(row["metric"]).begins_with("band.stamina.") and row["player"] == 1:

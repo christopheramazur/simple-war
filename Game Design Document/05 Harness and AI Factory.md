@@ -43,6 +43,23 @@ The per-battle SIMPL ledger (R6Q3) is a primary input.
 ## 5.3 Pressure Lab (R6Q6)
 A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitivity) against scenarios. It is used to find which tropes emerge (R5Q3).
 
+**In play (sw-884.2):** `hx sim lab <lab>`.
+- **Lab files** (`data/sim/labs/*.json`) name scenarios, seeds and axes: `"<template>.<field>[.<key>...]": [values]`, e.g. `standard.pool_defaults.morale.drift_pct_per_s`, plus a `base` every setting shares (controllers, other patches).
+- **Settings:** every combination of axis values becomes a generated variant (v1, v2, ...), run through `hx sim`. Settings are recorded per batch.
+- **Pressure metrics:** besides the time spent in each band, `SimMetrics` counts `surges.<pool>`, `breaks.<pool>`, `band_changes.<pool>` and the first Morale break.
+- **Tropes** (`data/sim/tropes.json`) are rules over a run's features: the share of squad-ticks per pool band (and at the extremes), crossing counts, turns, whether a side won before the turn limit, the VP gap, and the Value-lost ratio. The set:
+  - **flatline:** Morale barely moves.
+  - **pressure cooker:** Morale lives at the extremes.
+  - **rout cascade:** squads break one after another.
+  - **seesaw:** Morale swings back and forth across bands.
+  - **death spiral:** one side breaks and collapses.
+  - **stalemate:** nobody gets ahead before the turn limit.
+  - **surge rush:** squads surge often.
+- **The table:** per setting, win rate, turns, Morale's neutral share, Morale breaks, and how often each trope showed. `hx sim tropes [--batch]` re-evaluates a batch after the rules change.
+- **Labs shipped:** `morale_drift` and `band_floors`.
+- **First finding** (`morale_drift` on the duel): slow drift with a fast Morale exchange turns into a pressure cooker with no breaks; a slow exchange gives rout cascades at any drift.
+- **Caveat:** duel outcomes don't vary with the seed (sw-884.5), so seeds don't diversify runs yet.
+
 ## 5.4 AI factory
 - **Controller profiles** (R7Q15): data made of a decision process (scripted, utility, rule-based, later search), parameters and a deterministic **fuzz seed**. Profiles are composable.
 - **Evolution** (R7Q16): a genetic algorithm (selection, crossover, mutation) with **competitive co-evolution** between populations, and a **hall of fame** to prevent cycling. No neural networks initially.

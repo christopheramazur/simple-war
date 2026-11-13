@@ -6,7 +6,12 @@
   hx sim report [--batch ID] [--metric PATTERN]
       a batch's summary, or one metric (SQL LIKE, e.g. 'band.morale.%')
   hx sim list    recent batches
-  hx sim variants    the variants in data/sim/variants (plus baseline)
+  hx sim variants    the variants in data/sim/variants (plus baseline) and labs
+  hx sim lab <lab> [--seeds S] [--jobs J]
+      Pressure Lab (GDD 05 §5.3): sweep a lab's parameter axes
+      (data/sim/labs/<lab>.json), run every setting, and show which tropes
+      (data/sim/tropes.json) emerge per setting
+  hx sim tropes [--batch ID]    re-evaluate tropes for a batch
 
 Scenarios are battle scenario IDs or overworld map IDs from the core package.
 Replays: <data>/sim/runs/<batch>/<run_id>.sav (battles open in the replay
@@ -19,10 +24,10 @@ import argparse
 import subprocess
 from datetime import datetime, timezone
 
-from hx import paths, sim
+from hx import lab, paths, sim
 from hx.output import FAIL, OK, WARN, Check, Result
 
-HELP = "Game harness runs: run scenario x variant x seed headless (DuckDB results) | report | list | variants"
+HELP = "Game harness runs: run scenario x variant x seed headless (DuckDB results) | report | list | variants | lab | tropes"
 
 
 def add_args(p) -> None:
@@ -39,13 +44,21 @@ def add_args(p) -> None:
     sp = sub.add_parser("list")
     sp.add_argument("--limit", type=int, default=10)
     sub.add_parser("variants")
+    sp = sub.add_parser("lab")
+    sp.add_argument("lab", help="lab name (data/sim/labs/<lab>.json) or a .json path")
+    sp.add_argument("--seeds", help="override the lab's seeds (N, A-B or a,b,c)")
+    sp.add_argument("--jobs", type=int, default=4)
+    sp.add_argument("--timeout", type=float, default=600)
+    sp = sub.add_parser("tropes")
+    sp.add_argument("--batch", help="batch ID (default: the latest)")
     for sp in sub.choices.values():
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
         sp.add_argument("-v", "--verbose", action="store_true", default=argparse.SUPPRESS)
 
 
 def run(args) -> Result:
-    return {"run": _run, "report": _report, "list": _list, "variants": _variants}[args.action](args)
+    return {"run": _run, "report": _report, "list": _list, "variants": _variants, "lab": _lab,
+            "tropes": _tropes}[args.action](args)
 
 
 def _run(args) -> Result:
@@ -111,6 +124,63 @@ def _list(args) -> Result:
 def _variants(args) -> Result:
     r = Result("sim variants")
     r.data["variants"] = sim.variants(paths.repo_root())
+    r.data["labs"] = lab.labs(paths.repo_root())
+    return r
+
+
+def _lab(args) -> Result:
+    r = Result("sim lab")
+    from hx import godot
+    root = paths.repo_root()
+    exe = godot.binaries(root).get("console")
+    if not exe:
+        r.checks.append(Check("godot", FAIL, "no Godot console binary at the repo root"))
+        return r
+    try:
+        spec = lab.load(root, args.lab)
+        seeds = sim.parse_seeds(str(args.seeds or spec.get("seeds", 2)))
+        tropes = lab.load_tropes(root)
+    except (FileNotFoundError, ValueError, KeyError) as e:
+        r.checks.append(Check("lab", FAIL, str(e)))
+        return r
+    batch_id = sim.new_batch_id()
+    made = lab.write_variants(spec, sim.runs_dir() / batch_id / "variants")
+    jobs = sim.matrix(batch_id, spec["scenarios"], {v: f for v, (f, _) in made.items()}, seeds)
+    started = datetime.now(timezone.utc)
+    reports, wall = sim.launch(exe, root, jobs, args.jobs, args.timeout)
+    con = sim.connect()
+    sim.ingest(con, {"batch_id": batch_id, "started_at": started, "scenarios": spec["scenarios"],
+                     "variants": list(made), "seeds": ",".join(map(str, seeds)), "jobs": args.jobs, "wall_s": wall,
+                     "git_rev": _git_rev(root)}, reports)
+    lab.record_settings(con, batch_id, spec["name"], made)
+    lab.tag(con, batch_id, tropes)
+    r.data["lab"] = spec["name"]
+    r.data["batch"] = batch_id
+    r.data["runs"] = len(jobs)
+    r.data["wall_s"] = round(wall, 1)
+    r.tables["settings"] = lab.table(con, batch_id, tropes)
+    con.close()
+    bad = [rep for rep in reports if rep["run"].get("status") != "ok"]
+    if bad:
+        r.data["errors"] = "\n  " + "\n  ".join(f"{b['run']['run_id']}: {b['run'].get('error')}" for b in bad[:10])
+    r.checks.append(Check("runs", FAIL if len(bad) == len(jobs) else (WARN if bad else OK),
+                          f"{len(jobs) - len(bad)}/{len(jobs)} ok"))
+    return r
+
+
+def _tropes(args) -> Result:
+    r = Result("sim tropes")
+    root = paths.repo_root()
+    con = sim.connect()
+    batch = args.batch or sim.latest_batch(con)
+    if batch is None:
+        r.checks.append(Check("batches", WARN, "no runs yet"))
+        return r
+    tropes = lab.load_tropes(root)
+    lab.tag(con, batch, tropes)
+    r.data["batch"] = batch
+    r.tables["settings"] = lab.table(con, batch, tropes)
+    con.close()
     return r
 
 

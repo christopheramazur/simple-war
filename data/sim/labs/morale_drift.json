@@ -1,0 +1,10 @@
+{
+	"name": "morale_drift",
+	"text": "How Morale drift and the Morale exchange rate shape battles (R5Q3, R6Q6).",
+	"scenarios": ["duel_crossroads"],
+	"seeds": 2,
+	"axes": {
+		"standard.pool_defaults.morale.drift_pct_per_s": ["0.1", "0.5", "2"],
+		"standard.morale_rate_per_s": ["0.1", "0.8"]
+	}
+}

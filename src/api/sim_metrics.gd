@@ -8,6 +8,8 @@ extends RefCounted
 ## Rows: {"metric", "player" (0 = the whole run), "value"}. Battles:
 ##   vp (influence), value_destroyed, value_lost, units_lost, squads_lost;
 ##   band.<pool>.<band>: squad-ticks spent in each pressure band;
+##   surges.<pool>, breaks.<pool>, band_changes.<pool>: band crossings
+##   (Pressure Lab, GDD 05 §5.3); first_break_tick (any Morale break);
 ##   ledger.<pool>: net SIMPL flow (the per-battle ledger, R6Q3);
 ##   first_contact_tick, first_casualty_tick, first_capture_turn
 ##   (milestones, -1 = never); perf.<system>_usec (per-system time).
@@ -21,6 +23,8 @@ var _first_contact: int = -1
 var _first_casualty: int = -1
 var _first_capture: int = -1
 var _log_seen: int = 0
+var _crossings: Dictionary = {}  # "player|kind|pool" -> count
+var _first_break: int = -1
 var _start_value: Dictionary = {}  # player -> Value of its squads at the start
 
 
@@ -51,6 +55,14 @@ func _sample(state: BattleState) -> void:
 			_first_contact = e.tick
 		if e.type == &"unit_killed" and _first_casualty < 0:
 			_first_casualty = e.tick
+		if e.type in [&"pool_surge", &"pool_break", &"pool_band"]:
+			var row := state.squads.row_of(int(e.data["squad"]))
+			var p := state.squads.player[row] if row >= 0 else 0
+			var kind := {&"pool_surge": "surges", &"pool_break": "breaks", &"pool_band": "band_changes"}[e.type] as String
+			var key := "%d|%s|%s" % [p, kind, e.data["pool"]]
+			_crossings[key] = int(_crossings.get(key, 0)) + 1
+			if e.type == &"pool_break" and e.data["pool"] == "morale" and _first_break < 0:
+				_first_break = e.tick
 	_log_seen = state.turn_log.size()
 	if _first_capture < 0:
 		for z in state.zone_owner.size():
@@ -96,6 +108,12 @@ func battle(state: BattleState, sim: BattleSim, prefix: String = "") -> Array:
 	keys.sort()
 	for k: String in keys:
 		out.append(_row(prefix + "ledger." + k.get_slice("|", 1), int(k.get_slice("|", 0)), Fixed.to_display(ledger[k]).to_float()))
+	keys = _crossings.keys()
+	keys.sort()
+	for k: String in keys:
+		var parts := k.split("|")
+		out.append(_row(prefix + "%s.%s" % [parts[1], parts[2]], int(parts[0]), _crossings[k]))
+	out.append(_row(prefix + "first_break_tick", 0, _first_break))
 	out.append(_row(prefix + "turns", 0, state.turn))
 	out.append(_row(prefix + "first_contact_tick", 0, _first_contact))
 	out.append(_row(prefix + "first_casualty_tick", 0, _first_casualty))

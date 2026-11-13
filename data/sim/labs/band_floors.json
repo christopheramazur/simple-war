@@ -1,0 +1,10 @@
+{
+	"name": "band_floors",
+	"text": "Where the Broken and Surging bands start: tighter or looser extremes.",
+	"scenarios": ["duel_crossroads"],
+	"seeds": 2,
+	"axes": {
+		"standard.band_floor_pct.fraying": [10, 15, 25],
+		"standard.band_floor_pct.surging": [80, 90]
+	}
+}

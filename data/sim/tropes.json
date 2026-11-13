@@ -1,0 +1,19 @@
+{
+	"text": "Pressure Lab tropes (GDD 05 §5.3, R5Q3): patterns a run shows, as rules over its features. Features: share.<pool>.<band> (share of squad-ticks), breaks.<pool>, surges.<pool>, band_changes.<pool> (whole run), turns, reason, decided (1 if a side won before the turn limit), vp_gap, value_lost_ratio (the larger side's loss over the smaller's, 1 if none).",
+	"tropes": [
+		{"id": "flatline", "text": "Morale barely moves: drift too strong or flows too weak.",
+			"all": [{"feature": "share.morale.neutral", "op": ">=", "value": 0.9}]},
+		{"id": "pressure_cooker", "text": "Morale lives at the extremes.",
+			"all": [{"feature": "share.morale.extremes", "op": ">=", "value": 0.35}]},
+		{"id": "rout_cascade", "text": "Squads break one after another.",
+			"all": [{"feature": "breaks.morale", "op": ">=", "value": 4}]},
+		{"id": "seesaw", "text": "Morale swings back and forth across bands.",
+			"all": [{"feature": "band_changes.morale", "op": ">=", "value": 40}]},
+		{"id": "death_spiral", "text": "One side breaks and collapses.",
+			"all": [{"feature": "breaks.morale", "op": ">=", "value": 2}, {"feature": "value_lost_ratio", "op": ">=", "value": 2}]},
+		{"id": "stalemate", "text": "Nobody gets ahead before the turn limit.",
+			"all": [{"feature": "decided", "op": "==", "value": 0}, {"feature": "vp_gap", "op": "<=", "value": 2}]},
+		{"id": "surge_rush", "text": "Squads surge often.",
+			"all": [{"feature": "surges.morale", "op": ">=", "value": 3}]}
+	]
+}
