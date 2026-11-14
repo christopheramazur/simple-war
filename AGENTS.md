@@ -88,7 +88,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | UI mock to PNG | `harness/bin/hx godot mock res://src/presentation/mocks/<name>_mock.gd` (opens a window briefly; writes `Game Design Document/Mocks/<name>.png`) |
 | Harness runs (scenario × variant) | `harness/bin/hx sim run duel_crossroads --variant baseline --variant cautious --seeds 3` (results in `harness/data/sim.duckdb`; `hx sim report`) |
 | Pressure Lab sweep | `harness/bin/hx sim lab morale_drift` (labs in `data/sim/labs/`, tropes in `data/sim/tropes.json`) |
-| AI factory evolution run | `harness/bin/hx factory run --generations 3 --seed 1` (`hx factory report`, `hx factory list`) |
+| AI factory evolution run | `harness/bin/hx factory run --generations 3 --seed 1 --intensity background` (`hx factory stop`, `hx factory resume`, `hx factory report`, `hx factory list`) |
 | AI factory fitness of a batch | `harness/bin/hx sim fitness [--batch ID] [--spec default]` (criteria in `data/sim/criteria.json`, specs in `data/sim/fitness/`) |
 | Harness tests | `uv run --project harness pytest -q` |
 

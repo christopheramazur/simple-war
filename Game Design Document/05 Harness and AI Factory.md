@@ -144,6 +144,12 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
   - `hx factory run --intensity background|normal|max --generations N`. `background` is 1–2 Godot processes at below-normal priority; `max` uses about 90% of the cores.
   - Ctrl+C or `hx factory stop` lets running matches finish, saves the generation and exits. `hx factory resume` continues from the saved generation.
   - A whole run is reproducible from its run seed: pairings, mutations and map seeds.
+  - **In play (sw-884.10):**
+    - `hx factory run --intensity background|normal|max`: background is 1–2 processes at below-normal priority, normal is half the cores, max is about 90%.
+    - Ctrl+C or `hx factory stop` stops starting new matches. Running matches finish and are saved, and the run exits; a second Ctrl+C aborts.
+    - `hx factory resume` plays only the interrupted generation's missing matches and continues to the run's target.
+    - A stopped-and-resumed run gives the same results as an uninterrupted one (checked).
+    - The database is open only between matches, so `hx factory report` works during a run.
 - **Storage** (A1Q8): curated profiles are package data (a moddable `controller_profile` kind). Every evaluated genome, with its lineage, scores, criteria, mask and schedule, goes to DuckDB. An export promotes a genome to package data.
 - **Lineage:** every result records the profile, criteria set, mask, schedule and parent profiles.
 - **Throughput target** (R7Q18): the target is **how quickly scoring gains are achieved**, not a match count. It measures both run speed and how nuanced the metrics are.

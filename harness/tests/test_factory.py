@@ -163,3 +163,75 @@ def test_archive_and_gain_rate(tmp_path: Path):
         con.execute("INSERT INTO factory_gen VALUES ('r', ?, 'b', 0.3, NULL, 1, 1, 1800, 4, 0, ?)", [g, bench])
     rate = factory.gain_rate(con, "r")
     assert rate["hours"] == 1.5 and rate["gain_per_hour"] == pytest.approx(0.2)
+
+
+def test_intensity_levels():
+    assert factory.intensity_jobs("background", 16) == 2
+    assert factory.intensity_jobs("background", 2) == 1
+    assert factory.intensity_jobs("normal", 16) == 8
+    assert factory.intensity_jobs("max", 16) == 14
+    assert factory.intensity_jobs("max", None) == 1
+
+
+def test_resumed_runs_draw_the_same_games(tmp_path: Path):
+    con = factory.connect(tmp_path / "s.duckdb")
+    s = _state(replace=1, max_age=2)
+    factory.create(con, s)
+    back = factory.load(con, "f")
+    assert factory.draw_pairings(back) == factory.draw_pairings(s)
+    assert factory.match_seeds(back) == factory.match_seeds(s)
+    scores = {p.profile_id: {"fitness": float(i), "result": 0.0, "matches": 1, "aggression": 0.5,
+                             "expansion": 0.5, "caution": 0.5} for i, p in enumerate(s.population)}
+    for _ in range(2):
+        factory.record(con, s, scores, "b", 0.3, None, 1.0, 1, 0, None)
+        factory.advance(con, s, {p.profile_id: scores.get(p.profile_id, scores[s.population[0].profile_id])
+                                 for p in s.population})
+        back = factory.load(con, "f")
+        assert [p.profile_id for p in back.population] == [p.profile_id for p in s.population]
+        assert [h.profile_id for h in back.hof] == [h.profile_id for h in s.hof]
+        assert factory.draw_pairings(back) == factory.draw_pairings(s), "same pairings after a resume"
+    s.config["target"] = 9
+    factory.save_config(con, s)
+    assert factory.load(con, "f").config["target"] == 9
+
+
+def test_launch_stops_starting_matches(tmp_path: Path, monkeypatch):
+    import sys
+    from hx import sim
+    monkeypatch.setenv("HX_DATA_DIR", str(tmp_path))
+    jobs = [sim.Job("b", "map", "v", "", i) for i in range(5)]
+    exe = Path(sys.executable)  # fails at once: each match reports an error, quickly
+    reports, _ = sim.launch(exe, tmp_path, jobs, 1, 30, stop=lambda: True)
+    assert reports == [], "nothing starts once stop is asked"
+    calls = {"n": 0}
+
+    def after_two() -> bool:
+        calls["n"] += 1
+        return calls["n"] > 2
+
+    reports, _ = sim.launch(exe, tmp_path, jobs, 1, 30, stop=after_two)
+    assert 0 < len(reports) < 5, "running matches finish, later ones never start"
+    assert [r["run"]["run_id"] for r in reports] == [j.run_id for j in jobs[:len(reports)]]
+    assert len(sim.launch(exe, tmp_path, jobs, 2, 30, background=True, stop=lambda: False)[0]) == 5
+
+
+def test_a_stopped_generation_plays_only_the_rest(tmp_path: Path, monkeypatch):
+    from hx import sim
+    monkeypatch.setenv("HX_DATA_DIR", str(tmp_path))
+    db = tmp_path / "s.duckdb"
+    jobs = [sim.Job("bx", "map", f"v{i}", "", 1) for i in range(4)]
+    launched: list[list[str]] = []
+
+    def fake(exe, root, todo, parallel, timeout, background=False, stop=None):
+        launched.append([j.run_id for j in todo])
+        n = 2 if len(launched) == 1 else len(todo)  # the first session is stopped after 2
+        return [{"run": {"status": "ok", "kind": "overworld"}, "metrics": [], "_job": j} for j in todo[:n]], 1.5
+
+    monkeypatch.setattr(sim, "launch", fake)
+    cfg = {**factory.DEFAULTS, "jobs": 1}
+    meta = {"scenarios": ["map"], "variants": [], "seeds": "1", "git_rev": ""}
+    assert factory._play(db, Path("x"), tmp_path, jobs, meta, cfg, lambda: False) is False
+    assert factory._play(db, Path("x"), tmp_path, jobs, meta, cfg, lambda: False) is True
+    assert launched == [[j.run_id for j in jobs], [j.run_id for j in jobs[2:]]], "the resume plays only the rest"
+    con = factory.connect(db)
+    assert con.execute("SELECT wall_s FROM sim_batch WHERE batch_id = 'bx'").fetchone()[0] == 3.0, "wall time adds up"

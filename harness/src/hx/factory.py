@@ -27,8 +27,13 @@ One generation:
      ranked in the top half; the worst `replace` (and the retired) are
      replaced by children of the best: uniform crossover of two tournament
      winners, then mutation;
-  6. survivors age by one; everything is written before the next generation,
-     so a run can stop between generations and resume.
+  6. survivors age by one; the generation's results and the next population
+     are written in one transaction.
+Stopping (A2Q9): with a stop callable, no new match starts once it says so,
+running matches finish and are saved, and the generation is left unfinished;
+playing it again (hx factory resume) plays only its missing matches. The
+population is kept in profile-ID order so a resumed run draws the same
+pairings: resuming gives the same results as never stopping.
 Every random choice comes from Random(f"{seed}:{generation}:{purpose}"), so a
 whole factory run is reproducible from its run seed (A2Q10); Godot runs are
 deterministic, except think-time faults (wall-clock).
@@ -38,7 +43,7 @@ from __future__ import annotations
 
 import json
 import random
-import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -83,8 +88,21 @@ DEFAULTS = {
     "scenario": "skirmish_seeded", "population": 10, "pairings": 20, "seeds": 3, "turns": 30,
     "replace": 2, "max_age": 8, "hof_draw": 0.2, "hof_size": 20, "mutation": 0.25, "mask_mutation": 0.05,
     "sigma": 0.15, "hidden": 0.2, "grid": 5, "spec": "default", "bench_every": 5,
-    "bench_profile": "profile_utility", "jobs": 4, "timeout": 600.0,
+    "bench_profile": "profile_utility", "jobs": 4, "timeout": 600.0, "intensity": "normal", "target": 1,
 }
+
+INTENSITIES = ("background", "normal", "max")
+
+
+def intensity_jobs(intensity: str, cpus: int | None) -> int:
+    """Parallel Godot processes per intensity (A1Q7, A2Q9): background 1-2 (at
+    below-normal priority), normal half the cores, max about 90% of them."""
+    n = max(1, cpus or 1)
+    if intensity == "background":
+        return min(2, max(1, n // 4))
+    if intensity == "max":
+        return max(1, int(n * 0.9))
+    return max(1, n // 2)
 
 
 # --- genomes ---------------------------------------------------------------
@@ -191,7 +209,7 @@ def new_state(run: str, seed: int, config: dict, default_mask: dict) -> State:
     rng = _rng(seed, 0, "birth")
     pop = [Profile(f"{run}-g0-p{i}", random_genome(rng, default_mask, cfg["hidden"]), 0)
            for i in range(cfg["population"])]
-    return State(run, seed, cfg, 0, pop, [])
+    return State(run, seed, cfg, 0, sorted(pop, key=lambda p: p.profile_id), [])
 
 
 @dataclass(frozen=True)
@@ -377,6 +395,9 @@ def load(con: duckdb.DuckDBPyConnection, run: str) -> State:
     seed, config, gen = row
     genomes = {pid: (json.loads(g), born, parents, hof) for pid, g, born, parents, hof in con.execute(
         "SELECT profile_id, genome, born, parents, hof FROM factory_profile WHERE run = ?", [run]).fetchall()}
+    hof_ids = [pid for (pid,) in con.execute(
+        "SELECT profile_id FROM factory_profile WHERE run = ? AND hof = 1 ORDER BY retired, profile_id",
+        [run]).fetchall()]
 
     def prof(pid: str, age: int = 0) -> Profile:
         g, born, parents, _ = genomes[pid]
@@ -385,7 +406,7 @@ def load(con: duckdb.DuckDBPyConnection, run: str) -> State:
     pop = [prof(pid, age) for pid, age in con.execute(
         "SELECT profile_id, age FROM factory_member WHERE run = ? AND generation = ? AND fitness IS NULL "
         "ORDER BY profile_id", [run, gen]).fetchall()]
-    hof = [prof(pid) for pid, (_, _, _, h) in sorted(genomes.items()) if h]
+    hof = [prof(pid) for pid in hof_ids]
     return State(run, seed, json.loads(config), gen, pop, hof)
 
 
@@ -422,11 +443,15 @@ def advance(con: duckdb.DuckDBPyConnection, state: State, scores: dict) -> list[
     for pid in retired:
         con.execute("UPDATE factory_profile SET retired = ? WHERE run = ? AND profile_id = ?",
                     [state.generation, state.run, pid])
+    hall = sorted(hall, key=lambda p: p.profile_id)
     for p in hall:
         con.execute("UPDATE factory_profile SET hof = 1 WHERE run = ? AND profile_id = ?", [state.run, p.profile_id])
-    state.hof = (state.hof + [Profile(p.profile_id, p.genome, p.born, p.parents) for p in hall])[-state.config["hof_size"]:]
+    hof = state.hof + [Profile(p.profile_id, p.genome, p.born, p.parents) for p in hall]
+    for p in hof[:-state.config["hof_size"]]:  # dropped from the hall (hof = 2: was in it)
+        con.execute("UPDATE factory_profile SET hof = 2 WHERE run = ? AND profile_id = ?", [state.run, p.profile_id])
+    state.hof = hof[-state.config["hof_size"]:]
     save_profiles(con, state.run, born)
-    state.population = pop
+    state.population = sorted(pop, key=lambda p: p.profile_id)
     state.generation += 1
     save_state(con, state)
     return born
@@ -450,48 +475,85 @@ def bench_jobs(state: State, champion: Profile, root: Path, batch_id: str, out_d
     return jobs
 
 
-def play_generation(con: duckdb.DuckDBPyConnection, state: State, exe: Path, root: Path, spec: dict,
-                    library: dict, git_rev: str = "") -> dict:
-    """Plays, scores, records and evolves one generation. Returns its stats."""
+def _play(db: Path | None, exe: Path, root: Path, jobs: list[sim.Job], meta: dict, cfg: dict,
+          stop: Callable[[], bool] | None) -> bool:
+    """Plays the jobs of one batch that have no result yet (a resumed
+    generation replays only what is missing). Returns whether all are done."""
+    if not jobs:
+        return True
+    bid = jobs[0].batch_id
+    con = connect(db)
+    try:
+        done = {rid for (rid,) in con.execute("SELECT run_id FROM sim_run WHERE batch_id = ?", [bid]).fetchall()}
+        prev = con.execute("SELECT wall_s FROM sim_batch WHERE batch_id = ?", [bid]).fetchone()
+    finally:
+        con.close()
+    todo = [j for j in jobs if j.run_id not in done]
+    started = datetime.now(timezone.utc)
+    reports, wall = sim.launch(exe, root, todo, cfg["jobs"], cfg["timeout"],
+                               background=cfg.get("intensity") == "background", stop=stop)
+    con = connect(db)
+    try:
+        sim.ingest(con, {**meta, "batch_id": bid, "started_at": started, "jobs": cfg["jobs"],
+                         "wall_s": (prev[0] if prev else 0.0) + wall}, reports)
+    finally:
+        con.close()
+    return len(done) + len(reports) >= len(jobs)
+
+
+def play_generation(db: Path | None, state: State, exe: Path, root: Path, spec: dict, library: dict,
+                    git_rev: str = "", stop: Callable[[], bool] | None = None) -> dict | None:
+    """Plays, scores, records and evolves one generation; returns its stats,
+    or None if `stop` cut it short (the finished matches are saved, and
+    playing the generation again, after a resume, plays only the rest).
+    The database is open only between matches, so reports can read it."""
     cfg = state.config
-    t0 = time.monotonic()
-    pairings = draw_pairings(state)
     batch_id = f"{state.run}-g{state.generation:03d}"
-    made = write_variants(state, pairings, sim.runs_dir() / batch_id / "variants")
+    made = write_variants(state, draw_pairings(state), sim.runs_dir() / batch_id / "variants")
     seeds = match_seeds(state)
     jobs = [sim.Job(batch_id, cfg["scenario"], name, path, seed)
             for name, (path, _, _) in made.items() for seed in seeds]
-    bench = None
-    bench_ok = cfg["bench_every"] > 0 and state.generation % cfg["bench_every"] == 0
-    started = datetime.now(timezone.utc)
-    reports, _ = sim.launch(exe, root, jobs, cfg["jobs"], cfg["timeout"])
-    sim.ingest(con, {"batch_id": batch_id, "started_at": started, "scenarios": [cfg["scenario"]],
-                     "variants": list(made), "seeds": ",".join(map(str, seeds)), "jobs": cfg["jobs"],
-                     "wall_s": time.monotonic() - t0, "git_rev": git_rev}, reports)
-    fitness.score_batch(con, batch_id, spec, library)
-    hof_ids = {h.profile_id for h in state.hof}
-    scores, hof_rate, lam = evaluate(con, batch_id, made, spec, state.generation, hof_ids)
+    meta = {"scenarios": [cfg["scenario"]], "variants": list(made), "seeds": ",".join(map(str, seeds)),
+            "git_rev": git_rev}
+    if not _play(db, exe, root, jobs, meta, cfg, stop):
+        return None
+    con = connect(db)
+    try:
+        fitness.score_batch(con, batch_id, spec, library)
+        scores, hof_rate, lam = evaluate(con, batch_id, made, spec, state.generation,
+                                         {h.profile_id for h in state.hof})
+    finally:
+        con.close()
     pop_scores = {k: v for k, v in scores.items() if k in {p.profile_id for p in state.population}}
-    if bench_ok and pop_scores:
+    bid = f"{batch_id}-bench"
+    benching = cfg["bench_every"] > 0 and state.generation % cfg["bench_every"] == 0 and bool(pop_scores)
+    if benching:
         champ_id = max(pop_scores, key=lambda k: (pop_scores[k]["fitness"], k))
         champ = next(p for p in state.population if p.profile_id == champ_id)
-        bid = f"{batch_id}-bench"
         bjobs = bench_jobs(state, champ, root, bid, sim.runs_dir() / bid / "variants")
-        breports, bwall = sim.launch(exe, root, bjobs, cfg["jobs"], cfg["timeout"])
-        sim.ingest(con, {"batch_id": bid, "started_at": datetime.now(timezone.utc), "scenarios": [cfg["scenario"]],
-                         "variants": ["bencha", "benchb"], "seeds": ",".join(map(str, seeds)), "jobs": cfg["jobs"],
-                         "wall_s": bwall, "git_rev": git_rev}, breports)
-        fitness.score_batch(con, bid, spec, library)
-        bench = benchmark(con, bid, spec)
-    failed = sum(1 for rep in reports if rep["run"].get("status") != "ok")
-    wall = time.monotonic() - t0
-    record(con, state, scores, batch_id, lam, hof_rate, wall, len(jobs), failed, bench)
-    fits = [s["fitness"] for s in pop_scores.values()]
-    stats = {"generation": state.generation, "batch": batch_id, "runs": len(jobs), "failed": failed,
-             "wall_s": round(wall, 1), "lam": round(lam, 3), "hof_rate": hof_rate,
-             "best": round(max(fits), 3) if fits else None, "mean": round(sum(fits) / len(fits), 3) if fits else None,
-             "bench": bench}
-    advance(con, state, scores)
+        if not _play(db, exe, root, bjobs, {**meta, "variants": ["bencha", "benchb"]}, cfg, stop):
+            return None
+    con = connect(db)
+    try:
+        bench = None
+        if benching:
+            fitness.score_batch(con, bid, spec, library)
+            bench = benchmark(con, bid, spec)
+        wall = sum(w or 0.0 for (w,) in con.execute(
+            "SELECT wall_s FROM sim_batch WHERE batch_id IN (?, ?)", [batch_id, bid]).fetchall())
+        failed = con.execute("SELECT count(*) FROM sim_run WHERE batch_id = ? AND status <> 'ok'",
+                             [batch_id]).fetchone()[0]
+        fits = [v["fitness"] for v in pop_scores.values()]
+        stats = {"generation": state.generation, "batch": batch_id, "runs": len(jobs), "failed": failed,
+                 "wall_s": round(wall, 1), "lam": round(lam, 3), "hof_rate": hof_rate,
+                 "best": round(max(fits), 3) if fits else None,
+                 "mean": round(sum(fits) / len(fits), 3) if fits else None, "bench": bench}
+        con.execute("BEGIN TRANSACTION")
+        record(con, state, scores, batch_id, lam, hof_rate, wall, len(jobs), failed, bench)
+        advance(con, state, scores)
+        con.execute("COMMIT")
+    finally:
+        con.close()
     return stats
 
 
@@ -534,3 +596,8 @@ def elites(con: duckdb.DuckDBPyConnection, run: str) -> list[dict]:
 
 def new_run_id() -> str:
     return datetime.now(timezone.utc).strftime("f%Y%m%d-%H%M%S")
+
+
+def save_config(con: duckdb.DuckDBPyConnection, state: State) -> None:
+    """Keeps a resumed run's settings (target, intensity, jobs)."""
+    con.execute("UPDATE factory_run SET config = ? WHERE run = ?", [json.dumps(state.config), state.run])

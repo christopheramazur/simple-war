@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import itertools
 import json
+import os
 import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -113,25 +115,62 @@ def command(exe: Path, root: Path, job: Job, out_dir: Path) -> list[str]:
     return cmd
 
 
-def launch(exe: Path, root: Path, jobs: list[Job], parallel: int, timeout: float) -> tuple[list[dict], float]:
-    """Runs every job (parallel Godot processes); returns the run reports and wall seconds."""
+BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
+CREATE_NEW_PROCESS_GROUP = 0x00000200
+
+
+def _spawn_options(background: bool, detach: bool) -> dict:
+    """Process options: below-normal priority in the background; a detached
+    process group so a Ctrl+C meant for hx lets running matches finish."""
+    if os.name == "nt":
+        flags = (BELOW_NORMAL_PRIORITY_CLASS if background else 0) | (CREATE_NEW_PROCESS_GROUP if detach else 0)
+        return {"creationflags": flags} if flags else {}
+    opts: dict = {"start_new_session": True} if detach else {}
+    if background:
+        opts["preexec_fn"] = lambda: os.nice(10)
+    return opts
+
+
+def launch(exe: Path, root: Path, jobs: list[Job], parallel: int, timeout: float, *, background: bool = False,
+           stop: Callable[[], bool] | None = None) -> tuple[list[dict], float]:
+    """Runs jobs (parallel Godot processes); returns the run reports and wall seconds.
+
+    With `stop`, matches are started one by one as slots free up and the
+    callable is polled (twice a second): once it returns True no new match
+    starts, the running ones finish, and only their reports are returned.
+    """
     if not jobs:
         return [], 0.0
     out_dir = runs_dir() / jobs[0].batch_id
     out_dir.mkdir(parents=True, exist_ok=True)
+    opts = _spawn_options(background, stop is not None)
 
     def one(job: Job) -> dict:
         try:
             subprocess.run(command(exe, root, job, out_dir), capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=timeout)
+                           encoding="utf-8", errors="replace", timeout=timeout, **opts)
         except subprocess.TimeoutExpired:
             return failed(job, f"timed out after {timeout:g} s")
         return read_report(out_dir, job)
 
     t0 = time.monotonic()
-    with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
-        reports = list(pool.map(one, jobs))
-    return reports, time.monotonic() - t0
+    width = max(1, parallel)
+    with ThreadPoolExecutor(max_workers=width) as pool:
+        if stop is None:
+            return list(pool.map(one, jobs)), time.monotonic() - t0
+        pending = list(reversed(jobs))
+        running: dict = {}
+        done: dict[str, dict] = {}
+        while pending or running:
+            while pending and len(running) < width and not stop():
+                job = pending.pop()
+                running[pool.submit(one, job)] = job
+            if not running:
+                break
+            finished, _ = wait(list(running), timeout=0.5, return_when=FIRST_COMPLETED)
+            for f in finished:
+                done[running.pop(f).run_id] = f.result()
+    return [done[j.run_id] for j in jobs if j.run_id in done], time.monotonic() - t0
 
 
 def failed(job: Job, error: str) -> dict:
