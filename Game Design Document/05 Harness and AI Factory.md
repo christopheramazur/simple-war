@@ -76,6 +76,17 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
   - **Shipped profiles:** `profile_utility`, `profile_aggressor`, `profile_turtle`; variants `utility` and `aggressor_vs_turtle`.
   - **Faults** (A2Q1, B1Q11): a decision that overruns `think_ms` or returns no order list (a script error) forfeits. Run reports carry `fault` and `think_ms_max`.
 - **Evolution** (R7Q16): a genetic algorithm (selection, crossover, mutation) with **competitive co-evolution** between populations, and a **hall of fame** to prevent cycling. No neural networks initially.
+  - **In play (sw-884.4):** `hx factory run` (`harness/src/hx/factory.py`).
+  - **Genome:** a controller profile as plain data: the utility parameters of both layers, mask bases over the default spec's gates, and fuzz.
+  - **Each generation is one harness batch:**
+    1. Draw age-weighted pairings; side B comes from the hall of fame 20% of the time.
+    2. Play each pairing on both sides × 3 match seeds.
+    3. Score it, with λ fed from the generation and the hall-of-fame win rate.
+    4. Average fitness per profile and update the MAP-Elites archive (aggression × expansion, 5 × 5).
+    5. Retire the oldest profile that reached `max_age` (8) into the hall of fame if it ranked in the top half.
+    6. Replace it and the worst 2 with children: uniform crossover of tournament winners, then mutation. Mask genes mutate at 5% against 25% for other genes.
+  - **Storage:** lineage, members, generations and the archive go to DuckDB (`factory_*` tables). Every random choice is seeded from the run seed.
+  - **Benchmark:** every `bench_every` generations the champion plays `profile_utility` on both sides. `hx factory report` turns those results into the scoring-gain rate (benchmark fitness per wall-clock hour, R7Q18).
 - **Scoring** (R6Q24, R7Q17):
   - Each training run defines a **weight schedule** per criterion, conditioned on game state. For example, exploration counts until N hexes are explored or first contact is made, without outweighing fighting or building.
   - A **mask** sets which criteria the process can see. Masks create difficulties and "feels", and filter decision noise.
