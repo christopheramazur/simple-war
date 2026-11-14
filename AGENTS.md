@@ -23,6 +23,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | `data/` | Content packages (official content uses the mod package format). Schema: GDD `03 Data Model.md`. Gameplay data lives here, not in scenes. The old `data/defaults` JSON is archived in `Game Design Document/History/data/`. |
 | `src/` | Game code (`.gd` + `.tscn`). |
 | `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller` (under evaluation for UI ideas), `guide`, `simple_war_tools` (ours: the War Data editor screen). Update this row when adding or removing addons. |
+| `%APPDATA%/Godot/app_userdata/Simple War/matches/` | Match logs of games played in the war room (`log.md` per turn, `match.sav` replayable); read these to review a playtest. |
 | `harness/` | Agent harness: the `hx` CLI, telemetry ledger, benchmarks. See `harness/README.md`; decisions and reasons are in `harness/DESIGN.md`. |
 | `.agents/skills/` | Client-agnostic agent skills (e.g. `beads`). |
 

@@ -141,12 +141,17 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 	var bids: Array = b.links.keys()
 	bids.sort()
 	var left := {}  # commander that left the battle -> its surviving squads
+	var lost := {}  # player -> templates of its squads destroyed here
 	for bid: int in bids:
 		var id: int = b.links[bid]
 		if id < 0 or s.squads.row_of(id) < 0:
 			continue
 		var row := bq.row_of(bid)
 		if row < 0 or bq.destroyed[row] == 1 or bq.alive[row] <= 0:
+			var pl := OverworldArmies.player_of(s, id)
+			var gone: PackedStringArray = lost.get(pl, PackedStringArray())
+			gone.append(s.rules.squad_ids[s.squads.get_value(id, &"tmpl")])
+			lost[pl] = gone
 			WarChest.scavenge(s, id)
 			s.squads.despawn(id)
 			continue
@@ -160,6 +165,11 @@ static func finish(s: OverworldState, b: OverworldBattle) -> void:
 	holders.sort()
 	for cid: int in holders:
 		Convoys.rally_survivors(s, cid, b.plot, left[cid])
+	var losers: Array = lost.keys()
+	losers.sort()
+	for pl: int in losers:  # squads destroyed in the battle (sw-ip8.7)
+		s.events.push(&"squads_lost", {"engagement": b.engagement, "plot": b.plot, "player": pl,
+			"squads": lost[pl], "count": (lost[pl] as PackedStringArray).size()}, s.tick)
 	_end(s, b.engagement, b.plot, 0 if winner == NEUTRAL else winner, String(res["reason"]), winner != 0)
 
 
@@ -261,14 +271,17 @@ static func _check_defeat(s: OverworldState, cid: int) -> void:
 	var player := c.player[row]
 	var p := c.plot[row]
 	var tmpl := s.rules.commander_ids[c.tmpl[row]]
+	var scattered := 0
 	for id in OverworldArmies.of(s, cid):
 		q.despawn(id)
+		scattered += 1
 	c.despawn(cid)
 	WarChest.tidy(s)
 	s.routes.erase(cid)
 	s.activities.erase(cid)
 	s.battleforces.erase(cid)
-	s.events.push(&"commander_defeated", {"commander": cid, "player": player, "plot": p, "template": tmpl}, s.tick)
+	s.events.push(&"commander_defeated", {"commander": cid, "player": player, "plot": p, "template": tmpl,
+		"scattered": scattered}, s.tick)
 
 
 ## Plain data for saves.

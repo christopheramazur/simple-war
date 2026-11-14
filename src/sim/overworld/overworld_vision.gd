@@ -42,6 +42,7 @@ const _EVENT_FIELDS := {
 	&"guard_cleared": [[], ["player"], ["plot"]],
 	&"squad_reinforced": [[], ["player"], []],
 	&"commander_defeated": [[], ["player"], ["plot"]],
+	&"squads_lost": [[], ["player"], ["plot"]],
 	&"commander_left_battle": [["commander"], ["player"], ["plot"]],
 	&"battleforce_dropped": [["commander"], ["player"], ["plot"]],
 	&"squad_picked_up": [["commander"], ["player"], ["plot"]],
@@ -73,6 +74,8 @@ const _EVENT_FIELDS := {
 const _HOSTILE := {
 	&"battleforce_dropped": ["detachment", "player", "plot"],
 	&"squad_picked_up": ["detachment", "player", "plot"],
+	&"squads_lost": ["engagement", "player", "plot", "count"],
+	&"commander_defeated": ["commander", "player", "plot", "template"],
 	&"squad_produced": ["feature", "player", "plot", "detachment"],
 	&"convoy_delivered": ["detachment", "player", "plot"],
 	&"convoy_rallied": ["detachment", "player", "plot"],

@@ -95,6 +95,12 @@ data                  (immutable template tables from packages)
   - **Zoom transition:** zooming in to 3x on the overworld enters the battle on the hex in context: the selected hex, else the selected commander's hex, else the camera's. The battle opens at 1x.
   - **Battles ending:** a focused battle that ends exits as if by Esc; pinned ones close.
   - **Selecting** a commander that fights in the focused battle stays in it; any other exits to that commander.
+- **Readability (sw-ip8.7)**, from the first skirmish playtest:
+  - **Event feed:** the side panel lists what the player saw happen each turn, in plain words (`EventText`): battles starting and ending, squads lost, commanders defeated (with how many squads scattered), squads produced, recruited, picked up and sent as reinforcements, captures and convoys. Squads destroyed in a battle are reported by a `squads_lost` event when it ends.
+  - **Armies and garrisons:** the selected commander's panel lists every squad in its army (units alive, whether it is in the battleforce) and offers to pick up a garrison or convoy on its hex. A selected hex lists its features, garrisons and convoys. On the map, commanders show their army size, garrisons are squares and convoys diamonds with a line to their destination.
+  - **Battle terrain** is drawn in the battle view, with a legend. A move order draws a line to where the squad was sent; the ghost shows how far it gets this turn.
+  - **Reaction window:** a banner says moves are locked and what can be done. Moves drawn then are kept, marked queued, and sent when Planning returns (they used to be dropped silently).
+  - **Match log:** every game played from a map writes `user://matches/<started>-<map>-s<seed>/`: `log.md` (per turn: the player's clicks and their results, every player's accepted orders, everything that happened), `match.json` and the replayable `match.sav`. The newest 30 are kept.
 
 ## 4.9 Tools (R8Q7, R8Q6)
 - **Now:** authoring tools are Godot editor plugins and data tools; `custom_graph_editor` is used for trigger and dialogue graphs. Angelfall is built with them.
