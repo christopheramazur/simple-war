@@ -10,9 +10,9 @@ The game is built to be played very fast without graphics (R6Q24). That makes th
 - **Later:** QA extends to testing against map templates (R5Q20).
 - **In play (sw-884.1):** `hx sim run <scenario>... --variant <name>... --seeds N --jobs J`.
   - **Runs:** each run is one headless Godot process (`res://src/api/sim_runner.gd`) playing a battle scenario or an overworld map through the Game API.
-  - **Results:** runs and metrics go to DuckDB (`harness/data/sim.duckdb`: `sim_batch`, `sim_run`, `sim_metric`). The verbs `hx sim report`, `list` and `variants` read them.
+  - **Results:** runs and metrics go to DuckDB (`harness/data/sim.duckdb`: `sim_batch`, `sim_run`, `sim_metric`, `sim_series`). The verbs `hx sim report`, `list` and `variants` read them.
   - **Replays:** every run leaves its JSON report and its replay save in `harness/data/sim/runs/<batch>/`. Battle replays open in the replay viewer with `--replay=<path>`, plus `--variant=<file>` for a run under a variant.
-  - **Variants** (`SimVariant`, `data/sim/variants/*.json`): `patches` merge into template values, so a variant has its own data hash; `controllers` set each player's profile (`zone`, `expand`, `evacuation`, `idle`, with params); `turns` caps overworld runs. Examples: `cautious`, `idle_defender`, `tough_angels`.
+  - **Variants** (`SimVariant`, `data/sim/variants/*.json`): `patches` merge into template values, so a variant has its own data hash; `controllers` set each player's profile (`zone`, `expand`, `evacuation`, `idle`, with params); `turns` caps overworld runs. Examples: `cautious`, `idle_defender`, `tough_angels`, `quitter`.
   - **Determinism:** measuring is read-only. A run's state hash is the same with or without metrics, and the hash is stored with each run.
 
 ## 5.2 Metrics library (R7Q17)
@@ -38,7 +38,15 @@ The per-battle SIMPL ledger (R6Q3) is a primary input.
 - **Overworld runs:**
   - `value`, `value_earned`, `hexes_explored`, `fog_revealed_pct`, `features_owned`, `commanders_alive`;
   - `turns`, `battles`, `first_battle_turn`, `first_capture_turn`, and the mission outcome.
-- **Not yet:** metrics for the battles inside an overworld run.
+- **Factory metrics (sw-884.6, B1Q10):**
+  - **Every run:** per-player result flags `won`, `drew`, `lost`, `forfeited`; `idle_turns` (turns with no order but "ready"); `forfeit_turn`; `turn_cap`.
+  - **Forfeits** (leaving the game) are kept apart from withdrawing a battleforce, which is a legitimate move. A variant's controller can set `forfeit_turn` (the `quitter` variant), and the report then names the player who stayed as the winner.
+  - **Battles:** `value_destroyed.<victim>` split by `player`, `neutral` and `civilian` victims, so neutrals can't be farmed (B1Q7); `zone_ticks` (ticks holding an unlocked zone); `force_start`; milestones per player as well as per run.
+  - **Overworld:** every battle inside the run is measured and summed per player under `battle.` (for example `battle.value_destroyed.player`, `battle.band.morale.broken`). Also `force` (Value of squads held), `feature_turns`, `commanders_start`, `battles` per player, and per-player `first_contact_turn`, `first_battle_turn` and `first_capture_turn`.
+  - **Per-turn series** (DuckDB `sim_series`: run, metric, player, turn, value), sampled at the end of each turn:
+    - battles: `vp`, `force`, `zones`, `contact`;
+    - overworld: `value`, `force`, `enemy_force_seen`, `features_owned`, `hexes_explored`, `fog_pct`, `contact`, `threat` (the worst ratio of hostile Value within 2 hexes of an own commander to that commander's army).
+  - These are harness measures and see everything; decision-time estimates use only what a player observes (§5.4).
 
 ## 5.3 Pressure Lab (R6Q6)
 A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitivity) against scenarios. It is used to find which tropes emerge (R5Q3).

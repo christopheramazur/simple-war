@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS sim_run (
     outcome TEXT, wall_ms INTEGER, state_hash TEXT, replay TEXT, variant_file TEXT);
 CREATE TABLE IF NOT EXISTS sim_metric (
     run_id TEXT, metric TEXT, player INTEGER, value DOUBLE);
+CREATE TABLE IF NOT EXISTS sim_series (
+    run_id TEXT, metric TEXT, player INTEGER, turn INTEGER, value DOUBLE);
 """
 
 
@@ -158,6 +160,7 @@ def ingest(con: duckdb.DuckDBPyConnection, batch: dict, reports: list[dict]) -> 
     for rep in reports:
         r, job = rep["run"], rep["_job"]
         con.execute("DELETE FROM sim_metric WHERE run_id = ?", [job.run_id])
+        con.execute("DELETE FROM sim_series WHERE run_id = ?", [job.run_id])
         con.execute("INSERT OR REPLACE INTO sim_run VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
             job.run_id, job.batch_id, job.scenario, job.variant, job.seed, r.get("kind"), r.get("status"),
             r.get("error") or None, r.get("turns"), r.get("winner"), r.get("reason"), r.get("outcome") or None,
@@ -165,6 +168,10 @@ def ingest(con: duckdb.DuckDBPyConnection, batch: dict, reports: list[dict]) -> 
         rows = [(job.run_id, m["metric"], int(m["player"]), float(m["value"])) for m in rep.get("metrics", [])]
         if rows:
             con.executemany("INSERT INTO sim_metric VALUES (?, ?, ?, ?)", rows)
+        series = [(job.run_id, m["metric"], int(m["player"]), int(m["turn"]), float(m["value"]))
+                  for m in rep.get("series", [])]
+        if series:
+            con.executemany("INSERT INTO sim_series VALUES (?, ?, ?, ?, ?)", series)
 
 
 def summary(con: duckdb.DuckDBPyConnection, batch_id: str) -> list[dict]:

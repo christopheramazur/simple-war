@@ -1,0 +1,5 @@
+{
+	"name": "quitter",
+	"text": "Player 2 leaves the game before turn 3: a check of forfeit scoring (B1Q4).",
+	"controllers": {"2": {"forfeit_turn": 3}}
+}

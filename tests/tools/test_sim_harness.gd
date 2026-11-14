@@ -74,6 +74,96 @@ func test_measuring_changes_nothing() -> void:
 	assert_eq(a.state.state_hash(), b.state.state_hash(), "metrics and profiling are read-only")
 
 
+static func _val(rows: Array, metric: String, player: int) -> float:
+	for r: Dictionary in rows:
+		if r["metric"] == metric and r["player"] == player:
+			return r["value"]
+	return NAN
+
+
+func test_factory_battle_metrics() -> void:
+	var r := _duel(true)
+	var s: BattleSession = r[0]
+	var m: SimMetrics = r[1]
+	var rows := m.battle(s.state, s.sim, "", s.input_log)
+	var winner := int(s.state.result.get("winner", 0))
+	for p in [1, 2]:
+		var sum := _val(rows, "won", p) + _val(rows, "drew", p) + _val(rows, "lost", p) + _val(rows, "forfeited", p)
+		assert_eq(sum, 1.0, "exactly one result per player")
+		assert_eq(_val(rows, "won", p), 1.0 if p == winner else 0.0)
+		assert_eq(_val(rows, "value_destroyed.player", p), _val(rows, "value_destroyed", p), "a duel has only player victims")
+		assert_eq(_val(rows, "value_destroyed.neutral", p), 0.0)
+		assert_false(is_nan(_val(rows, "idle_turns", p)))
+		assert_false(is_nan(_val(rows, "first_contact_tick", p)), "per-player milestones")
+		assert_gt(_val(rows, "force_start", p), 0.0)
+	assert_gt(_val(rows, "zone_ticks", 1) + _val(rows, "zone_ticks", 2), 0.0, "zones were held")
+	assert_eq(_val(rows, "forfeit_turn", 0), -1.0)
+	var turns := {}
+	for row: Dictionary in m.series:
+		if row["metric"] == "force" and row["player"] == 1:
+			turns[row["turn"]] = true
+	assert_eq(turns.size(), s.state.turn + 1, "a force point per turn, from turn 0")
+
+
+func test_forfeit_and_idle() -> void:
+	var m := SimMetrics.new()
+	m.forfeit(2, 3)
+	var res := m._results(PackedInt64Array([1, 2]), 0, 3)
+	assert_eq(_val(res, "forfeited", 2), 1.0)
+	assert_eq(_val(res, "won", 1), 1.0, "the other side wins a forfeit")
+	assert_eq(_val(res, "forfeit_turn", 0), 3.0)
+	var log := [{"turn": 1, "player": 1, "kind": "orders", "payload": [{"squad": 1}]},
+		{"turn": 1, "player": 2, "kind": "orders", "payload": []}, {"turn": 2, "player": 2, "kind": "ready", "payload": null}]
+	var idle := SimMetrics._idle(log, PackedInt64Array([1, 2]), 2)
+	assert_eq(_val(idle, "idle_turns", 1), 1.0)
+	assert_eq(_val(idle, "idle_turns", 2), 2.0, "empty orders and ready alone are idle")
+
+
+func _overworld_run(watch: bool, turns: int) -> Array:
+	var x := OverworldSession.create(_l().templates, _l().data_hash, "test_vale", 3)
+	var ctl := {1: ExpandController.new(1), 2: ExpandController.new(2)}
+	var m := SimMetrics.new()
+	if watch:
+		m.watch_overworld(x)
+	for t in turns:
+		HeadlessOverworld.play(x, ctl, t + 1)
+		if watch:
+			m.after_turn(x)
+	return [x, m]
+
+
+func test_factory_overworld_metrics() -> void:
+	var r := _overworld_run(true, 8)
+	var x: OverworldSession = r[0]
+	var m: SimMetrics = r[1]
+	var rows := m.overworld(x)
+	for p in [1, 2]:
+		assert_eq(_val(rows, "drew", p), 1.0, "no outcome yet: a draw")
+		assert_false(is_nan(_val(rows, "feature_turns", p)))
+		assert_false(is_nan(_val(rows, "first_contact_turn", p)))
+		assert_eq(_val(rows, "commanders_start", p), 2.0)
+		assert_eq(_val(rows, "force", p), m.series.filter(func(s: Dictionary) -> bool:
+			return s["metric"] == "force" and s["player"] == p and s["turn"] == 8)[0]["value"], "the last series point is the end state")
+	var points := m.series.filter(func(s: Dictionary) -> bool: return s["metric"] == "hexes_explored" and s["player"] == 1)
+	assert_eq(points.size(), 8, "one point per turn")
+	assert_true(points[7]["value"] >= points[0]["value"])
+	for metric in ["fog_pct", "contact", "threat", "enemy_force_seen"]:
+		assert_eq(m.series.filter(func(s: Dictionary) -> bool: return s["metric"] == metric and s["player"] == 2).size(), 8, metric)
+	assert_eq(_val(rows, "feature_turns", 1), _sum_series(m, "features_owned", 1), "feature-turns held")
+	if _val(rows, "battles", 0) > 0:
+		assert_false(is_nan(_val(rows, "battle.value_lost", 1)), "battle metrics summed into the overworld run")
+	var plain: OverworldSession = _overworld_run(false, 8)[0]
+	assert_eq(x.state_hash_hex(), plain.state_hash_hex(), "watching an overworld changes nothing")
+
+
+static func _sum_series(m: SimMetrics, metric: String, p: int) -> float:
+	var t := 0.0
+	for s: Dictionary in m.series:
+		if s["metric"] == metric and s["player"] == p:
+			t += s["value"]
+	return t
+
+
 func test_overworld_metrics() -> void:
 	var x := OverworldSession.create(_l().templates, _l().data_hash, "test_vale", 3)
 	var ctl := {1: ExpandController.new(1), 2: ExpandController.new(2)}

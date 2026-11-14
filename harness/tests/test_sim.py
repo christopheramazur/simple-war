@@ -50,7 +50,8 @@ def _fake_godot(monkeypatch, outcome_by_seed):
                   "metrics": [{"metric": "vp", "player": 1, "value": 10 + seed},
                               {"metric": "vp", "player": 2, "value": 5},
                               {"metric": "value_lost", "player": 1, "value": 100},
-                              {"metric": "band.morale.neutral", "player": 1, "value": 2000}]}
+                              {"metric": "band.morale.neutral", "player": 1, "value": 2000}],
+                  "series": [{"metric": "force", "player": 1, "turn": t, "value": 100 - t} for t in range(3)]}
         (out / f"{run_id}.json").write_text(json.dumps(report))
         (out / f"{run_id}.sav").write_bytes(b"x")
         return subprocess.CompletedProcess(cmd, 0, "", "")
@@ -81,6 +82,7 @@ def test_launch_ingest_and_summarise(tmp_path: Path, monkeypatch):
     sim.ingest(con, {"batch_id": "b9", "started_at": "2026-11-13 10:00:00+00", "scenarios": ["duel"],
                      "variants": ["baseline"], "seeds": "4", "jobs": 2, "wall_s": wall}, reports)
     assert con.execute("SELECT count(*) FROM sim_metric").fetchone()[0] == 8
+    assert con.execute("SELECT count(*), min(value) FROM sim_series").fetchone() == (6, 98.0), "per-turn series"
 
 
 def test_command_line(tmp_path: Path):

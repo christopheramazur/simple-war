@@ -5,13 +5,16 @@ extends RefCounted
 ## A controller is any object with `orders(observation) -> Array` and
 ## `reactions(opportunities) -> Array` of {"squad","reaction","trigger"}.
 
-## Plays until the battle ends or `max_turns` pass. Returns the session.
-static func play(session: BattleSession, controllers: Dictionary, max_turns: int = 50) -> BattleSession:
+## Plays until the battle ends or `max_turns` pass, or (stop_turn >= 0)
+## until planning for turn stop_turn begins. Returns the session.
+static func play(session: BattleSession, controllers: Dictionary, max_turns: int = 50, stop_turn: int = -1) -> BattleSession:
 	var guard := 0
 	while not session.is_over() and guard < max_turns * 4:
 		guard += 1
 		match session.clock.phase:
 			PulseClock.Phase.PLANNING:
+				if stop_turn >= 0 and session.state.turn + 1 >= stop_turn:
+					break
 				for p in session.players():
 					session.submit_orders(p, controllers[p].orders(session.observe(p)))
 				for p in session.players():

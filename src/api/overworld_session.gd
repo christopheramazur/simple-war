@@ -113,6 +113,12 @@ func _setup(t: TemplateTable, r: OverworldRules, map: String, seed_in: int, hash
 	clock.pulse_point.connect(_on_pulse)
 
 
+## The battle simulator every battle runs on (harness profiling and
+## SimMetrics hook into it; it holds no per-battle state).
+func battle_sim() -> BattleSim:
+	return _battle_sim
+
+
 func players() -> PackedInt64Array:
 	return _players.duplicate()
 

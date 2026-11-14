@@ -6,7 +6,9 @@ extends RefCounted
 ##   {"name": "...", "text": "...",
 ##    "patches": {template ID: {field: value, ...}},   # merged into values
 ##    "controllers": {"<player>": {"profile": "zone" | "expand" |
-##                     "evacuation" | "idle", "params": {...}}},
+##                     "evacuation" | "idle", "params": {...},
+##                     "forfeit_turn": N (leaves the game before turn N,
+##                     a harness test of forfeits, B1Q4)}},
 ##    "turns": overworld turns to play (default 20; battles run to the end)}
 ## Patching rebuilds the template table, so a variant has its own data
 ## hash; replays of variant runs need the same variant (the replay viewer
@@ -84,6 +86,12 @@ func controller(player: int, default: String) -> Object:
 		"idle":
 			return IdleController.new(player)
 	return ZoneController.new(player, params)
+
+
+## The turn before which a player leaves the game, -1 = never.
+func forfeit_turn(player: int) -> int:
+	var spec: Dictionary = (data.get("controllers", {}) as Dictionary).get(str(player), {})
+	return int(spec.get("forfeit_turn", -1))
 
 
 func turns() -> int:
