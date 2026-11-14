@@ -117,6 +117,8 @@ var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
 var convoy_mp: int = DEFAULT_CONVOY_MOVEMENT
 ## Skirmish win condition: the last team with commanders wins (OverworldVictory).
 var elimination: bool = false
+## Two-player point-symmetric map (MapGen, mirror_plot).
+var mirror: bool = false
 
 ## Campaign scripting (TriggerRules, overworld context).
 var triggers: TriggerRules
@@ -268,6 +270,9 @@ func _compile(t: TemplateTable, map: String) -> void:
 	detachment_sight = int(m.get("detachment_sight", DEFAULT_DETACHMENT_SIGHT))
 	convoy_mp = int(m.get("convoy_movement", DEFAULT_CONVOY_MOVEMENT))
 	elimination = bool(m.get("elimination", false))
+	mirror = bool(m.get("mirror", false))
+	if mirror and height % 2 != 0:
+		errors.append("%s: a mirror map needs an even height" % map)
 	var starts_in: Array = m.get("starts", [])
 	for i in starts_in.size():
 		var v: Dictionary = starts_in[i]
@@ -277,8 +282,10 @@ func _compile(t: TemplateTable, map: String) -> void:
 		elif not Hex.in_bounds(int(v["col"]), int(v["row"]), width, height):
 			errors.append("%s start %d: outside the %dx%d map" % [map, i, width, height])
 		else:
-			starts.append({"player": int(v["player"]), "commander": cm,
-				"plot": Hex.plot(int(v["col"]), int(v["row"]), width)})
+			var at := Hex.plot(int(v["col"]), int(v["row"]), width)
+			starts.append({"player": int(v["player"]), "commander": cm, "plot": at})
+			if mirror:
+				starts.append({"player": mirror_player(int(v["player"])), "commander": cm, "plot": mirror_plot(at)})
 
 
 ## Players of a match on this map: those with a start or a pre-owned
@@ -290,9 +297,23 @@ func players() -> PackedInt64Array:
 	for p in passes:
 		if p["owner"] > 0:
 			seen[p["owner"]] = true
+			if mirror:
+				seen[mirror_player(p["owner"])] = true
 	var out := PackedInt64Array(seen.keys())
 	out.sort()
 	return out
+
+
+## A mirror map's partner hex: the plot rotated 180 degrees. In odd-r
+## offset rows this is exact when the height is even.
+func mirror_plot(p: int) -> int:
+	return Hex.plot(width - 1 - p % width, height - 1 - p / width, width)
+
+
+## A mirror map's partner player: 1 and 2 swap; neutral (0) and any other
+## player stay.
+static func mirror_player(p: int) -> int:
+	return 3 - p if p == 1 or p == 2 else p
 
 
 static func _of_kind(t: TemplateTable, kind: String) -> PackedStringArray:

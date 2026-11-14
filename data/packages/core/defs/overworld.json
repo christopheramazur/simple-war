@@ -38,6 +38,7 @@
 
 	{"id": "trigger_vale", "parent": "test_vale", "values": {
 		"name": "Trigger vale",
+		"elimination": false,
 		"triggers": ["vale_angels_gather", "vale_shrine_blessing", "vale_village_taken"]}},
 	{"id": "vale_angels_gather", "kind": "trigger", "values": {
 		"text": "Angels gather in front of the mine on turn 2 (behaviour data, R6Q17).",

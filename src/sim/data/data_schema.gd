@@ -479,6 +479,11 @@ const KINDS: Dictionary = {
 		## Skirmish win condition (A2Q2): a side wins when every enemy
 		## commander is defeated (OverworldVictory).
 		"elimination": {"type": "bool"},
+		## A two-player mirror map (A2Q3): every pass but fill and every
+		## start is repeated at the hex rotated 180 degrees, with players
+		## 1 and 2 swapped. Needs an even height (the rotation is then an
+		## exact hex symmetry). A scatter's count is per side.
+		"mirror": {"type": "bool"},
 		## Campaign scripting for this map (TriggerRules).
 		"triggers": {"type": "list:ref:trigger"},
 	},

@@ -2,7 +2,8 @@ class_name MapGen
 extends RefCounted
 ## Runs a map template's passes in order (R3Q13). Seeds exist only for
 ## content generation (GDD 02 §2.1): the state's RNG drives scatter, so the
-## same template and seed always give the same map.
+## same template and seed always give the same map. On a mirror map every
+## pass but fill also lands on the partner hex, owned by the partner player.
 
 
 static func generate(s: OverworldState) -> void:
@@ -15,17 +16,26 @@ static func generate(s: OverworldState) -> void:
 			"rect":
 				for row in range(p["row"], p["row"] + p["h"]):
 					for col in range(p["col"], p["col"] + p["w"]):
-						s.add_feature(Hex.plot(col, row, r.width), p["feature"], p["owner"])
+						_add(s, Hex.plot(col, row, r.width), p)
 			"place":
-				s.add_feature(Hex.plot(p["col"], p["row"], r.width), p["feature"], p["owner"])
+				_add(s, Hex.plot(p["col"], p["row"], r.width), p)
 			"line":
 				var a := Hex.plot(p["col"], p["row"], r.width)
 				var b := Hex.plot(p["to_col"], p["to_row"], r.width)
 				for plot in Hex.line(a, b, r.width, r.height):
 					if plot >= 0:
-						s.add_feature(plot, p["feature"], p["owner"])
+						_add(s, plot, p)
 			"scatter":
 				_scatter(s, p)
+
+
+## Adds a pass's feature on plot, and on its partner on a mirror map.
+static func _add(s: OverworldState, plot: int, p: Dictionary) -> void:
+	s.add_feature(plot, p["feature"], p["owner"])
+	if s.rules.mirror:
+		var m := s.rules.mirror_plot(plot)
+		if m != plot:
+			s.add_feature(m, p["feature"], OverworldRules.mirror_player(p["owner"]))
 
 
 static func _scatter(s: OverworldState, p: Dictionary) -> void:
@@ -49,9 +59,10 @@ static func _scatter(s: OverworldState, p: Dictionary) -> void:
 		if candidates.is_empty():
 			return
 		var plot := candidates[s.rng.next_below(candidates.size())]
-		s.add_feature(plot, f, p["owner"])
+		_add(s, plot, p)
+		var partner := r.mirror_plot(plot) if r.mirror else plot
 		var keep := PackedInt64Array()
 		for c in candidates:
-			if Hex.plot_distance(c, plot, r.width) > p["spacing"]:
+			if Hex.plot_distance(c, plot, r.width) > p["spacing"] and Hex.plot_distance(c, partner, r.width) > p["spacing"]:
 				keep.append(c)
 		candidates = keep
