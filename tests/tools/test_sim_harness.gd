@@ -137,8 +137,10 @@ func test_factory_overworld_metrics() -> void:
 	var x: OverworldSession = r[0]
 	var m: SimMetrics = r[1]
 	var rows := m.overworld(x)
+	assert_eq(x.state.outcome.get("key", ""), "elimination", "player 2 loses every commander (A2Q2)")
+	assert_eq(_val(rows, "won", 1), 1.0)
+	assert_eq(_val(rows, "lost", 2), 1.0)
 	for p in [1, 2]:
-		assert_eq(_val(rows, "drew", p), 1.0, "no outcome yet: a draw")
 		assert_false(is_nan(_val(rows, "feature_turns", p)))
 		assert_false(is_nan(_val(rows, "first_contact_turn", p)))
 		assert_eq(_val(rows, "commanders_start", p), 2.0)

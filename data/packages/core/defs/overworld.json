@@ -82,6 +82,7 @@
 		"battleforce": {"squads": 3, "value": 250},
 		"battle_scenario": "ow_field",
 		"convoy_movement": 40,
+		"elimination": true,
 		"passes": [
 			{"op": "fill", "feature": "hex_plains"},
 			{"op": "rect", "feature": "hex_forest", "col": 2, "row": 1, "w": 4, "h": 3},

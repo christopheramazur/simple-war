@@ -83,7 +83,7 @@ const _HOSTILE := {
 }
 ## Events everyone sees, reduced to these keys without sight (battle tiles).
 const _PUBLIC := {
-	&"mission_ended": ["outcome", "key", "text", "turn"],
+	&"mission_ended": ["outcome", "winner", "key", "text", "turn"],
 	&"engagement_started": ["engagement", "plot"],
 	&"engagement_ended": ["engagement", "plot"],
 	&"battle_started": ["engagement", "plot"],
@@ -362,7 +362,8 @@ static func filter_events(s: OverworldState, player: int, events: Array[SimEvent
 static func _redact(ev: SimEvent, keys: Array) -> SimEvent:
 	var data := {}
 	for k: String in keys:
-		data[k] = ev.data[k]
+		if ev.data.has(k):  # optional keys (a mission_ended winner)
+			data[k] = ev.data[k]
 	var redacted := SimEvent.new(ev.type, data)
 	redacted.source = ev.source
 	redacted.seq = ev.seq

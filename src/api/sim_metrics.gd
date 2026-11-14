@@ -216,9 +216,12 @@ func overworld(x: OverworldSession, events: Array = []) -> Array:
 	return out
 
 
-## The winner of an overworld run, 0 = none (yet). A story mission's
-## outcome is the campaign player's (player 1): won or lost.
+## The winner of an overworld run, 0 = none (yet) or a draw. A built-in
+## win condition names its winner; a story mission's outcome is the
+## campaign player's (player 1): won or lost.
 static func _overworld_winner(x: OverworldSession) -> int:
+	if x.state.outcome.has("winner"):
+		return int(x.state.outcome["winner"])
 	var o := String(x.state.outcome.get("outcome", ""))
 	var ps := x.players()
 	if o == "won":

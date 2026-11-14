@@ -240,6 +240,7 @@ static func _end(s: OverworldState, eid: int, p: int, winner: int, reason: Strin
 				s.events.push(&"guard_cleared", {"plot": p, "feature": s.features.id_at(row), "player": winner}, s.tick)
 	OverworldMovement.end_engagement(s, eid)
 	s.events.push(&"battle_resolved", {"engagement": eid, "plot": p, "winner": winner, "reason": reason}, s.tick)
+	OverworldVictory.check(s)
 	if winner > 0:
 		for cid in Commanders.at(s, p):
 			var row := c.row_of(cid)

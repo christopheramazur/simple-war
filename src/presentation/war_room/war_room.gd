@@ -703,7 +703,10 @@ func _refresh_log() -> void:
 	_banner.visible = not outcome.is_empty()
 	if _banner.visible:
 		var won: bool = outcome["outcome"] == "won"
-		_banner_text.text = ("✔ Mission won — " if won else "✖ Mission lost — ") + _say(String(outcome["key"]), String(outcome["text"]))
+		if outcome.has("winner"):  # a built-in win condition names its winner
+			won = int(outcome["winner"]) == player
+		var head := "✔ Mission won — " if won else ("✖ Mission lost — " if outcome["outcome"] != "drew" else "Draw — ")
+		_banner_text.text = head + _say(String(outcome["key"]), String(outcome["text"]))
 		_banner_text.add_theme_color_override("font_color", Color("74d18a") if won else Color("e8735f"))
 
 

@@ -115,6 +115,8 @@ var battle_scenario: String = ""
 var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
 ## Movement points a convoy spends each turn.
 var convoy_mp: int = DEFAULT_CONVOY_MOVEMENT
+## Skirmish win condition: the last team with commanders wins (OverworldVictory).
+var elimination: bool = false
 
 ## Campaign scripting (TriggerRules, overworld context).
 var triggers: TriggerRules
@@ -265,6 +267,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 	battle_scenario = String(m.get("battle_scenario", ""))
 	detachment_sight = int(m.get("detachment_sight", DEFAULT_DETACHMENT_SIGHT))
 	convoy_mp = int(m.get("convoy_movement", DEFAULT_CONVOY_MOVEMENT))
+	elimination = bool(m.get("elimination", false))
 	var starts_in: Array = m.get("starts", [])
 	for i in starts_in.size():
 		var v: Dictionary = starts_in[i]

@@ -476,6 +476,9 @@ const KINDS: Dictionary = {
 		"detachment_sight": {"type": "int", "min": 0},
 		## Movement points a convoy spends each turn.
 		"convoy_movement": {"type": "int", "min": 1},
+		## Skirmish win condition (A2Q2): a side wins when every enemy
+		## commander is defeated (OverworldVictory).
+		"elimination": {"type": "bool"},
 		## Campaign scripting for this map (TriggerRules).
 		"triggers": {"type": "list:ref:trigger"},
 	},

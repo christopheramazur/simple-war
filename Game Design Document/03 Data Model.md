@@ -73,6 +73,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Battles:** `battle_scenario` is the default battlefield. A scenario used this way supplies terrain, zones, victory and two deployment areas; its listed squads are ignored.
   - **Battleforce caps:** `battleforce` (`squads`, default 4; `value`, the most total strength, 0 = no limit).
   - **Detachments:** `detachment_sight`, a detachment's sight radius in hexes (default 1); `convoy_movement`, the points a convoy moves each turn (default 40).
+  - **Win condition:** `elimination` (default false) makes the map a skirmish. When every commander of all teams but one has been defeated, that team wins; if the last commanders of every team fall together, the game is a draw. The outcome reads from player 1's view (won, lost or drew) and names its `winner` (0 for a draw). Story maps end through their triggers' `end_mission` instead.
   - **Starts:** `starts` lists each player's starting commanders (`player`, `commander`, `col`, `row`). A match's players are those with a start or a pre-owned feature.
 - **Campaign / mission:** missions, scripted triggers, story-essential commanders, carried armies (R2Q1, R2Q13).
 - **Triggers:** the declarative trigger and effect layer, which covers about 90% of campaign scripting. Angel behaviour is data here (R6Q17).

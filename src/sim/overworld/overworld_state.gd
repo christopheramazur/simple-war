@@ -27,8 +27,9 @@ var drops: Dictionary = {}
 var supply_lines: Dictionary = {}
 ## Trigger variables (campaign state) and fire counts (Triggers).
 var vars: Dictionary = {}
-## How the mission ended ({} = still running): {"outcome" (won / lost),
-## "key", "text", "turn"}, set by a trigger's end_mission.
+## How the mission ended ({} = still running): {"outcome" (won / lost,
+## or drew), "key", "text", "turn"}, set by a trigger's end_mission or a
+## built-in win condition (OverworldVictory, which adds "winner").
 var outcome: Dictionary = {}
 var fired: Dictionary = {}
 ## Value per player, the sole resource (R5Q11).
