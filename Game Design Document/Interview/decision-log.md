@@ -248,3 +248,15 @@ Research and the full criteria tables: `ai-fitness-criteria-research.md`. The de
 - B1Q9 Difficulty comes from masks, fuzz strength and visible behaviour limits (commander caps, think budget). No resource or information cheats.
 - B1Q10 Build the missing metrics: per-player result; battle metrics inside overworld runs; per-turn series; per-player milestones; objective hold time; Value split by victim; idle turns; forfeit events.
 - B1Q11 Evaluation protocol: every pairing plays both sides on at least 3 seeds or map variants; a hard per-decision think-time limit; NTBEA as an optional tuner for small genomes (masks, schedule knots). Until sw-884.5 lands, map variation carries the variance.
+
+### Settled (Round A2: AI factory loop and genome, sw-p2q.4)
+- A2Q1 Leaving the game: the game API keeps every player action, resign included; no carve-outs at the API level. The AI framework discourages leaving instead: a forfeit scores -1 (B1Q3), and in the factory a profile that crashes or goes over its think-time limit also counts as forfeiting. Battle withdrawal stays a legal move.
+- A2Q2 Skirmish overworld win: a side wins when every enemy commander is defeated (duel-style skirmish). The run's turn cap still ends an undecided game as a draw, which scores as a loss for both (B1Q3). A Victory Point target from held features was not adopted for now.
+- A2Q3 Maps: a 10x20 template that generates a map from the match seed, with mirrored starts and seed-scattered features, so profiles can't overfit one layout. One authored mirror map comes first, for debugging.
+- A2Q4 Starting forces and economy: each side starts with one commander and a fixed battleforce; production features are on, so gathering and spending resources are AI actions from the first loop.
+- A2Q5 One profile (genome) spans both layers: an overworld section and a battle section; the profile that moves a commander fights that commander's battles.
+- A2Q6 Order choice: generate candidate orders and score each with a quick estimate of the masked, weighted criteria (SimCriteria). No simulated lookahead; add it only if the AIs plateau.
+- A2Q7 Generation: about 20 age-weighted pairings (A1Q5); a profile's fitness is averaged over its matches; the worst 2-3 are replaced by mutated or crossbred children of the best; age = generations survived; retired top profiles join the hall of fame and are sometimes drawn as opponents.
+- A2Q8 Masks are part of the genome (what the AI thinks it is scored on), random at birth and rarely mutated; selection always uses the real fitness.
+- A2Q9 Running: `hx factory run --intensity background|normal|max --generations N` (background = 1-2 Godot processes at below-normal priority; max = about 90% of cores). Ctrl+C or `hx factory stop` lets running matches finish, saves the generation and exits; `hx factory resume` continues from the saved generation.
+- A2Q10 A whole factory run is reproducible from its run seed (pairings, mutations, map seeds).
