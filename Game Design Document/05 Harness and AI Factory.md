@@ -75,6 +75,13 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
   - Each training run defines a **weight schedule** per criterion, conditioned on game state. For example, exploration counts until N hexes are explored or first contact is made, without outweighing fighting or building.
   - A **mask** sets which criteria the process can see. Masks create difficulties and "feels", and filter decision noise.
 - **First loop** (A1Q1, A1Q2): the AI learns to win a game. Faster wins score more, and leaving the game is penalised. It plays overworld and battles together, on an open overworld of about 10 by 20 hexes. Balance and test-campaign work come later.
+  - **Win condition** (A2Q2): a side wins a duel-style skirmish when every enemy commander is defeated. The run's turn cap ends an undecided game as a draw, which scores as a loss for both sides. A Victory Point target from held features is not used for now.
+  - **Maps** (A2Q3): one authored mirror map first, for debugging. Then a 10×20 template generates a map from each match seed, with mirrored starts and seed-scattered features, so profiles can't overfit one layout.
+  - **Forces and economy** (A2Q4): each side starts with one commander and a fixed battleforce. Production features are on, so gathering and spending resources are AI actions from the first loop.
+  - **Leaving the game** (A2Q1): the game API keeps every player action, resign included, with no carve-outs for AIs. The framework discourages leaving instead: a forfeit scores −1, and in the factory a profile that crashes or goes over its think-time limit also forfeits. Battle withdrawal stays a legal move.
+- **Genome** (A2Q5, A2Q8): one profile spans both layers, with an overworld section and a battle section; the profile that moves a commander fights that commander's battles. The mask is part of the genome, random at birth and rarely mutated. It only changes what the AI thinks it is scored on; selection always uses the real fitness.
+- **Order choice** (A2Q6): a profile generates candidate orders and scores each with a quick estimate of its masked, weighted criteria (`SimCriteria`). There is no simulated lookahead; it is added only if the AIs plateau.
+- **Generation** (A2Q7): about 20 age-weighted pairings. A profile's fitness is averaged over the matches it played. The worst 2–3 profiles are replaced by mutated or crossbred children of the best. Age is the number of generations survived. Retired top profiles join the hall of fame and are sometimes drawn as opponents.
 - **Masks** (A1Q3): a profile's mask limits what the AI thinks it is scored against. It can hide criteria, reweight them, or both, and it can change over the game. Masks set strength and also make decision-making diverse against one scenario. The fuzz seed adds deterministic decision noise, and its strength is a gene (A1Q4).
 - **Pairings** (A1Q5): faction doesn't separate populations. The pool starts with 10 profiles; each generation draws 2 (duplicates allowed, older profiles more likely) as side 1 and side 2.
 - **Criteria library v1** (B1Q1, B1Q5; `data/sim/criteria.json`; research in `Interview/ai-fitness-criteria-research.md`). One library has two uses:
@@ -117,7 +124,10 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
   - Each decision has a hard think-time limit.
   - NTBEA is an optional tuner for small genomes (masks, schedule knots).
   - Until sw-884.5 makes seeds vary outcomes, map variation carries the variance.
-- **Runs** (A1Q7): set by resource allocation plus a number of iterations, at selectable intensities (from background use to about 90% of the machine). An interrupted run saves its results and stops cleanly between iterations.
+- **Runs** (A1Q7, A2Q9, A2Q10): set by resource allocation plus a number of iterations, at selectable intensities. An interrupted run saves its results and stops cleanly between iterations.
+  - `hx factory run --intensity background|normal|max --generations N`. `background` is 1–2 Godot processes at below-normal priority; `max` uses about 90% of the cores.
+  - Ctrl+C or `hx factory stop` lets running matches finish, saves the generation and exits. `hx factory resume` continues from the saved generation.
+  - A whole run is reproducible from its run seed: pairings, mutations and map seeds.
 - **Storage** (A1Q8): curated profiles are package data (a moddable `controller_profile` kind). Every evaluated genome, with its lineage, scores, criteria, mask and schedule, goes to DuckDB. An export promotes a genome to package data.
 - **Lineage:** every result records the profile, criteria set, mask, schedule and parent profiles.
 - **Throughput target** (R7Q18): the target is **how quickly scoring gains are achieved**, not a match count. It measures both run speed and how nuanced the metrics are.
