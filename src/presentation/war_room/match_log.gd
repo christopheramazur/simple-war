@@ -1,7 +1,8 @@
 class_name MatchLog
 extends RefCounted
 ## A record of one played game (sw-ip8.7), for reviewing a match afterwards:
-## user://matches/<started>-<map>-s<seed>/ holds
+## user://matches/<started>-<map>-s<seed>/ (user://matches_headless/ for
+## runs without a display: tests and scripts) holds
 ##   match.json  what was played (map, seed, the human's side, AI profile)
 ##   log.md      per turn, in order: the player's clicks and what they did
 ##               (UI notes, including orders the game refused), every
@@ -12,6 +13,8 @@ extends RefCounted
 ## the newest KEEP matches.
 
 const ROOT := "user://matches"
+## Headless runs (tests, harness scripts) log here, apart from played games.
+const HEADLESS_ROOT := "user://matches_headless"
 const KEEP: int = 30
 
 var dir: String = ""
@@ -25,11 +28,12 @@ var _notes: PackedStringArray = PackedStringArray()
 static func start(session: OverworldSession, meta: Dictionary) -> MatchLog:
 	var stamp := Time.get_datetime_string_from_system(false, false).replace(":", "").replace("-", "").replace("T", "-")
 	var name := "%s-%s-s%d" % [stamp, session.map_id, session.seed_value]
-	if DirAccess.make_dir_recursive_absolute(ROOT + "/" + name) != OK:
+	var root := root_dir()
+	if DirAccess.make_dir_recursive_absolute(root + "/" + name) != OK:
 		return null
-	_prune()
+	_prune(root)
 	var m := MatchLog.new()
-	m.dir = ROOT + "/" + name
+	m.dir = root + "/" + name
 	m._session = session
 	var info := meta.duplicate()
 	info.merge({"map": session.map_id, "seed": session.seed_value, "started": Time.get_datetime_string_from_system(),
@@ -180,16 +184,21 @@ func _append(file: String, text: String) -> void:
 		f.store_string(text)
 
 
+## Where logs go: ROOT for played games, HEADLESS_ROOT without a display.
+static func root_dir() -> String:
+	return HEADLESS_ROOT if DisplayServer.get_name() == "headless" else ROOT
+
+
 ## Drops the oldest match folders beyond KEEP.
-static func _prune() -> void:
-	var d := DirAccess.open(ROOT)
+static func _prune(root: String) -> void:
+	var d := DirAccess.open(root)
 	if d == null:
 		return
 	var names := Array(d.get_directories())
 	names.sort()
 	while names.size() > KEEP:
 		var old: String = names.pop_front()
-		var sub := DirAccess.open(ROOT + "/" + old)
+		var sub := DirAccess.open(root + "/" + old)
 		if sub != null:
 			for f in sub.get_files():
 				sub.remove(f)
