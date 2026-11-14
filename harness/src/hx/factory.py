@@ -87,7 +87,7 @@ MASK_RANGE = (0.0, 2.0)
 DEFAULTS = {
     "scenario": "skirmish_seeded", "population": 10, "pairings": 20, "seeds": 3, "turns": 30,
     "replace": 2, "max_age": 8, "hof_draw": 0.2, "hof_size": 20, "mutation": 0.25, "mask_mutation": 0.05,
-    "sigma": 0.15, "hidden": 0.2, "grid": 5, "spec": "default", "bench_every": 5,
+    "sigma": 0.15, "hidden": 0.2, "grid": 5, "spec": "default", "bench_every": 5, "bench_seeds": 8,
     "bench_profile": "profile_utility", "jobs": 4, "timeout": 600.0, "intensity": "normal", "target": 1,
 }
 
@@ -239,6 +239,16 @@ def draw_pairings(state: State) -> list[Pairing]:
 def match_seeds(state: State) -> list[int]:
     rng = _rng(state.seed, state.generation, "seeds")
     return [rng.randint(1, 10**6) for _ in range(state.config["seeds"])]
+
+
+def bench_seeds(state: State) -> list[int]:
+    """Benchmark seeds: the same set every generation, so benchmark scores
+    compare like with like (runs made before bench_seeds use match seeds)."""
+    n = state.config.get("bench_seeds")
+    if n is None:
+        return match_seeds(state)
+    rng = _rng(state.seed, 0, "bench")
+    return [rng.randint(1, 10**6) for _ in range(n)]
 
 
 def write_variants(state: State, pairings: list[Pairing], out_dir: Path) -> dict[str, tuple[str, str, str]]:
@@ -470,7 +480,7 @@ def bench_jobs(state: State, champion: Profile, root: Path, batch_id: str, out_d
         f = out_dir / f"bench{side}.json"
         f.write_text(json.dumps({"name": f"bench{side}", "turns": state.config["turns"], "controllers": ctl}),
                      encoding="utf-8")
-        for seed in match_seeds(state):
+        for seed in bench_seeds(state):
             jobs.append(sim.Job(batch_id, state.config["scenario"], f"bench{side}", str(f), seed))
     return jobs
 

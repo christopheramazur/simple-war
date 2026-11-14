@@ -235,3 +235,14 @@ def test_a_stopped_generation_plays_only_the_rest(tmp_path: Path, monkeypatch):
     assert launched == [[j.run_id for j in jobs], [j.run_id for j in jobs[2:]]], "the resume plays only the rest"
     con = factory.connect(db)
     assert con.execute("SELECT wall_s FROM sim_batch WHERE batch_id = 'bx'").fetchone()[0] == 3.0, "wall time adds up"
+
+
+def test_bench_seeds_fixed_across_generations():
+    s = factory.new_state("r", 7, {}, {})
+    first = factory.bench_seeds(s)
+    assert len(first) == factory.DEFAULTS["bench_seeds"]
+    s.generation = 3
+    assert factory.bench_seeds(s) == first
+    old = factory.new_state("r", 7, {}, {})
+    del old.config["bench_seeds"]
+    assert factory.bench_seeds(old) == factory.match_seeds(old)
