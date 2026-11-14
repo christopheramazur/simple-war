@@ -21,26 +21,12 @@ static func play(session: OverworldSession, controllers: Dictionary, turns: int)
 		match session.clock.phase:
 			PulseClock.Phase.PLANNING:
 				for p in session.players():
-					for o: Dictionary in controllers[p].plan(session.observe(p), session):
-						session.set_route(p, o["commander"], o["route"])
-						if not String(o.get("activity", "")).is_empty():
-							session.set_activity(p, o["commander"], o["activity"], o.get("option", ""))
-					if controllers[p].has_method("battle_orders"):
-						var eids: Array = session.battles.keys()
-						eids.sort()
-						for eid: int in eids:
-							var bo := session.observe_battle(p, eid)
-							if not bo.is_empty():
-								if controllers[p].has_method("set_battle_rules"):
-									controllers[p].set_battle_rules((session.battles[eid] as OverworldBattle).state.rules)
-								session.submit_battle_orders(p, eid, controllers[p].battle_orders(bo))
+					plan_for(session, p, controllers[p])
 				for p in session.players():
 					session.ready(p)
 			PulseClock.Phase.REACTION:
 				for p in session.players():
-					if controllers[p].has_method("reactions"):
-						for re: Dictionary in controllers[p].reactions(session.reaction_opportunities(p)):
-							session.submit_reaction(p, re["engagement"], re["squad"], re["reaction"], re["trigger"])
+					react_for(session, p, controllers[p])
 				for p in session.players():
 					session.ready(p)
 			PulseClock.Phase.INTERMISSION:
@@ -49,3 +35,28 @@ static func play(session: OverworldSession, controllers: Dictionary, turns: int)
 			_:
 				break
 	return session
+
+
+## One player's planning: overworld orders, then battle orders for every
+## battle the player is in. The war room calls it for AI opponents.
+static func plan_for(session: OverworldSession, p: int, controller: Object) -> void:
+	for o: Dictionary in controller.plan(session.observe(p), session):
+		session.set_route(p, o["commander"], o["route"])
+		if not String(o.get("activity", "")).is_empty():
+			session.set_activity(p, o["commander"], o["activity"], o.get("option", ""))
+	if controller.has_method("battle_orders"):
+		var eids: Array = session.battles.keys()
+		eids.sort()
+		for eid: int in eids:
+			var bo := session.observe_battle(p, eid)
+			if not bo.is_empty():
+				if controller.has_method("set_battle_rules"):
+					controller.set_battle_rules((session.battles[eid] as OverworldBattle).state.rules)
+				session.submit_battle_orders(p, eid, controller.battle_orders(bo))
+
+
+## One player's reactions in the reaction window.
+static func react_for(session: OverworldSession, p: int, controller: Object) -> void:
+	if controller.has_method("reactions"):
+		for re: Dictionary in controller.reactions(session.reaction_opportunities(p)):
+			session.submit_reaction(p, re["engagement"], re["squad"], re["reaction"], re["trigger"])

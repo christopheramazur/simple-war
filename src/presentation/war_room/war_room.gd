@@ -44,8 +44,18 @@ const DIM: Color = Color("8a93a3")
 ## session and plays `player` against the map's guards and triggers.
 @export var map_id: String = ""
 @export var map_seed: int = 1
+## A skirmish (with `map_id`): every other player is played by this
+## controller_profile (data, kind controller_profile) through ProfileController,
+## the same AI the factory evolves.
+@export var ai_profile: String = ""
+## Shown by the "Main menu" button; empty hides it.
+@export_file("*.tscn") var menu_scene: String = "res://src/presentation/main_menu/main_menu.tscn"
 
 var session: OverworldSession
+## AI opponents: player -> controller (HeadlessOverworld.plan_for/react_for).
+var ai: Dictionary = {}
+## "turn:phase" the AI last acted in, so it acts once per phase.
+var _ai_step: String = ""
 var contexts: ViewContexts
 ## Defined terms for the panel's hoverable titles (sw-ip8.4).
 var glossary: Glossary
@@ -81,7 +91,9 @@ func _ready() -> void:
 	if session == null:
 		session = demo_session() if map_id.is_empty() else play_session(map_id, map_seed)
 		end_turn_requested.connect(_end_turn)
-	glossary = Glossary.from_templates(session.templates)
+	if ai.is_empty() and not ai_profile.is_empty():
+		ai = opponents(session, player, ai_profile, map_seed)
+	glossary =Glossary.from_templates(session.templates)
 	_build_ui()
 	_turn_seen = session.turns_resolved()
 	contexts = ViewContexts.new(player)
@@ -113,6 +125,19 @@ func _exit_tree() -> void:
 static func play_session(map: String, seed_value: int) -> OverworldSession:
 	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
 	return OverworldSession.create(l.templates, l.data_hash, map, seed_value)
+
+
+## Every player but `human` played by a controller profile (unknown
+## profiles fall back to the default utility profile).
+static func opponents(s: OverworldSession, human: int, profile: String, seed_value: int) -> Dictionary:
+	var values: Dictionary = {}
+	if s.templates.has(profile) and s.templates.kind_of(profile) == "controller_profile":
+		values = s.templates.values_of(profile)
+	var out := {}
+	for p in s.players():
+		if p != human:
+			out[p] = ProfileController.new(p, values, seed_value)
+	return out
 
 
 ## A demo: test_vale with player 1 fighting the bandit camp and player 2's
@@ -217,6 +242,11 @@ func _build_ui() -> void:
 	end.text = "End turn (Space)"
 	end.pressed.connect(func() -> void: end_turn_requested.emit())
 	col.add_child(end)
+	if not menu_scene.is_empty() and ResourceLoader.exists(menu_scene):
+		var back := Button.new()
+		back.text = "Main menu"
+		back.pressed.connect(func() -> void: get_tree().change_scene_to_file.call_deferred(menu_scene))
+		col.add_child(back)
 
 
 func _clear(parent: Node) -> void:
@@ -706,6 +736,8 @@ func _refresh_log() -> void:
 		if outcome.has("winner"):  # a built-in win condition names its winner
 			won = int(outcome["winner"]) == player
 		var head := "✔ Mission won — " if won else ("✖ Mission lost — " if outcome["outcome"] != "drew" else "Draw — ")
+		if not ai.is_empty():
+			head = "✔ Victory — " if won else ("✖ Defeat — " if outcome["outcome"] != "drew" else "Draw — ")
 		_banner_text.text = head + _say(String(outcome["key"]), String(outcome["text"]))
 		_banner_text.add_theme_color_override("font_color", Color("74d18a") if won else Color("e8735f"))
 
@@ -722,6 +754,7 @@ static func _say(key: String, fallback: String) -> String:
 func _end_turn() -> void:
 	_hud_note = ""
 	for i in 4:
+		_ai_act()
 		for p in session.players():
 			session.ready(p)
 		var ph := session.clock.phase
@@ -737,6 +770,23 @@ func _end_turn() -> void:
 		_reacted = {}
 	contexts.sync(session.observe(player))
 	_queue_refresh()
+
+
+## The AI opponents plan or react, once per phase, from the same state the
+## player saw (simultaneous turns).
+func _ai_act() -> void:
+	if ai.is_empty() or not session.state.outcome.is_empty():
+		return
+	var step := "%d:%d" % [session.turns_resolved(), session.clock.phase]
+	if step == _ai_step:
+		return
+	_ai_step = step
+	for p: int in ai:
+		match session.clock.phase:
+			PulseClock.Phase.PLANNING:
+				HeadlessOverworld.plan_for(session, p, ai[p])
+			PulseClock.Phase.REACTION:
+				HeadlessOverworld.react_for(session, p, ai[p])
 
 
 ## A movable picture-in-picture battle view: click to swap it in, drag to

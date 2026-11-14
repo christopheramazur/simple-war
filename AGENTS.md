@@ -6,7 +6,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 - **OS:** Windows 11. **Repo root:** `C:/Users/chris/Documents/simple-war`.
 - **Shell:** use **Git Bash** (the Bash tool) by default; output compression and command metrics only apply there. Use PowerShell only for Windows-only operations.
 - **Godot 4.7.2:** `Godot_v4.7.2-stable_win64.exe` (editor) and `Godot_v4.7.2-stable_win64_console.exe` (headless) at the repo root.
-- **Main scene:** `res://src/presentation/angelfall/angelfall.tscn`, the playable Angelfall slice (M4). The replay viewer and the war room demo run standalone (F6).
+- **Main scene:** `res://src/presentation/main_menu/main_menu.tscn`: Story (the Angelfall slice, `src/presentation/angelfall/angelfall.tscn`, M4) or Skirmish against an AI controller profile on a skirmish map. The replay viewer and the war room demo run standalone (F6).
 
 ## 2. Start of every session
 1. `harness/bin/hx status`: branch, dirty files, Godot version, autoloads, in-progress and ready tasks.

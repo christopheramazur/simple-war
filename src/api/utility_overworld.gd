@@ -17,6 +17,11 @@ extends RefCounted
 ##     strength (enemy armies are never shown, R5Q9);
 ##   - explore: the nearest unexplored hexes (more fog revealed);
 ##   - every destination also changes the commander's safety.
+## Search (sw-ip8.6): a commander with nothing worth doing while no enemy is
+## known keeps looking: the nearest reachable unexplored hex, else a patrol to
+## the farthest known hex. Exploration stops counting once its target share
+## of the map is seen, so without this an AI that never meets the enemy
+## stands still and an elimination skirmish can't end.
 ## Fights are estimated with Lanchester's square law between the
 ## commander's battleforce (what would fight) and the foe: the stronger side
 ## wins keeping sqrt(a² - b²); a lost fight defeats the commander and
@@ -26,7 +31,7 @@ extends RefCounted
 ## Params: outcome_weight (1.0), risk (1.0, multiplies guessed enemy
 ## strength), explore (6, unexplored hexes considered per commander),
 ## cache_scale (10, Value at which a cache counts half of the economy
-## gain). Reads only its player's observation, the public rules and
+## gain), search (1; 0 turns the search fallback off). Reads only its player's observation, the public rules and
 ## session.path.
 
 var player: int
@@ -37,6 +42,7 @@ var outcome_weight := 1.0
 var risk := 1.0
 var explore := 6
 var cache_scale := 10.0
+var search := true
 
 
 func _init(player_id: int, mask_in: SimCriteria.Mask, params: Dictionary = {}, fuzz_in: float = 0.0, rng_in: SimRng = null) -> void:
@@ -48,6 +54,7 @@ func _init(player_id: int, mask_in: SimCriteria.Mask, params: Dictionary = {}, f
 	risk = float(params.get("risk", risk))
 	explore = int(params.get("explore", explore))
 	cache_scale = float(params.get("cache_scale", cache_scale))
+	search = float(params.get("search", 1.0)) > 0.0
 
 
 func plan(obs: Dictionary, session: OverworldSession) -> Array:
@@ -74,6 +81,7 @@ func plan(obs: Dictionary, session: OverworldSession) -> Array:
 		_add_fuzz(scored)
 		scored.sort_custom(func(a: Array, b: Array) -> bool:
 			return a[0] > b[0] or (a[0] == b[0] and int(a[1]["plot"]) < int(b[1]["plot"])))
+		var chosen := false
 		for s: Array in scored:
 			if s[0] <= 0.0:
 				break
@@ -82,8 +90,40 @@ func plan(obs: Dictionary, session: OverworldSession) -> Array:
 			if not o.is_empty():
 				busy[cand["plot"]] = true
 				out.append(o)
+				chosen = true
 				break
+		if not chosen and search and (ctx["foes"] as Array).is_empty():
+			var o := _search(c, obs, session, busy)
+			if not o.is_empty():
+				busy[o["route"][o["route"].size() - 1]] = true
+				out.append(o)
 	return out
+
+
+## Keeps looking for the enemy: the nearest reachable unexplored hex, else
+## the farthest reachable known one (a patrol across the map).
+func _search(c: Dictionary, obs: Dictionary, session: OverworldSession, busy: Dictionary) -> Dictionary:
+	var r := session.rules
+	var at := int(c["plot"])
+	var plots: Dictionary = obs["plots"]
+	var unknown := []
+	var known := []
+	for p in int(obs["width"]) * int(obs["height"]):
+		if p == at or busy.has(p):
+			continue
+		var d := Hex.plot_distance(at, p, r.width)
+		if plots.has(p):
+			known.append([-d, p])
+		else:
+			unknown.append([d, p])
+	unknown.sort()
+	known.sort()
+	for list: Array in [unknown, known]:
+		for i in mini(list.size(), 12):
+			var o := _order(c, {"plot": list[i][1]}, session)
+			if not o.is_empty():
+				return o
+	return {}
 
 
 ## Fuzz (A1Q4): deterministic noise, `fuzz` times the largest score.
@@ -101,9 +141,13 @@ func _order(c: Dictionary, cand: Dictionary, session: OverworldSession) -> Dicti
 	var to: int = cand["plot"]
 	var route := PackedInt64Array()
 	if to != int(c["plot"]):
+		# session.path is cut to what the commander can afford this turn: a
+		# farther target is travelled towards, and re-planned next turn.
 		route = session.path(player, int(c["id"]), to)
-		if route.is_empty() or route[route.size() - 1] != to:
+		if route.is_empty():
 			return {}
+		if route[route.size() - 1] != to:
+			return {"commander": c["id"], "route": route}
 	var o := {"commander": c["id"], "route": route}
 	if cand.has("activity"):
 		o["activity"] = cand["activity"]
