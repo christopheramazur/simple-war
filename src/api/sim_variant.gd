@@ -6,7 +6,10 @@ extends RefCounted
 ##   {"name": "...", "text": "...",
 ##    "patches": {template ID: {field: value, ...}},   # merged into values
 ##    "controllers": {"<player>": {"profile": "zone" | "expand" |
-##                     "evacuation" | "idle", "params": {...},
+##                     "evacuation" | "idle" | "utility" |
+##                     <controller_profile template ID>, "params": {...},
+##                     "genome": {...} (a profile as plain data, played by
+##                     ProfileController; overrides "profile"),
 ##                     "forfeit_turn": N (leaves the game before turn N,
 ##                     a harness test of forfeits, B1Q4)}},
 ##    "turns": overworld turns to play (default 20; battles run to the end)}
@@ -75,17 +78,31 @@ static func _merge(into: Dictionary, over: Dictionary) -> void:
 
 
 ## The controller for a player: the variant's profile, else `default`.
-func controller(player: int, default: String) -> Object:
+## Profiles (ProfileController) take the run's seed for their fuzz.
+func controller(player: int, default: String, seed_value: int = 0) -> Object:
 	var spec: Dictionary = (data.get("controllers", {}) as Dictionary).get(str(player), {})
 	var params: Dictionary = spec.get("params", {})
-	match String(spec.get("profile", default)):
-		"expand":
-			return ExpandController.new(player)
-		"evacuation":
-			return EvacuationController.new(player)
+	var name := String(spec.get("profile", default))
+	if spec.has("genome"):
+		return ProfileController.new(player, spec["genome"], seed_value)
+	if name == "utility":
+		return ProfileController.new(player, {}, seed_value)
+	if templates != null and templates.has(name) and templates.kind_of(name) == "controller_profile":
+		return ProfileController.new(player, templates.values_of(name), seed_value)
+	return ProfileController.new(player, builtin(name, params), seed_value)
+
+
+## A built-in profile name as a two-layer profile, so every built-in plays
+## both layers: zone and expand pair the rule-based ExpandController on the
+## overworld with ZoneController battles (params go to the battle side);
+## evacuation fights evacuation battles; idle does nothing on either.
+static func builtin(name: String, params: Dictionary = {}) -> Dictionary:
+	match name:
 		"idle":
-			return IdleController.new(player)
-	return ZoneController.new(player, params)
+			return {"overworld": {"process": "idle"}, "battle": {"process": "idle"}}
+		"evacuation":
+			return {"overworld": {"process": "expand"}, "battle": {"process": "evacuation"}}
+	return {"overworld": {"process": "expand"}, "battle": {"process": "zone", "params": params}}
 
 
 ## The turn before which a player leaves the game, -1 = never.

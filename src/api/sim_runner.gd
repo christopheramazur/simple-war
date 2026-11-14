@@ -70,11 +70,12 @@ func _battle(t: TemplateTable, v: SimVariant, sid: String, report: Dictionary, r
 	m.watch_battle(s.state, s.sim)
 	var controllers := {}
 	for p in s.players():
-		controllers[p] = v.controller(p, "zone")
+		controllers[p] = v.controller(p, "zone", report["seed"])
 	var quit: Array = _quitter(v, s.players())
 	HeadlessDuel.play(s, controllers, 50, quit[1])
 	if quit[0] >= 0 and not s.is_over():
 		m.forfeit(quit[0], s.state.turn)
+	ProfileController.record_faults(controllers, m, report)
 	_save(replay, s.save())
 	report["kind"] = "battle"
 	report["status"] = "ok"
@@ -95,7 +96,7 @@ func _overworld(t: TemplateTable, v: SimVariant, sid: String, report: Dictionary
 		return []
 	var controllers := {}
 	for p in x.players():
-		controllers[p] = v.controller(p, "expand")
+		controllers[p] = v.controller(p, "expand", report["seed"])
 	m.watch_overworld(x)
 	var quit: Array = _quitter(v, x.players())
 	var guard := 0
@@ -108,6 +109,8 @@ func _overworld(t: TemplateTable, v: SimVariant, sid: String, report: Dictionary
 		HeadlessOverworld.play(x, controllers, before + 1)
 		if x.turns_resolved() > before:
 			m.after_turn(x)
+		if ProfileController.record_faults(controllers, m, report):
+			break
 	_save(replay, x.save())
 	report["kind"] = "overworld"
 	report["status"] = "ok"

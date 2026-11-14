@@ -1,0 +1,8 @@
+{
+	"name": "utility",
+	"text": "Both sides play the Utility controller profile (default mask) on both layers.",
+	"controllers": {
+		"1": {"profile": "profile_utility"},
+		"2": {"profile": "profile_utility"}
+	}
+}

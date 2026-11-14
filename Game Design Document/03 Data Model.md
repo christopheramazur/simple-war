@@ -101,6 +101,13 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 A profile is data: a decision process + parameters + a fuzz seed.
 - **Decision processes:** scripted order list, activity-preference weights (utility), rule-based, and later search.
 - **Composition:** profiles can be layered, for example a scripted opening handing over to utility weights.
+- **In play (sw-884.3):** the `controller_profile` kind (`data/packages/core/defs/profiles.json`), played by `ProfileController`.
+  - **Layers:** `overworld` and `battle` sections, each a `process` (utility, expand, zone, evacuation, scripted, idle) with `params`. A missing section gets its default, so every profile plays both layers (A2Q5).
+  - **Opening:** a scripted section's `then` names the section that takes over after its last step.
+  - **Mask:** criterion → {`base`, `gates`}, the fitness spec's shaping format. Without one, the profile sees the default fitness shaping.
+  - **Other fields:** `hold_turns`; `fuzz`, a percent of the best candidate's score; `fuzz_seed`; `think_ms`, the per-decision limit, default 2000.
+  - **Numbers:** fractional values are decimal strings, as in all package data.
+  - **Factory genomes:** the same fields as plain data (a variant's `genome`).
 
 See [Harness and AI Factory](05%20Harness%20and%20AI%20Factory.md).
 

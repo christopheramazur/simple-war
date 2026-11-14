@@ -70,6 +70,11 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
 
 ## 5.4 AI factory
 - **Controller profiles** (R7Q15): data made of a decision process (scripted, utility, rule-based, later search), parameters and a deterministic **fuzz seed**. Profiles are composable.
+  - **In play (sw-884.3):** `ProfileController` (`src/api/profile_controller.gd`) composes an overworld process and a battle process with the mask, fuzz and think-time limit. Every built-in variant profile (`zone`, `expand`, `evacuation`, `idle`) is now a two-layer profile, so a battle profile also plays the overworld.
+  - **Utility processes** (`UtilityOverworld`, `UtilityBattle`; A2Q6) score candidate orders (take, convert, recruit, attack, explore; capture, attack, fall back) with SimCriteria values adjusted by a quick estimate: Lanchester's square law for fights, using the battleforce on the overworld. They weigh the scores through the mask and pick the best gain per turn of travel.
+  - **Leader squads:** a commander's own squad stays back unless its side clearly outweighs the enemies in sight, and falls back from stronger ones, since losing it loses the commander.
+  - **Shipped profiles:** `profile_utility`, `profile_aggressor`, `profile_turtle`; variants `utility` and `aggressor_vs_turtle`.
+  - **Faults** (A2Q1, B1Q11): a decision that overruns `think_ms` or returns no order list (a script error) forfeits. Run reports carry `fault` and `think_ms_max`.
 - **Evolution** (R7Q16): a genetic algorithm (selection, crossover, mutation) with **competitive co-evolution** between populations, and a **hall of fame** to prevent cycling. No neural networks initially.
 - **Scoring** (R6Q24, R7Q17):
   - Each training run defines a **weight schedule** per criterion, conditioned on game state. For example, exploration counts until N hexes are explored or first contact is made, without outweighing fighting or building.

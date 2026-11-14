@@ -43,6 +43,12 @@ const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
 
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
+	## One layer of a controller profile: its decision process and params.
+	"profile_process": {
+		"process": {"type": "string", "required": true,
+			"enum": ["utility", "expand", "zone", "evacuation", "scripted", "idle"]},
+		"params": {"type": "dict"},
+	},
 	"fire_mode": {
 		"shots": {"type": "int", "required": true, "min": 1},
 		"cooldown_ticks": {"type": "int", "required": true, "min": 1},
@@ -257,6 +263,21 @@ const OBJECTS: Dictionary = {
 }
 
 const KINDS: Dictionary = {
+	## An AI controller profile (GDD 05 §5.4, R7Q15, A1Q8): curated factory
+	## output or a hand-made opponent. ProfileController plays it; mask
+	## entries use the fitness spec's shaping format (criterion -> {"base",
+	## "gates"}). fuzz is a percent of the best candidate's score.
+	"controller_profile": {
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"overworld": {"type": "obj:profile_process"},
+		"battle": {"type": "obj:profile_process"},
+		"mask": {"type": "dict"},
+		"hold_turns": {"type": "int", "min": 1},
+		"fuzz": {"type": "int", "min": 0, "max": 100},
+		"fuzz_seed": {"type": "int"},
+		"think_ms": {"type": "int", "min": 1},
+	},
 	"tag": {
 		"name": {"type": "string"},
 		"description": {"type": "string"},

@@ -1,0 +1,8 @@
+{
+	"name": "aggressor_vs_turtle",
+	"text": "Player 1 plays the Aggressor profile, player 2 the Turtle.",
+	"controllers": {
+		"1": {"profile": "profile_aggressor"},
+		"2": {"profile": "profile_turtle"}
+	}
+}

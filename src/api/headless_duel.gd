@@ -8,6 +8,9 @@ extends RefCounted
 ## Plays until the battle ends or `max_turns` pass, or (stop_turn >= 0)
 ## until planning for turn stop_turn begins. Returns the session.
 static func play(session: BattleSession, controllers: Dictionary, max_turns: int = 50, stop_turn: int = -1) -> BattleSession:
+	for p in session.players():
+		if controllers[p].has_method("set_battle_rules"):
+			controllers[p].set_battle_rules(session.state.rules)
 	var guard := 0
 	while not session.is_over() and guard < max_turns * 4:
 		guard += 1

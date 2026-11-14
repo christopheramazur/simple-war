@@ -9,7 +9,8 @@ extends RefCounted
 ## controller with `battle_orders(battle_observation) -> Array` also fights
 ## the battles its player is in, and one with `reactions(opportunities)
 ## -> Array` of {"engagement", "squad", "reaction", "trigger"} reacts in the
-## reaction window.
+## reaction window. One with `set_battle_rules(rules)` is given each
+## battle's (public) rules before its battle orders.
 
 
 ## Plays until `turns` overworld turns have resolved. Returns the session.
@@ -30,6 +31,8 @@ static func play(session: OverworldSession, controllers: Dictionary, turns: int)
 						for eid: int in eids:
 							var bo := session.observe_battle(p, eid)
 							if not bo.is_empty():
+								if controllers[p].has_method("set_battle_rules"):
+									controllers[p].set_battle_rules((session.battles[eid] as OverworldBattle).state.rules)
 								session.submit_battle_orders(p, eid, controllers[p].battle_orders(bo))
 				for p in session.players():
 					session.ready(p)

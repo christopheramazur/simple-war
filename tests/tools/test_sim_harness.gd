@@ -31,10 +31,12 @@ func test_variants_patch_content() -> void:
 
 func test_controller_profiles() -> void:
 	var v := SimVariant.load_file("res://data/sim/variants/cautious.json")
-	var c: ZoneController = v.controller(1, "zone")
-	assert_eq(c.fall_back_pct, 50)
-	assert_true(SimVariant.load_file("res://data/sim/variants/idle_defender.json").controller(2, "zone") is SimVariant.IdleController)
-	assert_true(SimVariant.new().controller(1, "expand") is ExpandController)
+	var c: ProfileController = v.controller(1, "zone")
+	assert_eq((c.battle_process() as ZoneController).fall_back_pct, 50)
+	assert_true(c.overworld_process() is ExpandController, "a battle profile still plays the overworld")
+	var idle: ProfileController = SimVariant.load_file("res://data/sim/variants/idle_defender.json").controller(2, "zone")
+	assert_true(idle.battle_process() is SimVariant.IdleController)
+	assert_true((SimVariant.new().controller(1, "expand") as ProfileController).overworld_process() is ExpandController)
 
 
 func _duel(measure: bool) -> Array:

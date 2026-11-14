@@ -113,6 +113,33 @@ static func _forces(obs: Dictionary, rules: OverworldRules) -> Array:
 	return [own, enemy, foes]
 
 
+## Whether a feature earns its owner something: Value each turn or
+## production (economy counts Value earned, B1Q7).
+static func makes_value(rules: OverworldRules, tmpl: int) -> bool:
+	return rules.hf_value_per_turn[tmpl] > 0 or rules.production_count(tmpl) > 0
+
+
+## Own and guessed visible hostile force, [own, enemy, [[plot, value]...]]
+## (for decision processes).
+static func forces(obs: Dictionary, rules: OverworldRules) -> Array:
+	return _forces(obs, rules)
+
+
+## The Value of squads as an observation lists them (alive share counted).
+static func squads_value(rules: OverworldRules, squads: Array) -> float:
+	return _squads_value(rules, squads)
+
+
+## A hostile commander's guessed strength: its template's starting army.
+static func commander_guess(rules: OverworldRules, tmpl: int) -> float:
+	return _commander_guess(rules, tmpl)
+
+
+## A battle squad's Value as observed (alive share counted); 0 if unknown.
+static func battle_value(rules: BattleRules, q: Dictionary) -> float:
+	return _battle_value(rules, q)
+
+
 static func _share(own: float, total: float, none: float = 0.5) -> float:
 	return none if total <= 0.0 else own / total
 
@@ -150,7 +177,7 @@ static func overworld(obs: Dictionary, rules: OverworldRules) -> Dictionary:
 	for p: int in obs["plots"]:
 		for ft: Dictionary in obs["plots"][p]["features"]:
 			known += 1
-			var makes := rules.production_count(int(ft["tmpl"])) > 0
+			var makes := makes_value(rules, int(ft["tmpl"]))
 			if makes:
 				known_producing += 1
 			if int(ft["owner"]) == me:
