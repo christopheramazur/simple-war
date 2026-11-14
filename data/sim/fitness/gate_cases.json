@@ -1,0 +1,15 @@
+{
+	"text": "Shared checks for schedule gates: the harness (hx fitness, Python) and the game (SimCriteria, GDScript) must both give these weights.",
+	"hold_turns": 3,
+	"entry": {"base": 2.0, "gates": [{"condition": "since_contact", "points": [[-1, 1.0], [0, 1.0], [3, 0.0]]},
+		{"condition": "force_ratio", "points": [[0.0, 0.5], [1.0, 1.5]]}]},
+	"turns": [
+		{"turn": 1, "conditions": {"since_contact": -1, "force_ratio": 0.5}, "weight": 2.0},
+		{"turn": 2, "conditions": {"since_contact": 0, "force_ratio": 0.5}, "weight": 2.0},
+		{"turn": 3, "conditions": {"since_contact": 1, "force_ratio": 1.0}, "weight": 2.0},
+		{"turn": 4, "conditions": {"since_contact": 2, "force_ratio": 1.0}, "weight": 1.0},
+		{"turn": 5, "conditions": {"since_contact": 3, "force_ratio": 1.0}, "weight": 1.0},
+		{"turn": 6, "conditions": {"since_contact": 4, "force_ratio": 0.0}, "weight": 1.0},
+		{"turn": 7, "conditions": {"since_contact": 5, "force_ratio": 0.0}, "weight": 0.0}
+	]
+}

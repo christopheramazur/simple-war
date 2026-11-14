@@ -1,0 +1,18 @@
+{
+	"name": "default",
+	"text": "Round B1 fitness (GDD 05 §5.4): F = result + 0.25 x speed (wins only) + 0.1 x margin + lambda x shaping. Shaping is the weighted mean of the strategic criteria, each weighted by base x the product of its gates, averaged over the run's turns. A gate is a piecewise-linear curve over one condition whose value changes at most once per hold_turns turns (hysteresis, B1Q6). Lambda anneals from 0.3 to 0 over 50 generations, or drops to 0 once the population beats the hall of fame more than 60% of the time (B1Q2).",
+	"outcome": {"speed": 0.25, "margin": 0.1},
+	"lambda": {"start": 0.3, "generations": 50, "hof_win_rate": 0.6},
+	"hold_turns": 3,
+	"shaping": {
+		"value_efficiency": {"base": 1.0, "gates": [{"condition": "force_ratio", "points": [[0.0, 0.8], [0.5, 1.0], [1.0, 1.3]]}]},
+		"force_ratio": {"base": 1.0},
+		"objective_control": {"base": 1.0, "gates": [{"condition": "ahead", "points": [[-1.0, 1.5], [0.0, 1.0], [1.0, 0.8]]}]},
+		"economy": {"base": 0.5, "gates": [{"condition": "bank", "points": [[0, 1.0], [200, 1.0], [600, 0.3]]}]},
+		"exploration": {"base": 1.0, "gates": [{"condition": "since_contact", "points": [[-1, 1.0], [0, 1.0], [3, 0.0]]}]},
+		"commander_safety": {"base": 0.5, "gates": [{"condition": "threat", "points": [[0.0, 1.0], [1.0, 2.0], [2.0, 4.0]]},
+			{"condition": "ahead", "points": [[0.0, 1.0], [1.0, 1.5]]}]},
+		"tempo": {"base": 0.3, "gates": [{"condition": "ahead", "points": [[-1.0, 1.5], [0.0, 1.0]]}]},
+		"pressure": {"base": 0.5, "gates": [{"condition": "contact", "points": [[0, 0.0], [1, 1.0]]}]}
+	}
+}

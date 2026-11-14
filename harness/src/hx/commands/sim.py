@@ -12,6 +12,11 @@
       (data/sim/labs/<lab>.json), run every setting, and show which tropes
       (data/sim/tropes.json) emerge per setting
   hx sim tropes [--batch ID]    re-evaluate tropes for a batch
+  hx sim fitness [--batch ID] [--spec NAME] [--generation G] [--hof-rate R]
+      AI factory fitness (GDD 05 §5.4): score a batch's runs under a spec
+      (data/sim/fitness/<spec>.json): criteria, gated weights, shaping and
+      F = result + 0.25 speed + 0.1 margin + lambda shaping. Runs and labs
+      are scored under the default spec as they finish.
 
 Scenarios are battle scenario IDs or overworld map IDs from the core package.
 Replays: <data>/sim/runs/<batch>/<run_id>.sav (battles open in the replay
@@ -24,10 +29,10 @@ import argparse
 import subprocess
 from datetime import datetime, timezone
 
-from hx import lab, paths, sim
+from hx import fitness, lab, paths, sim
 from hx.output import FAIL, OK, WARN, Check, Result
 
-HELP = "Game harness runs: run scenario x variant x seed headless (DuckDB results) | report | list | variants | lab | tropes"
+HELP = "Game harness runs: run scenario x variant x seed headless (DuckDB results) | report | list | variants | lab | tropes | fitness"
 
 
 def add_args(p) -> None:
@@ -51,6 +56,11 @@ def add_args(p) -> None:
     sp.add_argument("--timeout", type=float, default=600)
     sp = sub.add_parser("tropes")
     sp.add_argument("--batch", help="batch ID (default: the latest)")
+    sp = sub.add_parser("fitness")
+    sp.add_argument("--batch", help="batch ID (default: the latest)")
+    sp.add_argument("--spec", default="default", help="fitness spec name (data/sim/fitness/<spec>.json) or a .json path")
+    sp.add_argument("--generation", type=int, default=0, help="GA generation, for lambda's annealing (default 0)")
+    sp.add_argument("--hof-rate", type=float, help="population win rate against the hall of fame (lambda 0 above the spec's threshold)")
     for sp in sub.choices.values():
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
         sp.add_argument("-v", "--verbose", action="store_true", default=argparse.SUPPRESS)
@@ -58,7 +68,7 @@ def add_args(p) -> None:
 
 def run(args) -> Result:
     return {"run": _run, "report": _report, "list": _list, "variants": _variants, "lab": _lab,
-            "tropes": _tropes}[args.action](args)
+            "tropes": _tropes, "fitness": _fitness}[args.action](args)
 
 
 def _run(args) -> Result:
@@ -88,6 +98,7 @@ def _run(args) -> Result:
     r.data["wall_s"] = round(wall, 1)
     r.data["results"] = str(sim.db_path())
     r.tables["summary"] = sim.summary(con, batch_id)
+    _score(con, root, batch_id)
     errors = [f"{rep['run']['run_id']}: {rep['run'].get('error')}" for rep in reports if rep["run"].get("status") != "ok"]
     con.close()
     if errors:
@@ -125,6 +136,7 @@ def _variants(args) -> Result:
     r = Result("sim variants")
     r.data["variants"] = sim.variants(paths.repo_root())
     r.data["labs"] = lab.labs(paths.repo_root())
+    r.data["fitness specs"] = fitness.specs(paths.repo_root())
     return r
 
 
@@ -154,6 +166,7 @@ def _lab(args) -> Result:
                      "git_rev": _git_rev(root)}, reports)
     lab.record_settings(con, batch_id, spec["name"], made)
     lab.tag(con, batch_id, tropes)
+    _score(con, root, batch_id)
     r.data["lab"] = spec["name"]
     r.data["batch"] = batch_id
     r.data["runs"] = len(jobs)
@@ -181,6 +194,40 @@ def _tropes(args) -> Result:
     r.data["batch"] = batch
     r.tables["settings"] = lab.table(con, batch, tropes)
     con.close()
+    return r
+
+
+def _score(con, root, batch_id: str) -> None:
+    """Scores a finished batch under the default fitness spec (cheap, no Godot)."""
+    try:
+        fitness.score_batch(con, batch_id, fitness.load_spec(root, "default"), fitness.load_criteria(root))
+    except (FileNotFoundError, ValueError, KeyError):
+        pass
+
+
+def _fitness(args) -> Result:
+    r = Result("sim fitness")
+    root = paths.repo_root()
+    con = sim.connect()
+    batch = args.batch or sim.latest_batch(con)
+    if batch is None:
+        r.checks.append(Check("batches", WARN, "no runs yet: hx sim run <scenario>"))
+        return r
+    try:
+        spec = fitness.load_spec(root, args.spec)
+        library = fitness.load_criteria(root)
+    except (FileNotFoundError, ValueError) as e:
+        r.checks.append(Check("spec", FAIL, str(e)))
+        return r
+    n = fitness.score_batch(con, batch, spec, library)
+    lam = fitness.lam(spec, args.generation, args.hof_rate)
+    r.data["batch"] = batch
+    r.data["spec"] = spec.get("name", args.spec)
+    r.data["runs"] = n
+    r.data["lambda"] = round(lam, 3)
+    r.tables["fitness"] = fitness.table(con, batch, spec, lam)
+    con.close()
+    r.checks.append(Check("scored", OK if n else WARN, f"{n} runs"))
     return r
 
 

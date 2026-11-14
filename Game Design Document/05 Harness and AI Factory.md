@@ -74,6 +74,51 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
 - **Scoring** (R6Q24, R7Q17):
   - Each training run defines a **weight schedule** per criterion, conditioned on game state. For example, exploration counts until N hexes are explored or first contact is made, without outweighing fighting or building.
   - A **mask** sets which criteria the process can see. Masks create difficulties and "feels", and filter decision noise.
+- **First loop** (A1Q1, A1Q2): the AI learns to win a game. Faster wins score more, and leaving the game is penalised. It plays overworld and battles together, on an open overworld of about 10 by 20 hexes. Balance and test-campaign work come later.
+- **Masks** (A1Q3): a profile's mask limits what the AI thinks it is scored against. It can hide criteria, reweight them, or both, and it can change over the game. Masks set strength and also make decision-making diverse against one scenario. The fuzz seed adds deterministic decision noise, and its strength is a gene (A1Q4).
+- **Pairings** (A1Q5): faction doesn't separate populations. The pool starts with 10 profiles; each generation draws 2 (duplicates allowed, older profiles more likely) as side 1 and side 2.
+- **Criteria library v1** (B1Q1, B1Q5; `data/sim/criteria.json`; research in `Interview/ai-fitness-criteria-research.md`). One library has two uses:
+  - **Fitness:** what the GA selects on. The harness computes each criterion's end-of-game form from the run's metrics (`hx sim fitness`, `harness/src/hx/fitness.py`).
+  - **Decisions:** what a profile's utility process weighs through its mask. `SimCriteria` (`src/api/sim_criteria.gd`) computes decision-time forms from the player's own observation only.
+  - **Outcome criteria:** result, speed and margin.
+  - **Strategic criteria:**
+    - value efficiency;
+    - force ratio;
+    - objective control;
+    - economy (Value earned, not banked);
+    - exploration (saturating at a target %);
+    - commander safety;
+    - tempo (low weight);
+    - pressure differential (own versus enemy, never own alone, R4Q4).
+- **Fitness** (B1Q2-B1Q4; `data/sim/fitness/default.json`):
+  - The formula: F = result + 0.25 × speed (wins only) + 0.1 × margin + λ × shaping.
+  - Result scores a win 1, a draw or a loss 0 (a turn-limit draw is a loss for both sides), and a forfeit −1.
+  - Shaping is the weighted mean of the strategic criteria, each weighted by its schedule and averaged over the run's turns.
+  - λ starts at 0.3 and anneals to 0 over 50 generations, or drops to 0 once the population beats the hall of fame more than 60% of the time.
+  - `hx sim run` and `hx sim lab` score each batch under the default spec into DuckDB `sim_fitness`; `hx sim fitness` re-scores a batch under any spec.
+- **Schedules and gates** (B1Q6):
+  - A criterion's weight is base × the product of its gates.
+  - A gate is a piecewise-linear curve over one condition. Once its value changes, it holds for at least 3 turns (hysteresis).
+  - Conditions: `turn`, `contact`, `since_contact`, `fog_pct`, `force_ratio`, `threat`, `bank`, `ahead`.
+  - The fitness spec's `shaping` and a profile's mask share this format. `SimCriteria.Mask` evaluates it in the game; `data/sim/fitness/gate_cases.json` checks that the game and the harness agree.
+- **Guards** (B1Q7):
+  - Value destroyed counts only enemy-player victims; neutral and civilian kills are measured separately.
+  - Exploration saturates.
+  - Economy rewards Value earned.
+  - With no fighting, Value efficiency is a neutral 0.5.
+- **Diversity** (B1Q8): a hall of fame plus a MAP-Elites-style behaviour archive.
+  - Archive axes: aggression × expansion, with caution optional.
+  - The descriptors are computed with fitness (`desc.*`).
+  - Curated "feels" come from archive cells.
+  - AlphaStar-style exploiter slots are an option to revisit later.
+- **Difficulty** (B1Q9) comes from masks, fuzz strength and visible behaviour limits (commander caps, think budget), never from resource or information cheats.
+- **Evaluation protocol** (B1Q11):
+  - Every pairing plays both sides on at least 3 seeds or map variants.
+  - Each decision has a hard think-time limit.
+  - NTBEA is an optional tuner for small genomes (masks, schedule knots).
+  - Until sw-884.5 makes seeds vary outcomes, map variation carries the variance.
+- **Runs** (A1Q7): set by resource allocation plus a number of iterations, at selectable intensities (from background use to about 90% of the machine). An interrupted run saves its results and stops cleanly between iterations.
+- **Storage** (A1Q8): curated profiles are package data (a moddable `controller_profile` kind). Every evaluated genome, with its lineage, scores, criteria, mask and schedule, goes to DuckDB. An export promotes a genome to package data.
 - **Lineage:** every result records the profile, criteria set, mask, schedule and parent profiles.
 - **Throughput target** (R7Q18): the target is **how quickly scoring gains are achieved**, not a match count. It measures both run speed and how nuanced the metrics are.
   1. Benchmark what this machine achieves once the API, metric library and test scenarios exist.
@@ -89,4 +134,7 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
 5. Metric library and harness runs (DuckDB, replays).
 6. First AI factory loop.
 
-The rest of the testing framework is designed in the AI factory interview wave (R8Q16).
+**Testing framework** (A1Q9-A1Q11):
+- Regression metric baselines run on demand only for now.
+- Per-system performance trends are recorded; budgets are set later.
+- Feel testing is human playtests for the foreseeable future.

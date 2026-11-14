@@ -1,0 +1,32 @@
+{
+	"text": "The AI factory's criteria library v1 (GDD 05 §5.4, Round B1). One library, two uses (B1Q1): FITNESS, what the GA selects on (hx fitness, end-of-game forms from SimMetrics), and DECISIONS, what a profile's utility process weighs through its mask (SimCriteria, decision-time forms from a player's observation). Every value is in [0, 1] except result (-1 to 1) and margin (-1 to 1). 'kinds' lists the run kinds a criterion applies to; 'decision' says whether a decision-time form exists yet.",
+	"criteria": {
+		"result": {"group": "outcome", "kinds": ["battle", "overworld"], "decision": false,
+			"text": "Win 1, draw 0, loss 0, forfeit -1. A turn-limit draw scores as a loss for both sides (B1Q3); leaving the game scores below a loss (B1Q4)."},
+		"speed": {"group": "outcome", "kinds": ["battle", "overworld"], "decision": false,
+			"text": "On a win only: 1 - turns / turn cap."},
+		"margin": {"group": "outcome", "kinds": ["battle", "overworld"], "decision": true,
+			"text": "Battle: (own VP - best opponent VP) / both. Overworld: the same over worth (banked Value plus the Value of squads held). Tiebreak weight only."},
+		"value_efficiency": {"group": "strategic", "kinds": ["battle", "overworld"], "decision": true,
+			"text": "Value destroyed / (destroyed + lost), counting only enemy-player victims (B1Q7). No fighting = 0.5. Overworld runs use the battles inside them."},
+		"force_ratio": {"group": "strategic", "kinds": ["battle", "overworld"], "decision": true,
+			"text": "Mean over turns of own force / (own + enemy force). Overworld: the enemy force the player can see; battles: the other sides' living Value."},
+		"objective_control": {"group": "strategic", "kinds": ["battle", "overworld"], "decision": true,
+			"text": "Battle: own share of zone-held ticks. Overworld: own share of feature-turns held. Nobody held anything = 0.5."},
+		"economy": {"group": "strategic", "kinds": ["overworld"], "decision": true,
+			"text": "Own share of Value earned (earned, not banked: hoarding doesn't pay, B1Q7). Nobody earned = 0.5."},
+		"exploration": {"group": "strategic", "kinds": ["overworld"], "decision": true, "params": {"target_pct": 60},
+			"text": "Fog revealed / target %, saturating at 1 (B1Q7)."},
+		"commander_safety": {"group": "strategic", "kinds": ["overworld"], "decision": true,
+			"text": "Commanders alive at the end / at the start. Decision time: the weakest own commander's army / (army + hostile Value near it)."},
+		"tempo": {"group": "strategic", "kinds": ["battle", "overworld"], "decision": false,
+			"text": "1 - own first capture turn / turns (0 if never). Low weight; also a schedule condition."},
+		"pressure": {"group": "strategic", "kinds": ["battle", "overworld"], "decision": false,
+			"text": "(enemy Morale fraying+broken share - own share + 1) / 2: always own versus enemy, never own alone (R4Q4). Decision time needs the forecast (sw-884.3)."}
+	},
+	"descriptors": {
+		"aggression": "Overworld: battles fought per turn. Battle: Value destroyed / the enemy's starting force.",
+		"expansion": "Overworld: fog revealed share x objective control. Battle: objective control.",
+		"caution": "1 - Value lost / own starting force (battles; overworld uses the battles inside it)."
+	}
+}
