@@ -10,7 +10,9 @@ extends RefCounted
 ## the battles its player is in, and one with `reactions(opportunities)
 ## -> Array` of {"engagement", "squad", "reaction", "trigger"} reacts in the
 ## reaction window. One with `set_battle_rules(rules)` is given each
-## battle's (public) rules before its battle orders.
+## battle's (public) rules before its battle orders, and one with
+## `reinforcements(observation, rules) -> Array` of {"commander", "squad"}
+## sends squads from its armies into their battles (sw-884.14).
 
 
 ## Plays until `turns` overworld turns have resolved. Returns the session.
@@ -53,6 +55,9 @@ static func plan_for(session: OverworldSession, p: int, controller: Object) -> v
 				if controller.has_method("set_battle_rules"):
 					controller.set_battle_rules((session.battles[eid] as OverworldBattle).state.rules)
 				session.submit_battle_orders(p, eid, controller.battle_orders(bo))
+	if controller.has_method("reinforcements") and not session.battles.is_empty():
+		for re: Dictionary in controller.reinforcements(session.observe(p), session.rules):
+			session.reinforce(p, re["commander"], re["squad"])  # past the cap: refused, harmless
 
 
 ## One player's reactions in the reaction window.

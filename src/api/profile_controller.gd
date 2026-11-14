@@ -30,6 +30,8 @@ var player: int
 var profile: Dictionary
 var think_ms := DEFAULT_THINK_MS
 var fault := ""
+## Whether this profile sends reserves into its battles (reinforcements).
+var reinforce := true
 var fault_turn := -1
 var max_think_us := 0
 var _overworld: Object
@@ -56,6 +58,10 @@ func _init(player_id: int, profile_in: Dictionary = {}, seed_value: int = 0) -> 
 	_hold = int(profile.get("hold_turns", 3))
 	_overworld = _make_overworld(profile.get("overworld", {}))
 	_battle_section = profile.get("battle", {})
+	var bproc := String(_battle_section.get("process", "utility"))
+	reinforce = bproc != "idle" and bproc != "evacuation" 		and float((_battle_section.get("params", {}) as Dictionary).get("reinforce", 1)) > 0.0
+	if _overworld is UtilityOverworld:
+		(_overworld as UtilityOverworld).reinforcing = reinforce
 
 
 func _make_overworld(section: Dictionary) -> Object:
@@ -141,6 +147,32 @@ func plan(obs: Dictionary, session: OverworldSession) -> Array:
 				if bool(q.get("own", false)):
 					_leaders[int(q["id"])] = true
 	return _timed(func() -> Variant: return _overworld.plan(obs, session), int(obs.get("turn", 0)))
+
+
+## Reserves into battles (sw-884.14): each engaged own commander sends the
+## squads of its army that are not fighting, strongest first; the session
+## takes them up to the battleforce squad cap, so casualties are replaced
+## turn by turn. Off for idle and evacuation battles, and with the battle
+## param `reinforce` 0.
+func reinforcements(obs: Dictionary, rules: OverworldRules) -> Array:
+	var out := []
+	if not reinforce or not fault.is_empty():
+		return out
+	for c: Dictionary in obs["commanders"]:
+		if int(c["player"]) != player or int(c["engagement"]) < 0:
+			continue
+		var fighting := {}
+		for id: int in c.get("battleforce", []):
+			fighting[id] = true
+		var spare := []
+		for q: Dictionary in c.get("army", []):
+			if bool(q.get("own", false)) or fighting.has(int(q["id"])) or int(q["alive"]) <= 0:
+				continue
+			spare.append([-SimCriteria.squads_value(rules, [q]), int(q["id"])])
+		spare.sort()
+		for s: Array in spare:
+			out.append({"commander": int(c["id"]), "squad": s[1]})
+	return out
 
 
 func battle_orders(obs: Dictionary) -> Array:

@@ -43,6 +43,10 @@ var risk := 1.0
 var explore := 6
 var cache_scale := 10.0
 var search := true
+## Set by ProfileController when its battles take reinforcements: fights are
+## then estimated with the whole army (the reserves replace casualties)
+## rather than the battleforce alone (sw-884.14).
+var reinforcing := false
 
 
 func _init(player_id: int, mask_in: SimCriteria.Mask, params: Dictionary = {}, fuzz_in: float = 0.0, rng_in: SimRng = null) -> void:
@@ -258,7 +262,7 @@ func _candidates(c: Dictionary, obs: Dictionary, r: OverworldRules, ctx: Diction
 			bf += SimCriteria.squads_value(r, [q])
 	for cand: Dictionary in out:
 		cand["army"] = army
-		cand["bf"] = bf if bf > 0.0 else army
+		cand["bf"] = army if reinforcing or bf <= 0.0 else bf
 	return out
 
 
