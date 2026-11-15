@@ -26,8 +26,9 @@ The simulation's rules. This document is authoritative over the code: if they di
 3. **Reveal and reaction window** (R2Q4, R3Q4): the sim pauses after reveal, and players scan all battles and issue reactions.
    - **What a reaction is:** a restricted order, triggered by interactions that the revealed orders create (for example, A and B come into range). It costs the squad and/or the commander.
    - **Limits:** there is one reaction timing and no counter-reactions, except niche abilities.
+   - **Only visible triggers (sw-tz1, playtest decision 2026-11-15):** a squad can react only to an enemy squad its player already sees when orders are revealed. A contact with an enemy still hidden at Reveal is no opportunity, so the window never hints at unseen enemies.
    - **UI:** a radial popup on reactable squads, plus a scrollable reaction queue.
-   - **In play (sw-ip8.3):** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad.
+   - **In play (sw-ip8.3):** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad. A selected reactable squad (clicked, or picked from the queue) shows what it would react to: a dashed line to each triggering enemy, ringed and labelled "trigger".
    - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
    - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions exist only as upgrades or unit abilities (R2Q4).
 4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed, and while watching, the overworld is locked. Ranked may skip straight to results (R3Q2).

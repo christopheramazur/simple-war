@@ -123,10 +123,23 @@ func test_orders_drawn_in_a_reaction_window_are_queued() -> void:
 				st.units.set_value(st.units.id_at(urow), &"x", st.units.x[urow] + mx)
 				st.units.set_value(st.units.id_at(urow), &"y", st.units.y[urow] + my)
 	Centroids.update(st)
+	VisionSystem.new().run(st)  # sight at Reveal: reactions need it (sw-tz1)
+	st.events.drain()
 	w.end_turn_requested.emit()
 	assert_eq(w.session.clock.phase, PulseClock.Phase.REACTION)
 	await get_tree().process_frame
 	assert_true(w._phase_banner.visible, "the banner says moves are locked")
+	# Each reactable squad's triggers are visible enemies, drawn when selected.
+	var triggers := w._triggers(eid)
+	assert_gt(triggers.size(), 0)
+	for own: int in triggers:
+		for t: int in triggers[own]:
+			assert_ne(st.squads.seen_by[st.squads.row_of(t)] & BattleSquads.bit(1), 0, "trigger %d is visible" % t)
+	var opp: Dictionary = w.session.reaction_opportunities(1)[0]
+	w._jump_to_reaction(opp)
+	assert_eq(w.planner(eid).selection, [opp["squad"]], "the reaction queue selects its squad")
+	await get_tree().process_frame
+	assert_true(w._main._overlay.get("triggers", {}).has(opp["squad"]), "the view gets its triggers")
 	var pl := w.planner(eid)
 	pl.select(pl.own_squads())
 	pl.move_to(pl.selection_centre() + Vector2(-30, 0), false)

@@ -326,7 +326,7 @@ func _refresh() -> void:
 		var fc: Dictionary = _forecasts.get(contexts.focus, {})
 		_main.show_battle(obs, {"selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
 			"contacts": fc.get("contacts", []), "reactable": _reactable(contexts.focus),
-			"terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
+			"triggers": _triggers(contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
 	_refresh_pips()
 	_refresh_menu()
 	_refresh_commanders()
@@ -529,6 +529,8 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 	var hit := _main.squad_at(at)
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		if button == MOUSE_BUTTON_LEFT and hit >= 0:
+			if pl.own_squads().has(hit):
+				pl.select([hit])  # highlights what it would react to
 			_open_radial(contexts.focus, hit)
 		return
 	if session.clock.phase != PulseClock.Phase.PLANNING:
@@ -634,6 +636,19 @@ func _reactable(eid: int) -> Dictionary:
 	return out
 
 
+## Own squads with an opportunity in battle eid -> the enemy squads that
+## trigger them (all visible: hidden enemies give no opportunity).
+func _triggers(eid: int) -> Dictionary:
+	var out := {}
+	for o: Dictionary in session.reaction_opportunities(player):
+		if o["engagement"] == eid:
+			var list: Array = out.get(o["squad"], [])
+			if not list.has(o["trigger"]):
+				list.append(o["trigger"])
+			out[o["squad"]] = list
+	return out
+
+
 static func _key(o: Dictionary) -> String:
 	return "%d,%d,%d" % [o["engagement"], o["squad"], o["trigger"]]
 
@@ -701,6 +716,7 @@ func _refresh_reactions() -> void:
 
 func _jump_to_reaction(o: Dictionary) -> void:
 	contexts.focus_battle(o["engagement"])
+	planner(o["engagement"]).select([o["squad"]])
 	_open_radial.call_deferred(o["engagement"], o["squad"])
 
 

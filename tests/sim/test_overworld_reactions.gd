@@ -57,6 +57,8 @@ func _close_in(s: OverworldSession) -> void:
 				u.set_value(u.id_at(urow), &"x", u.x[urow] + mx)
 				u.set_value(u.id_at(urow), &"y", u.y[urow] + my)
 	Centroids.update(st)
+	VisionSystem.new().run(st)  # sight at Reveal: reactions need it (sw-tz1)
+	st.events.drain()
 
 
 ## Plays battle turns (orders from a ZoneController for player 1) until the

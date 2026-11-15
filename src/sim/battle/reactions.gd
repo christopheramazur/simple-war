@@ -5,8 +5,8 @@ extends SimSystem
 ##
 ## After Reveal, `forecast()` runs the coming turn on a scratch copy of the
 ## battle with everyone's orders and reports the first contact between each
-## pair of opposing squads. Each contact is a reaction opportunity for both
-## squads. Reactions are abilities with reaction timing (E3Q7): a chosen one
+## pair of opposing squads. Each contact is a reaction opportunity for each
+## squad whose player already sees the other one (sw-tz1). Reactions are abilities with reaction timing (E3Q7): a chosen one
 ## is queued on the squad and fires when the real contact happens (this
 ## system, every tick). It pays its activation costs (Instinct by default)
 ## and floats Prowess for the squad that provoked it. Its bundle sees the
@@ -96,7 +96,16 @@ static func clear_all(state: BattleState) -> void:
 	sq.put_column(&"reaction", col)
 
 
-## Runs the coming turn on a scratch copy and returns opportunities:
+## Whether `player` sees squad `trigger` now (at Reveal, before the turn
+## runs). A squad can react only to an enemy its player already sees: one
+## still hidden when orders are given is no reaction opportunity.
+static func sees_at_reveal(state: BattleState, player: int, trigger: int) -> bool:
+	var row := state.squads.row_of(trigger)
+	return row >= 0 and state.squads.seen_by[row] & BattleSquads.bit(player) != 0
+
+
+## Runs the coming turn on a scratch copy and returns opportunities (only
+## against triggers the reacting player sees at Reveal, sees_at_reveal):
 ## [{"squad", "player", "trigger", "tick", "reactions": [names]}] in
 ## canonical order (tick, squad ID, trigger ID).
 static func forecast(state: BattleState, sim: BattleSim) -> Array:
@@ -118,7 +127,7 @@ static func forecast(state: BattleState, sim: BattleSim) -> Array:
 			seen["%d,%d" % [b, a]] = true
 			for pair in [[a, b], [b, a]]:
 				var row := sq.row_of(pair[0])
-				if row < 0:
+				if row < 0 or not sees_at_reveal(state, sq.player[row], pair[1]):
 					continue
 				var names := available(state, row)
 				if names.is_empty():

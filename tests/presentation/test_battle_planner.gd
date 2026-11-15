@@ -188,6 +188,8 @@ func test_war_room_reaction_window() -> void:
 				st.units.set_value(st.units.id_at(urow), &"x", st.units.x[urow] + mx)
 				st.units.set_value(st.units.id_at(urow), &"y", st.units.y[urow] + my)
 	Centroids.update(st)
+	VisionSystem.new().run(st)  # sight at Reveal: reactions need it (sw-tz1)
+	st.events.drain()
 	w.end_turn_requested.emit()
 	assert_eq(w.session.clock.phase, PulseClock.Phase.REACTION, "stopped at the window")
 	var opps := w.session.reaction_opportunities(1)

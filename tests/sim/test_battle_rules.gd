@@ -170,6 +170,26 @@ func test_paid_ability_auto_off_at_broken() -> void:
 	assert_eq(s.events.of_type(&"ability_auto_off").size(), 1)
 
 
+## Marks squad `sid` as seen by `player` (as vision would at Reveal).
+func _reveal(s: BattleState, sid: int, player: int) -> void:
+	s.squads.set_value(sid, &"seen_by", s.squads.get_value(sid, &"seen_by") | BattleSquads.bit(player))
+
+
+func test_no_reaction_to_hidden_enemies() -> void:
+	var s := _empty()
+	var sim := BattleSim.new()
+	var a := _place(s, 1, "rifle_squad", 60, 50)
+	var b := _place(s, 2, "rifle_squad", 140, 50)
+	BattleOrders.apply(s, 1, [{"squad": a, "type": "move", "x": 140 * ONE, "y": 50 * ONE}])
+	BattleOrders.apply(s, 2, [{"squad": b, "type": "move", "x": 60 * ONE, "y": 50 * ONE}])
+	assert_eq(Reactions.forecast(s, sim).size(), 0, "they meet this turn, but neither sees the other at Reveal")
+	_reveal(s, b, 1)
+	var opps := Reactions.forecast(s, sim)
+	assert_gt(opps.size(), 0)
+	for o: Dictionary in opps:
+		assert_eq([o["player"], o["squad"], o["trigger"]], [1, a, b], "only player 1, who sees b, may react")
+
+
 func test_reaction_triggers_on_contact() -> void:
 	var s := _empty()
 	var sim := BattleSim.new()
@@ -177,9 +197,12 @@ func test_reaction_triggers_on_contact() -> void:
 	var b := _place(s, 2, "rifle_squad", 140, 50)
 	BattleOrders.apply(s, 1, [{"squad": a, "type": "move", "x": 140 * ONE, "y": 50 * ONE}])
 	BattleOrders.apply(s, 2, [{"squad": b, "type": "move", "x": 60 * ONE, "y": 50 * ONE}])
+	_reveal(s, a, 2)
 	var opportunities := Reactions.forecast(s, sim)
 	var mine := opportunities.filter(func(o: Dictionary) -> bool: return o["player"] == 2)
 	assert_gt(mine.size(), 0, "contact forecast")
+	assert_true(opportunities.all(func(o: Dictionary) -> bool: return o["player"] == 2),
+		"player 1 doesn't see squad b at Reveal: no opportunity against it")
 	assert_true("fall_back" in mine[0]["reactions"])
 	assert_eq(s.tick, 0, "forecast ran on a copy")
 	assert_eq(Reactions.queue(s, b, "fall_back", a), "")

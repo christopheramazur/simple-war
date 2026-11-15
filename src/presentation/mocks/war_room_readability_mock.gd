@@ -68,6 +68,8 @@ static func _reaction(w: WarRoom) -> void:
 				st.units.set_value(st.units.id_at(urow), &"x", st.units.x[urow] + mx)
 				st.units.set_value(st.units.id_at(urow), &"y", st.units.y[urow] + my)
 	Centroids.update(st)
+	VisionSystem.new().run(st)  # sight at Reveal: reactions need it (sw-tz1)
+	st.events.drain()
 	w.end_turn_requested.emit()
 	var pl := w.planner(eid)
 	pl.select(pl.own_squads())

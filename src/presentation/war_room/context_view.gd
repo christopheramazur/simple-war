@@ -91,7 +91,8 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 ## Shows a battle (OverworldSession.observe_battle). `overlay` (all
 ## optional): "selected" (squad IDs), "ghosts" and "contacts"
 ## (IntentForecast), "drafts" (squad ID -> order), "reactable" (squad ID
-## -> queued reaction name or ""), "terrain" (the battle's BattleRules, for
+## -> queued reaction name or ""), "triggers" (reactable squad ID -> the
+## enemy squad IDs it would react to; drawn while it is selected), "terrain" (the battle's BattleRules, for
 ## its terrain), "pending" (drafts are queued until Planning).
 func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 	mode = "battle"
@@ -284,6 +285,17 @@ func _draw_battle() -> void:
 			var mark := "!" if q.is_empty() else ReactionRadial.glyph(q)
 			draw_arc(c, r + 7.0, 0, TAU, 20, SELECT, 1.5)
 			draw_string(font, c + Vector2(r + 6, -r - 4), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, SELECT)
+	# What a selected reactable squad would react to: a line to each
+	# triggering enemy and a ring around it.
+	var triggers: Dictionary = _overlay.get("triggers", {})
+	for id: Variant in selected:
+		if compact or not pos.has(id):
+			continue
+		for t: int in triggers.get(id, []):
+			if pos.has(t):
+				draw_dashed_line(pos[id], pos[t], SELECT, 1.5, 6.0)
+				draw_arc(pos[t], 12.0, 0, TAU, 24, SELECT, 2.0)
+				draw_string(font, pos[t] + Vector2(13, -10), "trigger", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SELECT)
 	for ct: Dictionary in _overlay.get("contacts", []):
 		var id: int = ct["squad"]
 		if ghosts.has(id) and pos.has(id) and not compact:
