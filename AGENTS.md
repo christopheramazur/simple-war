@@ -50,7 +50,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 1. **Who owns what:** for every state variable, know who owns it, who may change it (the owner, via a public method), and who must hear about it (a signal). If you can't answer all three, there's a coupling problem.
 2. **Layer cake:** presentation ← logic ← data (Resources) ← infrastructure (autoloads). Presentation never mutates data. Signals travel up.
 3. **A scoped signal bus per combat.** The global bus is for lifecycle only (`match_started`, `match_ended`).
-4. **`RefCounted` for logic packets, `Resource` for data, `Node` only for spatial or per-frame work.** All gameplay data is in `Resource`s, which is what makes Workshop mods possible.
+4. **`RefCounted` for logic packets, `Resource` for data, `Node` only for spatial or per-frame work.** In practice gameplay data is JSON content packages (`data/packages/`) compiled into packed arrays at load, never `Resource` files or scenes; that is what makes Workshop mods possible without running code.
 5. **Determinism:** same inputs plus same seed gives the same result. Ranked multiplayer depends on it.
 6. **F6 principle:** every scene runs standalone.
 

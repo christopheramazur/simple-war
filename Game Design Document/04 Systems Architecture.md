@@ -12,6 +12,8 @@ simulation            (state stores + systems + event queues; no Nodes, no float
         │
 data                  (immutable template tables from packages)
 ```
+- **Renderer swap** (O1Q3): battles are drawn in 2D first. The map view is kept separate from the panels and reads only observations, so a 3D view can replace it without touching the simulation. Gameplay height would be a rules change (Rules Spec §2.14).
+- **UI foundations** (O1Q4): built on Godot's own features, not new plugins: one `Theme` for colours, fonts and sizes; `TranslationServer` with translation files for every string; `ConfigFile` for saved settings; GUIDE for every key, with none hard-coded; split containers for resizable panels.
 - **Presentation and audio** only listen. They check what they should be doing, and nothing below them cares what they do (R8Q11).
 - **The UI never holds game state.** It emits inputs (AGENTS.md §6).
 
@@ -111,6 +113,13 @@ data                  (immutable template tables from packages)
   - **Triggers:** a map's or scenario's triggers drawn with `custom_graph_editor` (`TriggerGraph`). The nodes are events, triggers, variables, zones and features, and links show what reads or writes what. Selecting a trigger opens its template. The graph is a view; edits happen in the definition text.
   - **Problems:** everything the package would fail to load with.
   - **Dialogue graphs** wait for a dialogue data model (sw-cgl.4).
+- **Map editor** (O1Q6, proposed; not yet built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
+  - **Terrain:** paint cells or hexes from the palette with brush, rectangle, line and fill tools; mirror painting for two-player maps.
+  - **Objects:** place, move and edit zones, deployment areas, pre-placed squads, starts, and overworld features with owners.
+  - **Triggers:** edit a trigger through a form built from the closed vocabulary (pick an event, checks and actions from lists), beside the existing graph view. The definition text stays available.
+  - **Test:** "Play this map" starts a skirmish on it against a chosen AI profile.
+  - **Order of work:** the map format and its loader first, then the terrain painter, then objects, then the trigger form. The panel already runs standalone, which is the path to the later in-game editor (R8Q7).
+  - **Tiled:** an importer from Tiled's format is optional and comes after our own painter. Tiled is never the stored format.
 
 ## 4.10 Addons (R8Q13)
 - **Keep:** dialogic (presentation only), gut (tests), guide (input).

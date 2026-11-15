@@ -27,4 +27,6 @@ In order:
 5. **Legend deep dive** (R2Q7, R5Q6).
 6. **Commander duels** (R7Q2).
 
+**Ownership review (2026-11-15):** the MVP is skirmish against the AI (Vision, Release order). Proposals awaiting review: the map format and editor (Data Model §3.5, Systems Architecture §4.9) and battle space (Rules Spec §2.14). See the decision log, Round O1.
+
 Explicitly later: Morale contagion and battle-event inputs (R5Q3), deeper economy (R5Q11), Lua scripting mods (R6Q25), the in-game player editor (R8Q7), rating models (R7Q10), Dawn of War-style weapon × armour types (R3Q6), wargear logistics (R3Q7).

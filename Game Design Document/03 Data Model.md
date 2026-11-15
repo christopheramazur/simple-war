@@ -76,6 +76,14 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Win condition:** `elimination` (default false) makes the map a skirmish. When every commander of all teams but one has been defeated, that team wins; if the last commanders of every team fall together, the game is a draw. The outcome reads from player 1's view (won, lost or drew) and names its `winner` (0 for a draw). Story maps end through their triggers' `end_mission` instead.
   - **Mirror maps:** `mirror` (default false) makes a fair two-player map. Every pass except `fill`, and every start, is repeated on the hex rotated 180°, with players 1 and 2 swapped, so authors write one half. A scatter's `count` is per side. The height must be even, which makes the rotation an exact hex symmetry (distances are preserved).
   - **Starts:** `starts` lists each player's starting commanders (`player`, `commander`, `col`, `row`). A match's players are those with a start or a pre-owned feature.
+- **Battle map** (`battle_map`, O1Q5, proposed; not yet built): a hand-painted battlefield, separate from the scenario so one map serves several scenarios.
+  - **Size:** `width` × `height` in 1-metre cells.
+  - **Palette:** `palette` maps one character to a terrain feature ID. The palette is per map, so one character per cell is enough (about 90 features on one map).
+  - **Layers:** `layers` is a map of named layers, each a list of `height` strings of `width` characters, one string per row, top row first. `terrain` is required. `elevation` is reserved and unused (Rules Spec §2.14).
+  - **Why text rows:** one line per map row diffs and merges in version control, fits the package loader and schema as they are, and stays pure data for mods.
+  - **Scenario use:** a scenario names its `map`. Zones, deployment areas, pre-placed squads (`placed`: side, squad, x, y) and triggers stay in the scenario. The old `terrain` rectangle list stays valid as a shorthand and is applied before the map's rows.
+- **Painted overworld maps** (O1Q5, proposed; not yet built): an `overworld_map` may add `layers.features`, rows of palette characters with one character per hex, and `objects` (feature, `col`, `row`, `owner`) for features that stack on a hex or have an owner.
+  - **With generation:** `passes` still run first, from the seed; painted hexes then override them. A map with no passes is fully authored; one with no layers is fully generated. A space character leaves the generated hex alone.
 - **Campaign / mission:** missions, scripted triggers, story-essential commanders, carried armies (R2Q1, R2Q13).
 - **Triggers:** the declarative trigger and effect layer, which covers about 90% of campaign scripting. Angel behaviour is data here (R6Q17).
   - **In play (sw-cgl.2):** a `trigger` template has `on` (an event type, or `turn_resolved`), `where` (event fields to match, with `col` + `row` matching the event's plot), `if` (checks, each optionally `not`), `do` (actions) and `max_fires` (default 1; 0 = unlimited).
@@ -89,6 +97,11 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
     - **Overworld:** `add_value`, `add_feature`, `remove_feature`.
     - **Battle:** `unlock_zone`, `lock_zone`, `end_battle`.
   - **Using the event:** a `"$field"` value reads the triggering event's data, e.g. `"player": "$player"`.
+  - **Vocabulary to add for the editor** (O1Q7, proposed; not yet built). The vocabulary stays closed and engine-provided; it grows to what a custom-map author needs:
+    - **Battle actions:** `spawn_squad` (side, squad, at a point or deployment area), `remove_squad`, `order_squad` (an ordinary order, validated like a player's), `apply_bundle` (to a squad or a side), `add_score`, `reveal_area`.
+    - **Overworld actions:** `spawn_commander`, `give_squad`, `give_item`, `set_owner` (a feature), `start_engagement`.
+    - **Checks:** `squads_in_zone`, `squad_alive`, `strength` (a side's remaining strength), `commander_at`.
+    - **Timers:** `after_turns` on a trigger delays its actions by whole turns, counted in the state.
   - **No chains:** triggers see only their own step's events, not the ones their actions make.
   - **State:** variables and fire counts live in the state, so they're saved, hashed and replayed.
   - **Locked zones:** a scenario zone can start `locked`. A locked zone neither accrues influence nor scores until a trigger unlocks it.

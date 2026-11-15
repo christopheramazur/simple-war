@@ -426,3 +426,29 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
   - **Effects held:** stacks, remaining ticks, rules text and accumulator progress, e.g. "Next in 2 hits".
   - **Own squads only:** pools and abilities (state, cooldown, charges, effective costs, rules text).
   - **Visibility:** own squads are always inspectable; enemy squads only while seen. For anyone but the owner, deception-tagged bundles appear as their disguise, in the effects list and in the traces.
+
+## 2.14 Battle space (O1Q8, O1Q9, proposed)
+**Status: proposed by the ownership review, 2026-11-15. Not yet built; awaiting the designer's review.** It fills the gap behind §2.6's "terrain, line of sight and cover apply".
+
+### The grid
+- **Cells:** a battlefield is a grid of 1-metre cells. Each cell holds one terrain feature. Positions stay continuous fixed-point; the grid is what terrain, cover, line of sight and routing read.
+- **Authored maps:** a battlefield's cells come from a painted map (Data Model §3.5).
+
+### Passability
+- **Per movement type:** each movement profile has a cost per terrain feature (R6Q8). A cost of 0 means that movement type can't enter the feature. So a lake stops infantry and not flyers, with no separate rule.
+- **Deployment and orders:** a squad can't deploy on, or be ordered to, a cell its slowest member can't enter. An order to such a point is moved to the nearest cell it can reach.
+
+### Routing
+- **Squads route, units follow.** When an order is applied, the squad plans a route for its formation anchor: the cheapest path for its slowest member's movement type, around impassable terrain and preferring cheaper ground. Units keep steering to their formation slots.
+- **Deterministic:** integer costs only; equal-cost routes are broken by cell index.
+- **Moving targets:** a squad attacking another squad re-plans when its target has moved more than a set distance (data; default 8 m) from where the route was planned to.
+- **Forecasts:** the planning forecast draws the planned route, so the ghost shows the path the squad will take.
+- **Fog:** a route is planned on the true terrain. Battle terrain is never hidden, only squads are.
+
+### What v1 leaves out
+- **Collision:** units and squads don't block each other. Two squads may stand in the same place. This is revisited only if playtests show it reads badly.
+- **Elevation:** there is no height. The map format reserves an elevation layer (Data Model §3.5) so it can be added without a format change. Adding it is a rules decision, not a presentation one.
+- **Formation width:** a route is planned for the anchor point. A wide formation may clip impassable cells at its edges; units there steer back to their slots along the cheapest cells.
+
+### Charges
+A **charge** is an Attack order while the squad is still closing on its target. This is the meaning Intercept (§2.7) already uses. Melee has no rules of its own in v1: a short-range weapon is a weapon with a short range.

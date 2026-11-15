@@ -260,3 +260,20 @@ Research and the full criteria tables: `ai-fitness-criteria-research.md`. The de
 - A2Q8 Masks are part of the genome (what the AI thinks it is scored on), random at birth and rarely mutated; selection always uses the real fitness.
 - A2Q9 Running: `hx factory run --intensity background|normal|max --generations N` (background = 1-2 Godot processes at below-normal priority; max = about 90% of cores). Ctrl+C or `hx factory stop` lets running matches finish, saves the generation and exits; `hx factory resume` continues from the saved generation.
 - A2Q10 A whole factory run is reproducible from its run seed (pairings, mutations, map seeds).
+
+## Ownership review (2026-11-15, sw-6ss)
+New owners took over the project and reviewed the code, then the GDD. "Settled" entries are the owners' decisions. "Proposed" entries are drafted in the documents and await review; they are not decisions yet. The review's notes from before reading the GDD are in `docs/reviews/2026-11-15 pre-GDD review.md`.
+
+### Settled (Round O1)
+- O1Q1 MVP is skirmish against the AI, before Angelfall. Skirmish shows what the rules can carry before a story leans on them, and its maps drive the editor tools that are then used to rework Angelfall. Ranked, networking, Lawbringers and Legend consequences are parked until the MVP is played.
+- O1Q2 The MVP is a complete thin slice: main menu, skirmish setup, the match, results, save and load, replays, and options menus (controls, display and UI scale, language, colours).
+- O1Q3 Start in 2D. The map view is kept separate from the panels so the renderer can be swapped; gameplay height would be a rules change.
+- O1Q4 UI foundations use Godot's built-ins (Theme, TranslationServer, ConfigFile, split containers) and the installed GUIDE addon, not new plugins.
+
+### Proposed (Round O1, awaiting review)
+- O1Q5 Map format: painted maps as JSON templates with a per-map palette and one text row per map row, in named layers (`terrain`; `elevation` reserved). The scenario stays a separate template. Generation passes remain as an optional base layer that painted cells override. This adds hand-authored maps to R3Q13's seeded templates.
+- O1Q6 Map editor: a Maps tab in the War Data screen (terrain painter, objects, trigger form, "Play this map"), built on PackageEditor. Tiled only as a later importer.
+- O1Q7 Trigger vocabulary grows (spawn, remove and order squads, apply bundles, timers, overworld spawns and gifts) but stays closed and engine-provided.
+- O1Q8 Battle space: 1-metre cells; passability per movement type through cost 0; squads route their formation anchor with a deterministic integer search and units follow; no unit collision and no elevation in v1.
+- O1Q9 A charge is an Attack order while closing; melee has no rules of its own in v1.
+- O1Q10 Damage types become tags from the moddable tag registry (E1Q7), replacing the four hard-coded types in the code.

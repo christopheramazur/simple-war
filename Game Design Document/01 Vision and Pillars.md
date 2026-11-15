@@ -27,6 +27,16 @@ Players of Heroes of Might and Magic and Total War (R1Q3). The competitive scene
 - Ranked starts as an **unrated competitive queue** that records results. No rating model, and no disconnect penalties, until usage data justifies them (R7Q10, R8Q8).
 - Single-player data is balanced separately from multiplayer data (R1Q2). Rulesets are pinned for ranked (R3Q12).
 
+## Release order (O1Q1, O1Q2)
+The modes above are the long-term scope. They are built in this order, and each step must be playable before the next starts.
+
+1. **MVP: skirmish against the AI.** One complete thin slice: main menu, skirmish setup (map, seed, opponent profile), a full match on the overworld with its battles, a results screen, save and load, and replays. It includes the options menus (controls, display and UI scale, language, colours), because a slice a player can't configure isn't complete.
+   - **Why first:** skirmish exercises every system without scripted content, so it shows what the rules can carry before a story leans on them. Its maps and scenarios are built with the map editor (Data Model §3.5, Systems Architecture §4.9), which is then used to rework Angelfall.
+2. **Angelfall**, reworked with the editor tools and what skirmish playtests taught.
+3. **Further story missions and the second faction.**
+
+**Parked until the MVP is played:** both ranked modes, all networking (§4.5–4.6 of the Systems Architecture), the results service, Lawbringers, Legend consequences, and further AI factory work beyond keeping it running.
+
 ## Platforms (R8Q9)
 - **Primary:** Windows on Steam.
 - **Design target:** Steam Deck. This means input-agnostic controls and readable UI scale.
