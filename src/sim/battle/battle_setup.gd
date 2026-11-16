@@ -2,6 +2,8 @@ class_name BattleSetup
 extends RefCounted
 ## Builds a fresh BattleState from compiled rules: deploys each side's squads
 ## evenly down its deployment rectangle, in formation. GDD 02 §2.4.
+## Nothing deploys on a cell it can't enter (§2.14): a squad's anchor, and
+## each unit, moves to the nearest cell the squad's slowest member can.
 
 
 static func create(context_id: int, rules: BattleRules, seed_value: int) -> BattleState:
@@ -36,6 +38,9 @@ static func deploy_side(state: BattleState, side: Dictionary) -> PackedInt64Arra
 ## "defense" (template IDs, "" = the unit's own), "bundles"}.
 static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: int, facing: int, units: int = -1, gear: Array = []) -> int:
 	var r := state.rules
+	var anchor := open_point(r, st, ax, ay)
+	ax = anchor[0]
+	ay = anchor[1]
 	var members := r.sq_members[st]
 	if units >= 0 and units < members.size():
 		members = members.slice(0, units)
@@ -72,10 +77,11 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 		var ui := members[slot]
 		var off := Formation.offset(r.sq_shape[st], slot, members.size(), r.sq_spacing[st], facing)
 		var w := weapons[slot]
+		var at := open_point(r, st, Fixed.clamp_fixed(ax + off[0], 0, Fixed.from_int(r.width) - 1),
+			Fixed.clamp_fixed(ay + off[1], 0, Fixed.from_int(r.height) - 1))
 		var uid := state.units.spawn({
 			"squad": sid, "tmpl": ui, "weapon": w, "defense": defenses[slot], "slot": slot,
-			"x": Fixed.clamp_fixed(ax + off[0], 0, Fixed.from_int(r.width) - 1),
-			"y": Fixed.clamp_fixed(ay + off[1], 0, Fixed.from_int(r.height) - 1),
+			"x": at[0], "y": at[1],
 			"facing": facing, "hp": r.ut_hp[ui], "hp_max": r.ut_hp[ui],
 			"ammo": r.wp_magazine[w] if w >= 0 else 0,
 		})
@@ -88,3 +94,44 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 		Effects.apply(state, b, sid)
 	Abilities.spawn_for(state, sid, st)
 	return sid
+
+
+## The point [x, y] (fixed) itself if squad template `st` can stand on its
+## cell, else the centre of the nearest cell it can (ties by cell index).
+## Unchanged if the battlefield has no terrain or no cell is passable.
+static func open_point(r: BattleRules, st: int, x: int, y: int) -> PackedInt64Array:
+	var here := PackedInt64Array([x, y])
+	if r.terrain.size() < r.width * r.height or st < 0 or st >= r.sq_route_class.size():
+		return here
+	var costs: PackedInt32Array = r.rt_cost[r.sq_route_class[st]]
+	var cx := clampi(Fixed.to_int_floor(x), 0, r.width - 1)
+	var cy := clampi(Fixed.to_int_floor(y), 0, r.height - 1)
+	if costs[r.terrain[cy * r.width + cx]] > 0:
+		return here
+	var best := -1
+	var best_d := 0
+	var limit := maxi(r.width, r.height)
+	var ring := 1
+	while ring <= limit:
+		for dy in range(-ring, ring + 1):
+			for dx in range(-ring, ring + 1):
+				if maxi(absi(dx), absi(dy)) != ring:
+					continue
+				var qx := cx + dx
+				var qy := cy + dy
+				if qx < 0 or qy < 0 or qx >= r.width or qy >= r.height or costs[r.terrain[qy * r.width + qx]] <= 0:
+					continue
+				var d := dx * dx + dy * dy
+				var cell := qy * r.width + qx
+				if best < 0 or d < best_d or (d == best_d and cell < best):
+					best = cell
+					best_d = d
+		# A cell on this square ring can be nearer than one on the ring that
+		# first found something only while ring * ring < best_d.
+		if best >= 0 and (ring + 1) * (ring + 1) > best_d:
+			break
+		ring += 1
+	if best < 0:
+		return here
+	@warning_ignore("integer_division")
+	return PackedInt64Array([Fixed.from_int(best % r.width) + Fixed.ONE / 2, Fixed.from_int(best / r.width) + Fixed.ONE / 2])

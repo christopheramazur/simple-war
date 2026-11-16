@@ -434,7 +434,7 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
   - **Visibility:** own squads are always inspectable; enemy squads only while seen. For anyone but the owner, deception-tagged bundles appear as their disguise, in the effects list and in the traces.
 
 ## 2.14 Battle space (O1Q8, O1Q9)
-**Status:** the grid, passability and routing are in play (sw-ll4.2, sw-ll4.4); the owner said to build them on 2026-11-16. Deployment checks and charges are not built. It fills the gap behind §2.6's "terrain, line of sight and cover apply".
+**Status:** the grid, passability and routing are in play (sw-ll4.2, sw-ll4.4); the owner said to build them on 2026-11-16. Deployment is in play too (sw-ll4.15): a squad's anchor and each of its units start on the nearest cell the squad can enter, so a deployment area painted over a wall or water still fields the side. Charges are not built. It fills the gap behind §2.6's "terrain, line of sight and cover apply".
 
 ### The grid
 - **Cells:** a battlefield is a grid of 1-metre cells. Each cell holds one terrain feature. Positions stay continuous fixed-point; the grid is what terrain, cover, line of sight and routing read.

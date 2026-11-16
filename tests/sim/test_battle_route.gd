@@ -178,3 +178,28 @@ func test_impassable_features_compile_to_cost_zero() -> void:
 	for cls in r.rt_cost.size():
 		assert_eq(r.rt_cost[cls][wall], 0)
 	assert_eq(r.rt_cost[0][r.feature_ids.find("open")], 100)
+
+
+## Deployment (§2.14, sw-ll4.15): nothing starts on a cell it can't enter.
+func test_a_squad_never_deploys_inside_a_wall() -> void:
+	var r := _rules([{"feature": "wall", "x": 8, "y": 0, "w": 6, "h": 40}])
+	var st := r.squad_index("rifle_squad")
+	var costs: PackedInt32Array = r.rt_cost[r.sq_route_class[st]]
+	assert_eq(BattleSetup.open_point(r, st, 20 * ONE, 20 * ONE), PackedInt64Array([20 * ONE, 20 * ONE]), "open ground is left alone")
+	# x = 9.5 is one cell from the wall's left edge and four from its right.
+	assert_eq(BattleSetup.open_point(r, st, 9 * ONE + ONE / 2, 20 * ONE), PackedInt64Array([7 * ONE + ONE / 2, 20 * ONE + ONE / 2]))
+	var made := _squad(r, 10, 20)
+	var s: BattleState = made[0]
+	var row := s.squads.row_of(made[1])
+	assert_gt(costs[r.terrain[Fixed.to_int_floor(s.squads.ay[row]) * r.width + Fixed.to_int_floor(s.squads.ax[row])]], 0, "the anchor is on open ground")
+	assert_eq(s.units.count(), 8)
+	for u in s.units.count():
+		var cell := Fixed.to_int_floor(s.units.y[u]) * r.width + Fixed.to_int_floor(s.units.x[u])
+		assert_gt(costs[r.terrain[cell]], 0, "unit %d stands on a cell it can enter" % u)
+	# A deployment area wholly inside the wall still fields the side.
+	var side := {"player": 1, "facing": 0, "deploy": PackedInt64Array([9 * ONE, 5 * ONE, 3 * ONE, 30 * ONE]),
+		"squads": PackedInt64Array([st, st])}
+	var s2 := BattleState.new(2, r, 1)
+	for sid in BattleSetup.deploy_side(s2, side):
+		var srow := s2.squads.row_of(sid)
+		assert_gt(costs[r.terrain[Fixed.to_int_floor(s2.squads.ay[srow]) * r.width + Fixed.to_int_floor(s2.squads.ax[srow])]], 0)
