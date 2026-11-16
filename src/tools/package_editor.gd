@@ -151,6 +151,27 @@ func preview(id: String, text: String, file: String = "") -> PackedStringArray:
 	return out
 
 
+## The package's templates with some definitions replaced or added
+## (`over`: template ID -> definition). Nothing is written or validated;
+## check `is_valid()` and DataSchema.validate on the result.
+func table_with(over: Dictionary) -> TemplateTable:
+	var defs := []
+	var used := {}
+	for rel in files:
+		var data: Variant = JSON.parse_string(_text[rel])
+		for d: Dictionary in (data as Dictionary).get("templates", []):
+			var id := str(d.get("id", ""))
+			if over.has(id):
+				used[id] = true
+				defs.append(over[id])
+			else:
+				defs.append(d)
+	for id: String in over:
+		if not used.has(id):
+			defs.append(over[id])
+	return TemplateTable.build(defs)
+
+
 ## Replaces one template's text in its file. Returns the errors (nothing is
 ## written unless there are none).
 func replace(id: String, text: String) -> PackedStringArray:

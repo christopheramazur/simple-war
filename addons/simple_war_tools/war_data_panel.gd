@@ -55,6 +55,11 @@ func open(dir: String) -> void:
 		select(selected_id)
 
 
+## The Maps tab.
+func painter() -> MapPainter:
+	return _maps
+
+
 ## Opens the Maps tab (the map painter).
 func show_maps() -> void:
 	_tabs.current_tab = _maps.get_index()

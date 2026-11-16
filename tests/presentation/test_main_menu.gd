@@ -109,3 +109,30 @@ func test_the_map_editor_opens_on_the_maps_tab() -> void:
 	assert_not_null(panel)
 	assert_eq(panel._tabs.get_current_tab_control(), panel._maps)
 	assert_true(panel._maps.open_map("crossroads_map"))
+
+
+func test_play_this_map_opens_a_battle_on_the_painted_map() -> void:
+	var screen := MainMenu.editor_screen()
+	add_child_autofree(screen)
+	var panel: WarDataPanel = screen.find_child("WarData", true, false)
+	assert_eq(MainMenu.play_map(screen, panel, "profile_utility"), "Open a map first.")
+	var mp := panel.painter()
+	mp.open_map("field_map")
+	# Unsaved paint is played: a wall across the middle with one gap.
+	var wall := mp.canvas.features.find("wall")
+	mp.canvas.begin()
+	mp.canvas.rect(60, 0, 60, 35, wall, 0)
+	mp.canvas.rect(60, 45, 60, 79, wall, 0)
+	assert_eq(MainMenu.play_map(screen, panel, "profile_utility"), "")
+	var w: WarRoom = screen.find_child("Playtest", false, false).get_child(1)
+	assert_eq(w.session.battles.size(), 1)
+	var b: OverworldBattle = w.session.battles.values()[0]
+	assert_eq([b.rules.width, b.rules.height], [120, 80])
+	assert_eq(b.rules.feature_ids[b.rules.terrain[10 * 120 + 60]], "wall", "the unsaved wall is on the field")
+	assert_eq(Array(b.state.players), [1, 2])
+	assert_eq(w.ai.keys(), [2], "the profile plays player 2")
+	assert_eq(w.contexts.focus, b.engagement, "the room opens on the battle")
+	assert_false(PackageEditor.open("res://data/packages/core").templates.has(MapPlaytest.SCENARIO), "nothing was written")
+	w.end_turn_requested.emit()
+	await get_tree().process_frame
+	assert_true(mp.canvas.dirty, "the editor still holds the unsaved paint")

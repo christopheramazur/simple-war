@@ -52,6 +52,9 @@ const DIM: Color = Color("8a93a3")
 @export_file("*.tscn") var menu_scene: String = "res://src/presentation/main_menu/main_menu.tscn"
 
 var session: OverworldSession
+## With a `session` given: true makes this room end its turns itself (as it
+## does for a session it made), where false leaves that to the owner.
+var drives_turns: bool = false
 ## AI opponents: player -> controller (HeadlessOverworld.plan_for/react_for).
 var ai: Dictionary = {}
 ## "turn:phase" the AI last acted in, so it acts once per phase.
@@ -97,6 +100,8 @@ var _log_turn: int = -1
 func _ready() -> void:
 	if session == null:
 		session = demo_session() if map_id.is_empty() else play_session(map_id, map_seed)
+		end_turn_requested.connect(_end_turn)
+	elif drives_turns:
 		end_turn_requested.connect(_end_turn)
 	if ai.is_empty() and not ai_profile.is_empty():
 		ai = opponents(session, player, ai_profile, map_seed)

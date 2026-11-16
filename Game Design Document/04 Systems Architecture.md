@@ -113,7 +113,7 @@ data                  (immutable template tables from packages)
   - **Triggers:** a map's or scenario's triggers drawn with `custom_graph_editor` (`TriggerGraph`). The nodes are events, triggers, variables, zones and features, and links show what reads or writes what. Selecting a trigger opens its template. The graph is a view; edits happen in the definition text.
   - **Problems:** everything the package would fail to load with.
   - **Dialogue graphs** wait for a dialogue data model (sw-cgl.4).
-- **Map editor** (O1Q6; the terrain painter is in play, sw-ll4.6; objects, the trigger form and "Play this map" are not built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
+- **Map editor** (O1Q6; the terrain painter and "Play this map" are in play, sw-ll4.6; objects and the trigger form are not built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
   - **Terrain:** paint cells or hexes from the feature list with brush, rectangle, line and fill tools; mirror painting for two-player maps. The editor keeps a cell grid while you paint and saves it as the map's shape list (Data Model §3.5): runs of the same feature and facing merged into rectangles, written in row order so files diff.
   - **Stamps:** place another map (a building, a bridge) as one object, move it and turn it in quarter turns. "Save selection as a map" makes a new stamp.
   - **Cell properties:** the selected cells' `facing`, set from the keyboard or a side panel.
@@ -127,6 +127,10 @@ data                  (immutable template tables from packages)
     - **Saving:** new maps are added to a chosen data file; existing ones replace their own text. Fields the editor doesn't know are kept. A map that would break the package (a stamp loop, a scenario zone off a resized map) is refused with the reasons.
     - **Also:** undo and redo (64 steps), resize, change the base, zoom and drag the view. Feature colours come from the feature's `color`.
     - **Not built:** overworld hexes and passes, cell selection, scenario objects drawn over the terrain.
+  - **Play this map, in play:** the main menu's **Map editor** opens the War Data screen on the Maps tab, with an opponent list and a **Play this map** button (`MapPlaytest`).
+    - **What it plays:** a battle on the open map as it is painted at that moment, saved or not, against the chosen controller profile. Nothing is written. "Back to the editor" returns to the map with its unsaved paint.
+    - **How:** a battle map is not a match by itself, so the playtest adds two templates in memory: a scenario on the map and a four-hex overworld whose two commanders meet at once. The scenario takes the core field scenario's rules (`ow_field`), a deployment strip inside the left and right edges, and one zone in the middle. Each side fields a `field_commander`'s battleforce.
+    - **Limits:** the sides, forces, zones and deployment areas are fixed until the objects part of the editor exists. The button is on the in-game screen only, not in the Godot editor plugin.
   - **Order of work:** the map format and its loader first, then the terrain painter, then objects, then the trigger form. The panel already runs standalone, which is the path to the later in-game editor (R8Q7).
   - **Tiled:** an importer from Tiled's format is optional and comes after our own painter. Tiled is never the stored format.
 

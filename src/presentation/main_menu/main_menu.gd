@@ -184,7 +184,8 @@ static func skirmish_room(profile: String, map: String, seed_value: int) -> WarR
 
 
 ## The map editor as a screen: the War Data panel on its Maps tab, with a
-## way back to this menu.
+## way back to this menu and "Play this map" (MapPlaytest) against a chosen
+## controller profile.
 static func editor_screen() -> Control:
 	var root := Control.new()
 	root.name = "MapEditor"
@@ -207,9 +208,70 @@ static func editor_screen() -> Control:
 	bar.add_child(title)
 	var panel := WarDataPanel.new()
 	panel.name = "WarData"
-	panel.ready.connect(panel.show_maps)
+	var opponent := OptionButton.new()
+	opponent.name = "Opponent"
+	opponent.tooltip_text = "The AI that plays player 2 in a playtest"
+	var play := Button.new()
+	play.name = "Play"
+	play.text = "Play this map"
+	play.tooltip_text = "Fight a battle on the open map as it is painted now, saved or not"
+	var said := Label.new()
+	said.name = "Said"
+	said.add_theme_color_override("font_color", Color("e8735f"))
+	bar.add_child(VSeparator.new())
+	bar.add_child(opponent)
+	bar.add_child(play)
+	bar.add_child(said)
+	panel.ready.connect(func() -> void:
+		panel.show_maps()
+		if panel.model.templates != null:
+			for id in panel.model.ids_of("controller_profile"):
+				opponent.add_item(id)
+				if id == "profile_utility":
+					opponent.select(opponent.item_count - 1))
+	play.pressed.connect(func() -> void:
+		var profile := opponent.get_item_text(opponent.selected) if opponent.selected >= 0 else ""
+		said.text = play_map(root, panel, profile))
 	col.add_child(panel)
 	return root
+
+
+## Opens a playtest of the editor's open map over the editor screen `root`.
+## Returns why not, or "".
+static func play_map(root: Control, panel: WarDataPanel, profile: String) -> String:
+	var canvas := panel.painter().canvas
+	if canvas == null:
+		return "Open a map first."
+	var made := MapPlaytest.start(panel.model, canvas)
+	if made["session"] == null:
+		return "Can't play this map: " + "; ".join(made["errors"] as PackedStringArray)
+	var editor := root.get_child(1) as Control
+	var over := VBoxContainer.new()
+	over.name = "Playtest"
+	over.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bar := HBoxContainer.new()
+	over.add_child(bar)
+	var back := Button.new()
+	back.text = "Back to the editor"
+	back.pressed.connect(func() -> void:
+		editor.visible = true
+		over.queue_free())
+	bar.add_child(back)
+	var title := Label.new()
+	title.text = "Playtest: %s%s" % [canvas.name, "  (unsaved changes)" if canvas.dirty else ""]
+	bar.add_child(title)
+	var w: WarRoom = load(WAR_ROOM_SCENE).instantiate()
+	w.session = made["session"]
+	w.drives_turns = true
+	w.ai_profile = profile
+	w.menu_scene = ""
+	w.record_match = false
+	w.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	w.ready.connect(func() -> void: w.contexts.tab_in())
+	over.add_child(w)
+	editor.visible = false
+	root.add_child(over)
+	return ""
 
 
 func start_editor() -> void:
