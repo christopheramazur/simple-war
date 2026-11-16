@@ -39,10 +39,11 @@ const FEATURE_COLORS: Array = [
 	["hex_ore_deposit", Color("75706a")], ["hex_road", Color("8b8476")], ["hex_hills", Color("6e6a52")],
 	["hex_forest", Color("3f5a40")], ["hex_plains", Color("5d6b4c")],
 ]
-## Battle terrain, desaturated so squads stand out (as the replay viewer).
-const BATTLE_TERRAIN: Dictionary = {
-	"open": Color("2f362d"), "road": Color("4a4840"), "forest": Color("223527"), "ruins": Color("3d3a3a"), "wall": Color("8a857c"), "water": Color("1f3a4d"),
-}
+
+## Battle terrain colours: feature ID -> Color, from the content's own
+## `color` (GDD 03 §3.5; `feature_colors`). A feature not listed gets a
+## colour made from its ID, so mod terrain always draws.
+var terrain_colors: Dictionary = {}
 
 ## "overworld", "battle" or "" (nothing yet).
 var mode: String = ""
@@ -78,6 +79,27 @@ var _pressing: bool = false
 var _terrain_rules: BattleRules
 var _terrain_tex: ImageTexture
 var _terrain_names: PackedStringArray = PackedStringArray()
+
+
+## Every feature's colour in a package: its `color`, else one made from
+## its ID (muted, so squads stand out).
+static func feature_colors(t: TemplateTable) -> Dictionary:
+	var out := {}
+	for id in t.ids():
+		if t.kind_of(id) == "feature" and not t.is_abstract(id):
+			out[id] = feature_color(id, t.values_of(id))
+	return out
+
+
+static func feature_color(id: String, values: Dictionary) -> Color:
+	var c := str(values.get("color", ""))
+	if Color.html_is_valid(c):
+		return Color.html(c)
+	return Color.from_hsv(float(absi(id.hash()) % 360) / 360.0, 0.35, 0.45)
+
+
+func _terrain_color(f: String) -> Color:
+	return terrain_colors[f] if terrain_colors.has(f) else feature_color(f, {})
 
 
 func _init() -> void:
@@ -570,9 +592,9 @@ func _terrain_texture(rules: Variant) -> ImageTexture:
 		for x in r.width:
 			var f: String = r.feature_ids[r.terrain[y * r.width + x]]
 			seen[f] = true
-			img.set_pixel(x, y, BATTLE_TERRAIN.get(f, Color("33372f")))
+			img.set_pixel(x, y, _terrain_color(f))
 	_terrain_tex = ImageTexture.create_from_image(img)
-	for f: String in BATTLE_TERRAIN:
+	for f in r.feature_ids:
 		if seen.has(f):
 			_terrain_names.append(f)
 	return _terrain_tex
@@ -582,7 +604,7 @@ func _draw_legend(font: Font, area: Rect2) -> void:
 	var x := area.position.x + 6.0
 	var y := area.end.y - 8.0
 	for f in _terrain_names:
-		draw_rect(Rect2(x, y - 9, 10, 10), BATTLE_TERRAIN[f].lightened(0.15))
+		draw_rect(Rect2(x, y - 9, 10, 10), _terrain_color(f).lightened(0.15))
 		draw_string(font, Vector2(x + 13, y), f, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, TEXT)
 		x += 22.0 + font.get_string_size(f, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 

@@ -13,6 +13,7 @@ simulation            (state stores + systems + event queues; no Nodes, no float
 data                  (immutable template tables from packages)
 ```
 - **Renderer swap** (O1Q3): battles are drawn in 2D first. The map view is kept separate from the panels and reads only observations, so a 3D view can replace it without touching the simulation. Gameplay height would be a rules change (Rules Spec §2.14).
+  - **In play (sw-ll4.8):** `MatchDriver` (API layer) makes the session, seats the AI, ends turns and keeps the match log (`MatchLog` and `EventText` live beside it). The war room wires input and draws. The map view (`ContextView`) takes observations and overlays and reports clicks; the panels are their own classes (`CommandPanel`, `BattlePanel`, `SquadCard`, `PipPanel`, `ControlsHelp`) that emit signals and order nothing themselves. Battle terrain is drawn in each feature's own `color` from the content, so mod terrain needs no code.
 - **UI foundations** (O1Q4): built on Godot's own features, not new plugins: one `Theme` for colours, fonts and sizes; `TranslationServer` with translation files for every string; `ConfigFile` for saved settings; GUIDE for every key, with none hard-coded; split containers for resizable panels.
 - **Presentation and audio** only listen. They check what they should be doing, and nothing below them cares what they do (R8Q11).
 - **The UI never holds game state.** It emits inputs (AGENTS.md §6).

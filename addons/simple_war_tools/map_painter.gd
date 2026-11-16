@@ -197,10 +197,7 @@ func show_cell(cell: Vector2i) -> void:
 
 ## A feature's `color`, or a steady made-up one for features without it.
 static func feature_color(id: String, values: Dictionary) -> Color:
-	var c := str(values.get("color", ""))
-	if Color.html_is_valid(c):
-		return Color.html(c)
-	return Color.from_hsv(float(absi(id.hash()) % 360) / 360.0, 0.35, 0.45)
+	return ContextView.feature_color(id, values)
 
 
 # --- building ------------------------------------------------------------------

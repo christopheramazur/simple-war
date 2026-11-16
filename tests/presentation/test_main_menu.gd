@@ -52,7 +52,7 @@ func test_a_skirmish_ends_with_a_banner() -> void:
 	assert_true(w._banner.visible)
 	assert_string_contains(w._banner_text.text, "Defeat")
 	var turns := w.session.turns_resolved()
-	w._ai_act()
+	w.driver.ai_act()
 	assert_eq(w.session.turns_resolved(), turns)
 
 

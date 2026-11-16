@@ -9,7 +9,7 @@ extends RefCounted
 ##               player's accepted inputs, and everything that happened (all
 ##               events, not just what the player saw)
 ##   match.sav   the replayable OverworldSession save, rewritten each turn
-## Presentation-side and write-only: nothing in the game reads it. Keeps
+## Write-only: nothing in the game reads it. Kept by MatchDriver. Keeps
 ## the newest KEEP matches.
 
 const ROOT := "user://matches"
@@ -139,7 +139,7 @@ func _input_text(i: Dictionary) -> String:
 			for o: Dictionary in d.get("orders", []):
 				var t := String(o.get("type", "?"))
 				if o.has("x"):
-					t += " to (%.0f, %.0f)" % [float(o["x"]) / ContextView.ONE, float(o["y"]) / ContextView.ONE]
+					t += " to (%.0f, %.0f)" % [float(o["x"]) / Fixed.ONE, float(o["y"]) / Fixed.ONE]
 				if o.has("target"):
 					t += " squad %d" % (int(o["target"]) & 0xffff)
 				parts.append("squad %d %s" % [int(o["squad"]) & 0xffff, t])
