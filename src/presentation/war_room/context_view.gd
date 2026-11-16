@@ -34,7 +34,7 @@ const FEATURE_COLORS: Array = [
 ]
 ## Battle terrain, desaturated so squads stand out (as the replay viewer).
 const BATTLE_TERRAIN: Dictionary = {
-	"open": Color("2f362d"), "road": Color("4a4840"), "forest": Color("223527"), "ruins": Color("3d3a3a"),
+	"open": Color("2f362d"), "road": Color("4a4840"), "forest": Color("223527"), "ruins": Color("3d3a3a"), "wall": Color("8a857c"), "water": Color("1f3a4d"),
 }
 
 ## "overworld", "battle" or "" (nothing yet).

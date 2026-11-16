@@ -3,7 +3,9 @@ extends SimSystem
 ## Moves squads and their units. GDD 02 §2.6, R2Q5, R4Q5, R6Q8.
 ##
 ## Each squad has a formation anchor that advances toward its order's
-## destination at the pace of its slowest member (terrain-adjusted). Units
+## destination at the pace of its slowest member (terrain-adjusted). It
+## follows a route around impassable terrain, one straight leg at a time
+## (BattleRoute, §2.14). Units
 ## then steer toward their formation slots with their own speed, acceleration
 ## and turn rate. Running uses the run speed, but its bonus over walking
 ## scales with Stamina relative to Neutral (R4Q5) and running sinks Stamina.
@@ -18,8 +20,49 @@ func system_name() -> StringName:
 
 func run(ctx: SimContext) -> void:
 	var state := ctx as BattleState
+	_plan_routes(state)
 	_move_anchors(state)
 	_move_units(state)
+
+
+## Gives every squad that wants to move the leg it walks this tick. A new
+## leg is planned when the squad has none, when its destination has changed
+## (an attack target must move route_replan first), or when it has walked
+## the leg it had.
+func _plan_routes(state: BattleState) -> void:
+	var r := state.rules
+	var sq := state.squads
+	var route: PackedByteArray = sq.take_column(&"route")
+	var wx: PackedInt64Array = sq.take_column(&"wx")
+	var wy: PackedInt64Array = sq.take_column(&"wy")
+	var rx: PackedInt64Array = sq.take_column(&"rx")
+	var ry: PackedInt64Array = sq.take_column(&"ry")
+	for row in sq.count():
+		if not sq.is_active(row) or sq.alive[row] == 0:
+			continue
+		var dest := _destination(state, row)
+		if dest.is_empty():
+			continue
+		var plan := route[row] == 0
+		if not plan:
+			var drift := Fixed.distance(dest[0], dest[1], rx[row], ry[row])
+			var allowed := r.route_replan if sq.order[row] == BattleSquads.Order.ATTACK else 0
+			plan = drift > allowed
+			if not plan and Fixed.distance(sq.ax[row], sq.ay[row], wx[row], wy[row]) <= ARRIVE:
+				plan = route[row] == 1 or drift > ARRIVE
+		if not plan:
+			continue
+		var leg := r.routes.next_waypoint(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1])
+		wx[row] = leg[0]
+		wy[row] = leg[1]
+		route[row] = 2 if leg[2] == 1 else 1
+		rx[row] = dest[0]
+		ry[row] = dest[1]
+	sq.put_column(&"route", route)
+	sq.put_column(&"wx", wx)
+	sq.put_column(&"wy", wy)
+	sq.put_column(&"rx", rx)
+	sq.put_column(&"ry", ry)
 
 
 func _move_anchors(state: BattleState) -> void:
@@ -34,14 +77,13 @@ func _move_anchors(state: BattleState) -> void:
 		moving[row] = 0
 		if not sq.is_active(row) or sq.alive[row] == 0:
 			continue
-		var dest := _destination(state, row)
-		if dest.is_empty():
+		if _destination(state, row).is_empty():
 			continue
-		var dx := dest[0] - ax[row]
-		var dy := dest[1] - ay[row]
+		var dx := sq.wx[row] - ax[row]
+		var dy := sq.wy[row] - ay[row]
 		var dist := Fixed.length(dx, dy)
 		if dist <= ARRIVE:
-			if sq.order[row] == BattleSquads.Order.WITHDRAW:
+			if sq.order[row] == BattleSquads.Order.WITHDRAW and sq.route[row] == 2:
 				withdrawn_rows.append(row)
 			continue
 		var speed := _squad_speed(state, row, ax[row], ay[row])
@@ -118,7 +160,10 @@ func _unit_max_speed(state: BattleState, srow: int, urow: int, profile: int, fea
 	var r := state.rules
 	var cost := r.mv_cost[profile * r.feature_count() + feature]
 	if cost <= 0:
-		return 0
+		# Routes keep anchors off impassable cells, but units have no
+		# collision in v1 (§2.14), so one can cross a corner of them on the
+		# way to its slot. It keeps its plain speed rather than stall forever.
+		cost = 100
 	# Speeds are stats in m/s; per tick only after modifiers.
 	var walk := Fixed.round_div(Stats.unit(state, urow, &"movement.walk", r.mv_walk_s[profile]), r.tps)
 	var base := walk

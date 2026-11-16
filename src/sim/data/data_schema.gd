@@ -314,6 +314,9 @@ const KINDS: Dictionary = {
 	"feature": {
 		"name": {"type": "string"},
 		"blocks_los": {"type": "bool"},
+		## No movement type can enter it unless its terrain_cost_pct says so
+		## (Rules Spec 2.14): the default cost becomes 0 instead of 100.
+		"impassable": {"type": "bool"},
 		"cover_evasion_pct": {"type": "int", "min": 0, "max": 100},
 		"concealment_pct": {"type": "int", "min": 0, "max": 100},
 	},
@@ -390,6 +393,9 @@ const KINDS: Dictionary = {
 		"morale_interval_ticks": {"type": "int", "min": 1},
 		"morale_rate_per_s": {"type": "fixed"},
 		"morale_leech_pct": {"type": "int", "min": 0, "max": 100},
+		## A squad attacking a moving squad plans a new route when its
+		## target is this far (metres) from where the route led (default 8).
+		"route_replan_m": {"type": "fixed", "min": 0},
 		"pool_defaults": {"type": "map:obj:pool"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},

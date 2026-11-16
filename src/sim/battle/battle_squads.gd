@@ -27,6 +27,14 @@ var run := PackedByteArray()            ## running (sinks Stamina)
 var facing := PackedInt64Array()        ## squad facing, binary angle
 var ax := PackedInt64Array()            ## formation anchor, fixed
 var ay := PackedInt64Array()
+## The route's current leg (BattleRoute): the anchor walks straight to wx, wy.
+## route: 0 none, 1 a waypoint on the way, 2 where it stops. rx, ry: the
+## destination the leg was planned for.
+var route := PackedByteArray()
+var wx := PackedInt64Array()
+var wy := PackedInt64Array()
+var rx := PackedInt64Array()
+var ry := PackedInt64Array()
 var cx := PackedInt64Array()            ## centroid of living units, fixed
 var cy := PackedInt64Array()
 var alive := PackedInt64Array()         ## living units
@@ -60,7 +68,7 @@ func _init() -> void:
 	super(&"squad")
 	for c: StringName in [&"player", &"tmpl", &"order", &"tx", &"ty", &"run", &"facing", &"ax", &"ay",
 			&"cx", &"cy", &"alive", &"hp_max", &"reach", &"hp_lost", &"destroyed", &"withdrawn",
-			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken",
+			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken", &"route", &"wx", &"wy", &"rx", &"ry",
 			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
 			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:
 		declare(c, 0)

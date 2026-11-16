@@ -54,6 +54,18 @@ var mv_turn: PackedInt64Array = PackedInt64Array()
 ## [profile * feature_count + feature] -> cost percent (100 = normal, 0 = impassable).
 var mv_cost: PackedInt64Array = PackedInt64Array()
 
+# --- routing (BattleRoute, Rules Spec 2.14) ---
+var f_impassable: PackedByteArray = PackedByteArray()
+## Route classes: cost per feature for a squad as a whole (what its slowest
+## member pays; 0 if any member can't enter). Squad templates share a class
+## when their costs match.
+var rt_cost: Array[PackedInt32Array] = []
+var sq_route_class: PackedInt64Array = PackedInt64Array()
+## Fixed. How far an attack target may move before the route is planned again.
+var route_replan: int = 8 * Fixed.ONE
+## Plans and caches routes for this battlefield. Not state: see BattleRoute.
+var routes: BattleRoute = BattleRoute.new()
+
 # --- defense profiles ---
 var df_evasion: PackedInt64Array = PackedInt64Array()
 var df_block_chance: PackedInt64Array = PackedInt64Array()
@@ -331,6 +343,7 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	var ab_index := _compile_abilities(t, by_kind.get("ability", PackedStringArray()))
 	var ut_index := _compile_units(t, by_kind.get("unit", PackedStringArray()), mv_index, df_index, wp_index)
 	_compile_squads(t, by_kind.get("squad", PackedStringArray()), ut_index, ab_index)
+	_compile_route_classes()
 	_compile_scenario(t, sc)
 	triggers = TriggerRules.compile(t, PackedStringArray(sc.get("triggers", [])), "battle", zone_ids)
 	errors.append_array(triggers.errors)
@@ -466,6 +479,29 @@ func _blit(grid: Dictionary, at_x: int, at_y: int) -> void:
 				facing[(at_y + gy) * width + at_x + gx] = face[gy * w + gx]
 
 
+func _compile_route_classes() -> void:
+	var known := {}
+	var features := feature_count()
+	for members in sq_members:
+		var costs := PackedInt32Array()
+		costs.resize(features)
+		costs.fill(100)
+		for f in features:
+			var worst := -1
+			for ui in members:
+				var c := mv_cost[ut_movement[ui] * features + f]
+				if c <= 0:
+					worst = 0
+					break
+				worst = maxi(worst, c)
+			if worst >= 0:
+				costs[f] = worst
+		if not known.has(costs):
+			known[costs] = rt_cost.size()
+			rt_cost.append(costs)
+		sq_route_class.append(known[costs])
+
+
 func _bundle_list(v: Dictionary) -> PackedInt64Array:
 	var out := PackedInt64Array()
 	for b: String in v.get("bundles", []):
@@ -482,6 +518,7 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_interval = int(rs.get("morale_interval_ticks", 10))
 	morale_gen = Fixed.round_div(DataSchema.to_fixed(rs.get("morale_rate_per_s"), 0) * morale_interval, tps)
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
+	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
 	_pool_defaults = rs.get("pool_defaults", {})
@@ -495,6 +532,7 @@ func _compile_features(t: TemplateTable, ids: PackedStringArray) -> void:
 		var v := t.values_of(tid)
 		feature_ids.append(tid)
 		f_blocks_los.append(1 if v.get("blocks_los", false) else 0)
+		f_impassable.append(1 if v.get("impassable", false) else 0)
 		f_cover_evasion.append(int(v.get("cover_evasion_pct", 0)))
 		f_concealment.append(int(v.get("concealment_pct", 0)))
 
@@ -509,8 +547,8 @@ func _compile_movement(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 		mv_accel.append(Fixed.round_div(DataSchema.to_fixed(v.get("accel", 1000)), tps * tps))
 		mv_turn.append(maxi(1, Fixed.round_div(int(v.get("turn_deg_per_s", 360)) * Fixed.ANGLE_FULL, 360 * tps)))
 		var costs: Dictionary = v.get("terrain_cost_pct", {})
-		for f in feature_ids:
-			mv_cost.append(int(costs.get(f, 100)))
+		for fi in feature_ids.size():
+			mv_cost.append(int(costs.get(feature_ids[fi], 0 if f_impassable[fi] == 1 else 100)))
 	return index
 
 

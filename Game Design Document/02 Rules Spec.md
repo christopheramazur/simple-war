@@ -6,7 +6,7 @@ The simulation's rules. This document is authoritative over the code: if they di
 - **Determinism** (R1Q7): the same inputs plus the same seed give the same result on every machine. Sim state uses fixed-point integers with **FPDR (Fixed Point Defined Rounding)** (R4Q8). There are no floats in the simulation.
 - **No hidden randomness** (R2Q6): chance is replaced by modifiers and deterministic accumulators ("every Nth hit is a crit", R5Q5). Seeds exist only for content generation (map templates).
 - **Space** (R2Q5): battles use continuous fixed-point space. The overworld is a hex grid; each hex is a **plot** (R3Q22).
-- **Simulation scale** (R1Q9): every model (**Unit**) is simulated. The **Squad** is the command unit. Unit data overrides squad defaults.
+- **Simulation scale** (R1Q9): every model (**Unit**) is simulated. The **Squad** is how units are organized for command. Individual Unit data overrides squad defaults.
 - **Transparency** (R1Q3, R3Q10): every calculation exposes its terms for context-aware tooltips. The displayed number is the used number.
 
 ## 2.2 The turn and the pulse
@@ -15,13 +15,14 @@ The simulation's rules. This document is authoritative over the code: if they di
 - The turn and timing system is isolated, so the overworld and battles can run separately or together (R2Q1).
 
 ### Turn sequence
-1. **Planning** (R3Q1, R4Q3): about 60 s by default, with a reserve top-up. Players issue orders in every context they're in.
+1. **Planning** (R3Q1, R4Q3): about 60 s by default, with a reserve top-up system. Players issue orders in every context they're in.
    - The server forecasts interactions continuously as orders are drafted and keeps a reaction dictionary. Forecasts show *Vacuum* (pending sinks) and intent ghosts (R4Q3, R6Q2).
    - **In play (sw-ip8.3):** `IntentForecast` runs the coming turn on a scratch copy with the player's drafted orders.
      - **Output:** each own squad's path as ghosts, plus the contacts it would make, with the reactions it could use.
-     - **Fog:** enemies the player can't see are taken out of the copy, so the forecast never reveals them. Other players' drafts stay secret, so their squads keep their current orders.
+     - **Fog:** enemies the player can't see yet are taken out of the copy, so the forecast never reveals them. Other players' drafts stay secret, so their squads keep their current orders.
      - **Not yet:** *Vacuum* forecasts.
    - **Parallel-battle bonus** (R4Q2): being in more battles adds planning time, asymptotically: +10 s for the 2nd battle, a little less for each one after, reaching +60 s total at 10 battles, then +1 s per extra battle.
+	- **Configurable**: Parallel activities and their bonuses are configurable, data-driven values.
 2. **Ready / timeout:** final validation of all orders (R4Q3).
 3. **Reveal and reaction window** (R2Q4, R3Q4): the sim pauses after reveal, and players scan all battles and issue reactions.
    - **What a reaction is:** a restricted order, triggered by interactions that the revealed orders create (for example, A and B come into range). It costs the squad and/or the commander.
@@ -30,10 +31,10 @@ The simulation's rules. This document is authoritative over the code: if they di
    - **UI:** a radial popup on reactable squads, plus a scrollable reaction queue.
    - **In play (sw-ip8.3):** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad. A selected reactable squad (clicked, or picked from the queue) shows what it would react to: a dashed line to each triggering enemy, ringed and labelled "trigger".
    - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
-   - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions exist only as upgrades or unit abilities (R2Q4).
+   - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions are intended to exist only as upgrades or unit abilities (R2Q4).
 4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed, and while watching, the overworld is locked. Ranked may skip straight to results (R3Q2).
 5. **Turn summary:** a brief per-turn change summary (R3Q2). After Intermission it collapses to a menu icon, and every past summary stays browsable (R4Q1).
-6. **Intermission** (R4Q1): its own step, without touching reserve. Capped at 30 s (10 s ranked); when at least 50% of players are ready, it drops to 3 s. Legend consequence choices are offered here (R6Q4).
+6. **Intermission** (R4Q1): its own step, without touching reserve. Configured for 30 s (10 s ranked) by default; when at least 50% of players are ready, it drops to 3 s if not already under 3 s. Legend consequence choices are offered here (R6Q4).
 
 ### Cross-context changes
 Cross-context changes (reinforcements, transfers, battle results) apply at fixed pulse points in canonical order (R7Q12, R7Q13).
@@ -427,8 +428,8 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
   - **Own squads only:** pools and abilities (state, cooldown, charges, effective costs, rules text).
   - **Visibility:** own squads are always inspectable; enemy squads only while seen. For anyone but the owner, deception-tagged bundles appear as their disguise, in the effects list and in the traces.
 
-## 2.14 Battle space (O1Q8, O1Q9, proposed)
-**Status: proposed by the ownership review, 2026-11-15. Not yet built; awaiting the designer's review.** It fills the gap behind §2.6's "terrain, line of sight and cover apply".
+## 2.14 Battle space (O1Q8, O1Q9)
+**Status:** the grid, passability and routing are in play (sw-ll4.2, sw-ll4.4); the owner said to build them on 2026-11-16. Deployment checks and charges are not built. It fills the gap behind §2.6's "terrain, line of sight and cover apply".
 
 ### The grid
 - **Cells:** a battlefield is a grid of 1-metre cells. Each cell holds one terrain feature. Positions stay continuous fixed-point; the grid is what terrain, cover, line of sight and routing read.
@@ -442,13 +443,21 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - **Squads route, units follow.** When an order is applied, the squad plans a route for its formation anchor: the cheapest path for its slowest member's movement type, around impassable terrain and preferring cheaper ground. Units keep steering to their formation slots.
 - **Deterministic:** integer costs only; equal-cost routes are broken by cell index.
 - **Moving targets:** a squad attacking another squad re-plans when its target has moved more than a set distance (data; default 8 m) from where the route was planned to.
-- **Forecasts:** the planning forecast draws the planned route, so the ghost shows the path the squad will take.
+- **Forecasts:** the planning forecast runs the same movement, so its ghosts show the route the squad will take.
 - **Fog:** a route is planned on the true terrain. Battle terrain is never hidden, only squads are.
+- **In play (sw-ll4.4):** `BattleRoute` plans on the 1-metre cells, one straight leg at a time.
+  - **Legs:** the squad walks straight to a waypoint and plans the next leg when it gets there. A leg is the farthest point on the cheapest cell path that it can walk straight to at no more cost. On open ground that is the destination itself, so squads move as they did before.
+  - **Costs:** entering a cell costs 10, or 14 diagonally, times the cell's cost for the squad. A squad pays what its slowest member pays, and can't enter what any member can't. Diagonal steps never cut a corner.
+  - **Unreachable points:** the squad goes to the nearest cell it can reach: the closest ring of cells around the point that has one, then the least straight distance, then the lowest cell index.
+  - **A squad standing on an impassable cell** steps out to the nearest passable one first.
+  - **Impassable features:** a feature marked `impassable` costs 0 for every movement type that doesn't list its own cost for it. The core data has `wall` and `water`.
+  - **Not state:** a leg depends only on the map, the squad's costs and the two cells, so plans are cached with the rules and never saved or hashed. The squad's current leg is state.
+  - **Measured** (200 × 100 map, one plan): about 17 ms across open ground with forests, about 48 ms through a comb of walls, 2 µs when cached. A plan happens once per leg, not per tick.
 
 ### What v1 leaves out
 - **Collision:** units and squads don't block each other. Two squads may stand in the same place. This is revisited only if playtests show it reads badly.
 - **Elevation:** there is no height. The map format reserves an elevation layer (Data Model §3.5) so it can be added without a format change. Adding it is a rules decision, not a presentation one.
-- **Formation width:** a route is planned for the anchor point. A wide formation may clip impassable cells at its edges; units there steer back to their slots along the cheapest cells.
+- **Formation width:** a route is planned for the anchor point. A wide formation may clip impassable cells at its edges; units there cross them at their plain speed, since nothing collides in v1.
 
 ### Charges
 A **charge** is an Attack order while the squad is still closing on its target. This is the meaning Intercept (§2.7) already uses. Melee has no rules of its own in v1: a short-range weapon is a weapon with a short range.

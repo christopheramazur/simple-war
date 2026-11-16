@@ -287,3 +287,4 @@ The owner reviewed the proposals, changed the map format and said to start build
   - Walls and doors occupy cells, one feature per cell. Edge walls and a second structure layer are left for later, with elevation.
   - Overworld maps need no new format: their passes are already a shape list.
 - O1Q6 stands, with the editor saving painted cells as merged rectangles and placing stamps as objects.
+- O1Q8 settled and built (sw-ll4.4): squads route on the 1-metre cells, one straight leg at a time. An attacker aims at where its target was until the target has moved 8 m (`route_replan_m`), where it used to follow it every tick.
