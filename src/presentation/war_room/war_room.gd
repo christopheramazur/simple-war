@@ -73,6 +73,9 @@ const DIM: Color = Color("8a93a3")
 ## Take `turn_seconds` from the player's saved settings (GameSettings)
 ## instead; the main menu sets this.
 @export var use_settings: bool = false
+## Save to the "autosave" slot after every resolved turn (the main menu
+## sets this for games started or loaded from it).
+@export var autosave: bool = false
 ## Shown by the "Main menu" button; empty hides it.
 @export_file("*.tscn") var menu_scene: String = "res://src/presentation/main_menu/main_menu.tscn"
 
@@ -135,19 +138,31 @@ var _target: Dictionary = {}
 var _play: Dictionary = {}
 var _blocker: Control
 var _terrain_colors: Dictionary = {}
+## The results screen, while it is open.
+var results: ResultsScreen
+var _results_shown: bool = false
 var _help: Control
 
 
 func _ready() -> void:
-	if session == null:
+	if driver != null:  # a loaded game: its session, AI seats and tallies
+		session = driver.session
+		player = driver.human
+		ai = driver.ai
+		map_id = ""  # no match log for a loaded game
+		end_turn_requested.connect(_end_turn)
+	elif session == null:
 		session = demo_session() if map_id.is_empty() else MatchDriver.play_session(map_id, map_seed)
 		end_turn_requested.connect(_end_turn)
 	elif drives_turns:
 		end_turn_requested.connect(_end_turn)
-	driver = MatchDriver.new(session, player)
+	if driver == null:
+		driver = MatchDriver.new(session, player)
+		driver.meta = {"map": map_id, "seed": map_seed, "profile": ai_profile, "human": player}
 	if ai.is_empty() and not ai_profile.is_empty():
 		ai = MatchDriver.opponents(session, player, ai_profile, map_seed)
 	driver.ai = ai
+	driver.autosave = autosave
 	if record_match and not map_id.is_empty() and match_log == null:
 		match_log = MatchLog.start(session, {"human": player, "opponent": ai_profile if not ai.is_empty() else "story"})
 		if match_log != null:
@@ -367,6 +382,12 @@ func _build_ui() -> void:
 	options.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	options.pressed.connect(func() -> void: OptionsScreen.open_over(self))
 	tools.add_child(options)
+	var save := Button.new()
+	save.text = "Save"
+	save.tooltip_text = "Save the game as it is now. Load it from the main menu."
+	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	save.pressed.connect(save_game)
+	tools.add_child(save)
 	side_col.add_child(tools)
 	if not menu_scene.is_empty() and ResourceLoader.exists(menu_scene):
 		var back := Button.new()
@@ -1137,6 +1158,42 @@ func _refresh_log() -> void:
 			head = "✔ Victory — " if won else ("✖ Defeat — " if outcome["outcome"] != "drew" else "Draw — ")
 		_banner_text.text = head + _say(String(outcome["key"]), String(outcome["text"]))
 		_banner_text.add_theme_color_override("font_color", Color("74d18a") if won else Color("e8735f"))
+		if not _results_shown and _play.is_empty():
+			_results_shown = true
+			_open_results("won" if won else ("drew" if outcome["outcome"] == "drew" else "lost"), _say(String(outcome["key"]), String(outcome["text"])))
+
+
+## The results screen, once, when the match ends.
+func _open_results(result: String, reason: String) -> void:
+	driver.stats["turns"] = session.turns_resolved()
+	var replay := not String(driver.meta.get("map", "")).is_empty() and not String(driver.meta.get("profile", "")).is_empty()
+	results = ResultsScreen.open_over(self, result, reason, driver.stats, player, {
+		"replay": replay, "menu": not menu_scene.is_empty() and ResourceLoader.exists(menu_scene),
+		"note": "" if match_log == null else "Match log: " + match_log.os_path()})
+	results.main_menu.connect(func() -> void: get_tree().change_scene_to_file.call_deferred(menu_scene))
+	results.play_again.connect(play_again)
+
+
+## A new game on the same map, seed and opponent, in place of this one.
+func play_again() -> void:
+	var w := MainMenu.skirmish_room(String(driver.meta["profile"]), String(driver.meta["map"]), int(driver.meta["seed"]))
+	w.use_settings = use_settings
+	w.autosave = autosave
+	w.menu_scene = menu_scene
+	var tree := get_tree()
+	tree.root.add_child.call_deferred(w)
+	tree.set_deferred(&"current_scene", w)
+	queue_free()
+
+
+## Saves the game to a new slot (MatchDriver.save_game). Returns the path
+## or "".
+func save_game() -> String:
+	var path := driver.save_game()
+	_hud_note = "could not save: " + MatchDriver.last_error if path.is_empty() else "saved as " + path.get_file().get_basename()
+	_note(_hud_note)
+	_queue_refresh()
+	return path
 
 
 ## Adds the template of a feature the event names, if the player knows it.

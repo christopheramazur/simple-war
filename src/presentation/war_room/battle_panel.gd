@@ -21,7 +21,7 @@ func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictio
 	var who: Array = scores.keys()
 	who.sort()
 	for p: int in who:
-		var l := _dim("%s:  influence %d  ·  value %d" % [EventText.side(p, player).capitalize(), int(scores[p]["influence"]), int(scores[p]["value"])])
+		var l := _dim("%s:  influence %d  ·  value %d" % [EventText.side(p, player), int(scores[p]["influence"]), int(scores[p]["value"])])
 		l.add_theme_color_override("font_color", ContextView.PLAYER_COLORS.get(p, DIM))
 		add_child(l)
 	for z: Dictionary in obs.get("zones", []):

@@ -139,6 +139,12 @@ func _build_ui() -> void:
 	editor.custom_minimum_size = Vector2(0, 40)
 	editor.pressed.connect(start_editor)
 	col.add_child(editor)
+	var load_game := Button.new()
+	load_game.name = "Load"
+	load_game.text = "Load game"
+	load_game.custom_minimum_size = Vector2(0, 40)
+	load_game.pressed.connect(open_saves)
+	col.add_child(load_game)
 	var options := Button.new()
 	options.name = "Options"
 	options.text = "Options"
@@ -189,6 +195,83 @@ static func skirmish_room(profile: String, map: String, seed_value: int) -> WarR
 	w.map_seed = seed_value
 	w.ai_profile = profile
 	return w
+
+
+## A war room on a saved game (MatchDriver.load_game), or null with the
+## reason in MatchDriver.last_error.
+static func load_room(path: String) -> WarRoom:
+	var driver := MatchDriver.load_game(path)
+	if driver == null:
+		return null
+	var w: WarRoom = load(WAR_ROOM_SCENE).instantiate()
+	w.driver = driver
+	w.ai_profile = String(driver.meta.get("profile", ""))
+	w.map_seed = int(driver.meta.get("seed", 1))
+	return w
+
+
+## The list of saved games, newest first, over the menu. Picking one loads
+## it.
+func open_saves() -> Control:
+	var over := Control.new()
+	over.name = "Saves"
+	over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shade := ColorRect.new()
+	shade.color = Color(0.03, 0.04, 0.05, 0.8)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	over.add_child(shade)
+	var centre := CenterContainer.new()
+	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
+	over.add_child(centre)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(520, 0)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = PANEL
+	sb.set_content_margin_all(24)
+	sb.set_corner_radius_all(6)
+	panel.add_theme_stylebox_override("panel", sb)
+	centre.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	panel.add_child(col)
+	col.add_child(_heading("Load game"))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.name = "List"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+	var said := _dim("")
+	said.add_theme_color_override("font_color", Color("e8735f"))
+	var found := MatchDriver.saves()
+	if found.is_empty():
+		list.add_child(_dim("No saved games yet. A skirmish saves itself every turn, and the war room has a Save button."))
+	for sv: Dictionary in found:
+		var b := Button.new()
+		var map := String(sv["map"])
+		var versus := String(sv["profile"])
+		b.text = "%s  ·  %s, turn %d%s  ·  %s" % ["Autosave" if sv["slot"] == MatchDriver.AUTOSAVE else "Save",
+			_name(map) if _templates != null and _templates.has(map) else map, int(sv["turn"]),
+			"" if versus.is_empty() else " vs " + (_name(versus) if _templates != null and _templates.has(versus) else versus), String(sv["saved"])]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.pressed.connect(func() -> void:
+			var w := load_room(String(sv["path"]))
+			if w == null:
+				said.text = "This save can not be loaded: " + MatchDriver.last_error
+				return
+			w.use_settings = true
+			w.autosave = true
+			_swap_to.call_deferred(w))
+		list.add_child(b)
+	col.add_child(said)
+	var close := Button.new()
+	close.text = "Back"
+	close.pressed.connect(over.queue_free)
+	col.add_child(close)
+	add_child(over)
+	return over
 
 
 ## The map editor as a screen: the War Data panel on its Maps tab, with a
@@ -290,6 +373,7 @@ func start_editor() -> void:
 func start_skirmish(profile: String, map: String, seed_value: int) -> void:
 	var w := skirmish_room(profile, map, seed_value)
 	w.use_settings = true  # turns play out over the player's chosen time
+	w.autosave = true
 	_swap_to.call_deferred(w)
 
 

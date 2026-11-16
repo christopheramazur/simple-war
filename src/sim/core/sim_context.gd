@@ -73,16 +73,19 @@ func begin_turn() -> void:
 	turn_log = []
 
 
-## Full state as plain data, taken at a tick boundary (queues must be empty).
+## Full state as plain data, taken at a tick boundary (no commands waiting).
+## Events still queued are kept: orders given during planning push theirs at
+## once, and they wait there until the turn resolves (sw-007).
 ## Subclasses extend `_snapshot_extra` / `_restore_extra` for their fields.
 func snapshot() -> Dictionary:
-	assert(events.size() == 0 and commands.size() == 0, "SimContext.snapshot: mid-tick")
+	assert(commands.size() == 0, "SimContext.snapshot: mid-tick")
 	var tabs := {}
 	for k: StringName in tables:
 		tabs[String(k)] = (tables[k] as SoaTable).snapshot()
 	var snap := {
 		"id": id, "kind": String(kind), "tick": tick, "bus_seq": _bus_seq,
 		"rng": rng.get_state(), "tables": tabs, "outbox": _events_to_data(_bus_outbox),
+		"events": _events_to_data(events.all()), "event_seq": events.next_seq(),
 	}
 	_snapshot_extra(snap)
 	return snap
@@ -97,6 +100,7 @@ func restore(snap: Dictionary) -> void:
 	for k: StringName in tables:
 		(tables[k] as SoaTable).restore(tabs[String(k)])
 	_bus_outbox = _events_from_data(snap.get("outbox", []))
+	events.restore(_events_from_data(snap.get("events", [])), int(snap.get("event_seq", events.next_seq())))
 	turn_log = []
 	_restore_extra(snap)
 

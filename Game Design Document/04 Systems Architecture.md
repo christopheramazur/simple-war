@@ -115,6 +115,12 @@ data                  (immutable template tables from packages)
   - **Options** (`OptionsScreen`, `GameSettings`; the display part of sw-ll4.10): window mode (windowed, borderless fullscreen, exclusive fullscreen), window size, vsync, UI scale and the playback time, saved in `user://settings.cfg` and applied when the main menu opens. Reached from the main menu and the war room.
   - **Layout:** the side panel scrolls, so its buttons never fall off a 720-pixel window.
   - **Not built:** panning and zooming inside a battle, unit facings (only the squad has one), damage numbers during playback, playback in the Story scene (it still resolves at once).
+- **Skirmish flow (sw-ll4.11):**
+  - **Setup** is the main menu's skirmish block: opponent profile, map and seed.
+  - **Saving:** `MatchDriver.save_game` writes the session's own save with what is being played (map, seed, opponent profile, the human's seat) and the tallies so far to `user://saves/<slot>.sav`. The war room has a **Save** button (a new slot each time), and a game started or loaded from the menu also writes the `autosave` slot after every resolved turn. A save can be taken in any phase but Execute, including mid-planning with orders given: events an order pushed at once are kept in the snapshot (sw-007).
+  - **Loading:** the main menu's **Load game** lists the saves, newest first, and opens the picked one in the war room with the same opponent profile. It refuses a save made with different content. The AI's own memory is not saved: it plans afresh from the loaded state, so a loaded game can go differently from the one that was saved. A loaded game writes no match log.
+  - **Results:** when the match ends, a results screen says who won and why, how many turns and battles it took, and what each side lost (squads, commanders) and took (features), tallied by `MatchDriver` from every turn's events. It offers Play again (same map, seed and opponent), Main menu, and Look at the map.
+  - **Not built:** replays of a whole match from the menu (the match log keeps a replayable `match.sav`; only the battle replay viewer exists), deleting or naming saves, saving a Story mission's progress from its own menu.
 
 ## 4.9 Tools (R8Q7, R8Q6)
 - **Now:** authoring tools are Godot editor plugins and data tools; `custom_graph_editor` is used for trigger and dialogue graphs. Angelfall is built with them.

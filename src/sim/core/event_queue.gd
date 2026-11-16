@@ -38,6 +38,17 @@ func size() -> int:
 	return _events.size()
 
 
+## The sequence number the next event gets.
+func next_seq() -> int:
+	return _next_seq
+
+
+## Puts back queued events and the sequence counter (SimContext.restore).
+func restore(list: Array[SimEvent], seq: int) -> void:
+	_events = list
+	_next_seq = seq
+
+
 ## Removes and returns every queued event, in emission order.
 func drain() -> Array[SimEvent]:
 	var out := _events
