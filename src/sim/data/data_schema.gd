@@ -317,6 +317,8 @@ const KINDS: Dictionary = {
 		## No movement type can enter it unless its terrain_cost_pct says so
 		## (Rules Spec 2.14): the default cost becomes 0 instead of 100.
 		"impassable": {"type": "bool"},
+		## Drawing only: the colour maps and the map editor show it in ("4a4840").
+		"color": {"type": "string"},
 		"cover_evasion_pct": {"type": "int", "min": 0, "max": 100},
 		"concealment_pct": {"type": "int", "min": 0, "max": 100},
 	},

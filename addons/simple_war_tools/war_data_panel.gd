@@ -6,7 +6,8 @@ extends VBoxContainer
 ## set each, and its definition to edit, validated against the whole
 ## package before it is written (PackageEditor). The Triggers tab draws a
 ## map's or scenario's triggers with custom_graph_editor (TriggerGraph);
-## selecting a trigger node opens its template. Problems lists everything
+## selecting a trigger node opens its template. The Maps tab paints battle
+## maps (MapPainter). Problems lists everything
 ## the package would fail to load with. Runs in the editor's main screen
 ## (plugin.gd) and standalone (F6).
 
@@ -32,6 +33,7 @@ var _graph_holder: Control
 var _graph: Control
 var _graph_data: Dictionary = {}
 var _problems: ItemList
+var _maps: MapPainter
 
 
 func _ready() -> void:
@@ -48,6 +50,7 @@ func open(dir: String) -> void:
 	_fill_tree()
 	_fill_owners()
 	_fill_problems()
+	_maps.set_model(model)
 	if not selected_id.is_empty() and model.file_of(selected_id) != "":
 		select(selected_id)
 
@@ -182,6 +185,9 @@ func _build() -> void:
 	_graph_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_graph_holder.clip_contents = true
 	trig.add_child(_graph_holder)
+	_maps = MapPainter.new()
+	_maps.saved.connect(_on_map_saved)
+	_tabs.add_child(_maps)
 	_problems = ItemList.new()
 	_problems.name = "Problems"
 	_tabs.add_child(_problems)
@@ -222,6 +228,13 @@ func _fill_problems() -> void:
 
 func _show(errs: PackedStringArray, ok_text: String) -> void:
 	_result.text = ok_text if errs.is_empty() else "Not saved:\n" + "\n".join(errs)
+
+
+## The painter wrote through `model`, which has reloaded itself.
+func _on_map_saved(_id: String) -> void:
+	_fill_tree()
+	_fill_owners()
+	_fill_problems()
 
 
 func _on_tree_selected() -> void:

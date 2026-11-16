@@ -113,13 +113,20 @@ data                  (immutable template tables from packages)
   - **Triggers:** a map's or scenario's triggers drawn with `custom_graph_editor` (`TriggerGraph`). The nodes are events, triggers, variables, zones and features, and links show what reads or writes what. Selecting a trigger opens its template. The graph is a view; edits happen in the definition text.
   - **Problems:** everything the package would fail to load with.
   - **Dialogue graphs** wait for a dialogue data model (sw-cgl.4).
-- **Map editor** (O1Q6, proposed; not yet built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
+- **Map editor** (O1Q6; the terrain painter is in play, sw-ll4.6; objects, the trigger form and "Play this map" are not built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
   - **Terrain:** paint cells or hexes from the feature list with brush, rectangle, line and fill tools; mirror painting for two-player maps. The editor keeps a cell grid while you paint and saves it as the map's shape list (Data Model §3.5): runs of the same feature and facing merged into rectangles, written in row order so files diff.
-  - **Stamps:** place another map (a building, a bridge) as one object, move it and turn it in quarter turns. "Save selection as a map" makes a new stamp. Hand-written entries the editor did not paint (stamps, large fills) are kept as they are.
+  - **Stamps:** place another map (a building, a bridge) as one object, move it and turn it in quarter turns. "Save selection as a map" makes a new stamp.
   - **Cell properties:** the selected cells' `facing`, set from the keyboard or a side panel.
   - **Objects:** place, move and edit zones, deployment areas, pre-placed squads, starts, and overworld features with owners.
   - **Triggers:** edit a trigger through a form built from the closed vocabulary (pick an event, checks and actions from lists), beside the existing graph view. The definition text stays available.
   - **Test:** "Play this map" starts a skirmish on it against a chosen AI profile.
+  - **In play (sw-ll4.6):** `MapPainter` (the tab) over `MapCanvas` (the model, no UI), for `battle_map` templates.
+    - **Tools:** brush with a size, rectangle, line, fill, pick. The right button paints the base feature. Five mirrors: none, left and right, top and bottom, four ways, half turn; facings flip with them.
+    - **Stamps:** the Stamp tool places the chosen map with a quarter-turn rotation; the right button removes one. Moving a stamp and "Save selection as a map" are not built.
+    - **Layers:** the editor holds one painted layer with the stamps drawn above it. Saving writes the painted layer as merged rectangles, then the stamps, so hand-written fills are merged again (a fill that was one rectangle stays one). A map that fills over a stamp loads with a note and saves with the stamp on top.
+    - **Saving:** new maps are added to a chosen data file; existing ones replace their own text. Fields the editor doesn't know are kept. A map that would break the package (a stamp loop, a scenario zone off a resized map) is refused with the reasons.
+    - **Also:** undo and redo (64 steps), resize, change the base, zoom and drag the view. Feature colours come from the feature's `color`.
+    - **Not built:** overworld hexes and passes, cell selection, scenario objects drawn over the terrain.
   - **Order of work:** the map format and its loader first, then the terrain painter, then objects, then the trigger form. The panel already runs standalone, which is the path to the later in-game editor (R8Q7).
   - **Tiled:** an importer from Tiled's format is optional and comes after our own painter. Tiled is never the stored format.
 
