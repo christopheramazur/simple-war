@@ -40,6 +40,8 @@ var width: int = 0
 var height: int = 0
 ## Feature index per 1x1 cell, row-major.
 var terrain: PackedByteArray = PackedByteArray()
+## Per cell: 0 = no facing, else 1 + index in DataSchema.FACINGS (O1Q11).
+var facing: PackedByteArray = PackedByteArray()
 
 # --- movement profiles ---
 ## Walk / run speeds in metres per second (fixed): the bases of the
@@ -194,6 +196,14 @@ func feature_at(x: int, y: int) -> int:
 	return terrain[cy * width + cx]
 
 
+## The facing painted on the cell under a point: 0 none, else 1 + its index
+## in DataSchema.FACINGS (n, e, s, w). The rules don't read it yet.
+func facing_at(x: int, y: int) -> int:
+	var cx := clampi(Fixed.to_int_floor(x), 0, width - 1)
+	var cy := clampi(Fixed.to_int_floor(y), 0, height - 1)
+	return facing[cy * width + cx]
+
+
 func band_of(value: int, capacity: int) -> int:
 	var pct := Fixed.round_div(value * 100, capacity) if capacity > 0 else 0
 	var band := 0
@@ -207,6 +217,8 @@ func band_of(value: int, capacity: int) -> int:
 ## blocking cells lie strictly between the endpoint cells (so squads can see
 ## a little way into and out of forests and ruins). R3Q8, R8Q1.
 const LOS_DEPTH: int = 2
+## How deep battle-map stamps may nest.
+const MAX_STAMP_DEPTH: int = 3
 ## Within this distance terrain never blocks line of sight (close-quarters
 ## awareness). Concealment still applies to Sight.
 const AWARENESS: int = 8 * Fixed.ONE
@@ -319,9 +331,139 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	var ab_index := _compile_abilities(t, by_kind.get("ability", PackedStringArray()))
 	var ut_index := _compile_units(t, by_kind.get("unit", PackedStringArray()), mv_index, df_index, wp_index)
 	_compile_squads(t, by_kind.get("squad", PackedStringArray()), ut_index, ab_index)
-	_compile_scenario(sc)
+	_compile_scenario(t, sc)
 	triggers = TriggerRules.compile(t, PackedStringArray(sc.get("triggers", [])), "battle", zone_ids)
 	errors.append_array(triggers.errors)
+
+
+## Sizes and fills the terrain from the scenario's `map`, or from its own
+## width, height and terrain_default. False (with an error) if it has neither.
+func _compile_terrain(t: TemplateTable, sc: Dictionary) -> bool:
+	var base := ""
+	var map_id := String(sc.get("map", ""))
+	var before := errors.size()
+	if map_id != "":
+		for f: String in ["width", "height", "terrain_default"]:
+			if sc.has(f):
+				errors.append("scenario '%s': '%s' comes from its map '%s'; remove it" % [scenario_id, f, map_id])
+		var m := t.values_of(map_id)
+		width = int(m["width"])
+		height = int(m["height"])
+		base = m["base"]
+	else:
+		for f: String in ["width", "height", "terrain_default"]:
+			if not sc.has(f):
+				errors.append("scenario '%s': needs a 'map', or '%s'" % [scenario_id, f])
+		if errors.size() > before:
+			return false
+		width = int(sc["width"])
+		height = int(sc["height"])
+		base = sc["terrain_default"]
+	terrain.resize(width * height)
+	terrain.fill(feature_ids.find(base))
+	facing.resize(width * height)
+	facing.fill(0)
+	if map_id != "":
+		var grid := _raster_map(t, map_id, PackedStringArray())
+		if not grid.is_empty():
+			_blit(grid, 0, 0)
+	return true
+
+
+## A battle map's own entries drawn on a grid of its size: {w, h, feature
+## (-1 = not painted, so a stamp leaves what is under it), facing}. Its `base`
+## is not drawn. `chain` is the maps being stamped, outermost first.
+func _raster_map(t: TemplateTable, map_id: String, chain: PackedStringArray) -> Dictionary:
+	if chain.has(map_id):
+		errors.append("battle map '%s' stamps itself (%s)" % [map_id, " > ".join(chain)])
+		return {}
+	if chain.size() > MAX_STAMP_DEPTH:
+		errors.append("battle map stamps nest deeper than %d (%s > %s)" % [MAX_STAMP_DEPTH, " > ".join(chain), map_id])
+		return {}
+	var m := t.values_of(map_id)
+	var w := int(m["width"])
+	var h := int(m["height"])
+	var feat := PackedInt32Array()
+	feat.resize(w * h)
+	feat.fill(-1)
+	var face := PackedByteArray()
+	face.resize(w * h)
+	var inner := chain.duplicate()
+	inner.append(map_id)
+	var cells: Array = m.get("cells", [])
+	for i in cells.size():
+		var c: Dictionary = cells[i]
+		if c.has("feature") == c.has("stamp"):
+			errors.append("battle map '%s': cells/%d needs exactly one of 'feature' and 'stamp'" % [map_id, i])
+			continue
+		if c.has("feature"):
+			_fill(feat, face, w, h, c, feature_ids.find(c["feature"]), DataSchema.FACINGS.find(c.get("facing", "")) + 1)
+			continue
+		var degrees := int(c.get("rotate", 0))
+		if degrees % 90 != 0:
+			errors.append("battle map '%s': cells/%d 'rotate' must be 0, 90, 180 or 270" % [map_id, i])
+			continue
+		var stamp := _raster_map(t, c["stamp"], inner)
+		if stamp.is_empty():
+			continue
+		stamp = _turned(stamp, degrees / 90)
+		var sw: int = stamp["w"]
+		var sfeat: PackedInt32Array = stamp["feature"]
+		var sface: PackedByteArray = stamp["facing"]
+		for sy in int(stamp["h"]):
+			var y := int(c["y"]) + sy
+			if y >= h:
+				break
+			for sx in sw:
+				var x := int(c["x"]) + sx
+				if x < w and sfeat[sy * sw + sx] >= 0:
+					feat[y * w + x] = sfeat[sy * sw + sx]
+					face[y * w + x] = sface[sy * sw + sx]
+	return {"w": w, "h": h, "feature": feat, "facing": face}
+
+
+## Paints one rectangle entry (x, y, optional w and h) onto a grid, clipped
+## to it. `feat` is a PackedByteArray or PackedInt32Array.
+func _fill(feat: Variant, face: PackedByteArray, w: int, h: int, c: Dictionary, feature: int, facing_value: int) -> void:
+	for y in range(int(c["y"]), mini(int(c["y"]) + int(c.get("h", 1)), h)):
+		for x in range(int(c["x"]), mini(int(c["x"]) + int(c.get("w", 1)), w)):
+			feat[y * w + x] = feature
+			face[y * w + x] = facing_value
+
+
+## A raster turned clockwise by quarter turns (y runs down). Facings turn too.
+static func _turned(grid: Dictionary, quarter_turns: int) -> Dictionary:
+	var out := grid
+	for _i in quarter_turns % 4:
+		var w: int = out["w"]
+		var h: int = out["h"]
+		var feat: PackedInt32Array = out["feature"]
+		var face: PackedByteArray = out["facing"]
+		var nfeat := PackedInt32Array()
+		nfeat.resize(w * h)
+		var nface := PackedByteArray()
+		nface.resize(w * h)
+		for y in h:
+			for x in w:
+				# (x, y) goes to (h - 1 - y, x) on a grid h wide and w tall.
+				var to := x * h + (h - 1 - y)
+				nfeat[to] = feat[y * w + x]
+				var f := face[y * w + x]
+				nface[to] = 0 if f == 0 else f % 4 + 1
+		out = {"w": h, "h": w, "feature": nfeat, "facing": nface}
+	return out
+
+
+## Copies a raster's painted cells onto the battlefield at x, y.
+func _blit(grid: Dictionary, at_x: int, at_y: int) -> void:
+	var w: int = grid["w"]
+	var feat: PackedInt32Array = grid["feature"]
+	var face: PackedByteArray = grid["facing"]
+	for gy in int(grid["h"]):
+		for gx in w:
+			if feat[gy * w + gx] >= 0 and at_x + gx < width and at_y + gy < height:
+				terrain[(at_y + gy) * width + at_x + gx] = feat[gy * w + gx]
+				facing[(at_y + gy) * width + at_x + gx] = face[gy * w + gx]
 
 
 func _bundle_list(v: Dictionary) -> PackedInt64Array:
@@ -534,17 +676,12 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 			sq_pool_drift.append(Fixed.round_div(drift_pct * cap, 100 * tps))
 
 
-func _compile_scenario(sc: Dictionary) -> void:
-	width = int(sc["width"])
-	height = int(sc["height"])
+func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 	ticks_per_turn = int(sc["ticks_per_turn"])
-	terrain.resize(width * height)
-	terrain.fill(Array(feature_ids).find(sc["terrain_default"]))
+	if not _compile_terrain(t, sc):
+		return
 	for r: Dictionary in sc.get("terrain", []):
-		var fi := Array(feature_ids).find(r["feature"])
-		for y in range(int(r["y"]), mini(int(r["y"]) + int(r["h"]), height)):
-			for x in range(int(r["x"]), mini(int(r["x"]) + int(r["w"]), width)):
-				terrain[y * width + x] = fi
+		_fill(terrain, facing, width, height, r, feature_ids.find(r["feature"]), 0)
 	for z: Dictionary in sc.get("zones", []):
 		zone_ids.append(z["id"])
 		zn_x.append(DataSchema.to_fixed(z["x"]))

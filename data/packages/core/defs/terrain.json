@@ -3,6 +3,29 @@
 		{"id": "open", "kind": "feature", "values": {"name": "Open ground"}},
 		{"id": "road", "kind": "feature", "values": {"name": "Road"}},
 		{"id": "forest", "kind": "feature", "values": {"name": "Forest", "blocks_los": true, "cover_evasion_pct": 25, "concealment_pct": 40}},
-		{"id": "ruins", "kind": "feature", "values": {"name": "Ruins", "blocks_los": true, "cover_evasion_pct": 40, "concealment_pct": 30}}
+		{"id": "ruins", "kind": "feature", "values": {"name": "Ruins", "blocks_los": true, "cover_evasion_pct": 40, "concealment_pct": 30}},
+		{"id": "ruin_block", "kind": "battle_map", "values": {
+			"name": "Ruined block",
+			"width": 16, "height": 8, "base": "open",
+			"cells": [
+				{"feature": "ruins", "x": 0, "y": 0, "w": 16, "h": 8}
+			]}},
+		{"id": "crossroads_map", "kind": "battle_map", "values": {
+			"name": "Crossroads",
+			"width": 200, "height": 100, "base": "open",
+			"cells": [
+				{"feature": "road", "x": 0, "y": 48, "w": 200, "h": 4, "facing": "e"},
+				{"feature": "forest", "x": 40, "y": 10, "w": 20, "h": 25},
+				{"feature": "forest", "x": 140, "y": 65, "w": 20, "h": 25},
+				{"stamp": "ruin_block", "x": 92, "y": 40},
+				{"stamp": "ruin_block", "x": 92, "y": 52, "rotate": 180}
+			]}},
+		{"id": "field_map", "kind": "battle_map", "values": {
+			"name": "Field",
+			"width": 120, "height": 80, "base": "open",
+			"cells": [
+				{"feature": "forest", "x": 50, "y": 10, "w": 20, "h": 15},
+				{"feature": "ruins", "x": 54, "y": 50, "w": 12, "h": 10}
+			]}}
 	]
 }

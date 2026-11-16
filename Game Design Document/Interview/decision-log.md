@@ -277,3 +277,13 @@ New owners took over the project and reviewed the code, then the GDD. "Settled" 
 - O1Q8 Battle space: 1-metre cells; passability per movement type through cost 0; squads route their formation anchor with a deterministic integer search and units follow; no unit collision and no elevation in v1.
 - O1Q9 A charge is an Attack order while closing; melee has no rules of its own in v1.
 - O1Q10 Damage types become tags from the moddable tag registry (E1Q7), replacing the four hard-coded types in the code.
+
+### Revised and settled (2026-11-16)
+The owner reviewed the proposals, changed the map format and said to start building.
+- O1Q11 (replaces the palette-and-rows draft of O1Q5) A battle map is an ordered list of shapes with explicit coordinates, not painted text rows. Each entry carries its own properties, so an empty map is valid, a door needs no `door_left` and `door_right` palette entries, and buildings are composed rather than enumerated. Built in sw-ll4.2. Details chosen while building:
+  - Rectangles are `x`, `y`, `w`, `h`, as scenario terrain and overworld passes already were, not `x_to`, `y_to`.
+  - One property, `facing` (n, e, s, w), instead of orientation, placement and facing. Compass names stay unambiguous when a map is turned or mirrored. Whether a wall piece is straight, a corner or an end follows from its neighbours and is not authored.
+  - Composition is by stamps: a map placed inside another, turned in quarter turns.
+  - Walls and doors occupy cells, one feature per cell. Edge walls and a second structure layer are left for later, with elevation.
+  - Overworld maps need no new format: their passes are already a shape list.
+- O1Q6 stands, with the editor saving painted cells as merged rectangles and placing stamps as objects.

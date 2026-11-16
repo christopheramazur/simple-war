@@ -114,7 +114,9 @@ data                  (immutable template tables from packages)
   - **Problems:** everything the package would fail to load with.
   - **Dialogue graphs** wait for a dialogue data model (sw-cgl.4).
 - **Map editor** (O1Q6, proposed; not yet built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
-  - **Terrain:** paint cells or hexes from the palette with brush, rectangle, line and fill tools; mirror painting for two-player maps.
+  - **Terrain:** paint cells or hexes from the feature list with brush, rectangle, line and fill tools; mirror painting for two-player maps. The editor keeps a cell grid while you paint and saves it as the map's shape list (Data Model §3.5): runs of the same feature and facing merged into rectangles, written in row order so files diff.
+  - **Stamps:** place another map (a building, a bridge) as one object, move it and turn it in quarter turns. "Save selection as a map" makes a new stamp. Hand-written entries the editor did not paint (stamps, large fills) are kept as they are.
+  - **Cell properties:** the selected cells' `facing`, set from the keyboard or a side panel.
   - **Objects:** place, move and edit zones, deployment areas, pre-placed squads, starts, and overworld features with owners.
   - **Triggers:** edit a trigger through a form built from the closed vocabulary (pick an event, checks and actions from lists), beside the existing graph view. The definition text stays available.
   - **Test:** "Play this map" starts a skirmish on it against a chosen AI profile.

@@ -21,6 +21,9 @@ const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "app
 ## Orders an "order" effect gives its holder (reactions, E3Q7). "attack"
 ## attacks the first squad the effect's target selector picks.
 const ORDERS: Array[String] = ["hold", "fall_back", "attack"]
+## A cell's facing in a battle map; stored per cell as index + 1 (0 = none).
+## In clockwise order, so a quarter turn is +1.
+const FACINGS: Array[String] = ["n", "e", "s", "w"]
 const MOD_KINDS: Array[String] = ["flat", "increased", "more", "override"]
 ## When an effect acts. "while" = continuously (modify); "apply"/"expire" =
 ## once; "every" = periodically; hooks = on that event (depth 1, E2Q5);
@@ -89,6 +92,19 @@ const OBJECTS: Dictionary = {
 		"y": {"type": "int", "required": true, "min": 0},
 		"w": {"type": "int", "required": true, "min": 1},
 		"h": {"type": "int", "required": true, "min": 1},
+	},
+	## One entry of a battle_map's shape list (O1Q11): a fill (`feature`) or
+	## a stamp (another battle_map), at x,y. BattleRules checks that an entry
+	## is exactly one of the two.
+	"map_cell": {
+		"x": {"type": "int", "required": true, "min": 0},
+		"y": {"type": "int", "required": true, "min": 0},
+		"w": {"type": "int", "min": 1},
+		"h": {"type": "int", "min": 1},
+		"feature": {"type": "ref:feature"},
+		"facing": {"type": "string", "enum": FACINGS},
+		"stamp": {"type": "ref:battle_map"},
+		"rotate": {"type": "int", "min": 0, "max": 270},
 	},
 	"zone": {
 		"id": {"type": "string", "required": true},
@@ -516,13 +532,24 @@ const KINDS: Dictionary = {
 		"prefer": {"type": "list:string"},
 		"avoid": {"type": "list:string"},
 	},
+	## A battlefield as an ordered shape list (GDD 03 section 3.5, O1Q11).
+	"battle_map": {
+		"name": {"type": "string"},
+		"width": {"type": "int", "required": true, "min": 1},
+		"height": {"type": "int", "required": true, "min": 1},
+		"base": {"type": "ref:feature", "required": true},
+		"cells": {"type": "list:obj:map_cell"},
+	},
 	"scenario": {
 		"name": {"type": "string"},
 		"ruleset": {"type": "ref:ruleset", "required": true},
-		"width": {"type": "int", "required": true, "min": 1},
-		"height": {"type": "int", "required": true, "min": 1},
+		## Either `map`, or width + height + terrain_default (BattleRules
+		## checks). Inline `terrain` rectangles apply after the map.
+		"map": {"type": "ref:battle_map"},
+		"width": {"type": "int", "min": 1},
+		"height": {"type": "int", "min": 1},
 		"ticks_per_turn": {"type": "int", "required": true, "min": 1},
-		"terrain_default": {"type": "ref:feature", "required": true},
+		"terrain_default": {"type": "ref:feature"},
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},
 		"sides": {"type": "list:obj:side", "required": true},
