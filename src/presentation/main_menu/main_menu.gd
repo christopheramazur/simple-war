@@ -28,6 +28,8 @@ var _error: Label
 
 
 func _ready() -> void:
+	if GameSettings.saved():
+		GameSettings.apply(get_window())
 	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
 	if l.is_valid():
 		_templates = l.templates
@@ -137,6 +139,12 @@ func _build_ui() -> void:
 	editor.custom_minimum_size = Vector2(0, 40)
 	editor.pressed.connect(start_editor)
 	col.add_child(editor)
+	var options := Button.new()
+	options.name = "Options"
+	options.text = "Options"
+	options.custom_minimum_size = Vector2(0, 40)
+	options.pressed.connect(func() -> void: OptionsScreen.open_over(self))
+	col.add_child(options)
 	var quit := Button.new()
 	quit.text = "Quit"
 	quit.pressed.connect(func() -> void: get_tree().quit())
@@ -263,6 +271,7 @@ static func play_map(root: Control, panel: WarDataPanel, profile: String) -> Str
 	var w: WarRoom = load(WAR_ROOM_SCENE).instantiate()
 	w.session = made["session"]
 	w.drives_turns = true
+	w.use_settings = true
 	w.ai_profile = profile
 	w.menu_scene = ""
 	w.record_match = false
@@ -279,7 +288,9 @@ func start_editor() -> void:
 
 
 func start_skirmish(profile: String, map: String, seed_value: int) -> void:
-	_swap_to.call_deferred(skirmish_room(profile, map, seed_value))
+	var w := skirmish_room(profile, map, seed_value)
+	w.use_settings = true  # turns play out over the player's chosen time
+	_swap_to.call_deferred(w)
 
 
 func _swap_to(scene: Node) -> void:

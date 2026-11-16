@@ -51,6 +51,34 @@ static func target(s: OverworldState, did: int) -> int:
 	return s.commanders.plot[cr] if cr >= 0 else -1
 
 
+## Where a convoy walks to this turn. A convoy sent to a plot walks to it.
+## One sent to a commander walks to where that commander's planned route
+## ends this turn (the owner's own plan, so nothing is given away), and is
+## picked up early if the commander passes through its hex on the way
+## (OverworldMovement).
+static func aim(s: OverworldState, did: int) -> int:
+	var d := s.detachments
+	var row := d.row_of(did)
+	if d.dest_plot[row] >= 0:
+		return d.dest_plot[row]
+	var cid := d.dest_commander[row]
+	var cr := s.commanders.row_of(cid)
+	if cr < 0:
+		return -1
+	var at := s.commanders.plot[cr]
+	if s.commanders.engagement[cr] >= 0:
+		return at
+	var budget := Commanders.budget(s, cr)
+	var t := 0
+	for p: int in s.routes.get(cid, PackedInt64Array()):
+		var cost := s.move_cost(p)
+		if cost < 0 or not Hex.adjacent(at, p, s.rules.width) or t + cost > budget:
+			break
+		t += cost
+		at = p
+	return at
+
+
 # --- planning ----------------------------------------------------------------
 
 ## Selects which of an owned feature's production options it makes.
@@ -220,7 +248,7 @@ static func guarded_mask(s: OverworldState, player: int) -> PackedByteArray:
 static func plan(s: OverworldState, did: int, masks: Dictionary) -> Array:
 	var d := s.detachments
 	var row := d.row_of(did)
-	var to := target(s, did)
+	var to := aim(s, did)
 	var player := d.player[row]
 	if to < 0 or to == d.plot[row]:
 		return [PackedInt64Array(), PackedInt64Array()]

@@ -20,7 +20,10 @@ extends RefCounted
 ## detachment dropped where it must fight starts or joins an engagement.
 ## Convoys (Convoys) walk their planned paths on the same timeline, after
 ## commanders at equal times; they stop where an engagement starts or is
-## joined, and on reaching their commander. Afterwards Convoys.settle runs.
+## joined, and on reaching their commander. A convoy sent to a commander
+## walks to where that commander's route ends, and a commander that enters
+## the hex of a convoy sent to it picks it up there and carries on.
+## Afterwards Convoys.settle runs.
 ## Every commander on a hex where an engagement starts or is joined stops
 ## there. A commander that passes through or ends on an unguarded hex takes
 ## its controllable features (R6Q14, R7Q8).
@@ -115,6 +118,9 @@ static func resolve(s: OverworldState) -> void:
 			_stop_all(s, to, moving, cut, last, at_step, convoying)
 		else:
 			arrive(s, row, to)
+			for did in Detachments.at(s, to):
+				if s.detachments.get_value(did, &"dest_commander") == cid and Convoys.deliver(s, did):
+					convoying[did] = false
 			if i == last[cid]:
 				moving[cid] = false  # route finished: being engaged later is not a cut plan
 		OverworldVision.glimpse(s, c.player[row], to, s.rules.cm_sight[c.tmpl[row]])

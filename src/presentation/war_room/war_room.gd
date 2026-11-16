@@ -10,7 +10,23 @@ extends Control
 ## Esc exits a battle, F follows the selected commander, Backspace or a
 ## right click deselects all, mouse wheel zooms (zooming in on a battle hex
 ## enters it), left click selects a commander or hex, Space ends the turn.
-## PiP views: click to swap into the main view, drag to move.
+## PiP views: click to swap into the main view, drag to move. The line at
+## the bottom says what the mouse and keys do right now; "Controls" lists
+## them all.
+##
+## Overworld orders (sw-ll4.19): with a commander selected, the hexes it
+## can enter this turn are lit and numbered with their movement cost, and
+## hovering a hex previews the route. Right click moves there, shift +
+## right click adds a waypoint to the planned route, right click on the
+## commander clears it. A garrison, convoy or producing feature on a
+## selected hex has a "send to" button: the next hex or commander clicked
+## is its destination.
+##
+## Playback (sw-ll4.19): with `turn_seconds` above 0, a resolved turn is
+## played out over that long (commanders and convoys walk their hexes,
+## battles replay tick by tick) before the next Planning is shown. Space or
+## a click skips it. The game itself has already resolved: playback only
+## delays what is drawn.
 ##
 ## Planning in the focused battle (sw-ip8.3, GDD 01 Input and UI, 02 §2.2):
 ## a BattlePlanner per battle keeps the selection, control groups and
@@ -31,6 +47,8 @@ extends Control
 signal end_turn_requested
 
 const SIDE_W: float = 250.0
+const BATTLE_W: float = 290.0
+const HUD_H: float = 62.0
 const PIP_SIZE: Vector2 = Vector2(240, 160)
 const PANEL: Color = Color("1d2128")
 const DIM: Color = Color("8a93a3")
@@ -38,7 +56,9 @@ const DIM: Color = Color("8a93a3")
 @export var player: int = 1
 ## Applied once the demo is built (the mock uses it): "", "battle" (focus
 ## the first battle), "pip" (focus the first, pin the second) or "plan"
-## (focus the first, select its squads and draft a move into a new line).
+## (focus the first, select its squads and draft a move into a new line),
+## "move" (select a free commander on the overworld) or "play" (a battle
+## turn frozen halfway through its playback).
 @export var demo_view: String = ""
 ## A map to play (with no session given): the war room makes its own
 ## session and plays `player` against the map's guards and triggers.
@@ -48,6 +68,11 @@ const DIM: Color = Color("8a93a3")
 ## controller_profile (data, kind controller_profile) through ProfileController,
 ## the same AI the factory evolves.
 @export var ai_profile: String = ""
+## Seconds a resolved turn takes to play out; 0 shows the result at once.
+@export var turn_seconds: float = 0.0
+## Take `turn_seconds` from the player's saved settings (GameSettings)
+## instead; the main menu sets this.
+@export var use_settings: bool = false
 ## Shown by the "Main menu" button; empty hides it.
 @export_file("*.tscn") var menu_scene: String = "res://src/presentation/main_menu/main_menu.tscn"
 
@@ -95,6 +120,21 @@ var _banner_text: Label
 ## Messages from triggers, newest last: [translated text].
 var messages: PackedStringArray = PackedStringArray()
 var _log_turn: int = -1
+## The left column shown in a battle: scores and the squad card.
+var _battle_col: PanelContainer
+var _battle_box: VBoxContainer
+## The squad whose card is shown (clicked), and the one under the cursor.
+var _inspected: int = -1
+var _hovered: int = -1
+var _hover_plot: int = -1
+## Armed "send to": {"kind": "rally" | "line", "id", "what"}; the next hex
+## clicked is the destination.
+var _target: Dictionary = {}
+## The turn being played back ({} when not): {"t", "obs", "walks",
+## "battles", "turn"}.
+var _play: Dictionary = {}
+var _blocker: Control
+var _help: Control
 
 
 func _ready() -> void:
@@ -129,6 +169,23 @@ func _ready() -> void:
 				var pl := planner(contexts.focus)
 				pl.select(pl.own_squads())
 				pl.move_to(pl.selection_centre() + Vector2(35, 8), true)
+		"move":  # the overworld with a free commander selected: its reach
+			for cmd: Dictionary in session.observe(player).get("commanders", []):
+				if cmd["player"] == player and cmd["engagement"] < 0:
+					contexts.select_commander(cmd["id"])
+					break
+		"play":  # a battle turn frozen halfway through its playback
+			if contexts.tab_in():
+				_refresh()
+				var pl := planner(contexts.focus)
+				pl.select(pl.own_squads())
+				pl.move_to(pl.selection_centre() + Vector2(35, 8), true)
+				turn_seconds = 5.0
+				_end_turn()
+				if not _play.is_empty():
+					_play["t"] = 0.5
+					set_process(false)
+	set_process(false)
 	_refresh()
 
 
@@ -181,16 +238,33 @@ func _build_ui() -> void:
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	row.add_theme_constant_override("separation", 0)
 	add_child(row)
+	_battle_col = PanelContainer.new()
+	_battle_col.custom_minimum_size = Vector2(BATTLE_W, 0)
+	var bsb := StyleBoxFlat.new()
+	bsb.bg_color = PANEL
+	bsb.set_content_margin_all(10)
+	_battle_col.add_theme_stylebox_override("panel", bsb)
+	var bscroll := ScrollContainer.new()
+	bscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_battle_box = VBoxContainer.new()
+	_battle_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bscroll.add_child(_battle_box)
+	_battle_col.add_child(bscroll)
+	_battle_col.hide()
+	row.add_child(_battle_col)
 	var stage := Control.new()
 	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(stage)
 	_main = ContextView.new()
 	_main.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_main.offset_bottom = -HUD_H  # the status and hint lines sit under the view
 	_main.hex_clicked.connect(_on_hex_clicked)
 	_main.battle_pressed.connect(_on_battle_pressed)
 	_main.battle_box.connect(_on_battle_box)
 	_main.zoomed.connect(func(f: float) -> void: contexts.zoom_by(f))
+	_main.hex_hovered.connect(_on_hex_hovered)
+	_main.squad_hovered.connect(_on_squad_hovered)
 	stage.add_child(_main)
 	_pip_layer = Control.new()
 	_pip_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -205,8 +279,15 @@ func _build_ui() -> void:
 	add_child(_input)
 	_hud = Label.new()
 	_hud.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_hud.offset_top = -26
-	_hud.add_theme_color_override("font_color", DIM)
+	_hud.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_hud.offset_left = 8
+	_hud.offset_right = -8
+	_hud.offset_bottom = -4
+	_hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hud.add_theme_font_size_override("font_size", 13)
+	_hud.add_theme_color_override("font_color", Color("b9c0cc"))
+	_hud.add_theme_color_override("font_outline_color", Color("12151a"))
+	_hud.add_theme_constant_override("outline_size", 4)
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(_hud)
 	var side := PanelContainer.new()
@@ -216,11 +297,20 @@ func _build_ui() -> void:
 	sb.content_margin_left = 10
 	sb.content_margin_right = 10
 	sb.content_margin_top = 10
+	sb.content_margin_bottom = 8
 	side.add_theme_stylebox_override("panel", sb)
 	row.add_child(side)
+	var side_col := VBoxContainer.new()
+	side_col.add_theme_constant_override("separation", 6)
+	side.add_child(side_col)
+	var side_scroll := ScrollContainer.new()
+	side_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side_col.add_child(side_scroll)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 6)
-	side.add_child(col)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	side_scroll.add_child(col)
 	col.add_child(_title("Battles"))
 	_menu = VBoxContainer.new()
 	col.add_child(_menu)
@@ -231,10 +321,6 @@ func _build_ui() -> void:
 	col.add_child(_commander_box)
 	_orders_box = VBoxContainer.new()
 	col.add_child(_orders_box)
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 180)
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_reactions_box = VBoxContainer.new()
 	_reactions_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_log_box = VBoxContainer.new()
@@ -243,8 +329,7 @@ func _build_ui() -> void:
 	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stack.add_child(_reactions_box)
 	stack.add_child(_log_box)
-	scroll.add_child(stack)
-	col.add_child(scroll)
+	col.add_child(stack)
 	_banner = PanelContainer.new()
 	_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_banner.offset_top = 16
@@ -276,12 +361,79 @@ func _build_ui() -> void:
 	var end := Button.new()
 	end.text = "End turn (Space)"
 	end.pressed.connect(func() -> void: end_turn_requested.emit())
-	col.add_child(end)
+	side_col.add_child(end)
+	var tools := HBoxContainer.new()
+	var controls := Button.new()
+	controls.text = "Controls"
+	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls.pressed.connect(toggle_help)
+	tools.add_child(controls)
+	var options := Button.new()
+	options.text = "Options"
+	options.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	options.pressed.connect(func() -> void: OptionsScreen.open_over(self))
+	tools.add_child(options)
+	side_col.add_child(tools)
 	if not menu_scene.is_empty() and ResourceLoader.exists(menu_scene):
 		var back := Button.new()
 		back.text = "Main menu"
 		back.pressed.connect(func() -> void: get_tree().change_scene_to_file.call_deferred(menu_scene))
-		col.add_child(back)
+		side_col.add_child(back)
+	_blocker = Control.new()
+	_blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	_blocker.gui_input.connect(func(e: InputEvent) -> void:
+		var mb := e as InputEventMouseButton
+		if mb != null and mb.pressed and mb.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+			skip_playback())
+	_blocker.hide()
+	add_child(_blocker)
+
+
+## Every control, by where it works. Shown by the "Controls" button.
+const HELP: Array = [
+	["Anywhere", "Space: end the turn (or skip a turn that is playing out)\nTab / Shift+Tab: next / previous battle\nEsc: leave a battle for the overworld\nMouse wheel: zoom; zooming in on a battle hex enters it\nBackspace: deselect everything"],
+	["Overworld", "Left click: select a commander or a hex (the panel on the right says what is there)\nRight click: move the selected commander there. Lit hexes are in reach this turn; the number is the movement cost\nShift + right click: add a waypoint, so the route goes there next\nRight click the commander itself: clear its route\nF: follow the selected commander\nGarrisons, convoys and producing features: select their hex, press \"Send to\", then click a hex or one of your commanders"],
+	["Battle", "Left click or drag a box: select your squads (Shift adds, Ctrl toggles, double click selects the type)\nLeft click any squad: show its card on the left. Hovering shows its weapon range\nRight click: move the selection there (Alt: in a new line). Right click an enemy: attack it\nH hold · A attack-move (then right click) · B fall back · R run · Shift+W withdraw · Q abilities\n1-9: recall a control group · Ctrl+1-9: make one · Shift+1-9: add to one\nF1-F4: go to a camera bookmark · Ctrl+F1-F4: set one"],
+	["Reaction window", "Marked squads can react to an enemy: click one, or use the Reactions list on the right. Moves are locked until the turn has played"],
+]
+
+
+## Opens or closes the controls list.
+func toggle_help() -> void:
+	if _help != null:
+		_help.queue_free()
+		_help = null
+		return
+	_help = PanelContainer.new()
+	_help.set_anchors_preset(Control.PRESET_CENTER)
+	_help.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_help.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.09, 0.1, 0.13, 0.97)
+	sb.border_color = Color("e6b450")
+	sb.set_border_width_all(1)
+	sb.set_content_margin_all(18)
+	_help.add_theme_stylebox_override("panel", sb)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	_help.add_child(col)
+	for part: Array in HELP:
+		var head := Label.new()
+		head.text = part[0]
+		head.add_theme_color_override("font_color", Color("e6b450"))
+		col.add_child(head)
+		var body := Label.new()
+		body.text = part[1]
+		body.add_theme_font_size_override("font_size", 13)
+		body.custom_minimum_size = Vector2(640, 0)
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(body)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(toggle_help)
+	col.add_child(close)
+	add_child(_help)
 
 
 func _clear(parent: Node) -> void:
@@ -321,17 +473,11 @@ func _refresh() -> void:
 			_forecasts.erase(eid)
 	if session.clock.phase != PulseClock.Phase.REACTION:
 		_radial.hide()
-	if contexts.focus == ViewContexts.OVERWORLD:
-		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts)
-	else:
-		var obs := session.observe_battle(player, contexts.focus)
-		var pl := planner(contexts.focus)
-		pl.sync(obs)
-		_main.title = battle_name(contexts.focus)
-		var fc: Dictionary = _forecasts.get(contexts.focus, {})
-		_main.show_battle(obs, {"selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
-			"contacts": fc.get("contacts", []), "reactable": _reactable(contexts.focus),
-			"triggers": _triggers(contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
+	if not _play.is_empty():
+		_show_play()
+		return
+	_battle_col.visible = contexts.focus != ViewContexts.OVERWORLD
+	_show_main()
 	_refresh_pips()
 	_refresh_menu()
 	_refresh_commanders()
@@ -340,14 +486,144 @@ func _refresh() -> void:
 	_refresh_commander()
 	_refresh_log()
 	_refresh_phase_banner()
-	var where := "Overworld" if contexts.focus == ViewContexts.OVERWORLD else battle_name(contexts.focus)
-	var follow := "" if contexts.followed < 0 else "  ·  following %d" % contexts.followed
-	var armed := "  ·  ATTACK-MOVE: right click a point" if _attack_armed else ""
-	if not _hud_note.is_empty():
-		armed += "  ·  " + _hud_note
-	_hud.text = "  %s%s  ·  %s  ·  zoom %.2f  ·  turn %d%s   [Tab swap · Esc exit · F follow · wheel zoom · Space end turn]" % [
-		where, follow, session.phase_name().capitalize(), contexts.zoom, session.turns_resolved() + 1, armed]
+	_refresh_battle_panel()
+	_refresh_hud()
 
+
+## Draws the focused context into the main view (cheap: no panels).
+func _show_main() -> void:
+	if contexts.focus == ViewContexts.OVERWORLD:
+		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts, _overworld_extra())
+		return
+	var obs := session.observe_battle(player, contexts.focus)
+	var pl := planner(contexts.focus)
+	pl.sync(obs)
+	_main.title = battle_name(contexts.focus)
+	var fc: Dictionary = _forecasts.get(contexts.focus, {})
+	_main.show_battle(obs, {"selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
+		"contacts": fc.get("contacts", []), "reactable": _reactable(contexts.focus), "inspected": _inspected,
+		"triggers": _triggers(contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
+
+
+## The status line and what the mouse and keys do right now.
+func _refresh_hud() -> void:
+	var where := "Overworld" if contexts.focus == ViewContexts.OVERWORLD else battle_name(contexts.focus)
+	var status := "%s  ·  %s  ·  turn %d" % [where, session.phase_name().capitalize(), session.turns_resolved() + 1]
+	if contexts.followed >= 0:
+		status += "  ·  following commander %d" % (contexts.followed & 0xffff)
+	if not _hud_note.is_empty():
+		status += "  ·  " + _hud_note
+	_hud.text = "%s\n%s" % [status, hints()]
+
+
+## What the mouse and keys do in the present context, in one line.
+func hints() -> String:
+	if not _play.is_empty():
+		return "Turn %d is playing out.  Space or click: skip to the end" % int(_play["turn"])
+	if not _target.is_empty():
+		return "Click the hex or one of your commanders to send %s there.  Right click or Esc: cancel" % _target["what"]
+	if contexts.focus == ViewContexts.OVERWORLD:
+		if _own_selected() >= 0:
+			return "Right click: move there (lit hexes are in reach; numbers are movement cost)  ·  Shift+right click: add a waypoint  ·  Right click the commander: clear its route  ·  F: follow  ·  Space: end turn"
+		return "Left click: select a commander or a hex  ·  Wheel: zoom (zoom into a battle to enter it)  ·  Tab: go to a battle  ·  Space: end turn"
+	if session.clock.phase == PulseClock.Phase.REACTION:
+		return "Reaction window: click a marked squad to react  ·  Space: play the turn"
+	var pl := _focused_planner()
+	if _attack_armed:
+		return "ATTACK-MOVE: right click where to go; the squads fight what they meet"
+	if pl != null and not pl.selection.is_empty():
+		return "Right click: move  ·  Right click an enemy: attack  ·  Alt+right click: new line  ·  H hold  ·  A attack-move  ·  B fall back  ·  R run  ·  Ctrl+1-9: make a group  ·  Space: end turn"
+	return "Left click or drag: select squads  ·  Click any squad: its card  ·  Hover: weapon range  ·  Tab: next battle  ·  Esc: overworld  ·  Space: end turn"
+
+
+## Reach, movement points and the hovered route for the selected commander.
+func _overworld_extra() -> Dictionary:
+	var cid := _own_selected()
+	if cid < 0 or session.clock.phase != PulseClock.Phase.PLANNING:
+		return {}
+	var reach := session.reach(player, cid)
+	var out := {"reach": reach.get("reach", {}), "budget": reach.get("budget", 0), "spent": reach.get("spent", 0)}
+	var here: int = session.state.commanders.get_value(cid, &"plot")
+	if _hover_plot >= 0 and _hover_plot != here and (reach["reach"] as Dictionary).size() > 0:
+		var via := _route_of(cid) if Input.is_key_pressed(KEY_SHIFT) else PackedInt64Array()
+		var path := session.path(player, cid, _hover_plot, via)
+		var costs := 0
+		var known: Dictionary = reach["reach"]
+		var obs_costs := session.observe(player)
+		for p in path:
+			costs += _step_cost(p, known, obs_costs)
+		out["preview"] = path
+		out["preview_to"] = _hover_plot
+		out["preview_from"] = here
+		out["preview_cost"] = costs
+	return out
+
+
+## The movement cost of entering a plot, as the player knows it.
+func _step_cost(p: int, _known: Dictionary, _obs: Dictionary) -> int:
+	return maxi(OverworldVision.known_costs(session.state, player)[p], 0)
+
+
+## The selected commander's planned route.
+func _route_of(cid: int) -> PackedInt64Array:
+	return (session.observe(player).get("routes", {}) as Dictionary).get(cid, PackedInt64Array())
+
+
+func _on_hex_hovered(p: int) -> void:
+	_hover_plot = p
+	if _play.is_empty() and contexts.focus == ViewContexts.OVERWORLD and _own_selected() >= 0:
+		_show_main()
+
+
+func _on_squad_hovered(id: int) -> void:
+	_hovered = id
+	if _play.is_empty():
+		_refresh_battle_panel()
+
+
+## The squad whose card is shown: the one clicked, else the first selected,
+## else the one under the cursor. -1 if none of them is in sight.
+func card_squad() -> int:
+	var eid := contexts.focus
+	if eid == ViewContexts.OVERWORLD:
+		return -1
+	var known := {}
+	for sq: Dictionary in session.observe_battle(player, eid).get("squads", []):
+		if not (sq.get("destroyed", false) or sq.get("withdrawn", false)):
+			known[sq["id"]] = true
+	var pl := planner(eid)
+	for id: int in [_inspected, pl.selection[0] if not pl.selection.is_empty() else -1, _hovered]:
+		if known.has(id):
+			return id
+	return -1
+
+
+## The battle panel: the scores, the zones, and the squad card.
+func _refresh_battle_panel() -> void:
+	_clear(_battle_box)
+	var eid := contexts.focus
+	if eid == ViewContexts.OVERWORLD or not session.battles.has(eid):
+		return
+	var obs := session.observe_battle(player, eid)
+	_battle_box.add_child(_title("%s  ·  battle turn %d" % [battle_name(eid), int(obs.get("turn", 1))]))
+	var scores: Dictionary = obs.get("scores", {})
+	var who: Array = scores.keys()
+	who.sort()
+	for p: int in who:
+		var l := _dim_label("%s:  influence %d  ·  value %d" % [EventText.side(p, player).capitalize(), int(scores[p]["influence"]), int(scores[p]["value"])])
+		l.add_theme_color_override("font_color", ContextView.PLAYER_COLORS.get(p, DIM))
+		_battle_box.add_child(l)
+	for z: Dictionary in obs.get("zones", []):
+		var owner := int(z["owner"])
+		_battle_box.add_child(_dim_label("Zone %s: %s (%d of %d)" % [z["id"], "nobody" if owner == 0 else EventText.side(owner, player),
+			int(z["amount"]), int(z["threshold"])]))
+	_battle_box.add_child(HSeparator.new())
+	var id := card_squad()
+	if id < 0:
+		_battle_box.add_child(_dim_label("Click a squad to see its strength, weapons and range. Hovering one shows how far its weapons reach."))
+		return
+	var r := _battle_rules(eid)
+	_battle_box.add_child(SquadCard.build(_squad_obs(eid, id), session.inspect_battle(player, eid, id), player, r.tps if r != null else 10))
 
 ## A battle's public rules (its battlefield and terrain), or null.
 func _battle_rules(eid: int) -> BattleRules:
@@ -429,10 +705,21 @@ func _refresh_commanders() -> void:
 
 # --- input ---------------------------------------------------------------------
 
-func _on_hex_clicked(p: int, button: int) -> void:
+func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
+	if not _target.is_empty():
+		if p >= 0 and button == MOUSE_BUTTON_LEFT:
+			send_to(p)
+		else:
+			_target = {}
+			_queue_refresh()
+		return
 	if button == MOUSE_BUTTON_RIGHT:
-		if _own_selected() >= 0 and p >= 0:
-			route_to(p)
+		var cid := _own_selected()
+		if cid >= 0 and p >= 0:
+			if p == session.state.commanders.get_value(cid, &"plot") and not shift:
+				clear_route()
+			else:
+				route_to(p, shift)
 		else:
 			contexts.deselect_all()
 		return
@@ -532,6 +819,9 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 	if pl == null:
 		return
 	var hit := _main.squad_at(at)
+	if button == MOUSE_BUTTON_LEFT and (hit >= 0 or not (shift or ctrl)):
+		_inspected = hit  # any squad in sight: its card (empty ground closes it)
+		_queue_refresh()
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		if button == MOUSE_BUTTON_LEFT and hit >= 0:
 			if pl.own_squads().has(hit):
@@ -546,7 +836,7 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 				pl.select_type(hit, Rect2(Vector2.ZERO, Vector2(1e9, 1e9)), shift)
 			else:
 				pl.select([hit], shift, ctrl)
-		elif not shift and not ctrl:
+		elif hit < 0 and not shift and not ctrl:
 			pl.deselect()
 		return
 	if button != MOUSE_BUTTON_RIGHT:
@@ -733,13 +1023,24 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_TAB:
 			contexts.cycle(-1 if k.shift_pressed else 1)
 		KEY_ESCAPE:
-			contexts.exit()
+			if _help != null:
+				toggle_help()
+			elif not _target.is_empty():
+				_target = {}
+				_queue_refresh()
+			elif not _play.is_empty():
+				skip_playback()
+			else:
+				contexts.exit()
 		KEY_F:
 			contexts.follow()
 		KEY_BACKSPACE:
 			contexts.deselect_all()
 		KEY_SPACE:
-			end_turn_requested.emit()
+			if not _play.is_empty():
+				skip_playback()
+			else:
+				end_turn_requested.emit()
 		_:
 			return
 	get_viewport().set_input_as_handled()
@@ -756,17 +1057,68 @@ func _own_selected() -> int:
 
 
 ## Routes the selected commander toward a hex (as far as it gets this
-## turn, by the cheapest way the player knows). "" or why not.
-func route_to(p: int) -> String:
+## turn, by the cheapest way the player knows). With `append`, the hex is a
+## waypoint: the way there starts where the planned route ends. "" or why
+## not.
+func route_to(p: int, append: bool = false) -> String:
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
-	var path := session.path(player, cid, p)
-	var here := p == session.state.commanders.get_value(cid, &"plot")
-	var err := ("already there" if here else "no way there") if path.is_empty() else session.set_route(player, cid, path)
+	var via := _route_of(cid) if append else PackedInt64Array()
+	var path := session.path(player, cid, p, via)
+	var from: int = via[via.size() - 1] if not via.is_empty() else session.state.commanders.get_value(cid, &"plot")
+	var err := ""
+	if path.is_empty():
+		err = "already there" if p == from else "no way there"
+	elif path.size() == via.size():
+		err = "no movement left this turn for another waypoint"
+	else:
+		err = session.set_route(player, cid, path)
 	_hud_note = err
 	var reach := "" if path.is_empty() or path[path.size() - 1] == p else " (gets to %s this turn)" % EventText.hex(path[path.size() - 1], session.rules)
-	_note("route %s to %s%s" % [EventText.commander(cid), EventText.hex(p, session.rules), (" - refused: " + err) if not err.is_empty() else reach])
+	_note("%s %s to %s%s" % ["waypoint for" if append else "route", EventText.commander(cid), EventText.hex(p, session.rules),
+		(" - refused: " + err) if not err.is_empty() else reach])
+	_queue_refresh()
+	return err
+
+
+## Clears the selected commander's route. "" or why not.
+func clear_route() -> String:
+	var cid := _own_selected()
+	if cid < 0:
+		return "no commander selected"
+	_hud_note = session.set_route(player, cid, PackedInt64Array())
+	_note("route of %s cleared%s" % [EventText.commander(cid), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
+	_queue_refresh()
+	return _hud_note
+
+
+## Arms "send to" for a detachment ("rally") or a producing feature's
+## output ("line"): the next hex clicked is where it goes.
+func arm_target(kind: String, id: int, what: String) -> void:
+	_target = {"kind": kind, "id": id, "what": what}
+	_hud_note = ""
+	_queue_refresh()
+
+
+## Sends the armed detachment or supply line to plot p, or to the player's
+## commander standing on it. "" or why not.
+func send_to(p: int) -> String:
+	if _target.is_empty():
+		return "nothing to send"
+	var cid := -1
+	for cmd: Dictionary in session.observe(player).get("commanders", []):
+		if cmd["plot"] == p and cmd["player"] == player:
+			cid = cmd["id"]
+	var err := ""
+	if _target["kind"] == "rally":
+		err = session.rally(player, _target["id"], -1 if cid >= 0 else p, cid)
+	else:
+		err = session.set_supply_line(player, _target["id"], -1 if cid >= 0 else p, cid)
+	var dest := EventText.commander(cid) if cid >= 0 else EventText.hex(p, session.rules)
+	_note("send %s to %s%s" % [_target["what"], dest, "" if err.is_empty() else " - refused: " + err])
+	_hud_note = err if not err.is_empty() else "%s goes to %s" % [String(_target["what"]).capitalize(), dest]
+	_target = {}
 	_queue_refresh()
 	return err
 
@@ -804,6 +1156,7 @@ func _refresh_commander() -> void:
 	_army_info(me, obs)
 	if session.clock.phase != PulseClock.Phase.PLANNING:
 		return
+	_movement_info(me, obs)
 	_commander_box.add_child(_title("Commander %d: battleforce" % (cid & 0xffff)))
 	var plan: Dictionary = me.get("battleforce_plan", {})
 	var pick := OptionButton.new()
@@ -842,6 +1195,43 @@ func _refresh_commander() -> void:
 		b.pressed.connect(func() -> void:
 			_hud_note = session.set_supply_line(player, fid, -1, cid)
 			_note("supply line: %s sends to %s%s" % [name, EventText.commander(cid), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
+			_queue_refresh())
+		_commander_box.add_child(b)
+
+
+## The selected commander's movement points and route, and the player's
+## garrisons and convoys elsewhere that it can call to itself.
+func _movement_info(me: Dictionary, obs: Dictionary) -> void:
+	var cid := int(me["id"])
+	var reach := session.reach(player, cid)
+	var route := _route_of(cid)
+	_commander_box.add_child(_title("Movement"))
+	if int(me["engagement"]) >= 0:
+		_commander_box.add_child(_dim_label("In a battle: it can't move until the battle ends."))
+	else:
+		_commander_box.add_child(_dim_label("%d of %d movement points planned. Right click a lit hex to move; Shift+right click adds a waypoint." % [
+			int(reach.get("spent", 0)), int(reach.get("budget", 0))]))
+	if not route.is_empty():
+		var clear := Button.new()
+		clear.text = "Clear route (%d hex%s)" % [route.size(), "" if route.size() == 1 else "es"]
+		clear.pressed.connect(clear_route)
+		_commander_box.add_child(clear)
+	for det: Dictionary in obs.get("detachments", []):
+		if int(det["player"]) != player or int(det["engagement"]) >= 0 or int(det["plot"]) == int(me["plot"]):
+			continue
+		var n := (det.get("squads", []) as Array).size()
+		if n == 0:
+			continue
+		var what := "%s at %s (%d squad%s)" % ["convoy" if bool(det["convoy"]) else "garrison", EventText.hex(int(det["plot"]), session.rules), n, "" if n == 1 else "s"]
+		if int(det.get("dest_commander", -1)) == cid:
+			_commander_box.add_child(_dim_label("On its way here: " + what))
+			continue
+		var b := Button.new()
+		b.text = "Call here: " + what
+		b.tooltip_text = "It becomes a convoy that walks to where this commander's route ends each turn, and joins the army when they meet."
+		b.pressed.connect(func() -> void:
+			_hud_note = session.rally(player, int(det["id"]), -1, cid)
+			_note("call %s to %s%s" % [what, EventText.commander(cid), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
 			_queue_refresh())
 		_commander_box.add_child(b)
 
@@ -963,6 +1353,8 @@ func _hex_info(obs: Dictionary) -> void:
 		var name := r.hf_names[t] if t >= 0 and t < r.hf_names.size() else "feature"
 		var owner := int(f.get("owner", 0))
 		_commander_box.add_child(_dim_label("  %s%s" % [name, "" if owner <= 0 else " · " + EventText.side(owner, player)]))
+		if (obs.get("production", {}) as Dictionary).has(int(f["id"])) and session.clock.phase == PulseClock.Phase.PLANNING:
+			_line_buttons(int(f["id"]), name, obs)
 	for det: Dictionary in obs.get("detachments", []):
 		if int(det["plot"]) != p:
 			continue
@@ -976,10 +1368,51 @@ func _hex_info(obs: Dictionary) -> void:
 			elif int(det.get("dest_plot", -1)) >= 0:
 				dest = " to " + EventText.hex(int(det["dest_plot"]), r)
 			_commander_box.add_child(_dim_label("  Your %s%s: %s" % [what, dest, ", ".join(names) if not names.is_empty() else "empty"]))
+			if int(det["engagement"]) < 0 and session.clock.phase == PulseClock.Phase.PLANNING and not names.is_empty():
+				var row := HBoxContainer.new()
+				var send := Button.new()
+				send.text = "Send this %s to…" % what
+				send.tooltip_text = "Then click a hex, or one of your commanders to have it join that army."
+				send.pressed.connect(arm_target.bind("rally", int(det["id"]), "the " + what))
+				row.add_child(send)
+				if bool(det["convoy"]):
+					var halt := Button.new()
+					halt.text = "Halt"
+					halt.pressed.connect(func() -> void:
+						_hud_note = session.rally(player, int(det["id"]), -1, -1)
+						_queue_refresh())
+					row.add_child(halt)
+				_commander_box.add_child(row)
 		else:
 			_commander_box.add_child(_dim_label("  %s %s" % [EventText.side(int(det["player"]), player), what]))
 	if not plot.get("visible", true):
 		_commander_box.add_child(_dim_label("  (last seen; not in sight now)"))
+
+
+## A producing feature's rally point: where its output is sent, and the
+## buttons to set or clear it.
+func _line_buttons(fid: int, name: String, obs: Dictionary) -> void:
+	var line: Dictionary = (obs.get("supply_lines", {}) as Dictionary).get(fid, {})
+	var where := "stays here as a garrison"
+	if int(line.get("commander", -1)) >= 0:
+		where = "goes to " + EventText.commander(int(line["commander"]))
+	elif int(line.get("plot", -1)) >= 0:
+		where = "goes to " + EventText.hex(int(line["plot"]), session.rules)
+	_commander_box.add_child(_dim_label("    What it makes " + where + "."))
+	var row := HBoxContainer.new()
+	var send := Button.new()
+	send.text = "Set rally point…"
+	send.tooltip_text = "Then click a hex, or one of your commanders to supply that army."
+	send.pressed.connect(arm_target.bind("line", fid, "what the %s makes" % name))
+	row.add_child(send)
+	if not line.is_empty():
+		var clear := Button.new()
+		clear.text = "Clear"
+		clear.pressed.connect(func() -> void:
+			_hud_note = session.set_supply_line(player, fid, -1, -1)
+			_queue_refresh())
+		row.add_child(clear)
+	_commander_box.add_child(row)
 
 
 func _dim_label(text: String) -> Label:
@@ -1001,8 +1434,15 @@ static func _say(key: String, fallback: String) -> String:
 ## reaction window that offers this player something. The drafts were
 ## consumed: the next planning starts clean.
 func _end_turn() -> void:
+	if not _play.is_empty():
+		skip_playback()
+		return
 	_hud_note = ""
+	_target = {}
 	_note("end turn (%s)" % session.phase_name())
+	var before := session.observe(player)
+	var resolved := session.turns_resolved()
+	session.keep_playback = turn_time() > 0.0
 	for i in 4:
 		_ai_act()
 		for p in session.players():
@@ -1012,9 +1452,92 @@ func _end_turn() -> void:
 			break
 		if ph == PulseClock.Phase.REACTION and not session.reaction_opportunities(player).is_empty():
 			break
+	var played := session.turns_resolved() != resolved
 	if session.turns_resolved() != _turn_seen:
 		_new_turn()
 	_flush_pending()
+	if played and turn_time() > 0.0:
+		_start_play(before, resolved + 1)
+		return
+	contexts.sync(session.observe(player))
+	_queue_refresh()
+
+
+## Seconds a resolved turn plays out over (0 = at once).
+func turn_time() -> float:
+	return float(GameSettings.value("turn_seconds")) if use_settings else turn_seconds
+
+
+## Whether the last turn is being played back.
+func playing() -> bool:
+	return not _play.is_empty()
+
+
+## Starts playing back the turn that just resolved. The contexts are not
+## synced until it ends, so a battle that ended can still be watched.
+func _start_play(before: Dictionary, turn: int) -> void:
+	var after := session.observe(player)
+	var walks := {"commanders": {}, "detachments": {}}
+	for e: Dictionary in after.get("events", []):
+		var d: Dictionary = e["data"] if e.has("data") else e
+		var kind := ""
+		var id := -1
+		if e["type"] == &"commander_moved":
+			kind = "commanders"
+			id = int(d["commander"])
+		elif e["type"] == &"convoy_moved":
+			kind = "detachments"
+			id = int(d["detachment"])
+		else:
+			continue
+		if not (walks[kind] as Dictionary).has(id):
+			walks[kind][id] = [int(d["from"])]
+		(walks[kind][id] as Array).append(int(d["to"]))
+	_play = {"t": 0.0, "obs": after, "before": before, "walks": walks, "battles": session.playback(player), "turn": turn}
+	_blocker.show()
+	_blocker.move_to_front()
+	_radial.hide()
+	set_process(true)
+	_show_play()
+
+
+func _process(delta: float) -> void:
+	if _play.is_empty():
+		set_process(false)
+		return
+	_play["t"] = float(_play["t"]) + delta / maxf(turn_time(), 0.05)
+	if float(_play["t"]) >= 1.0:
+		skip_playback()
+	else:
+		_show_play()
+
+
+## Draws the moment of the playback in the main view and the PiPs.
+func _show_play() -> void:
+	var t: float = _play["t"]
+	var battles: Dictionary = _play["battles"]
+	var eid := contexts.focus
+	if eid == ViewContexts.OVERWORLD:
+		_main.show_overworld(_play["obs"], session.rules.feature_ids, contexts, {"play": _play["walks"], "t": t})
+	elif battles.has(eid):
+		_main.title = battle_name(eid)
+		_main.show_playback(battles[eid], t, session.observe_battle(player, eid))
+	for pip in _pip_layer.get_children():
+		if pip is _PipPanel and battles.has((pip as _PipPanel).engagement):
+			var e := (pip as _PipPanel).engagement
+			(pip as _PipPanel).view.show_playback(battles[e], t, session.observe_battle(player, e))
+	_phase_banner.show()
+	_phase_text.text = "Turn %d is playing out (%d%%).  Space or click to skip." % [int(_play["turn"]), int(t * 100.0)]
+	_refresh_hud()
+
+
+## Ends the playback: the view shows the present again.
+func skip_playback() -> void:
+	if _play.is_empty():
+		return
+	_play = {}
+	_blocker.hide()
+	set_process(false)
 	contexts.sync(session.observe(player))
 	_queue_refresh()
 

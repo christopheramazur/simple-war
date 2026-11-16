@@ -61,6 +61,39 @@ static func find(s: OverworldState, from: int, to: int, player: int = 0, avoid: 
 	return path
 
 
+## Every plot that can be entered from `from` for at most `budget` movement
+## points, as `player` knows the map: plot -> cheapest cost. `from` itself
+## is left out. Nothing continues past a battle tile.
+static func reach(s: OverworldState, from: int, budget: int, player: int = 0) -> Dictionary:
+	var r := s.rules
+	var n := r.plot_count()
+	var out := {}
+	if from < 0 or from >= n or budget <= 0:
+		return out
+	var costs := OverworldVision.known_costs(s, player)
+	var dist := {from: 0}
+	var heap := _push(PackedInt64Array(), from)
+	while not heap.is_empty():
+		var key := heap[0]
+		heap = _pop(heap)
+		var p := key % n
+		var d := key / n
+		if d > int(dist[p]):
+			continue
+		if p != from:
+			out[p] = d
+			if s.engagement_at(p) >= 0:
+				continue
+		for q in Hex.neighbours(p, r.width, r.height):
+			var c := costs[q]
+			if c < 0 or d + c > budget:
+				continue
+			if not dist.has(q) or d + c < int(dist[q]):
+				dist[q] = d + c
+				heap = _push(heap, (d + c) * n + q)
+	return out
+
+
 ## Movement points to walk `plots` in order from `from`, or -1 if a step is
 ## not to a neighbour or enters an impassable plot.
 static func cost(s: OverworldState, from: int, plots: PackedInt64Array) -> int:

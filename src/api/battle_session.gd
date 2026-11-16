@@ -204,6 +204,7 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 	var me := BattleSquads.bit(player)
 	var squads := []
 	var visible := {}
+	var by_id := {}
 	for row in sq.count():
 		var sid := sq.id_at(row)
 		var own := sq.player[row] == player
@@ -214,7 +215,10 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 			"id": sid, "player": sq.player[row], "template": rules.squad_ids[sq.tmpl[row]],
 			"x": sq.cx[row], "y": sq.cy[row], "alive": sq.alive[row],
 			"destroyed": sq.destroyed[row] == 1, "withdrawn": sq.withdrawn[row] == 1,
+			"name": rules.sq_names[sq.tmpl[row]], "size": rules.sq_members[sq.tmpl[row]].size(),
+			"facing": sq.facing[row], "range": 0, "sight": rules.sq_sight[sq.tmpl[row]],
 		}
+		by_id[sid] = d
 		if own:
 			d["order"] = BattleOrders.TYPES.find_key(sq.order[row])
 			d["engaged"] = sq.engaged[row]
@@ -234,6 +238,10 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 		if not visible.has(u.squad[row]):
 			continue
 		units.append({"id": u.id_at(row), "squad": u.squad[row], "x": u.x[row], "y": u.y[row], "hp": u.hp[row]})
+		# A squad's range is its longest weapon's among living units.
+		var w := u.weapon[row]
+		if w >= 0 and rules.wp_range[w] > by_id[u.squad[row]]["range"]:
+			by_id[u.squad[row]]["range"] = rules.wp_range[w]
 	var zones := []
 	for z in rules.zone_ids.size():
 		zones.append({"id": rules.zone_ids[z], "x": rules.zn_x[z], "y": rules.zn_y[z], "radius": rules.zn_radius[z],

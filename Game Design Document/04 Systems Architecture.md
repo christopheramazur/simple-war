@@ -103,6 +103,17 @@ data                  (immutable template tables from packages)
   - **Battle terrain** is drawn in the battle view, with a legend. A move order draws a line to where the squad was sent; the ghost shows how far it gets this turn.
   - **Reaction window:** a banner says moves are locked and what can be done. Moves drawn then are kept, marked queued, and sent when Planning returns (they used to be dropped silently).
   - **Match log:** every game played from a map writes `user://matches/<started>-<map>-s<seed>/`: `log.md` (per turn: the player's clicks and their results, every player's accepted orders, everything that happened), `match.json` and the replayable `match.sav`. The newest 30 are kept.
+- **UI pass (sw-ll4.19)**, from the second skirmish playtest:
+  - **Squads on the battlefield:** every unit is drawn where it stands, on a tinted footprint that follows the formation, with an arrow for the squad's facing, its name and strength (`7/8`), and a health bar for the player's own. Zones are drawn with who holds them. The battle observation carries what this needs: each squad's `name`, `size`, `facing`, `range` (its longest weapon among living units) and `sight`.
+  - **Ranges:** a selected, hovered or inspected squad shows a ring at its weapon range. A single selected squad also shows its sight ring.
+  - **Battle panel:** a column left of a focused battle lists the scores and zones and holds the **squad card** (`SquadCard`) of the squad clicked, else the first selected, else the one hovered: strength, order, health and SIMPL pools (own squads), weapon range and sight, and per unit type its health, each fire mode's accuracy and damage, speed and defence, then the squad's effects. Enemy squads in sight can be clicked too (`inspect_battle`). It is one page: the tabs and per-stat traces of the inspection window mock are not built.
+  - **What does what:** two lines under the view give the status and what the mouse and keys do in the present context (overworld, commander selected, battle, selection, reaction window, playback). A **Controls** button lists every control.
+  - **Overworld movement:** with a commander selected, the hexes it can enter this turn are lit and numbered with their movement cost (`OverworldSession.reach`), the rest are dimmed, and hovering a hex previews the route and its cost. Right click moves there. Shift + right click adds a waypoint: the route continues from where it ended (`path` with `via`). Right click on the commander clears the route.
+  - **Garrisons, convoys and rally points:** a selected hex offers "Send this garrison/convoy to" for the player's detachments there and "Set rally point" for a producing feature. The next hex clicked is the destination, or one of the player's commanders if it stands there. A selected commander lists the player's other detachments with "Call here".
+  - **Turn playback:** a resolved turn is played out before the next Planning is shown, over 5 seconds by default (Options: instant, 2, 5 or 10). Commanders and convoys walk the hexes they moved through. Battles replay tick by tick as the player saw them (`OverworldSession.playback`, kept only when asked through `keep_playback`), with a line for each volley. Space or a click skips it. The game has already resolved by then: playback only delays what is drawn, and it never changes a result. A battle that ended that turn is still shown to its end.
+  - **Options** (`OptionsScreen`, `GameSettings`; the display part of sw-ll4.10): window mode (windowed, borderless fullscreen, exclusive fullscreen), window size, vsync, UI scale and the playback time, saved in `user://settings.cfg` and applied when the main menu opens. Reached from the main menu and the war room.
+  - **Layout:** the side panel scrolls, so its buttons never fall off a 720-pixel window.
+  - **Not built:** panning and zooming inside a battle, unit facings (only the squad has one), damage numbers during playback, playback in the Story scene (it still resolves at once).
 
 ## 4.9 Tools (R8Q7, R8Q6)
 - **Now:** authoring tools are Godot editor plugins and data tools; `custom_graph_editor` is used for trigger and dialogue graphs. Angelfall is built with them.
@@ -136,5 +147,5 @@ data                  (immutable template tables from packages)
 
 ## 4.10 Addons (R8Q13)
 - **Keep:** dialogic (presentation only), gut (tests), guide (input).
-- **Evaluate:** `godot-rts-entity-controller`, for selection and command UI ideas only. Remove it if nothing is taken.
+- **Removed (sw-ip8.5):** `godot-rts-entity-controller` was evaluated for selection and command UI ideas and nothing was taken. Its autoloads drew their own control-group bar over every screen, so the addon, its autoloads and its input actions are gone. Control groups are the planner's own (`BattlePlanner`).
 - **Removed:** gecs.

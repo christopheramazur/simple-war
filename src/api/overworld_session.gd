@@ -67,6 +67,11 @@ var _opportunities: Dictionary = {}
 ## Set on entering the reaction window: ready the players with nothing to
 ## react to (done in _pump, outside the clock's call stack).
 var _auto_ready: bool = false
+## Presentation opt-in: keep every battle's last turn tick by tick
+## (`playback`). Read-only; it never changes a result.
+var keep_playback: bool = false
+## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
+var _playback: Dictionary = {}
 ## Set while rebuilding: the hashes the replay must reproduce.
 var _expected: PackedStringArray = PackedStringArray()
 var _diverged: int = -1
@@ -500,9 +505,13 @@ func _run_battles() -> void:
 	var ids: Array = battles.keys()
 	ids.sort()
 	var done := []
+	_playback = {}
 	for eid: int in ids:
 		var b: OverworldBattle = battles[eid]
-		_battle_sim.execute_turn(b.state)
+		if keep_playback:
+			_record_turn(eid, b)
+		else:
+			_battle_sim.execute_turn(b.state)
 		if b.state.is_over():
 			done.append(eid)
 	for eid: int in done:
@@ -510,6 +519,79 @@ func _run_battles() -> void:
 		OverworldBattles.finish(state, b)
 		bus.unregister_context(b.context_id)
 		battles.erase(eid)
+
+
+## Runs one battle turn, keeping a frame per tick (and one before the
+## first): PLAYBACK_STRIDE ints per unit. Whatever hook the sim already has
+## still runs.
+func _record_turn(eid: int, b: OverworldBattle) -> void:
+	var frames: Array[PackedInt64Array] = []
+	var first_tick := b.state.tick
+	var was := _battle_sim.tick_hook
+	var capture := func(st: BattleState) -> void:
+		if was.is_valid():
+			was.call(st)
+		if frames.size() <= b.rules.ticks_per_turn:
+			frames.append(_frame(st))
+	frames.append(_frame(b.state))
+	_battle_sim.tick_hook = capture
+	_battle_sim.execute_turn(b.state)
+	_battle_sim.tick_hook = was
+	var shots := []
+	for e in b.state.turn_log:
+		if e.type == &"squad_fired":
+			shots.append([clampi(e.tick - first_tick + 1, 0, frames.size() - 1), int(e.data["squad"]), int(e.data["target"])])
+	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames, "shots": shots}
+
+
+const PLAYBACK_STRIDE: int = 7
+
+
+static func _frame(st: BattleState) -> PackedInt64Array:
+	var u := st.units
+	var sq := st.squads
+	var f := PackedInt64Array()
+	for row in u.count():
+		var srow := sq.row_of(u.squad[row])
+		if srow < 0 or not sq.is_active(srow):
+			continue
+		f.append_array(PackedInt64Array([u.id_at(row), u.squad[row], sq.player[srow], u.x[row], u.y[row], sq.facing[srow], sq.seen_by[srow]]))
+	return f
+
+
+## The last resolved turn of every battle `player` fought in, tick by tick
+## and as the player saw it (needs keep_playback): engagement ID ->
+## {"rules" (BattleRules), "width", "height", "frames": one Dictionary per
+## tick (the first is the turn's start), squad ID -> {"player", "facing",
+## "ids": unit IDs, "units": their points in metres}, "shots": [[frame, squad,
+## target]] where the player saw both ends}. A battle that ended this turn
+## is still here.
+func playback(player: int) -> Dictionary:
+	var out := {}
+	var me := BattleSquads.bit(player)
+	for eid: int in _playback:
+		var rec: Dictionary = _playback[eid]
+		if not (rec["players"] as PackedInt64Array).has(player):
+			continue
+		var frames := []
+		for f: PackedInt64Array in rec["frames"]:
+			var squads := {}
+			for o in range(0, f.size(), PLAYBACK_STRIDE):
+				if f[o + 2] != player and f[o + 6] & me == 0:
+					continue
+				if not squads.has(f[o + 1]):
+					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": []}
+				(squads[f[o + 1]]["ids"] as Array).append(f[o])
+				(squads[f[o + 1]]["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
+			frames.append(squads)
+		var shots := []
+		for sh: Array in rec["shots"]:
+			var at: Dictionary = frames[sh[0]]
+			if at.has(sh[1]) and at.has(sh[2]):
+				shots.append(sh)
+		var r: BattleRules = rec["rules"]
+		out[eid] = {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots}
+	return out
 
 
 ## Battles begin at the start of a turn (R2Q1): every engagement without one
@@ -584,17 +666,56 @@ func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	return o
 
 
+## The inspection window's data for one squad of a battle (Inspection), as
+## BattleSession.inspect: own squads always, enemy squads only while seen.
+func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionary:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if b == null or not b.state.players.has(player):
+		return {}
+	var row := b.state.squads.row_of(squad_id)
+	if row < 0:
+		return {}
+	var own := b.state.squads.player[row] == player
+	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)):
+		return {}
+	return Inspection.squad(b.state, squad_id, player)
+
+
+## A commander's movement this turn, as the player knows the map:
+## {"budget", "spent" (by its planned route), "reach": plot -> cheapest cost
+## from where it stands}. {} if it is not the player's.
+func reach(player: int, commander_id: int) -> Dictionary:
+	var row := state.commanders.row_of(commander_id)
+	if row < 0 or state.commanders.player[row] != player:
+		return {}
+	var budget := Commanders.budget(state, row)
+	var costs := OverworldVision.known_costs(state, player)
+	var spent := 0
+	for p: int in state.routes.get(commander_id, PackedInt64Array()):
+		spent += maxi(costs[p], 0)
+	var held := state.commanders.engagement[row] >= 0
+	return {"budget": budget, "spent": spent,
+		"reach": {} if held else OverworldPath.reach(state, state.commanders.plot[row], budget, player)}
+
+
 ## The cheapest route for a commander to plot `to`, as the player knows the
-## map, cut to what it can afford this turn. Empty if none.
-func path(player: int, commander_id: int, to: int) -> PackedInt64Array:
+## map, cut to what it can afford this turn. Empty if none. With `via` (a
+## route it already plans), the way continues from that route's end and the
+## result is the whole route: waypoints.
+func path(player: int, commander_id: int, to: int, via: PackedInt64Array = PackedInt64Array()) -> PackedInt64Array:
 	var row := state.commanders.row_of(commander_id)
 	if row < 0 or state.commanders.player[row] != player:
 		return PackedInt64Array()
-	var full := OverworldPath.find(state, state.commanders.plot[row], to, player)
+	var from := state.commanders.plot[row] if via.is_empty() else via[via.size() - 1]
+	var full := OverworldPath.find(state, from, to, player)
 	var costs := OverworldVision.known_costs(state, player)
 	var budget := Commanders.budget(state, row)
-	var out := PackedInt64Array()
+	var out := via.duplicate()
 	var spent := 0
+	for p in via:
+		spent += maxi(costs[p], 0)
+	if full.is_empty():
+		return PackedInt64Array()
 	for p in full:
 		spent += costs[p]
 		if spent > budget:

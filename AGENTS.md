@@ -6,7 +6,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 - **OS:** Windows 11. **Repo root:** `C:/Users/chris/Documents/simple-war`.
 - **Shell:** use **Git Bash** (the Bash tool) by default; output compression and command metrics only apply there. Use PowerShell only for Windows-only operations.
 - **Godot 4.7.2:** `Godot_v4.7.2-stable_win64.exe` (editor) and `Godot_v4.7.2-stable_win64_console.exe` (headless) at the repo root.
-- **Main scene:** `res://src/presentation/main_menu/main_menu.tscn`: Story (the Angelfall slice, `src/presentation/angelfall/angelfall.tscn`, M4) Skirmish against an AI controller profile on a skirmish map, or the Map editor (the War Data screen on its Maps tab). The replay viewer and the war room demo run standalone (F6).
+- **Main scene:** `res://src/presentation/main_menu/main_menu.tscn`: Story (the Angelfall slice, `src/presentation/angelfall/angelfall.tscn`, M4) Skirmish against an AI controller profile on a skirmish map, or the Map editor (the War Data screen on its Maps tab). Options (display and turn playback, saved in `user://settings.cfg`) open from the menu and the war room. The replay viewer and the war room demo run standalone (F6).
 
 ## 2. Start of every session
 1. `harness/bin/hx status`: branch, dirty files, Godot version, autoloads, in-progress and ready tasks.
@@ -22,7 +22,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | `GD-Agentic-Skills/skills/godot-*/` | Skill modules (`SKILL.md`, `references/`, `scripts/`). Load **only** the module §12 names, never all of them. |
 | `data/` | Content packages (official content uses the mod package format). Schema: GDD `03 Data Model.md`. Gameplay data lives here, not in scenes. The old `data/defaults` JSON is archived in `Game Design Document/History/data/`. |
 | `src/` | Game code (`.gd` + `.tscn`). |
-| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `godot-rts-entity-controller` (under evaluation for UI ideas), `guide`, `simple_war_tools` (ours: the War Data editor screen, with the Maps tab that paints battle maps). Update this row when adding or removing addons. |
+| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `guide`, `simple_war_tools` (ours: the War Data editor screen, with the Maps tab that paints battle maps). Update this row when adding or removing addons. |
 | `%APPDATA%/Godot/app_userdata/Simple War/matches/` | Match logs of games played in the war room (`log.md` per turn, `match.sav` replayable); read these to review a playtest. |
 | `harness/` | Agent harness: the `hx` CLI, telemetry ledger, benchmarks. See `harness/README.md`; decisions and reasons are in `harness/DESIGN.md`. |
 | `.agents/skills/` | Client-agnostic agent skills (e.g. `beads`). |

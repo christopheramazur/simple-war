@@ -5,7 +5,11 @@ extends Control
 ## Stateless projection (GDD 04 §4.8): it keeps only the last observation it
 ## was given, and reports clicks and zooms as signals for its owner.
 
-signal hex_clicked(plot: int, button: int)
+signal hex_clicked(plot: int, button: int, shift: bool)
+## The plot under the cursor changed (-1 = none); overworld only.
+signal hex_hovered(plot: int)
+## The squad under the cursor changed (-1 = none); battles only.
+signal squad_hovered(squad: int)
 ## A click in a battle at a battlefield point (metres).
 signal battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: bool, double: bool)
 ## A box dragged in a battle (metres).
@@ -21,6 +25,9 @@ const TEXT: Color = Color("dde2ea")
 const SELECT: Color = Color("e6b450")
 const BATTLE: Color = Color("e8735f")
 const GHOST: Color = Color(0.85, 0.9, 1.0, 0.55)
+const REACH: Color = Color(1.0, 1.0, 1.0, 0.16)
+## A full turn of a squad's facing (binary angle).
+const TURN: float = 65536.0
 const PLAYER_COLORS: Dictionary = {1: Color(0.25, 0.55, 1.0), 2: Color(1.0, 0.35, 0.3), 30: Color(0.85, 0.85, 0.85)}
 ## Plot colour: the first listed feature present wins; else plains.
 const FEATURE_COLORS: Array = [
@@ -54,6 +61,16 @@ var _battles: Dictionary = {}
 ## Own commanders' planned routes: commander ID -> plots.
 var _routes: Dictionary = {}
 var _overlay: Dictionary = {}
+## Overworld extras (show_overworld's `extra`).
+var _extra: Dictionary = {}
+var _hover_plot: int = -1
+var _hover_squad: int = -1
+## A battle turn being played back (OverworldSession.playback's entry) and
+## how far through it (0..1); empty when the view shows the present.
+var _play: Dictionary = {}
+var _play_t: float = 0.0
+## What the last battle draw showed: [{"id", "c" (metres), "pts", ...}].
+var _shown: Array = []
 var _press_at: Vector2 = Vector2.ZERO
 var _box: Rect2 = Rect2()
 var _pressing: bool = false
@@ -70,11 +87,17 @@ func _init() -> void:
 
 ## Shows the overworld: `obs` from OverworldSession.observe, `names` the
 ## feature template IDs (OverworldRules.feature_ids), the contexts for the
-## camera and selection.
-func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts) -> void:
+## camera and selection. `extra` (all optional): "reach" (plot -> movement
+## cost: what the selected commander can enter this turn), "budget" and
+## "spent" (its movement points), "preview" (a route drafted to the hovered
+## hex) and "preview_to" (that hex), "play" ({"commanders": id -> plots it
+## walked, "detachments": the same}) with "t" (0..1) while the last turn is
+## played back.
+func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts, extra: Dictionary = {}) -> void:
 	mode = "overworld"
 	_obs = obs
 	_names = names
+	_extra = extra
 	_width = obs.get("width", 0)
 	_height = obs.get("height", 0)
 	_camera = ctx.camera_plot
@@ -98,6 +121,22 @@ func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 	mode = "battle"
 	_obs = obs
 	_overlay = overlay
+	_play = {}
+	queue_redraw()
+
+
+## Shows a moment of a battle turn being played back: `rec` is the
+## battle's entry in OverworldSession.playback, `t` how far through (0..1).
+## Squads are drawn where they were then; orders and selection are not
+## drawn. `obs` (may be {}) names the squads still known.
+func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}) -> void:
+	mode = "battle"
+	_obs = obs.duplicate()
+	_obs["width"] = rec["width"]
+	_obs["height"] = rec["height"]
+	_overlay = {"terrain": rec["rules"]}
+	_play = rec
+	_play_t = clampf(t, 0.0, 1.0)
 	queue_redraw()
 
 
@@ -133,6 +172,11 @@ func _draw_overworld() -> void:
 	var o := _origin()
 	var s := _hex_size()
 	var plots: Dictionary = _obs.get("plots", {})
+	var play: Dictionary = _extra.get("play", {})
+	var t: float = _extra.get("t", 1.0)
+	var reach: Dictionary = {} if not play.is_empty() else _extra.get("reach", {})
+	var font := get_theme_default_font()
+	var fs := int(clampf(s * 0.42, 9.0, 16.0))
 	for p in _width * _height:
 		var c := o + _centre(p)
 		if c.x < -s * 2 or c.y < -s * 2 or c.x > size.x + s * 2 or c.y > size.y + s * 2:
@@ -142,35 +186,53 @@ func _draw_overworld() -> void:
 			col = _plot_color(plots[p])
 			if not plots[p]["visible"]:
 				col = col.darkened(0.45)
+		# With a commander selected, what it can't reach this turn is dimmed.
+		if not reach.is_empty() and not reach.has(p):
+			col = col.darkened(0.35)
 		var pts := _hex_points(c, s * 0.97)
 		draw_colored_polygon(pts, col)
+		if reach.has(p):
+			draw_colored_polygon(_hex_points(c, s * 0.97), REACH)
+			if s >= 20.0:
+				draw_string(font, c + Vector2(-s * 0.5, s * 0.62), str(reach[p]), HORIZONTAL_ALIGNMENT_CENTER, s, maxi(fs - 3, 8), Color(1, 1, 1, 0.6))
 		pts.append(pts[0])
 		draw_polyline(pts, LINE, 1.0)
 		if _battles.has(p):
 			draw_arc(c, s * 0.62, 0, TAU, 24, BATTLE, 3.0)
 		if p == _selected_plot:
 			draw_polyline(pts, SELECT, 2.5)
-	for cmd: Dictionary in _obs.get("commanders", []):
-		var route: PackedInt64Array = _routes.get(cmd["id"], PackedInt64Array())
-		var prev := o + _centre(cmd["plot"])
-		for p in route:
-			var nxt := o + _centre(p)
-			draw_dashed_line(prev, nxt, SELECT, 2.0, 6.0)
-			prev = nxt
-		if not route.is_empty():
-			draw_arc(prev, s * 0.2, 0, TAU, 12, SELECT, 2.0)
-	var font := get_theme_default_font()
-	var fs := int(clampf(s * 0.42, 9.0, 16.0))
+		if p == _hover_plot:
+			draw_polyline(pts, Color(1, 1, 1, 0.5), 1.5)
+	if play.is_empty():
+		for cmd: Dictionary in _obs.get("commanders", []):
+			var route: PackedInt64Array = _routes.get(cmd["id"], PackedInt64Array())
+			var prev := o + _centre(cmd["plot"])
+			for i in route.size():
+				var nxt := o + _centre(route[i])
+				draw_dashed_line(prev, nxt, SELECT, 2.0, 6.0)
+				if i < route.size() - 1:
+					draw_circle(nxt, 2.5, SELECT)
+				prev = nxt
+			if not route.is_empty():
+				draw_arc(prev, s * 0.2, 0, TAU, 12, SELECT, 2.0)
+		_draw_route_preview(o, s, font, fs)
 	# Garrisons (squares) and convoys (diamonds, with their destination):
 	# squads without a commander (sw-ip8.7).
+	var det_play: Dictionary = play.get("detachments", {})
 	for det: Dictionary in _obs.get("detachments", []):
-		var c := o + _centre(det["plot"]) + Vector2(s * 0.42, s * 0.38)
+		var at := o + (_along(det_play[det["id"]], t) if det_play.has(det["id"]) else _centre(det["plot"]))
+		var c := at + Vector2(s * 0.42, s * 0.38)
 		var col: Color = PLAYER_COLORS.get(det["player"], TEXT)
 		var h := s * 0.22
 		if det.get("convoy", false):
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h * 1.3), c + Vector2(h * 1.3, 0), c + Vector2(0, h * 1.3), c + Vector2(-h * 1.3, 0)]), col)
 			var dest := int(det.get("dest_plot", -1))
-			if dest >= 0:
+			var to_cmd := int(det.get("dest_commander", -1))
+			if dest < 0 and to_cmd >= 0:
+				for cmd: Dictionary in _obs.get("commanders", []):
+					if cmd["id"] == to_cmd:
+						dest = cmd["plot"]
+			if dest >= 0 and play.is_empty():
 				draw_dashed_line(c, o + _centre(dest), Color(col, 0.6), 1.5, 4.0)
 		else:
 			draw_rect(Rect2(c - Vector2(h, h), Vector2(h, h) * 2.0), col)
@@ -178,8 +240,9 @@ func _draw_overworld() -> void:
 		var n := (det.get("squads", []) as Array).size()
 		if n > 0:
 			draw_string(font, c + Vector2(h + 2, h), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+	var cmd_play: Dictionary = play.get("commanders", {})
 	for cmd: Dictionary in _obs.get("commanders", []):
-		var c := o + _centre(cmd["plot"])
+		var c := o + (_along(cmd_play[cmd["id"]], t) if cmd_play.has(cmd["id"]) else _centre(cmd["plot"]))
 		var r := s * 0.36
 		draw_circle(c, r, PLAYER_COLORS.get(cmd["player"], TEXT))
 		if cmd["id"] == _selected:
@@ -187,6 +250,46 @@ func _draw_overworld() -> void:
 		if cmd.has("army"):  # own and allied: squads besides the commander's own
 			var n := (cmd["army"] as Array).filter(func(q: Dictionary) -> bool: return not q.get("own", false)).size()
 			draw_string(font, c + Vector2(-r * 0.45, r * 0.45), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 0.9, fs, BG)
+
+
+## The route the selected commander would take to the hovered hex, and what
+## it costs of this turn's movement points.
+func _draw_route_preview(o: Vector2, s: float, font: Font, fs: int) -> void:
+	var preview: PackedInt64Array = _extra.get("preview", PackedInt64Array())
+	var to: int = _extra.get("preview_to", -1)
+	if to < 0 or to != _hover_plot:
+		return
+	var at := o + _centre(to)
+	if preview.is_empty():
+		draw_string(font, at + Vector2(s * 0.5, -s * 0.5), "no way there", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, BATTLE)
+		return
+	var from: int = _extra.get("preview_from", -1)
+	var prev := o + _centre(from) if from >= 0 else o + _centre(preview[0])
+	for p in preview:
+		var nxt := o + _centre(p)
+		draw_line(prev, nxt, GHOST, 2.0)
+		prev = nxt
+	var cost: int = _extra.get("preview_cost", 0)
+	var budget: int = _extra.get("budget", 0)
+	var text := "%d of %d movement" % [cost, budget]
+	if preview[preview.size() - 1] != to:
+		draw_arc(prev, s * 0.25, 0, TAU, 12, GHOST, 2.0)
+		text = "out of reach this turn: stops at the ring (%d of %d)" % [cost, budget]
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var corner := at + Vector2(s * 0.5, -s * 0.5 - fs)
+	corner.x = minf(corner.x, size.x - w - 10.0)
+	draw_rect(Rect2(corner - Vector2(4, 2), Vector2(w + 8, fs + 6)), Color(BG, 0.85))
+	draw_string(font, corner + Vector2(0, fs), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+
+
+## A point `t` (0..1) of the way along a walk through `plots`, relative to
+## the origin.
+func _along(plots: Array, t: float) -> Vector2:
+	if plots.size() <= 1:
+		return _centre(plots[0]) if plots.size() == 1 else Vector2.ZERO
+	var f := clampf(t, 0.0, 1.0) * (plots.size() - 1)
+	var i := mini(int(f), plots.size() - 2)
+	return _centre(plots[i]).lerp(_centre(plots[i + 1]), f - i)
 
 
 func _plot_color(entry: Dictionary) -> Color:
@@ -238,10 +341,13 @@ func _draw_battle() -> void:
 	var font := get_theme_default_font()
 	if tex != null and not compact:
 		_draw_legend(font, area)
+	var playing := not _play.is_empty()
+	if not playing:
+		_draw_zones(font, area, k)
+	_shown = _battle_squads()
 	var pos := {}
-	for sq: Dictionary in _obs.get("squads", []):
-		if not (sq.get("destroyed", false) or sq.get("withdrawn", false)):
-			pos[sq["id"]] = area.position + Vector2(sq["x"] / ONE, sq["y"] / ONE) * k
+	for d: Dictionary in _shown:
+		pos[d["id"]] = area.position + (d["c"] as Vector2) * k
 	# Intent ghosts: the forecast path and end of each own squad.
 	var ghosts: Dictionary = _overlay.get("ghosts", {})
 	for id: int in ghosts:
@@ -270,18 +376,18 @@ func _draw_battle() -> void:
 			draw_line(to + Vector2(-4, 4), to + Vector2(4, -4), col, 1.5)
 			if pending:
 				draw_string(font, to + Vector2(6, -4), "queued", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SELECT)
+	if playing:
+		_draw_shots(pos)
 	var selected: Array = _overlay.get("selected", [])
 	var reactable: Dictionary = _overlay.get("reactable", {})
-	for sq: Dictionary in _obs.get("squads", []):
-		if not pos.has(sq["id"]):
-			continue
-		var c: Vector2 = pos[sq["id"]]
-		var r := clampf(2.0 + 0.6 * float(sq["alive"]), 3.0, 9.0) * (0.7 if compact else 1.0)
-		draw_circle(c, r, PLAYER_COLORS.get(sq["player"], TEXT))
-		if selected.has(sq["id"]):
-			draw_arc(c, r + 3.0, 0, TAU, 20, SELECT, 2.0)
-		if reactable.has(sq["id"]) and not compact:
-			var q: String = reactable[sq["id"]]
+	var inspected: int = _overlay.get("inspected", -1)
+	for d: Dictionary in _shown:
+		var id: int = d["id"]
+		var c: Vector2 = pos[id]
+		var hovered := id == _hover_squad and not playing
+		var r := _draw_squad(d, area, k, font, selected.has(id), hovered or id == inspected)
+		if reactable.has(id) and not compact:
+			var q: String = reactable[id]
 			var mark := "!" if q.is_empty() else ReactionRadial.glyph(q)
 			draw_arc(c, r + 7.0, 0, TAU, 20, SELECT, 1.5)
 			draw_string(font, c + Vector2(r + 6, -r - 4), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, SELECT)
@@ -311,6 +417,138 @@ func _draw_battle() -> void:
 		var w_text := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var x := pad if compact else size.x - pad - w_text
 		draw_string(font, Vector2(x, pad + fs), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+
+
+## The squads to draw, each with its units' points ("pts", metres) and
+## their centre ("c"): from the observation, or from the playback frame.
+func _battle_squads() -> Array:
+	var out := []
+	var info := {}
+	for sq: Dictionary in _obs.get("squads", []):
+		info[sq["id"]] = sq
+	if not _play.is_empty():
+		var frames: Array = _play["frames"]
+		var f := _play_t * (frames.size() - 1)
+		var i := mini(int(f), frames.size() - 1)
+		var a: Dictionary = frames[i]
+		var b: Dictionary = frames[mini(i + 1, frames.size() - 1)]
+		for id: int in a:
+			var sa: Dictionary = a[id]
+			var pts: Array = (sa["units"] as Array).duplicate()
+			if b.has(id):
+				var to := {}
+				var sb: Dictionary = b[id]
+				for j in (sb["ids"] as Array).size():
+					to[sb["ids"][j]] = sb["units"][j]
+				for j in pts.size():
+					if to.has(sa["ids"][j]):
+						pts[j] = (pts[j] as Vector2).lerp(to[sa["ids"][j]], f - i)
+			var d: Dictionary = (info.get(id, {}) as Dictionary).duplicate()
+			d.merge({"id": id, "player": sa["player"], "facing": sa["facing"], "pts": pts, "alive": pts.size()}, true)
+			out.append(d)
+	else:
+		var by := {}
+		for u: Dictionary in _obs.get("units", []):
+			if not by.has(u["squad"]):
+				by[u["squad"]] = []
+			(by[u["squad"]] as Array).append(Vector2(u["x"], u["y"]) / ONE)
+		for sq: Dictionary in _obs.get("squads", []):
+			if sq.get("destroyed", false) or sq.get("withdrawn", false):
+				continue
+			var d := sq.duplicate()
+			d["pts"] = by.get(sq["id"], [Vector2(sq["x"], sq["y"]) / ONE])
+			out.append(d)
+	for d: Dictionary in out:
+		var c := Vector2.ZERO
+		for p: Vector2 in d["pts"]:
+			c += p
+		d["c"] = c / maxf((d["pts"] as Array).size(), 1.0)
+	return out
+
+
+## One squad: its units as dots inside a tinted footprint, an arrow for
+## its facing, its name and strength, and (own squads) a health bar.
+## Selected, hovered or inspected squads also show their weapon range, and
+## own selected ones their sight. Returns the footprint's radius in pixels.
+func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: bool, marked: bool) -> float:
+	var col: Color = PLAYER_COLORS.get(d["player"], TEXT)
+	var c: Vector2 = area.position + (d["c"] as Vector2) * k
+	var spread := 0.0
+	for p: Vector2 in d["pts"]:
+		spread = maxf(spread, p.distance_to(d["c"]))
+	var r := spread * k + (3.0 if compact else 6.0)
+	if not compact and (is_selected or marked):
+		var reach := float(d.get("range", 0)) / ONE * k
+		if reach > 0.0:
+			draw_arc(c, reach, 0, TAU, 64, Color(col, 0.7), 1.0)
+			draw_circle(c, reach, Color(col, 0.05))
+			if marked or (_overlay.get("selected", []) as Array).size() == 1:
+				draw_string(font, c + Vector2(-40, -reach - 3), "range %d m" % int(float(d["range"]) / ONE), HORIZONTAL_ALIGNMENT_CENTER, 80, 11, Color(col.lightened(0.4), 0.9))
+		var sight := float(d.get("sight", 0)) / ONE * k
+		if is_selected and sight > 0.0 and (_overlay.get("selected", []) as Array).size() == 1:
+			draw_arc(c, sight, 0, TAU, 96, Color(1, 1, 1, 0.22), 1.0)
+			draw_string(font, c + Vector2(-40, sight + 12), "sight %d m" % int(float(d["sight"]) / ONE), HORIZONTAL_ALIGNMENT_CENTER, 80, 11, Color(1, 1, 1, 0.5))
+	# The footprint follows the formation: a soft disc under every unit.
+	var ur := maxf(1.2 if compact else 2.2, 0.4 * k)
+	var halo := ur + (2.0 if compact else 5.0)
+	var ang := float(d.get("facing", 0)) / TURN * TAU
+	var dir := Vector2(cos(ang), sin(ang))
+	var front := 0.0
+	var top := c.y
+	for p: Vector2 in d["pts"]:
+		var at := area.position + p * k
+		draw_circle(at, halo, Color(col, 0.22))
+		front = maxf(front, (at - c).dot(dir))
+		top = minf(top, at.y)
+	for p: Vector2 in d["pts"]:
+		draw_circle(area.position + p * k, ur, col)
+	# Facing: an arrow ahead of the front rank.
+	var side := dir.orthogonal() * (3.0 if compact else 5.0)
+	var base := c + dir * (front + halo + 2.0)
+	draw_colored_polygon(PackedVector2Array([base + dir * (5.0 if compact else 9.0), base + side, base - side]), col.lightened(0.35))
+	if is_selected:
+		draw_arc(c, r + 3.0, 0, TAU, 28, SELECT, 2.0)
+	elif marked:
+		draw_arc(c, r + 3.0, 0, TAU, 28, Color(1, 1, 1, 0.7), 1.0)
+	if compact or not d.has("name"):
+		return r
+	top -= halo + (5.0 if is_selected or marked else 0.0)
+	var text := "%s %d/%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0))]
+	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, TEXT if is_selected or marked else Color(TEXT, 0.75))
+	var hp_max := float(d.get("hp_max", 0))
+	if hp_max > 0.0:
+		var frac := clampf(1.0 - float(d.get("hp_lost", 0)) / hp_max, 0.0, 1.0)
+		draw_rect(Rect2(Vector2(c.x - 15, top - 4), Vector2(30, 3)), Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(Vector2(c.x - 15, top - 4), Vector2(30 * frac, 3)), Color("74d18a") if frac > 0.5 else BATTLE)
+	return r
+
+
+## Zones: who holds each and how far its control has built.
+func _draw_zones(font: Font, area: Rect2, k: float) -> void:
+	for z: Dictionary in _obs.get("zones", []):
+		var c := area.position + Vector2(z["x"], z["y"]) / ONE * k
+		var rad := float(z["radius"]) / ONE * k
+		var owner := int(z["owner"])
+		var col: Color = PLAYER_COLORS.get(owner, TEXT) if owner != 0 else Color(0.85, 0.85, 0.85)
+		var held := owner != 0 and int(z["amount"]) >= int(z["threshold"])
+		draw_circle(c, rad, Color(col, 0.2 if held else 0.07))
+		draw_arc(c, rad, 0, TAU, 48, Color(col, 0.8), 1.5 if held else 1.0)
+		if not compact:
+			var who := "unheld" if owner == 0 else ("player %d" % owner) + ("" if held else " taking")
+			draw_string(font, c + Vector2(-60, rad + 13), "zone %s · %s" % [z["id"], who], HORIZONTAL_ALIGNMENT_CENTER, 120, 11, Color(col.lightened(0.3), 0.9))
+
+
+## Shots fired in the last few ticks of the playback: a line from the
+## firing squad to its target, fading.
+func _draw_shots(pos: Dictionary) -> void:
+	var frames: Array = _play["frames"]
+	var f := _play_t * (frames.size() - 1)
+	for sh: Array in _play.get("shots", []):
+		var age := f - float(sh[0])
+		if age < 0.0 or age > 3.0 or not pos.has(sh[1]) or not pos.has(sh[2]):
+			continue
+		var col: Color = PLAYER_COLORS.get(frames[sh[0]][sh[1]]["player"], TEXT)
+		draw_line(pos[sh[1]], pos[sh[2]], Color(col.lightened(0.45), 0.8 * (1.0 - age / 3.0)), 1.0)
 
 
 ## The battle's terrain as a texture, one pixel per cell (null without
@@ -371,17 +609,19 @@ func to_view(m: Vector2) -> Vector2:
 	return area.position + m * area.size.x / float(_obs.get("width", 1))
 
 
-## The squad nearest a battlefield point within `radius` metres, or -1.
+## The squad at a battlefield point: the one with a unit (or its centre)
+## nearest within `radius` metres, or -1.
 func squad_at(m: Vector2, radius: float = 4.0) -> int:
 	var best := -1
 	var best_d := radius * radius
-	for sq: Dictionary in _obs.get("squads", []):
-		if sq.get("destroyed", false) or sq.get("withdrawn", false):
-			continue
-		var d := Vector2(sq["x"] / ONE, sq["y"] / ONE).distance_squared_to(m)
-		if d <= best_d:
-			best_d = d
-			best = sq["id"]
+	var squads := _shown if mode == "battle" and not _shown.is_empty() else _battle_squads()
+	for d: Dictionary in squads:
+		var near := (d["c"] as Vector2).distance_squared_to(m)
+		for p: Vector2 in d["pts"]:
+			near = minf(near, p.distance_squared_to(m))
+		if near <= best_d:
+			best_d = near
+			best = d["id"]
 	return best
 
 
@@ -394,6 +634,20 @@ func _gui_input(event: InputEvent) -> void:
 			_box = Rect2(_press_at, mm.position - _press_at)
 			queue_redraw()
 		accept_event()
+		return
+	if mm != null:
+		if mode == "overworld":
+			var p := plot_at(mm.position)
+			if p != _hover_plot:
+				_hover_plot = p
+				hex_hovered.emit(p)
+				queue_redraw()
+		elif mode == "battle" and not compact and _play.is_empty():
+			var sq := squad_at(to_battle(mm.position))
+			if sq != _hover_squad:
+				_hover_squad = sq
+				squad_hovered.emit(sq)
+				queue_redraw()
 		return
 	var mb := event as InputEventMouseButton
 	if mb == null:
@@ -427,7 +681,7 @@ func _gui_input(event: InputEvent) -> void:
 			zoomed.emit(0.8)
 		MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
 			if mode == "overworld":
-				hex_clicked.emit(plot_at(mb.position), mb.button_index)
+				hex_clicked.emit(plot_at(mb.position), mb.button_index, mb.shift_pressed)
 			else:
 				battle_pressed.emit(to_battle(mb.position), mb.button_index, mb.shift_pressed, mb.ctrl_pressed, mb.alt_pressed, false)
 		_:

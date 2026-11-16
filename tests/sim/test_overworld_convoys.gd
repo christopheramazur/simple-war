@@ -153,6 +153,53 @@ func test_a_convoy_is_intercepted() -> void:
 	assert_eq(Convoys.rally(s, 1, did, P(4, 0), -1), "is in a battle")
 
 
+## A convoy sent to a commander walks to where that commander's route ends,
+## not to where it stood (sw-ll4.19).
+func test_a_convoy_heads_for_where_its_commander_is_going() -> void:
+	var s := _s()
+	var a := Commanders.spawn(s, 1, "field_commander", P(2, 9))
+	var before := OverworldArmies.count(s, a)
+	var did := s.detachments.spawn({&"player": 1, &"plot": P(1, 9), &"dest_commander": a})
+	s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": _rules().squad_index("rifle_squad"), &"alive": 8, &"size": 8})
+	assert_eq(Convoys.aim(s, did), P(2, 9))
+	assert_eq(OverworldOrders.set_route(s, 1, a, PackedInt64Array([P(3, 9), P(4, 9)])), "")
+	assert_eq(Convoys.aim(s, did), P(4, 9), "the end of the route it can afford")
+	var ev := OverworldTurn.resolve(s)
+	assert_eq(s.commanders.get_value(a, &"plot"), P(4, 9))
+	assert_false(s.detachments.is_alive(did), "it caught up and joined the army")
+	assert_eq(OverworldArmies.count(s, a), before + 1)
+	assert_eq(_of(ev, &"convoy_delivered")[0].data["plot"], P(4, 9))
+
+
+## A commander that walks through the hex of a convoy sent to it picks the
+## convoy up there and carries on.
+func test_a_commander_picks_up_its_convoy_on_the_way() -> void:
+	var s := _s()
+	var a := Commanders.spawn(s, 1, "field_commander", P(1, 9))
+	var before := OverworldArmies.count(s, a)
+	var did := s.detachments.spawn({&"player": 1, &"plot": P(2, 9), &"dest_commander": a})
+	s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": _rules().squad_index("rifle_squad"), &"alive": 8, &"size": 8})
+	var route := PackedInt64Array()
+	var cost := 0
+	for col in range(2, 16):
+		var c := s.move_cost(P(col, 9))
+		if c < 0 or cost + c > Commanders.budget(s, s.commanders.row_of(a)):
+			break
+		cost += c
+		route.append(P(col, 9))
+	assert_gt(cost, _rules().convoy_mp, "the commander goes further than a convoy walks in a turn")
+	assert_eq(OverworldOrders.set_route(s, 1, a, route), "")
+	var end := route[route.size() - 1]
+	assert_eq(Convoys.aim(s, did), end)
+	var ev := OverworldTurn.resolve(s)
+	assert_eq(s.commanders.get_value(a, &"plot"), end, "the commander finished its route")
+	assert_false(s.detachments.is_alive(did))
+	assert_eq(OverworldArmies.count(s, a), before + 1)
+	var met: int = _of(ev, &"convoy_delivered")[0].data["plot"]
+	assert_ne(met, end, "they met on the way, before the route's end")
+	assert_true(route.has(met))
+
+
 func test_convoys_on_one_line_merge() -> void:
 	var s := _s()
 	var fid := _barracks(s)
