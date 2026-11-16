@@ -145,6 +145,12 @@ func _build_ui() -> void:
 	load_game.custom_minimum_size = Vector2(0, 40)
 	load_game.pressed.connect(open_saves)
 	col.add_child(load_game)
+	var replays := Button.new()
+	replays.name = "Replays"
+	replays.text = "Replays"
+	replays.custom_minimum_size = Vector2(0, 40)
+	replays.pressed.connect(open_replays)
+	col.add_child(replays)
 	var options := Button.new()
 	options.name = "Options"
 	options.text = "Options"
@@ -210,11 +216,51 @@ static func load_room(path: String) -> WarRoom:
 	return w
 
 
-## The list of saved games, newest first, over the menu. Picking one loads
-## it.
-func open_saves() -> Control:
+## A war room watching a recorded match (MatchReplay.open), or null with
+## the reason in MatchReplay.last_error.
+static func replay_room(dir: String) -> WarRoom:
+	var r := MatchReplay.open(dir)
+	if r == null:
+		return null
+	var w: WarRoom = load(WAR_ROOM_SCENE).instantiate()
+	w.replay = r
+	w.player = int(r.info.get("human", 1))
+	w.record_match = false
+	return w
+
+
+## The recorded matches, newest first, over the menu. Picking one opens it
+## as a replay.
+func open_replays() -> Control:
+	var parts := _list_overlay("Replays", "Replays")
+	var list: VBoxContainer = parts["list"]
+	var said: Label = parts["said"]
+	var found := MatchReplay.list()
+	if found.is_empty():
+		list.add_child(_dim("No recorded matches yet. Every skirmish started from this menu is recorded."))
+	for m: Dictionary in found:
+		var b := Button.new()
+		var map := String(m["map"])
+		var versus := String(m["opponent"])
+		b.text = "%s  ·  seed %d%s  ·  %s" % [_name(map) if _templates != null and _templates.has(map) else map, int(m["seed"]),
+			"" if versus.is_empty() else " vs " + (_name(versus) if _templates != null and _templates.has(versus) else versus), String(m["started"])]
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.pressed.connect(func() -> void:
+			var w := replay_room(String(m["dir"]))
+			if w == null:
+				said.text = "This match can not be replayed: " + MatchReplay.last_error
+				return
+			w.use_settings = true
+			_swap_to.call_deferred(w))
+		list.add_child(b)
+	return parts["over"]
+
+
+## A list over the menu with a heading, a scrolling list, a line for a
+## refusal and a Back button: {"over", "list", "said"}.
+func _list_overlay(node_name: String, title: String) -> Dictionary:
 	var over := Control.new()
-	over.name = "Saves"
+	over.name = node_name
 	over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var shade := ColorRect.new()
 	shade.color = Color(0.03, 0.04, 0.05, 0.8)
@@ -224,7 +270,7 @@ func open_saves() -> Control:
 	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
 	over.add_child(centre)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(520, 0)
+	panel.custom_minimum_size = Vector2(560, 0)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL
 	sb.set_content_margin_all(24)
@@ -234,7 +280,7 @@ func open_saves() -> Control:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 8)
 	panel.add_child(col)
-	col.add_child(_heading("Load game"))
+	col.add_child(_heading(title))
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 300)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -245,6 +291,22 @@ func open_saves() -> Control:
 	scroll.add_child(list)
 	var said := _dim("")
 	said.add_theme_color_override("font_color", Color("e8735f"))
+	said.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(said)
+	var close := Button.new()
+	close.text = "Back"
+	close.pressed.connect(over.queue_free)
+	col.add_child(close)
+	add_child(over)
+	return {"over": over, "list": list, "said": said}
+
+
+## The list of saved games, newest first, over the menu. Picking one loads
+## it.
+func open_saves() -> Control:
+	var parts := _list_overlay("Saves", "Load game")
+	var list: VBoxContainer = parts["list"]
+	var said: Label = parts["said"]
 	var found := MatchDriver.saves()
 	if found.is_empty():
 		list.add_child(_dim("No saved games yet. A skirmish saves itself every turn, and the war room has a Save button."))
@@ -265,13 +327,7 @@ func open_saves() -> Control:
 			w.autosave = true
 			_swap_to.call_deferred(w))
 		list.add_child(b)
-	col.add_child(said)
-	var close := Button.new()
-	close.text = "Back"
-	close.pressed.connect(over.queue_free)
-	col.add_child(close)
-	add_child(over)
-	return over
+	return parts["over"]
 
 
 ## The map editor as a screen: the War Data panel on its Maps tab, with a

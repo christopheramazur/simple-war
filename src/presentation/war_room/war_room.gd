@@ -87,6 +87,12 @@ var drives_turns: bool = false
 var ai: Dictionary = {}
 ## Runs the match for this room: the AI seats, ending turns, the match log.
 var driver: MatchDriver
+## A recorded match to watch (set before the room is ready): ending the
+## turn plays the next recorded turn, and the room gives no orders.
+var replay: MatchReplay
+## Replay: play the next turn as soon as one has been shown.
+var auto_play: bool = false
+var _end_button: Button
 ## Write a match log (MatchLog) for sessions this room makes from a map.
 @export var record_match: bool = true
 var match_log: MatchLog
@@ -145,7 +151,12 @@ var _help: Control
 
 
 func _ready() -> void:
-	if driver != null:  # a loaded game: its session, AI seats and tallies
+	if replay != null:
+		session = replay.session
+		map_id = ""
+		ai_profile = ""
+		end_turn_requested.connect(_end_turn)
+	elif driver != null:  # a loaded game: its session, AI seats and tallies
 		session = driver.session
 		player = driver.human
 		ai = driver.ai
@@ -371,6 +382,27 @@ func _build_ui() -> void:
 	end.text = "End turn (Space)"
 	end.pressed.connect(func() -> void: end_turn_requested.emit())
 	side_col.add_child(end)
+	_end_button = end
+	if replay != null:
+		end.text = "Next turn (Space)"
+		var watch := HBoxContainer.new()
+		var auto := Button.new()
+		auto.text = "Play all"
+		auto.toggle_mode = true
+		auto.tooltip_text = "Play the recorded turns one after another"
+		auto.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		auto.toggled.connect(func(on: bool) -> void:
+			auto_play = on
+			if on and _play.is_empty():
+				end_turn_requested.emit())
+		watch.add_child(auto)
+		var side_pick := Button.new()
+		side_pick.text = "Other side (V)"
+		side_pick.tooltip_text = "Watch as the next player: what that player saw"
+		side_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		side_pick.pressed.connect(view_next_player)
+		watch.add_child(side_pick)
+		side_col.add_child(watch)
 	var tools := HBoxContainer.new()
 	var controls := Button.new()
 	controls.text = "Controls"
@@ -387,6 +419,7 @@ func _build_ui() -> void:
 	save.tooltip_text = "Save the game as it is now. Load it from the main menu."
 	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	save.pressed.connect(save_game)
+	save.disabled = replay != null
 	tools.add_child(save)
 	side_col.add_child(tools)
 	if not menu_scene.is_empty() and ResourceLoader.exists(menu_scene):
@@ -495,10 +528,38 @@ func _refresh_hud() -> void:
 	_hud.text = "%s\n%s" % [status, hints()]
 
 
+## Watches as another player: that player's fog, battles and armies.
+func view_as(p: int) -> void:
+	if not session.players().has(p) or p == player:
+		return
+	player = p
+	if contexts.changed.is_connected(_queue_refresh):
+		contexts.changed.disconnect(_queue_refresh)
+	contexts = ViewContexts.new(player)
+	contexts.changed.connect(_queue_refresh)
+	planners = {}
+	_forecasts = {}
+	_inspected = -1
+	_log_turn = -1
+	messages = PackedStringArray()
+	contexts.sync(session.observe(player))
+	_queue_refresh()
+
+
+## Replay: watch as the next player in turn.
+func view_next_player() -> void:
+	var all := session.players()
+	view_as(all[(all.find(player) + 1) % all.size()])
+
+
 ## What the mouse and keys do in the present context, in one line.
 func hints() -> String:
 	if not _play.is_empty():
 		return "Turn %d is playing out.  Space or click: skip to the end" % int(_play["turn"])
+	if replay != null:
+		var where := "the recording has ended" if replay.at_end() else "turn %d of %d" % [session.turns_resolved() + 1, replay.turns()]
+		var odd := "" if replay.diverged_turn < 0 else "  ·  WARNING: turn %d did not match the recording" % replay.diverged_turn
+		return "Replay, watching as player %d (%s)%s  ·  Space: next turn  ·  V: the other side  ·  Tab: go to a battle  ·  click a squad, a commander or a hex to inspect it" % [player, where, odd]
 	if not _target.is_empty():
 		return "Click the hex or one of your commanders to send %s there.  Right click or Esc: cancel" % _target["what"]
 	if contexts.focus == ViewContexts.OVERWORLD:
@@ -995,6 +1056,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				contexts.exit()
 		KEY_F:
 			contexts.follow()
+		KEY_V:
+			if replay == null:
+				return
+			view_next_player()
 		KEY_BACKSPACE:
 			contexts.deselect_all()
 		KEY_SPACE:
@@ -1189,6 +1254,10 @@ func play_again() -> void:
 ## Saves the game to a new slot (MatchDriver.save_game). Returns the path
 ## or "".
 func save_game() -> String:
+	if replay != null:
+		_hud_note = "a replay can't be saved"
+		_queue_refresh()
+		return ""
 	var path := driver.save_game()
 	_hud_note = "could not save: " + MatchDriver.last_error if path.is_empty() else "saved as " + path.get_file().get_basename()
 	_note(_hud_note)
@@ -1247,7 +1316,16 @@ func _end_turn() -> void:
 	var before := session.observe(player)
 	var resolved := session.turns_resolved()
 	session.keep_playback = turn_time() > 0.0
-	var played := driver.end_turn()
+	var played := false
+	if replay != null:
+		played = replay.step()
+		if played:
+			driver.tally(session.last_events)
+		else:
+			auto_play = false
+			_hud_note = "the recording has ended"
+	else:
+		played = driver.end_turn()
 	if session.turns_resolved() != _turn_seen:
 		_new_turn()
 	_flush_pending()
@@ -1335,5 +1413,7 @@ func skip_playback() -> void:
 	set_process(false)
 	contexts.sync(session.observe(player))
 	_queue_refresh()
+	if auto_play and replay != null and not replay.at_end():
+		end_turn_requested.emit.call_deferred()
 
 

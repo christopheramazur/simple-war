@@ -67,6 +67,9 @@ var _opportunities: Dictionary = {}
 ## Set on entering the reaction window: ready the players with nothing to
 ## react to (done in _pump, outside the clock's call stack).
 var _auto_ready: bool = false
+## A replay (MatchReplay): the session takes no orders, readies or time
+## from outside; only replay_inputs moves it.
+var locked: bool = false
 ## Presentation opt-in: keep every battle's last turn tick by tick
 ## (`playback`). Read-only; it never changes a result.
 var keep_playback: bool = false
@@ -401,7 +404,7 @@ func transfer_squad(player: int, squad_id: int, to_commander: int) -> String:
 
 
 func ready(player: int) -> void:
-	if not _players.has(player):
+	if locked or not _players.has(player):
 		return
 	_log(player, "ready", null)
 	clock.mark_ready(player)
@@ -410,7 +413,7 @@ func ready(player: int) -> void:
 
 ## Feeds elapsed time (ms). Headless drivers may skip it and rely on ready.
 func advance(ms: int) -> void:
-	if ms <= 0:
+	if locked or ms <= 0:
 		return
 	_log(0, "advance", ms)
 	clock.advance(ms)
@@ -418,6 +421,8 @@ func advance(ms: int) -> void:
 
 
 func _planning(player: int) -> String:
+	if locked:
+		return "this is a replay: it takes no orders"
 	if clock.phase != PulseClock.Phase.PLANNING:
 		return "orders are only accepted during planning"
 	if not _players.has(player):
@@ -821,6 +826,13 @@ static func rebuild(bytes: PackedByteArray, templates: TemplateTable, hash_hex: 
 
 ## Re-applies logged inputs in order.
 func replay_inputs(inputs: Array) -> void:
+	var was := locked
+	locked = false
+	_replay(inputs)
+	locked = was
+
+
+func _replay(inputs: Array) -> void:
 	for i: Dictionary in inputs:
 		var p: Variant = i["payload"]
 		match i["kind"]:

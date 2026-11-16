@@ -83,7 +83,7 @@ func end_turn() -> bool:
 			break
 	var resolved := session.turns_resolved() != before
 	if resolved:
-		_tally(session.last_events)
+		tally(session.last_events)
 		if match_log != null:
 			match_log.turn_resolved()
 		if autosave:
@@ -91,7 +91,8 @@ func end_turn() -> bool:
 	return resolved
 
 
-func _tally(events: Array) -> void:
+## Adds a resolved turn's events to the tallies.
+func tally(events: Array) -> void:
 	stats["turns"] = session.turns_resolved()
 	var players: Dictionary = stats["players"]
 	for p in session.players():
