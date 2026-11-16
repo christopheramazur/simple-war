@@ -91,6 +91,10 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
     - **Winners** left on the hex then take its features and caches.
     - **Draws** end the engagement with nothing cleared.
   - **Reinforcements:** a commander staying in its battle (its own squad deployed) can send squads from the rest of its army. They join at its side's deployment area before the next battle turn, while its squads still fighting are under the battleforce squad cap.
+  - **Joining late:** a player who enters a battle tile after the battle began becomes a new side before the next battle turn.
+    - **Where:** it arrives at whichever of these is farthest from every squad already fighting, the first on a tie: the scenario's deployment areas, then a strip of the same size along the middle of the top edge, then the bottom edge. Its squads spread along the area and face the middle of the field.
+    - **The clock doesn't restart:** the battle's turn limit and scores carry on, so a side that joins late has fewer turns.
+    - **Everyone is hostile:** a battle has no teams yet, so allies who join the same battle would fight each other.
   - **Leaving:** a commander whose own squad isn't deployed may leave during planning and move that turn. Its battleforce fights on, and survivors return to its army when the battle ends. If its commander left, they form a convoy rallied to it instead (R8Q3, sw-o1m.2.5).
 - A typical battle is about 8 turns:
   - T1: scouting and positioning.

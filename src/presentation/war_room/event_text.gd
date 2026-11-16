@@ -36,6 +36,8 @@ static func describe(e: Dictionary, rules: OverworldRules, viewer: int = 0) -> S
 			var n := int(d.get("count", names.size()))
 			return "%s lost %d squad%s in the battle %s%s." % [who, n, "" if n == 1 else "s", at,
 				"" if names.is_empty() else ": " + ", ".join(names)]
+		&"battle_joined":
+			return "%s joined the battle %s." % [who, at]
 		&"squad_reinforced":
 			return "%s sent a reserve squad into a battle." % who
 		&"commander_defeated":

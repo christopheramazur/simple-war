@@ -10,6 +10,12 @@ extends RefCounted
 ## Reinforcing: any squad deployed in the engagement but not yet in the
 ## battle (a reinforcement planned this turn) is spawned at its side's
 ## deployment area before the next battle turn.
+## Joining: a player who enters a battle tile after the battle began (§2.10
+## Stopping) becomes a new side. It arrives at whichever of these is farthest
+## from every squad already fighting (first on a tie): the scenario's
+## deployment areas, then a strip of the same size along the middle of the
+## top edge, then the bottom edge. Its squads spread along the area, facing
+## the middle of the field.
 ## Finishing: survivors carry their units alive back to their armies (those
 ## of a commander that left form a convoy rallied to it, R8Q3); the
 ## destroyed and the scattered are gone. A commander whose own squad is gone
@@ -75,6 +81,7 @@ static func build(t: TemplateTable, hash_hex: String, s: OverworldState, eid: in
 	b.context_id = context_id
 	b.scenario = scenario
 	b.rules = br
+	b.areas = areas
 	b.state = BattleState.new(context_id, br, seed_value)
 	for i in sides.size():
 		var ids := BattleSetup.deploy_side(b.state, sides[i])
@@ -112,24 +119,78 @@ static func reinforce(s: OverworldState, b: OverworldBattle) -> void:
 	var linked := {}
 	for bid: int in b.links:
 		linked[b.links[bid]] = true
+	var fresh: Array = []
 	for id in OverworldBattleforce.deployed_in(s, b.engagement):
-		if linked.has(id):
-			continue
+		if not linked.has(id):
+			fresh.append(id)
+	# Players not yet a side join as one; their squads line up down its area.
+	var joining := {}  # player -> how many of its squads arrive
+	for id: int in fresh:
+		var pl := OverworldArmies.player_of(s, id)
+		if not b.state.players.has(pl):
+			joining[pl] = int(joining.get(pl, 0)) + 1
+	var joiners: Array = joining.keys()
+	joiners.sort()
+	for pl: int in joiners:
+		_join(s, b, pl)
+	var placed := {}  # player -> squads of a joining side placed so far
+	for id: int in fresh:
 		var pl := OverworldArmies.player_of(s, id)
 		var side := {}
 		for sd in b.rules.sides:
 			if sd["player"] == pl:
 				side = sd
 		if side.is_empty():
-			continue  # a side that was not in the battle cannot join it mid-way
+			continue
 		var d: PackedInt64Array = side["deploy"]
 		var st := b.rules.squad_index(s.rules.squad_ids[s.squads.get_value(id, &"tmpl")])
 		var alive := s.squads.get_value(id, &"alive")
-		var bid := BattleSetup.spawn_squad(b.state, pl, st, d[0] + d[2] / 2, d[1] + d[3] / 2, side["facing"], alive,
+		var x := d[0] + d[2] / 2
+		var y := d[1] + d[3] / 2
+		if joining.has(pl):
+			var i := int(placed.get(pl, 0))
+			placed[pl] = i + 1
+			if d[2] > d[3]:
+				x = d[0] + Fixed.round_div(d[2] * (2 * i + 1), 2 * int(joining[pl]))
+			else:
+				y = d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * int(joining[pl]))
+		var bid := BattleSetup.spawn_squad(b.state, pl, st, x, y, side["facing"], alive,
 			WarChest.gear(s, id, alive))
 		b.links[bid] = id
 		s.events.push(&"squad_reinforced", {"engagement": b.engagement, "squad": id, "player": pl}, s.tick)
 	Centroids.update(b.state)
+
+
+## Makes `pl` a side of a battle already running.
+static func _join(s: OverworldState, b: OverworldBattle, pl: int) -> void:
+	var bq := b.state.squads
+	var best := {}
+	var best_gap := -1
+	var options: Array = (b.areas if not b.areas.is_empty() else b.rules.sides).duplicate()
+	var fw := b.rules.width * Fixed.ONE
+	var fh := b.rules.height * Fixed.ONE
+	var first: PackedInt64Array = options[0]["deploy"]
+	var edge := mini(first[0], fh / 4)  # as far in from the edge as the first area is
+	var w := mini(first[3], fw)
+	var h := mini(first[2], fh / 2)
+	options.append({"facing": Fixed.atan2(Fixed.ONE, 0), "deploy": PackedInt64Array([(fw - w) / 2, edge, w, h])})
+	options.append({"facing": Fixed.atan2(-Fixed.ONE, 0), "deploy": PackedInt64Array([(fw - w) / 2, fh - edge - h, w, h])})
+	for a: Dictionary in options:
+		var d: PackedInt64Array = a["deploy"]
+		var gap := 1 << 62
+		for row in bq.count():
+			if bq.is_active(row) and bq.alive[row] > 0 and bq.destroyed[row] == 0:
+				gap = mini(gap, Fixed.distance(d[0] + d[2] / 2, d[1] + d[3] / 2, bq.cx[row], bq.cy[row]))
+		if gap > best_gap:
+			best_gap = gap
+			best = a
+	b.rules.sides.append({"player": pl, "facing": best["facing"], "deploy": (best["deploy"] as PackedInt64Array).duplicate(),
+		"squads": PackedInt64Array(), "alive": PackedInt64Array()})
+	b.state.players.append(pl)
+	b.state.players.sort()
+	b.state.influence[pl] = 0
+	b.state.value_score[pl] = 0
+	s.events.push(&"battle_joined", {"engagement": b.engagement, "plot": b.plot, "player": pl}, s.tick)
 
 
 ## Applies a finished battle's result to the overworld and ends the
@@ -300,6 +361,7 @@ static func from_dict(t: TemplateTable, hash_hex: String, d: Dictionary) -> Over
 	b.context_id = d["context"]
 	b.scenario = d["scenario"]
 	b.rules = BattleRules.compile(t, b.scenario, hash_hex)
+	b.areas = b.rules.sides.duplicate()
 	var sides: Array[Dictionary] = []
 	for sd: Dictionary in d["sides"]:
 		sides.append(sd)

@@ -41,6 +41,7 @@ const _EVENT_FIELDS := {
 	&"battle_resolved": [[], ["winner"], ["plot"]],
 	&"guard_cleared": [[], ["player"], ["plot"]],
 	&"squad_reinforced": [[], ["player"], []],
+	&"battle_joined": [[], ["player"], ["plot"]],
 	&"commander_defeated": [[], ["player"], ["plot"]],
 	&"squads_lost": [[], ["player"], ["plot"]],
 	&"commander_left_battle": [["commander"], ["player"], ["plot"]],

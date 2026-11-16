@@ -3,7 +3,7 @@ extends RefCounted
 ## profile on the AI factory's map after six turns with no orders from the
 ## player. Render with `hx godot mock res://src/presentation/mocks/main_menu_mock.gd`.
 
-const FRAME := Vector2(920, 560)
+const FRAME := Vector2(920, 640)
 const GAP := 16.0
 
 

@@ -100,3 +100,12 @@ func test_reinforcements_are_spare_squads_strongest_first() -> void:
 			assert_true(spare[out[i - 1]["squad"]] >= spare[out[i]["squad"]], "strongest first")
 	var idle := ProfileController.new(1, {"battle": {"process": "idle"}})
 	assert_eq(idle.reinforcements(obs, s.rules), [])
+
+
+func test_the_map_editor_opens_on_the_maps_tab() -> void:
+	var screen := MainMenu.editor_screen()
+	add_child_autofree(screen)
+	var panel: WarDataPanel = screen.find_child("WarData", true, false)
+	assert_not_null(panel)
+	assert_eq(panel._tabs.get_current_tab_control(), panel._maps)
+	assert_true(panel._maps.open_map("crossroads_map"))

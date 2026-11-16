@@ -226,3 +226,47 @@ func test_battles_save_load_and_replay() -> void:
 			x.ready(2)
 	assert_eq(loaded.turn_hashes, full.turn_hashes)
 	assert_eq(loaded.state_hash_hex(), full.state_hash_hex())
+
+
+## A second player walks onto a battle tile (§2.10 Stopping: it joins). It
+## used to be held in the engagement with no side in the battle: unable to
+## move or give orders (playtest, 2026-11-16).
+func test_a_player_entering_a_running_battle_joins_it_as_a_side() -> void:
+	var s := _session_battle()
+	var eid: int = s.battles.keys()[0]
+	s.ready(1)
+	s.ready(2)
+	var late := Commanders.spawn(s.state, 2, "field_commander", P(12, 4))
+	assert_eq(s.set_route(2, late, PackedInt64Array([P(11, 3)])), "")
+	var b: OverworldBattle = s.battles.get(eid)
+	var steps := 0
+	while steps < 4 and s.battles.has(eid) and not b.state.players.has(2):
+		steps += 1
+		s.ready(1)
+		s.ready(2)
+	assert_true(s.battles.has(eid), "the battle is still running (after %d steps)" % steps)
+	if not s.battles.has(eid):
+		return
+	assert_eq(s.state.commanders.get_value(late, &"engagement"), eid)
+	assert_eq(Array(b.state.players), [1, 2, OverworldBattles.NEUTRAL])
+	var mine := 0
+	var ys := {}
+	for row in b.state.squads.count():
+		if b.state.squads.player[row] == 2:
+			mine += 1
+			ys[[b.state.squads.ax[row], b.state.squads.ay[row]]] = true
+	assert_eq(mine, 2, "its battleforce is on the field")
+	assert_eq(ys.size(), 2, "spread along the arrival area, not stacked")
+	s.ready(1)
+	s.ready(2)
+	assert_true(s.battles.has(eid), "it survives arriving")
+	assert_false(s.observe_battle(2, eid).is_empty(), "it sees the battle")
+	assert_eq(s.submit_battle_orders(2, eid, ZoneController.new(2).orders(s.observe_battle(2, eid))), PackedStringArray())
+	var loaded := OverworldSession.load_save(s.save(), _l().templates, _l().data_hash)
+	assert_not_null(loaded, OverworldSession.last_error)
+	assert_eq(loaded.state_hash_hex(), s.state_hash_hex())
+	for x: OverworldSession in [s, loaded]:
+		for t in 2:
+			x.ready(1)
+			x.ready(2)
+	assert_eq(loaded.state_hash_hex(), s.state_hash_hex(), "a loaded save plays on the same")

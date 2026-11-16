@@ -4,10 +4,12 @@ extends Control
 ## Skirmish against an AI controller profile on a skirmish map (the AI
 ## factory's maps, GDD 05 §5.4). Presentation only: it reads the core
 ## package to list profiles and maps, then hands a configured WarRoom the
-## choice. Runs standalone (F6).
+## choice. Map editor opens the War Data screen on its Maps tab (the same
+## panel the Godot editor plugin shows). Runs standalone (F6).
 
 const STORY_SCENE := "res://src/presentation/angelfall/angelfall.tscn"
 const WAR_ROOM_SCENE := "res://src/presentation/war_room/war_room.tscn"
+const MENU_SCENE := "res://src/presentation/main_menu/main_menu.tscn"
 ## The map the factory plays by default (hx.factory DEFAULTS["scenario"]).
 const FACTORY_MAP := "skirmish_seeded"
 const PANEL: Color = Color("1d2128")
@@ -130,6 +132,11 @@ func _build_ui() -> void:
 		_selected(maps, _map_pick), int(_seed.value)))
 	col.add_child(go)
 	col.add_child(HSeparator.new())
+	var editor := Button.new()
+	editor.text = "Map editor"
+	editor.custom_minimum_size = Vector2(0, 40)
+	editor.pressed.connect(start_editor)
+	col.add_child(editor)
 	var quit := Button.new()
 	quit.text = "Quit"
 	quit.pressed.connect(func() -> void: get_tree().quit())
@@ -174,6 +181,39 @@ static func skirmish_room(profile: String, map: String, seed_value: int) -> WarR
 	w.map_seed = seed_value
 	w.ai_profile = profile
 	return w
+
+
+## The map editor as a screen: the War Data panel on its Maps tab, with a
+## way back to this menu.
+static func editor_screen() -> Control:
+	var root := Control.new()
+	root.name = "MapEditor"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bg := ColorRect.new()
+	bg.color = Color("12151a")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(bg)
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(col)
+	var bar := HBoxContainer.new()
+	col.add_child(bar)
+	var back := Button.new()
+	back.text = "Back to menu"
+	back.pressed.connect(func() -> void: root.get_tree().change_scene_to_file.call_deferred(MENU_SCENE))
+	bar.add_child(back)
+	var title := Label.new()
+	title.text = "Map editor"
+	bar.add_child(title)
+	var panel := WarDataPanel.new()
+	panel.name = "WarData"
+	panel.ready.connect(panel.show_maps)
+	col.add_child(panel)
+	return root
+
+
+func start_editor() -> void:
+	_swap_to.call_deferred(editor_screen())
 
 
 func start_skirmish(profile: String, map: String, seed_value: int) -> void:
