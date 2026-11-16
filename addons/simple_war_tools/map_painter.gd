@@ -7,21 +7,34 @@ extends HSplitContainer
 ## object) and undo. The map itself is a MapCanvas; saving goes through
 ## PackageEditor, so a map that would break the package is refused.
 ##
+## Objects (sw-ll4.7): a `scenario` played on the open map can be open with
+## it (a ScenarioCanvas). Its zones and its sides' deployment areas are
+## drawn over the terrain. With the Objects tool, click one to select it,
+## drag it to move it, drag an area's corner handle to resize it, and edit
+## the rest (a zone's id, radius and points; a side's player, facing and
+## squads) in the panel. Save writes the map and the scenario.
+##
 ## Mouse: left paints, right paints the base feature (or removes a stamp
 ## with the Stamp tool), middle drags the view, the wheel zooms.
-## Keys (over the map): B R L F I S pick a tool, arrows set the facing,
-## Backspace clears it, Ctrl+Z / Ctrl+Y undo and redo.
+## Keys (over the map): B R L F I S O pick a tool, arrows set the facing,
+## Backspace clears it, Delete removes the selected object, Ctrl+Z /
+## Ctrl+Y undo and redo (of the scenario while the Objects tool is on).
 
 signal saved(map_id: String)
 
-enum Tool { BRUSH, RECT, LINE, FILL, PICK, STAMP }
+enum Tool { BRUSH, RECT, LINE, FILL, PICK, STAMP, OBJECT }
 
-const TOOL_NAMES: PackedStringArray = ["Brush (B)", "Rectangle (R)", "Line (L)", "Fill (F)", "Pick (I)", "Stamp (S)"]
+const TOOL_NAMES: PackedStringArray = ["Brush (B)", "Rectangle (R)", "Line (L)", "Fill (F)", "Pick (I)", "Stamp (S)", "Objects (O)"]
 const MIRROR_NAMES: PackedStringArray = ["No mirror", "Left and right", "Top and bottom", "Four ways", "Half turn"]
 const FACING_NAMES: PackedStringArray = ["No facing", "North", "East", "South", "West"]
 
 var model: PackageEditor
 var canvas: MapCanvas
+## The scenario open with the map (its zones and sides), or null.
+var scenario: ScenarioCanvas
+## The selected object: {"kind": "zone" | "side", "index"}, or {}.
+var selected: Dictionary = {}
+var squad_ids: PackedStringArray = PackedStringArray()
 var tool: int = Tool.BRUSH
 ## Index into canvas.features.
 var feature: int = 0
@@ -35,6 +48,9 @@ var colors: Array[Color] = []
 
 var view: MapView
 var _maps: OptionButton
+var _scenarios: OptionButton
+var _new_scenario: LineEdit
+var _object_box: VBoxContainer
 var _new_id: LineEdit
 var _new_w: SpinBox
 var _new_h: SpinBox
@@ -68,13 +84,25 @@ func set_model(m: PackageEditor) -> void:
 		if model.templates.kind_of(id) == "feature" and not model.templates.is_abstract(id):
 			feature_ids.append(id)
 			colors.append(feature_color(id, model.templates.values_of(id)))
+	squad_ids = PackedStringArray()
+	for id in model.ids_of("squad"):
+		if not model.templates.is_abstract(id):
+			squad_ids.append(id)
 	_fill_lists()
 	if canvas == null:
 		return
+	var keep := scenario
 	if canvas.dirty or model.file_of(canvas.id) == "":
 		canvas.set_templates(model.templates)
 	else:
 		open_map(canvas.id)
+	# The scenario that was open stays open: reread if it has no unsaved
+	# changes, kept as it is otherwise.
+	if keep != null and (keep.dirty or model.file_of(keep.id) == ""):
+		scenario = keep
+	elif keep != null:
+		open_scenario(keep.id)
+	_fill_scenarios()
 
 
 ## Opens a battle map of the package. Refused while the open map has
@@ -84,13 +112,101 @@ func open_map(id: String) -> bool:
 		_say("'%s' has unsaved changes: save it or revert it first." % canvas.id)
 		_select_map(canvas.id)
 		return false
+	if canvas != null and canvas.id != id and scenario != null and scenario.dirty:
+		_say("The scenario '%s' has unsaved changes: save it or revert it first." % scenario.id)
+		_select_map(canvas.id)
+		return false
 	if model.file_of(id) == "" or model.templates.kind_of(id) != "battle_map":
 		_say("No battle map '%s'." % id)
 		return false
 	var def: Variant = JSON.parse_string(model.definition_text(id))
+	var other := canvas == null or canvas.id != id
 	_use(MapCanvas.open(model.templates, def if def is Dictionary else {"id": id, "kind": "battle_map"}))
 	_say("\n".join(canvas.notes))
+	if other:
+		# A map opens with the first scenario played on it, so its zones and
+		# deployment areas are there to see.
+		var on_it := scenarios_of(id)
+		scenario = null
+		open_scenario(on_it[0] if not on_it.is_empty() else "")
 	return true
+
+
+## The scenarios played on a battle map, by id.
+func scenarios_of(map_id: String) -> PackedStringArray:
+	var out := PackedStringArray()
+	if model == null or model.templates == null:
+		return out
+	for id in model.ids_of("scenario"):
+		if not model.templates.is_abstract(id) and str(model.templates.values_of(id).get("map", "")) == map_id:
+			out.append(id)
+	return out
+
+
+## Opens a scenario of the open map ("" closes the open one). Refused while
+## the open scenario has unsaved changes. Returns whether it did.
+func open_scenario(id: String) -> bool:
+	if scenario != null and scenario.dirty and scenario.id != id:
+		_say("The scenario '%s' has unsaved changes: save it or revert it first." % scenario.id)
+		_fill_scenarios()
+		return false
+	if id.is_empty():
+		scenario = null
+	else:
+		if canvas == null or model.file_of(id) == "" or model.templates.kind_of(id) != "scenario":
+			_say("No scenario '%s'." % id)
+			return false
+		var def: Variant = JSON.parse_string(model.definition_text(id))
+		scenario = ScenarioCanvas.open(model.templates, def if def is Dictionary else {"id": id, "kind": "scenario"})
+		scenario.map_id = canvas.id
+	select_object({})
+	_fill_scenarios()
+	changed()
+	return true
+
+
+## Starts a new scenario on the open map: the core field scenario's rules,
+## a deployment strip inside each short edge and one zone in the middle.
+## It joins the package when it is saved.
+func new_scenario(id: String) -> bool:
+	if canvas == null:
+		_say("Open a map first.")
+		return false
+	if scenario != null and scenario.dirty:
+		_say("The scenario '%s' has unsaved changes: save it or revert it first." % scenario.id)
+		return false
+	if id.is_empty() or model.file_of(id) != "":
+		_say("A new scenario needs an id nothing else uses.")
+		return false
+	scenario = ScenarioCanvas.create(model.templates, id, canvas.id, canvas.width, canvas.height)
+	select_object({})
+	_fill_scenarios()
+	set_tool(Tool.OBJECT)
+	_say("New scenario '%s' on '%s'. It is added to %s when you save." % [id, canvas.id, _file.get_item_text(_file.selected)])
+	changed()
+	return true
+
+
+## Selects a zone or a side of the open scenario ({} for none) and shows
+## its values in the panel.
+func select_object(sel: Dictionary) -> void:
+	selected = sel
+	_fill_object_box()
+	if view != null:
+		view.queue_redraw()
+
+
+## Removes the selected object.
+func remove_selected() -> void:
+	if scenario == null or selected.is_empty():
+		return
+	scenario.begin()
+	if selected["kind"] == "zone":
+		scenario.remove_zone(selected["index"])
+	else:
+		scenario.remove_side(selected["index"])
+	select_object({})
+	changed()
 
 
 ## Starts a new map. It joins the package when it is saved.
@@ -98,33 +214,74 @@ func new_map(id: String, w: int, h: int, base_feature: String) -> bool:
 	if canvas != null and canvas.dirty:
 		_say("'%s' has unsaved changes: save it or revert it first." % canvas.id)
 		return false
+	if scenario != null and scenario.dirty:
+		_say("The scenario '%s' has unsaved changes: save it or revert it first." % scenario.id)
+		return false
 	if id.is_empty() or model.file_of(id) != "":
 		_say("A new map needs an id nothing else uses.")
 		return false
+	scenario = null
+	selected = {}
 	_use(MapCanvas.create(model.templates, id, w, h, base_feature))
+	_fill_scenarios()
+	_fill_object_box()
 	_say("New map '%s'. It is added to %s when you save." % [id, _file.get_item_text(_file.selected)])
 	return true
 
 
-## Writes the map if the package stays valid with it. Returns the errors.
+## Writes the map, and the open scenario if it has changes, if the package
+## stays valid with them. Returns the errors.
 func save() -> PackedStringArray:
 	if canvas == null:
 		return PackedStringArray(["no map is open"])
 	var id := canvas.id
-	var text := canvas.definition_text()
-	var errs: PackedStringArray
-	if model.file_of(id) == "":
-		errs = model.add(text, _file.get_item_text(_file.selected))
-	else:
-		errs = model.replace(id, text)
+	# Zones and deployment areas must fit the map as it is now: the open
+	# scenario as edited, and every other scenario played on this map.
+	var misfits := PackedStringArray()
+	if scenario != null:
+		misfits.append_array(scenario.problems(canvas.width, canvas.height))
+	for other in scenarios_of(id):
+		if scenario == null or other != scenario.id:
+			var def: Variant = JSON.parse_string(model.definition_text(other))
+			if def is Dictionary:
+				misfits.append_array(ScenarioCanvas.open(model.templates, def).problems(canvas.width, canvas.height))
+	if not misfits.is_empty():
+		_say("Not saved:
+" + "
+".join(misfits))
+		return misfits
+	var errs := _write(id, canvas.definition_text())
+	var with_scenario := scenario != null and (scenario.dirty or model.file_of(scenario.id) == "")
+	if not errs.is_empty() and with_scenario and model.file_of(scenario.id) != "":
+		# The map may only fit once the scenario has moved (a zone brought
+		# back inside a map made smaller): try the scenario first.
+		if _write(scenario.id, scenario.definition_text()).is_empty():
+			scenario.mark_saved()
+			with_scenario = false
+			errs = _write(id, canvas.definition_text())
 	if not errs.is_empty():
 		_say("Not saved:\n" + "\n".join(errs))
 		return errs
 	canvas.mark_saved()
+	var said := "Saved '%s' to %s (%d shapes)." % [id, model.file_of(id), canvas.cells().size()]
+	if with_scenario:
+		errs = _write(scenario.id, scenario.definition_text())
+		if errs.is_empty():
+			scenario.mark_saved()
+			said += "\nSaved the scenario '%s' to %s." % [scenario.id, model.file_of(scenario.id)]
+		else:
+			said += "\nThe scenario '%s' was not saved:\n%s" % [scenario.id, "\n".join(errs)]
 	saved.emit(id)
 	set_model(model)
-	_say("Saved '%s' to %s (%d shapes)." % [id, model.file_of(id), canvas.cells().size()])
+	_say(said)
 	return errs
+
+
+## Adds a template to the chosen file, or replaces its text if it exists.
+func _write(id: String, text: String) -> PackedStringArray:
+	if model.file_of(id) == "":
+		return model.add(text, _file.get_item_text(_file.selected))
+	return model.replace(id, text)
 
 
 ## Throws away unsaved changes.
@@ -132,31 +289,50 @@ func revert() -> void:
 	if canvas == null:
 		return
 	var id := canvas.id
+	var sid := scenario.id if scenario != null else ""
 	canvas = null
+	scenario = null
+	selected = {}
 	if model.file_of(id) != "":
 		open_map(id)
+		if not sid.is_empty() and model.file_of(sid) != "":
+			open_scenario(sid)
 	else:
+		_fill_scenarios()
+		_fill_object_box()
 		view.queue_redraw()
 		_say("Dropped the unsaved map '%s'." % id)
 
 
+## Whether the Objects tool is on with a scenario open: undo and redo then
+## act on the scenario, otherwise on the map.
+func _on_objects() -> bool:
+	return tool == Tool.OBJECT and scenario != null
+
+
 func undo() -> void:
-	if canvas != null:
+	if _on_objects():
+		scenario.undo()
+		select_object({})
+	elif canvas != null:
 		canvas.undo()
-		changed()
+	changed()
 
 
 func redo() -> void:
-	if canvas != null:
+	if _on_objects():
+		scenario.redo()
+		select_object({})
+	elif canvas != null:
 		canvas.redo()
-		changed()
+	changed()
 
 
 func set_tool(t: int) -> void:
 	tool = t
 	for i in _tools.size():
 		_tools[i].set_pressed_no_signal(i == t)
-	view.queue_redraw()
+	changed()
 
 
 func set_feature(index: int) -> void:
@@ -172,8 +348,12 @@ func set_facing(f: int) -> void:
 
 ## The view calls this after every edit.
 func changed() -> void:
-	_undo.disabled = canvas == null or not canvas.can_undo()
-	_redo.disabled = canvas == null or not canvas.can_redo()
+	if _on_objects():
+		_undo.disabled = not scenario.can_undo()
+		_redo.disabled = not scenario.can_redo()
+	else:
+		_undo.disabled = canvas == null or not canvas.can_undo()
+		_redo.disabled = canvas == null or not canvas.can_redo()
 	view.queue_redraw()
 
 
@@ -235,6 +415,26 @@ func _build() -> void:
 	size_row.add_child(_button("Resize", _resize, "Change the open map to the size above, keeping its top-left corner"))
 	size_row.add_child(_button("Set base", _set_base, "Make the selected feature the open map's base"))
 
+	side.add_child(_heading("Scenario"))
+	_scenarios = OptionButton.new()
+	_scenarios.tooltip_text = "A scenario played on this map: its zones and deployment areas are drawn over the terrain"
+	_scenarios.item_selected.connect(func(i: int) -> void: open_scenario("" if i == 0 else _scenarios.get_item_text(i)))
+	side.add_child(_scenarios)
+	var sc_row := HBoxContainer.new()
+	side.add_child(sc_row)
+	_new_scenario = LineEdit.new()
+	_new_scenario.placeholder_text = "new_scenario_id"
+	_new_scenario.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sc_row.add_child(_new_scenario)
+	sc_row.add_child(_button("New", func() -> void: new_scenario(_new_scenario.text.strip_edges()),
+		"Start a scenario on the open map: two deployment strips and a centre zone to begin with"))
+	var obj_row := HBoxContainer.new()
+	side.add_child(obj_row)
+	obj_row.add_child(_button("Add zone", _add_zone, "A new zone in the middle of the map; drag it into place"))
+	obj_row.add_child(_button("Add side", _add_side, "A new side with its deployment area; drag it into place"))
+	_object_box = VBoxContainer.new()
+	side.add_child(_object_box)
+
 	side.add_child(_heading("Tool"))
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -291,7 +491,7 @@ func _build() -> void:
 	undo_row.add_child(_button("Revert", revert, "Throw away unsaved changes"))
 	var save_row := HBoxContainer.new()
 	side.add_child(save_row)
-	save_row.add_child(_button("Save map", save, "Checks the whole package with this map, then writes it"))
+	save_row.add_child(_button("Save map", save, "Checks the whole package with this map and its open scenario, then writes them"))
 	_file = OptionButton.new()
 	_file.tooltip_text = "The data file a new map is added to"
 	_file.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -375,6 +575,160 @@ func _fill_lists() -> void:
 		_file.select(maxi(_index_of(_file, keep), 0))
 
 
+func _fill_scenarios() -> void:
+	if _scenarios == null:
+		return
+	_scenarios.clear()
+	_scenarios.add_item("No scenario")
+	if canvas == null:
+		return
+	var ids := scenarios_of(canvas.id)
+	if scenario != null and not ids.has(scenario.id):
+		ids.append(scenario.id)  # new, or not saved on this map yet
+	for id in ids:
+		_scenarios.add_item(id)
+	_scenarios.select(maxi(_index_of(_scenarios, scenario.id), 0) if scenario != null else 0)
+
+
+func _add_zone() -> void:
+	if scenario == null:
+		_say("Pick or make a scenario first.")
+		return
+	scenario.begin()
+	@warning_ignore("integer_division")
+	var i := scenario.add_zone(canvas.width / 2, canvas.height / 2)
+	set_tool(Tool.OBJECT)
+	select_object({"kind": "zone", "index": i})
+	changed()
+
+
+func _add_side() -> void:
+	if scenario == null:
+		_say("Pick or make a scenario first.")
+		return
+	scenario.begin()
+	@warning_ignore("integer_division")
+	var i := scenario.add_side(canvas.width / 2 - 6, canvas.height / 2 - 10)
+	set_tool(Tool.OBJECT)
+	select_object({"kind": "side", "index": i})
+	changed()
+
+
+## The panel for the selected object.
+func _fill_object_box() -> void:
+	if _object_box == null:
+		return
+	for c in _object_box.get_children():
+		_object_box.remove_child(c)
+		c.queue_free()
+	if scenario == null:
+		_object_box.add_child(_hint("Pick a scenario above, or give a new one an id and press New, to place zones and deployment areas."))
+		return
+	if selected.is_empty():
+		_object_box.add_child(_hint("With the Objects tool (O), click a zone or a deployment area to edit it. Drag to move it."))
+		return
+	var i: int = selected["index"]
+	if selected["kind"] == "zone" and i < scenario.zones.size():
+		var z: Dictionary = scenario.zones[i]
+		var zid := LineEdit.new()
+		zid.name = "ZoneId"
+		zid.text = str(z["id"])
+		zid.text_submitted.connect(func(t: String) -> void: _edit(func() -> String: return scenario.set_zone(i, "id", t)))
+		zid.focus_exited.connect(func() -> void:
+			if scenario != null and i < scenario.zones.size() and zid.text != str(scenario.zones[i]["id"]):
+				_edit(func() -> String: return scenario.set_zone(i, "id", zid.text)))
+		_object_box.add_child(_field("Zone", zid))
+		for key: String in ["radius", "vp", "threshold", "decay", "buffer"]:
+			var sp := _spin(0 if key != "radius" else 1, 999, int(z.get(key, 0)))
+			sp.name = "Zone_" + key
+			sp.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_zone(i, key, int(v))))
+			_object_box.add_child(_field({"radius": "Radius (m)", "vp": "Points", "threshold": "Threshold", "decay": "Decay", "buffer": "Buffer"}[key], sp))
+		_object_box.add_child(_button("Delete zone", remove_selected, "Delete key"))
+	elif selected["kind"] == "side" and i < scenario.sides.size():
+		var sd: Dictionary = scenario.sides[i]
+		var pl := _spin(1, 8, int(sd["player"]))
+		pl.name = "SidePlayer"
+		pl.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_side(i, "player", int(v))))
+		_object_box.add_child(_field("Side of player", pl))
+		var names := PackedStringArray(ScenarioCanvas.FACINGS.keys())
+		var fc := _options(names, func(at: int) -> void: _edit(func() -> String: return scenario.set_side(i, "facing", ScenarioCanvas.FACINGS[names[at]])))
+		fc.name = "SideFacing"
+		fc.select(maxi(ScenarioCanvas.FACINGS.values().find(int(sd["facing"])), 0))
+		_object_box.add_child(_field("Faces", fc))
+		var d: Dictionary = sd["deploy"]
+		_object_box.add_child(_hint("Deployment area %d × %d m at %d, %d. Drag its corner handle to resize it." % [d["w"], d["h"], d["x"], d["y"]]))
+		var squads: Array = sd["squads"]
+		_object_box.add_child(_hint("Squads (%d). With none, the commanders bring their own." % squads.size()))
+		for j in squads.size():
+			var row := HBoxContainer.new()
+			var l := Label.new()
+			l.text = _squad_name(str(squads[j]))
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			l.clip_text = true
+			row.add_child(l)
+			row.add_child(_button("×", func() -> void:
+				scenario.begin()
+				scenario.remove_squad(i, j)
+				_fill_object_box()
+				changed(), "Remove this squad"))
+			_object_box.add_child(row)
+		var add_row := HBoxContainer.new()
+		var pick := OptionButton.new()
+		pick.name = "SquadPick"
+		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pick.clip_text = true
+		for q in squad_ids:
+			pick.add_item(_squad_name(q))
+		add_row.add_child(pick)
+		add_row.add_child(_button("Add", func() -> void:
+			if pick.selected < 0:
+				return
+			scenario.begin()
+			scenario.add_squad(i, squad_ids[pick.selected])
+			_fill_object_box()
+			changed(), "Add the chosen squad to this side"))
+		_object_box.add_child(add_row)
+		_object_box.add_child(_button("Delete side", remove_selected, "Delete key"))
+
+
+## One edit from the panel: an undo step, the edit, and its refusal if any.
+func _edit(action: Callable) -> void:
+	if scenario == null:
+		return
+	scenario.begin()
+	var why: String = action.call()
+	if not why.is_empty():
+		scenario.undo()
+		_say(why)
+	changed()
+
+
+func _squad_name(id: String) -> String:
+	if model != null and model.templates != null and model.templates.has(id):
+		return str(model.templates.values_of(id).get("name", id))
+	return id
+
+
+func _hint(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_color_override("font_color", Color("9aa3af"))
+	l.add_theme_font_size_override("font_size", 12)
+	return l
+
+
+func _field(text: String, control: Control) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	var l := Label.new()
+	l.text = text
+	l.custom_minimum_size = Vector2(96, 0)
+	row.add_child(l)
+	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(control)
+	return row
+
+
 func _index_of(o: OptionButton, text: String) -> int:
 	for i in o.item_count:
 		if o.get_item_text(i) == text:
@@ -454,6 +808,13 @@ class MapView:
 	var _last: Vector2i
 	var _f: int = 0
 	var _fc: int = 0
+	## An object being dragged: the selection, where the drag began, the
+	## object's place (or size, for "resize") then, and whether it has moved.
+	var _held: Dictionary = {}
+	var _held_from: Vector2i
+	var _held_base: Vector2i
+	var _held_resize: bool = false
+	var _held_moved: bool = false
 
 	func _init() -> void:
 		focus_mode = Control.FOCUS_CLICK
@@ -485,6 +846,9 @@ class MapView:
 			return
 		_f = c.base if erase else painter.feature
 		_fc = 0 if erase else painter.facing
+		if painter.tool == MapPainter.Tool.OBJECT:
+			_press_object(cell, erase)
+			return
 		match painter.tool:
 			MapPainter.Tool.BRUSH:
 				c.begin()
@@ -514,7 +878,61 @@ class MapView:
 						painter._say(why)
 		painter.changed()
 
+	## The Objects tool: select what is at the cell and get ready to drag it
+	## (an area's corner handle resizes it). The right button deselects.
+	func _press_object(cell: Vector2i, erase: bool) -> void:
+		var s := painter.scenario
+		_held = {}
+		if s == null:
+			painter._say("Pick or make a scenario first.")
+			return
+		if erase:
+			painter.select_object({})
+			return
+		var sel := painter.selected
+		_held_resize = false
+		if sel.get("kind", "") == "side" and int(sel["index"]) < s.sides.size():
+			var r := s.area_rect(sel["index"])
+			if absi(cell.x - (r.end.x - 1)) <= 1 and absi(cell.y - (r.end.y - 1)) <= 1:
+				_held_resize = true
+		var hit := sel if _held_resize else s.object_at(cell.x, cell.y)
+		if hit != sel:
+			painter.select_object(hit)
+		if hit.is_empty():
+			return
+		_held = hit
+		_held_from = cell
+		_held_moved = false
+		if hit["kind"] == "zone":
+			_held_base = Vector2i(s.zones[hit["index"]]["x"], s.zones[hit["index"]]["y"])
+		else:
+			var r := s.area_rect(hit["index"])
+			_held_base = r.size if _held_resize else r.position
+
+	func _drag_object(cell: Vector2i) -> void:
+		var s := painter.scenario
+		var c := painter.canvas
+		if _held.is_empty() or s == null or cell == _held_from and not _held_moved:
+			return
+		if not _held_moved:
+			s.begin()
+			_held_moved = true
+		var to := _held_base + cell - _held_from
+		var i: int = _held["index"]
+		if _held["kind"] == "zone":
+			s.move_zone(i, clampi(to.x, 0, c.width - 1), clampi(to.y, 0, c.height - 1))
+		elif _held_resize:
+			var at := s.area_rect(i).position
+			s.resize_area(i, clampi(to.x, 1, c.width - at.x), clampi(to.y, 1, c.height - at.y))
+		else:
+			var size_of := s.area_rect(i).size
+			s.move_area(i, clampi(to.x, 0, maxi(c.width - size_of.x, 0)), clampi(to.y, 0, maxi(c.height - size_of.y, 0)))
+		painter.changed()
+
 	func drag(cell: Vector2i) -> void:
+		if painter.tool == MapPainter.Tool.OBJECT:
+			_drag_object(cell)
+			return
 		if _stroke and painter.tool == MapPainter.Tool.BRUSH and cell != _last:
 			painter.canvas.line(_last.x, _last.y, cell.x, cell.y, _f, _fc, painter.brush)
 			_last = cell
@@ -522,6 +940,14 @@ class MapView:
 
 	func release(cell: Vector2i) -> void:
 		var c := painter.canvas
+		if not _held.is_empty():
+			var moved := _held_moved
+			_held = {}
+			_held_moved = false
+			if moved:
+				painter._fill_object_box()  # its numbers changed
+			painter.changed()
+			return
 		if _stroke and c != null:
 			match painter.tool:
 				MapPainter.Tool.RECT:
@@ -588,6 +1014,8 @@ class MapView:
 			KEY_F: painter.set_tool(MapPainter.Tool.FILL)
 			KEY_I: painter.set_tool(MapPainter.Tool.PICK)
 			KEY_S: painter.set_tool(MapPainter.Tool.STAMP)
+			KEY_O: painter.set_tool(MapPainter.Tool.OBJECT)
+			KEY_DELETE: painter.remove_selected()
 			KEY_UP: painter.set_facing(1)
 			KEY_RIGHT: painter.set_facing(2)
 			KEY_DOWN: painter.set_facing(3)
@@ -634,7 +1062,47 @@ class MapView:
 			draw_dashed_line(Vector2(area.position.x, mid.y), Vector2(area.end.x, mid.y), INK, 1.0, 6.0)
 		if c.mirror == MapCanvas.Mirror.TURN:
 			draw_arc(mid, 6.0, 0.0, TAU, 16, INK, 1.0)
-		_draw_cursor(c)
+		if painter.scenario != null:
+			_draw_objects(painter.scenario)
+		if painter.tool != MapPainter.Tool.OBJECT:
+			_draw_cursor(c)
+
+	## The open scenario's deployment areas and zones, over the terrain.
+	func _draw_objects(s: ScenarioCanvas) -> void:
+		var font := get_theme_default_font()
+		var sel := painter.selected
+		var live := painter.tool == MapPainter.Tool.OBJECT
+		for i in s.sides.size():
+			var side: Dictionary = s.sides[i]
+			var col: Color = ContextView.PLAYER_COLORS.get(int(side["player"]), Color(0.85, 0.85, 0.85))
+			var r := s.area_rect(i)
+			var box := Rect2(origin + Vector2(r.position) * zoom, Vector2(r.size) * zoom)
+			var chosen: bool = live and sel.get("kind", "") == "side" and sel["index"] == i
+			draw_rect(box, Color(col, 0.2 if live else 0.12))
+			draw_rect(box, INK if chosen else Color(col, 0.9), false, 2.0 if chosen else 1.0)
+			var n := (side["squads"] as Array).size()
+			draw_string(font, box.position + Vector2(4, 14), "P%d  ·  %s" % [side["player"], "%d squad%s" % [n, "" if n == 1 else "s"] if n > 0 else "commander's force"],
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(col.lightened(0.5), 0.95))
+			# Facing: an arrow from the middle of the area.
+			var ang := float(int(side["facing"])) / 65536.0 * TAU
+			var dir := Vector2(cos(ang), sin(ang))
+			var mid := box.get_center()
+			var tip := mid + dir * 18.0
+			draw_line(mid, tip, Color(col.lightened(0.5), 0.9), 2.0)
+			draw_colored_polygon(PackedVector2Array([tip + dir * 7.0, tip + dir.orthogonal() * 5.0, tip - dir.orthogonal() * 5.0]), Color(col.lightened(0.5), 0.9))
+			if chosen:
+				draw_rect(Rect2(box.end - Vector2(8, 8), Vector2(8, 8)), INK)
+		for i in s.zones.size():
+			var z: Dictionary = s.zones[i]
+			var at := origin + (Vector2(int(z["x"]), int(z["y"])) + Vector2(0.5, 0.5)) * zoom
+			var rad := float(int(z["radius"])) * zoom
+			var chosen: bool = live and sel.get("kind", "") == "zone" and sel["index"] == i
+			draw_circle(at, rad, Color(1, 1, 1, 0.1 if live else 0.06))
+			draw_arc(at, rad, 0.0, TAU, 48, INK if chosen else Color(1, 1, 1, 0.8), 2.0 if chosen else 1.0)
+			draw_line(at - Vector2(4, 0), at + Vector2(4, 0), Color(1, 1, 1, 0.8), 1.0)
+			draw_line(at - Vector2(0, 4), at + Vector2(0, 4), Color(1, 1, 1, 0.8), 1.0)
+			draw_string(font, at + Vector2(-60, rad + 14), "%s  ·  %d pt%s" % [z["id"], int(z.get("vp", 0)), "" if int(z.get("vp", 0)) == 1 else "s"],
+				HORIZONTAL_ALIGNMENT_CENTER, 120, 12, Color(1, 1, 1, 0.9))
 
 	func _draw_cursor(c: MapCanvas) -> void:
 		var from := hover

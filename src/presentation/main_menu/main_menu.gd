@@ -333,7 +333,7 @@ static func play_map(root: Control, panel: WarDataPanel, profile: String) -> Str
 	var canvas := panel.painter().canvas
 	if canvas == null:
 		return "Open a map first."
-	var made := MapPlaytest.start(panel.model, canvas)
+	var made := MapPlaytest.start(panel.model, canvas, 1, panel.painter().scenario)
 	if made["session"] == null:
 		return "Can't play this map: " + "; ".join(made["errors"] as PackedStringArray)
 	var editor := root.get_child(1) as Control
@@ -349,7 +349,9 @@ static func play_map(root: Control, panel: WarDataPanel, profile: String) -> Str
 		over.queue_free())
 	bar.add_child(back)
 	var title := Label.new()
-	title.text = "Playtest: %s%s" % [canvas.name, "  (unsaved changes)" if canvas.dirty else ""]
+	var sc := panel.painter().scenario
+	title.text = "Playtest: %s%s%s" % [canvas.name, "" if sc == null else "  ·  scenario " + sc.id,
+		"  (unsaved changes)" if canvas.dirty or (sc != null and sc.dirty) else ""]
 	bar.add_child(title)
 	var w: WarRoom = load(WAR_ROOM_SCENE).instantiate()
 	w.session = made["session"]
