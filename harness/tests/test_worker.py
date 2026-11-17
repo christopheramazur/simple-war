@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from hx import worker
@@ -121,3 +123,33 @@ def test_model_started_by_delegate_is_idled_from_marker_time():
     assert not life.maybe_stop(busy=False) and lm.stops == 0  # just started: not idle yet
     clock.t += worker.IDLE_STOP_S + 1
     assert life.maybe_stop(busy=False) and lm.stops == 1
+
+
+def _ledger_with(tmp_path, last_call: dict):
+    """A ledger whose sessions had their last call at the given UTC datetimes."""
+    from hx import ledger
+    con = ledger.connect(tmp_path / "l.duckdb")
+    for sid, ts in last_call.items():
+        ledger.upsert(con, "session", [{"session_id": sid, "client": "claude-code"}])
+        ledger.upsert(con, "call", [{"call_id": f"c{sid}", "session_id": sid, "ts": ts, "client": "claude-code"}])
+    return con
+
+
+def test_periodic_tags_idle_sessions_only_and_is_throttled(tmp_path):
+    from datetime import datetime, timezone
+    utc = lambda h: datetime(2026, 11, 17, h)  # the ledger stores naive UTC
+    now = datetime(2026, 11, 17, 23, tzinfo=timezone.utc).timestamp()
+    con = _ledger_with(tmp_path, {"old": utc(1), "older": utc(0), "live": utc(22)})
+    ids = worker.periodic(con, now)
+    q = worker.connect()
+    jobs = [(r["kind"], json.loads(r["payload"]).get("session_id")) for r in
+            q.execute("SELECT kind, payload FROM job WHERE id IN (%s) ORDER BY id" % ",".join(map(str, ids)))]
+    assert jobs == [("mine", None), ("reflect", None), ("tag_session", "old"), ("tag_session", "older")]
+    assert worker.periodic(con, now + 60) == [], "throttled for PERIODIC_S"
+    # A session already queued (or failed for good) is not picked again.
+    assert worker.idle_untagged(con, now) == []
+
+
+def test_tag_job_skips_a_session_that_wrote_no_transcript(tmp_path):
+    out = worker.HANDLERS["tag_session"][0]({"session_id": "ghost", "transcript_path": str(tmp_path / "ghost.jsonl")})
+    assert out.startswith("skipped")

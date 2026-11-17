@@ -2,6 +2,8 @@
 
   hx worker enqueue session_end --hook      payload from a client hook's stdin JSON
   hx worker enqueue ingest
+  hx worker tick [--force]                  enqueue the periodic follow-ups if due, start the worker if
+                                            anything was enqueued (the Stop hook runs it every turn)
   hx worker start | stop | status
   hx worker run [--once]                    the loop itself (foreground)
 """
@@ -14,12 +16,12 @@ import sys
 
 from hx.output import FAIL, OK, WARN, Check, Result
 
-HELP = "Background job queue and Bonsai lifecycle: enqueue | start | stop | status | run"
+HELP = "Background job queue and Bonsai lifecycle: enqueue | tick | start | stop | status | run"
 
 
 def add_args(p) -> None:
     sub = p.add_subparsers(dest="action", required=True, metavar="<action>")
-    for name in ("enqueue", "start", "stop", "status", "run"):
+    for name in ("enqueue", "tick", "start", "stop", "status", "run"):
         sp = sub.add_parser(name)
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
         sp.add_argument("-v", "--verbose", action="store_true", default=argparse.SUPPRESS)
@@ -32,10 +34,25 @@ def add_args(p) -> None:
             sp.add_argument("--priority", type=int, default=0)
         if name == "run":
             sp.add_argument("--once", action="store_true", help="drain the queue, then exit")
+        if name == "tick":
+            sp.add_argument("--force", action="store_true", help="ignore the 6-hour throttle")
 
 
 def run(args) -> Result:
-    return {"enqueue": _enqueue, "start": _start, "stop": _stop, "status": _status, "run": _run}[args.action](args)
+    return {"enqueue": _enqueue, "tick": _tick, "start": _start, "stop": _stop, "status": _status,
+            "run": _run}[args.action](args)
+
+
+def _tick(args) -> Result:
+    from hx import worker
+    r = Result("worker tick")
+    ids = worker.periodic(force=args.force)
+    r.data["enqueued"] = ids or "nothing due"
+    if ids:
+        started = _start(args)
+        r.data["worker"] = started.data.get("pid")
+        r.checks += started.checks
+    return r
 
 
 def _enqueue(args) -> Result:

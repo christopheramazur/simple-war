@@ -57,7 +57,7 @@ Taxonomy, versioned in `harness/config/taxonomy.toml`:
 - **friction**: computed, not judged
 
 Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
-- The worker's `tag_session` job runs after every `session_end`.
+- The worker's `tag_session` job runs after every `session_end`, and from `hx worker tick` (Stop hook, at most every 6 h) for untagged sessions idle 12 h: long sessions never fire SessionEnd, and from 2026-11-13 to 11-17 none of the follow-ups ran (sw-55p).
 - The digest holds up to 6 human prompts (600 characters each), the end of the final reply, and ledger stats.
 - Friction is the share of tool calls that errored or were denied, plus 0.1 per interrupt and 0.05 per API error or compaction.
 - The audit uses `claude-sonnet-5-5`, picked by a hash of the session id. Tags are raw rows in `data/raw/tags/`; join them to the ledger on session_id.

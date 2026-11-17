@@ -131,9 +131,66 @@ def _tag_session(payload: dict) -> str:
     sid = payload.get("session_id")
     if not sid:
         return "skipped: no session id"
+    tp = payload.get("transcript_path")
+    if tp and not Path(tp).exists() and tagging.find_raw(sid) is None:
+        return "skipped: the session wrote no transcript"  # opened and closed empty; nothing to tag
     rows = tagging.tag_session(sid)
     return "; ".join(f"{r['role']} {r.get('kind')}/{r.get('outcome')} {r.get('problem') or ''}".strip()
                      for r in rows) or "already tagged"
+
+
+# ---------------- periodic follow-ups ----------------
+
+PERIODIC_S = 6 * 3600       # how often a tick may enqueue follow-ups
+IDLE_TAG_S = 12 * 3600      # a session with no call for this long is treated as finished
+TAG_PER_TICK = 5            # cap on tagging jobs per tick (each one is a model call)
+
+
+def periodic(con=None, now: float | None = None, force: bool = False) -> list[int]:
+    """Enqueue the session_end follow-ups on a clock as well, for sessions that never end (sw-55p).
+
+    Throttled by a marker file, so the Stop hook can call it after every turn. mine and reflect throttle
+    themselves; tagging takes untagged sessions idle for IDLE_TAG_S, never a live one. Returns job ids."""
+    now = time.time() if now is None else now
+    marker = state_dir() / "periodic.last"
+    try:
+        last = float(marker.read_text())
+    except (OSError, ValueError):
+        last = 0.0
+    if not force and now - last < PERIODIC_S:
+        return []
+    marker.write_text(str(now))
+    ids = [enqueue("mine", {"source": "periodic"}), enqueue("reflect", {"source": "periodic"})]
+    for sid in idle_untagged(con, now)[:TAG_PER_TICK]:
+        ids.append(enqueue("tag_session", {"session_id": sid, "source": "periodic"}))
+    return ids
+
+
+def idle_untagged(con=None, now: float | None = None) -> list[str]:
+    """Untagged sessions whose last call is at least IDLE_TAG_S old, most recent first."""
+    from hx import ledger, tagging
+    now = time.time() if now is None else now
+    own = con is None
+    con = con or ledger.read_only()
+    try:
+        last = dict(con.execute("SELECT session_id, epoch(max(ts)) FROM call GROUP BY 1").fetchall())
+        untagged = set(tagging.untagged_sessions(con))
+    finally:
+        if own:
+            con.close()
+    queued = _queued_tag_ids()
+    idle = [s for s in untagged if s in last and now - last[s] >= IDLE_TAG_S and s not in queued]
+    return sorted(idle, key=lambda s: -last[s])
+
+
+def _queued_tag_ids() -> set[str]:
+    """Sessions with a tag job waiting, running, or failed for good (not retried every tick)."""
+    con = connect()
+    try:
+        return {r[0] for r in con.execute("SELECT json_extract(payload, '$.session_id') FROM job "
+                                          "WHERE kind = 'tag_session' AND status IN ('pending', 'running', 'failed')")}
+    finally:
+        con.close()
 
 
 # ---------------- queue ----------------
