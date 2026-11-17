@@ -30,6 +30,8 @@ var _error: Label
 func _ready() -> void:
 	if GameSettings.saved():
 		GameSettings.apply(get_window())
+	else:
+		UiTheme.apply(get_window())
 	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
 	if l.is_valid():
 		_templates = l.templates
@@ -71,29 +73,38 @@ func _build_ui() -> void:
 	bg.color = Color("12151a")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	# The menu is centred while it fits and scrolls when the window is
+	# shorter than it (a small window, or a large UI scale).
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
 	var centre := CenterContainer.new()
-	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	centre.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(centre)
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(420, 0)
+	panel.name = "Menu"
+	panel.custom_minimum_size = Vector2(460, 0)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL
-	sb.set_content_margin_all(24)
+	sb.set_content_margin_all(20)
 	sb.set_corner_radius_all(6)
 	panel.add_theme_stylebox_override("panel", sb)
 	centre.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
+	col.add_theme_constant_override("separation", 7)
 	panel.add_child(col)
 	var title := Label.new()
 	title.text = "Simple War"
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", 30)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 	col.add_child(HSeparator.new())
 	var story := Button.new()
 	story.text = "Story: Angelfall"
-	story.custom_minimum_size = Vector2(0, 40)
+	story.custom_minimum_size = Vector2(0, 36)
 	story.pressed.connect(start_story)
 	col.add_child(story)
 	col.add_child(HSeparator.new())
@@ -106,7 +117,8 @@ func _build_ui() -> void:
 	col.add_child(_profile_pick)
 	_profile_text = _dim("")
 	_profile_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_profile_text.custom_minimum_size = Vector2(372, 0)
+	_profile_text.custom_minimum_size = Vector2(412, 0)
+	_profile_text.add_theme_font_size_override("font_size", 13)
 	col.add_child(_profile_text)
 	col.add_child(_dim("Map"))
 	_map_pick = OptionButton.new()
@@ -128,35 +140,37 @@ func _build_ui() -> void:
 	col.add_child(seed_row)
 	var go := Button.new()
 	go.text = "Start skirmish"
-	go.custom_minimum_size = Vector2(0, 40)
+	go.custom_minimum_size = Vector2(0, 36)
 	go.disabled = profiles.is_empty() or maps.is_empty()
 	go.pressed.connect(func() -> void: start_skirmish(_selected(profiles, _profile_pick),
 		_selected(maps, _map_pick), int(_seed.value)))
 	col.add_child(go)
 	col.add_child(HSeparator.new())
-	var editor := Button.new()
-	editor.text = "Map editor"
-	editor.custom_minimum_size = Vector2(0, 40)
-	editor.pressed.connect(start_editor)
-	col.add_child(editor)
+	# The rest in two columns, so the menu stays short.
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 7)
+	grid.add_theme_constant_override("v_separation", 7)
+	col.add_child(grid)
 	var load_game := Button.new()
 	load_game.name = "Load"
 	load_game.text = "Load game"
-	load_game.custom_minimum_size = Vector2(0, 40)
 	load_game.pressed.connect(open_saves)
-	col.add_child(load_game)
 	var replays := Button.new()
 	replays.name = "Replays"
 	replays.text = "Replays"
-	replays.custom_minimum_size = Vector2(0, 40)
 	replays.pressed.connect(open_replays)
-	col.add_child(replays)
+	var editor := Button.new()
+	editor.text = "Map editor"
+	editor.pressed.connect(start_editor)
 	var options := Button.new()
 	options.name = "Options"
 	options.text = "Options"
-	options.custom_minimum_size = Vector2(0, 40)
 	options.pressed.connect(func() -> void: OptionsScreen.open_over(self))
-	col.add_child(options)
+	for b: Button in [load_game, replays, editor, options]:
+		b.custom_minimum_size = Vector2(0, 36)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(b)
 	var quit := Button.new()
 	quit.text = "Quit"
 	quit.pressed.connect(func() -> void: get_tree().quit())
@@ -387,8 +401,12 @@ static func editor_screen() -> Control:
 ## Returns why not, or "".
 static func play_map(root: Control, panel: WarDataPanel, profile: String) -> String:
 	var canvas := panel.painter().canvas
+	if canvas == null and panel.model.templates != null and panel.model.templates.has(panel.selected_id) \
+			and panel.model.templates.kind_of(panel.selected_id) == "battle_map":
+		panel.painter().open_map(panel.selected_id)  # the map selected on the left
+		canvas = panel.painter().canvas
 	if canvas == null:
-		return "Open a map first."
+		return "No map is open. Select a battle map in the list on the left, or pick one in the Maps tab."
 	var made := MapPlaytest.start(panel.model, canvas, 1, panel.painter().scenario)
 	if made["session"] == null:
 		return "Can't play this map: " + "; ".join(made["errors"] as PackedStringArray)

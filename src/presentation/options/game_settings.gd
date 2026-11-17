@@ -14,6 +14,7 @@ const UI_SCALES: Array[float] = [0.75, 1.0, 1.25, 1.5, 2.0]
 const TURN_SECONDS: Array[float] = [0.0, 2.0, 5.0, 10.0]
 const DEFAULTS: Dictionary = {
 	"window_mode": "windowed", "width": 1280, "height": 720, "vsync": true, "ui_scale": 1.0, "turn_seconds": 5.0,
+	"ui_theme": "default", "side_width": 300,
 }
 
 ## Where the settings are kept (tests point this elsewhere).
@@ -77,6 +78,7 @@ static func apply(window: Window) -> void:
 	if window == null:
 		return
 	window.content_scale_factor = float(value("ui_scale"))
+	UiTheme.apply(window)
 	if DisplayServer.get_name() == "headless" or window.is_embedded():
 		return
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if bool(value("vsync")) else DisplayServer.VSYNC_DISABLED)

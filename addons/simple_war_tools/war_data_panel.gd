@@ -79,6 +79,25 @@ func select(id: String) -> void:
 	_source.text = model.definition_text(id)
 	_result.text = ""
 	_tabs.current_tab = 0
+	_open_in_maps(id)
+
+
+## A battle map selected on the left is opened in the Maps tab too, and a
+## scenario with the map it is played on, unless that would drop unsaved
+## paint. The tab is not switched.
+func _open_in_maps(id: String) -> void:
+	var kind := model.templates.kind_of(id) if model.templates != null else ""
+	var was := _maps._result.text
+	if kind == "battle_map":
+		_maps.open_map(id)
+	elif kind == "scenario" and not model.templates.is_abstract(id):
+		var map := str(model.templates.values_of(id).get("map", ""))
+		if not map.is_empty() and _maps.open_map(map):
+			_maps.open_scenario(id)
+	else:
+		return
+	if _maps.canvas != null and _maps.canvas.dirty:
+		_maps._result.text = was  # a refusal belongs on the Maps tab only when it is used
 
 
 ## Validates the edited definition without writing. Returns the errors.

@@ -115,7 +115,7 @@ func test_play_this_map_opens_a_battle_on_the_painted_map() -> void:
 	var screen := MainMenu.editor_screen()
 	add_child_autofree(screen)
 	var panel: WarDataPanel = screen.find_child("WarData", true, false)
-	assert_eq(MainMenu.play_map(screen, panel, "profile_utility"), "Open a map first.")
+	assert_string_contains(MainMenu.play_map(screen, panel, "profile_utility"), "No map is open")
 	var mp := panel.painter()
 	mp.open_map("field_map")
 	# Unsaved paint is played: a wall across the middle with one gap.

@@ -47,6 +47,8 @@ extends Control
 signal end_turn_requested
 
 const SIDE_W: float = 250.0
+const SIDE_MIN: float = 220.0
+const SIDE_MAX: float = 640.0
 const BATTLE_W: float = 290.0
 const HUD_H: float = 62.0
 const PIP_SIZE: Vector2 = Vector2(240, 160)
@@ -143,6 +145,8 @@ var _target: Dictionary = {}
 ## "battles", "turn"}.
 var _play: Dictionary = {}
 var _blocker: Control
+## What the player knows about the hex under the cursor.
+var _hover_card: PanelContainer
 var _terrain_colors: Dictionary = {}
 ## The results screen, while it is open.
 var results: ResultsScreen
@@ -245,6 +249,13 @@ static func demo_session() -> OverworldSession:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	if get_window() != null and get_window().theme == null:
+		UiTheme.apply(get_window())  # standalone (F6): the menu did not set it
+	var bg := ColorRect.new()
+	bg.color = ContextView.BG
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
 	row.add_theme_constant_override("separation", 0)
@@ -283,6 +294,17 @@ func _build_ui() -> void:
 	_pip_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_pip_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(_pip_layer)
+	_hover_card = PanelContainer.new()
+	_hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var hsb := StyleBoxFlat.new()
+	hsb.bg_color = Color(0.07, 0.08, 0.1, 0.94)
+	hsb.border_color = Color("5b6779")
+	hsb.set_border_width_all(1)
+	hsb.set_corner_radius_all(4)
+	hsb.set_content_margin_all(10)
+	_hover_card.add_theme_stylebox_override("panel", hsb)
+	_hover_card.hide()
+	stage.add_child(_hover_card)
 	_radial = ReactionRadial.new()
 	_radial.hide()
 	_radial.chosen.connect(_on_reaction_chosen)
@@ -304,7 +326,21 @@ func _build_ui() -> void:
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(_hud)
 	var side := PanelContainer.new()
-	side.custom_minimum_size = Vector2(SIDE_W, 0)
+	side.custom_minimum_size = Vector2(clampf(float(GameSettings.value("side_width")) if use_settings else SIDE_W, SIDE_MIN, SIDE_MAX), 0)
+	var grip := ColorRect.new()
+	grip.name = "SideGrip"
+	grip.color = Color("2b323d")
+	grip.custom_minimum_size = Vector2(5, 0)
+	grip.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+	grip.tooltip_text = "Drag to make the panel wider or narrower"
+	grip.gui_input.connect(func(e: InputEvent) -> void:
+		var mm := e as InputEventMouseMotion
+		if mm != null and (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			side.custom_minimum_size.x = clampf(side.custom_minimum_size.x - mm.relative.x, SIDE_MIN, SIDE_MAX)
+		var mb := e as InputEventMouseButton
+		if mb != null and mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and use_settings:
+			GameSettings.set_value("side_width", int(side.custom_minimum_size.x)))
+	row.add_child(grip)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL
 	sb.content_margin_left = 10
@@ -611,6 +647,7 @@ func _route_of(cid: int) -> PackedInt64Array:
 
 func _on_hex_hovered(p: int) -> void:
 	_hover_plot = p
+	_refresh_hover_card()
 	if _play.is_empty() and contexts.focus == ViewContexts.OVERWORLD and _own_selected() >= 0:
 		_show_main()
 
@@ -630,6 +667,21 @@ func _on_squad_hovered(id: int) -> void:
 	_hovered = id
 	if _play.is_empty():
 		_refresh_battle_panel()
+
+
+## The card for the hex under the cursor: what the player knows is there
+## (HexCard, from inspect_plot). Hidden over unknown ground, in battles and
+## during playback.
+func _refresh_hover_card() -> void:
+	_clear(_hover_card)
+	var show_it := _hover_plot >= 0 and _play.is_empty() and contexts != null and contexts.focus == ViewContexts.OVERWORLD
+	var info := session.inspect_plot(player, _hover_plot) if show_it else {}
+	_hover_card.visible = show_it and bool(info.get("known", false))
+	if not _hover_card.visible:
+		return
+	_hover_card.add_child(HexCard.build(info, session.rules, player))
+	_hover_card.position = Vector2(12.0 + (PIP_SIZE.x + 12.0 if not contexts.pips.is_empty() else 0.0), 12.0)
+	_hover_card.reset_size()
 
 
 ## The squad whose card is shown: the one clicked, else the first selected,
@@ -1350,7 +1402,14 @@ func playing() -> bool:
 ## synced until it ends, so a battle that ended can still be watched.
 func _start_play(before: Dictionary, turn: int) -> void:
 	var after := session.observe(player)
-	var walks := {"commanders": {}, "detachments": {}}
+	# Movement resolves on a timeline of movement points (GDD 02 §2.9), and
+	# the playback keeps it: the turn stands for `span` points, so everyone
+	# moves at one speed and a short move ends early.
+	var span := session.rules.convoy_mp
+	for mp in session.rules.cm_mp:
+		span = maxi(span, mp)
+	var walks := {"commanders": {}, "detachments": {}, "gone": [], "span": span}
+	var owner_of := {}
 	for e: Dictionary in after.get("events", []):
 		var d: Dictionary = e["data"] if e.has("data") else e
 		var kind := ""
@@ -1361,11 +1420,28 @@ func _start_play(before: Dictionary, turn: int) -> void:
 		elif e["type"] == &"convoy_moved":
 			kind = "detachments"
 			id = int(d["detachment"])
+			owner_of[id] = int(d.get("player", 0))
 		else:
 			continue
 		if not (walks[kind] as Dictionary).has(id):
-			walks[kind][id] = [int(d["from"])]
-		(walks[kind][id] as Array).append(int(d["to"]))
+			walks[kind][id] = {"plots": [int(d["from"])], "times": [0]}
+		var w: Dictionary = walks[kind][id]
+		(w["plots"] as Array).append(int(d["to"]))
+		(w["times"] as Array).append(int((w["times"] as Array).back()) + maxi(session.state.move_cost(int(d["to"])), 1))
+		walks["span"] = maxi(int(walks["span"]), int((w["times"] as Array).back()))
+	# Who is gone afterwards: draw them walking all the same.
+	var still := {}
+	for det: Dictionary in after.get("detachments", []):
+		still[int(det["id"])] = true
+	for id: int in walks["detachments"]:
+		if not still.has(id):
+			(walks["gone"] as Array).append({"player": owner_of.get(id, 0), "convoy": true, "walk": walks["detachments"][id]})
+	still = {}
+	for cmd: Dictionary in after.get("commanders", []):
+		still[int(cmd["id"])] = true
+	for cmd: Dictionary in before.get("commanders", []):
+		if walks["commanders"].has(int(cmd["id"])) and not still.has(int(cmd["id"])):
+			(walks["gone"] as Array).append({"player": int(cmd["player"]), "convoy": false, "walk": walks["commanders"][int(cmd["id"])]})
 	_play = {"t": 0.0, "obs": after, "before": before, "walks": walks, "battles": session.playback(player), "turn": turn}
 	_blocker.show()
 	_blocker.move_to_front()

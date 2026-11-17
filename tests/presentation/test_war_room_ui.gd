@@ -140,14 +140,141 @@ func test_the_overworld_turn_plays_out_too() -> void:
 	var route: PackedInt64Array = w.session.state.routes[cid]
 	w.end_turn_requested.emit()
 	assert_true(w.playing())
-	var walk: Array = w._play["walks"]["commanders"][cid]
-	assert_eq(walk[0], me["plot"], "the walk starts where the commander stood")
-	assert_eq(walk.slice(1), Array(route).slice(0, walk.size() - 1), "and goes through the hexes of its route")
+	var walk: Dictionary = w._play["walks"]["commanders"][cid]
+	var plots: Array = walk["plots"]
+	var times: Array = walk["times"]
+	assert_eq(plots[0], me["plot"], "the walk starts where the commander stood")
+	assert_eq(plots.slice(1), Array(route).slice(0, plots.size() - 1), "and goes through the hexes of its route")
+	assert_eq(times[0], 0)
+	assert_eq(times.back(), int(reach[plots.back()]), "each hex is entered when its movement points are spent")
+	var span := int(w._play["walks"]["span"])
+	assert_true(span >= int(times.back()), "the turn stands for a full move")
 	assert_eq(w._main._extra["play"], w._play["walks"])
+	# One speed for everyone: at half the turn the walker is where half the
+	# turn's movement points take it, and it waits once its move is done.
 	w._process(2.5)
-	assert_almost_eq(float(w._main._extra["t"]), 0.5, 0.01, "half the time, half the way")
+	assert_almost_eq(float(w._main._extra["t"]), 0.5, 0.01)
+	var half := w._main._along(walk, 0.5)
+	var i := 0
+	while i < times.size() - 1 and float(times[i + 1]) <= span * 0.5:
+		i += 1
+	var want := w._main._centre(plots[i])
+	if i < times.size() - 1:
+		want = want.lerp(w._main._centre(plots[i + 1]), (span * 0.5 - times[i]) / float(times[i + 1] - times[i]))
+	assert_almost_eq(half.x, want.x, 0.01)
+	assert_eq(w._main._along(walk, 1.0), w._main._centre(plots.back()))
+	assert_eq(w._main._along(walk, float(times.back()) / span), w._main._centre(plots.back()), "it stops when its own move is done")
 	w._process(2.6)
 	assert_false(w.playing(), "the playback ends by itself")
+
+
+func test_a_convoy_that_delivers_is_still_seen_walking() -> void:
+	var w := _skirmish()
+	w.turn_seconds = 5.0
+	var me := _own_commander(w)
+	var cid: int = me["id"]
+	var s := w.session.state
+	var reach: Dictionary = w.session.reach(1, cid)["reach"]
+	var from := -1
+	for p: int in reach:
+		if int(reach[p]) > 0 and int(reach[p]) <= s.rules.convoy_mp and from < 0:
+			from = p
+	var did := s.detachments.spawn({&"player": 1, &"plot": from, &"dest_commander": cid})
+	s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": s.rules.squad_index("rifle_squad"), &"alive": 8, &"size": 8})
+	w.end_turn_requested.emit()
+	assert_true(w.playing())
+	assert_false(s.detachments.is_alive(did), "it reached its commander and joined the army")
+	var gone: Array = w._play["walks"]["gone"]
+	assert_eq(gone.size(), 1)
+	assert_eq([gone[0]["player"], gone[0]["convoy"]], [1, true])
+	assert_eq(gone[0]["walk"]["plots"][0], from)
+	assert_eq(gone[0]["walk"]["plots"].back(), me["plot"])
+
+
+func test_hovering_a_hex_says_what_is_there() -> void:
+	var w := _skirmish()
+	var s := w.session
+	var obs := s.observe(1)
+	# A feature the player knows that produces something.
+	var found := -1
+	for p: int in obs["plots"]:
+		for f: Dictionary in obs["plots"][p]["features"]:
+			if int(f["tmpl"]) >= 0 and s.rules.production_count(int(f["tmpl"])) > 0 and found < 0:
+				found = p
+	if found < 0:
+		for row in s.state.features.count():
+			if s.rules.production_count(s.state.features.tmpl[row]) > 0 and found < 0:
+				found = s.state.features.plot[row]
+				s.state.features.set_value(s.state.features.id_at(row), &"owner", 1)
+	assert_ne(found, -1, "the map has a producing feature")
+	var info := s.inspect_plot(1, found)
+	if not info["known"]:
+		pass_test("the producing feature is not in sight on this seed")
+		return
+	var feat: Dictionary = info["features"].filter(func(f: Dictionary) -> bool: return not (f["produces"] as Array).is_empty())[0]
+	assert_gt(int(feat["produces"][0]["turns"]), 0)
+	var text := "\n".join(HexCard.lines(info, s.rules, 1).map(func(l: Array) -> String: return l[0]))
+	assert_string_contains(text, str(feat["name"]))
+	assert_string_contains(text, "every %d turn" % int(feat["produces"][0]["turns"]))
+	assert_eq(s.inspect_plot(1, -1)["known"], false)
+	assert_eq(s.inspect_plot(9, found)["known"], false, "not for someone who is not playing")
+	# The hover card shows it, and hides over a battle view or unknown ground.
+	w._on_hex_hovered(found)
+	assert_true(w._hover_card.visible)
+	assert_string_contains("\n".join(_texts(w._hover_card)), str(feat["name"]))
+	w._on_hex_hovered(-1)
+	assert_false(w._hover_card.visible)
+	# The player's own commander's hex names the commander and its army.
+	var mine := _own_commander(w)
+	var here := "\n".join(HexCard.lines(s.inspect_plot(1, mine["plot"]), s.rules, 1).map(func(l: Array) -> String: return l[0]))
+	assert_string_contains(here, "Your Commander")
+
+
+func test_themes_are_data_and_fields_differ_from_buttons() -> void:
+	UiTheme.reload()
+	var ids := UiTheme.ids()
+	assert_eq(ids[0], "default")
+	assert_has(Array(ids), "high_contrast")
+	assert_has(Array(ids), "large")
+	assert_eq(UiTheme.profile("no_such_theme")["id"], "default", "an unknown id falls back")
+	var part := UiTheme.complete({"id": "mine", "colors": {"accent": "ff0000", "nonsense": "zz"}})
+	assert_eq(part["colors"]["accent"], "ff0000")
+	assert_eq(part["colors"]["panel"], UiTheme.FALLBACK["colors"]["panel"], "what a profile leaves out is filled in")
+	var t := UiTheme.build(UiTheme.profile("default"))
+	var field := t.get_stylebox("normal", "OptionButton") as StyleBoxFlat
+	var button := t.get_stylebox("normal", "Button") as StyleBoxFlat
+	var edit := t.get_stylebox("normal", "LineEdit") as StyleBoxFlat
+	assert_eq(field.bg_color, edit.bg_color, "a dropdown is drawn as a field")
+	assert_ne(field.bg_color, button.bg_color, "and not as a button")
+	assert_gt(field.border_width_left, 0, "fields have a border")
+	assert_eq(UiTheme.build(UiTheme.profile("large")).default_font_size, 20)
+	# Picking one in the options applies it to the window and saves it.
+	var o := OptionsScreen.open_over(self)
+	autofree(o)
+	var pick: OptionButton = o.find_child("Theme", true, false)
+	var at := Array(ids).find("high_contrast")
+	pick.select(at)
+	pick.item_selected.emit(at)
+	assert_eq(GameSettings.value("ui_theme"), "high_contrast")
+	assert_eq((get_window().theme.get_stylebox("normal", "Button") as StyleBoxFlat).border_width_left, 2)
+	GameSettings.set_value("ui_theme", "default")
+	UiTheme.apply(get_window())
+
+
+func test_the_main_menu_fits_a_short_window() -> void:
+	var holder := Control.new()
+	holder.size = Vector2(853, 480)
+	add_child_autofree(holder)
+	var m: MainMenu = load("res://src/presentation/main_menu/main_menu.tscn").instantiate()
+	holder.add_child(m)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var scroll: ScrollContainer = m.find_child("Scroll", true, false)
+	var menu: Control = m.find_child("Menu", true, false)
+	assert_almost_eq(scroll.size.y, 480.0, 1.0, "the menu's scroll area is the window")
+	assert_gt(menu.size.y, 480.0, "the menu is taller than this window")
+	assert_gt(scroll.get_v_scroll_bar().max_value, scroll.size.y, "so it scrolls instead of being cut off")
+	assert_lt(menu.size.y, 700.0, "and it fits a 720-pixel window without scrolling")
 
 
 func test_without_playback_time_the_result_shows_at_once() -> void:

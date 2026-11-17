@@ -1,0 +1,22 @@
+{
+	"id": "default",
+	"name": "Default (dark)",
+	"font_size": 16,
+	"border_width": 1,
+	"corner_radius": 4,
+	"padding": 8,
+	"colors": {
+		"background": "12151a",
+		"panel": "1d2128",
+		"text": "dde2ea",
+		"dim": "8a93a3",
+		"accent": "e6b450",
+		"button": "2b323d",
+		"button_border": "465064",
+		"button_hover": "38414f",
+		"button_pressed": "4a5567",
+		"field": "0d1014",
+		"field_border": "5b6779",
+		"selection": "3b4d6b"
+	}
+}

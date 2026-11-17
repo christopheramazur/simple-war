@@ -213,3 +213,20 @@ func test_play_this_map_uses_the_open_scenario() -> void:
 	assert_gt(theirs, 0, "a side that lists none fields its commander's force")
 	assert_false(PackageEditor.open(COPY).templates.has(MapPlaytest.SCENARIO), "nothing was written")
 	assert_eq(PackageEditor.open(COPY).templates.values_of("ow_field")["zones"][0]["x"], 60)
+
+
+## Playtest feedback (sw-ll4.26): a battle map or scenario selected in the
+## list on the left is the one the Maps tab and "Play this map" use.
+func test_selecting_a_map_on_the_left_opens_it_for_play() -> void:
+	var screen := MainMenu.editor_screen()
+	add_child_autofree(screen)
+	var p: WarDataPanel = screen.find_child("WarData", true, false)
+	assert_null(p.painter().canvas)
+	p.select("rifle_squad")
+	assert_null(p.painter().canvas, "other templates leave the Maps tab alone")
+	assert_string_contains(MainMenu.play_map(screen, p, "profile_utility"), "No map is open")
+	p.select("crossroads_map")
+	assert_eq(p.painter().canvas.id, "crossroads_map")
+	p.select("ow_field")
+	assert_eq([p.painter().canvas.id, p.painter().scenario.id], ["field_map", "ow_field"], "a scenario opens with its map")
+	assert_eq(MainMenu.play_map(screen, p, "profile_utility"), "")

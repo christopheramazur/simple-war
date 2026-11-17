@@ -112,9 +112,13 @@ func _init() -> void:
 ## camera and selection. `extra` (all optional): "reach" (plot -> movement
 ## cost: what the selected commander can enter this turn), "budget" and
 ## "spent" (its movement points), "preview" (a route drafted to the hovered
-## hex) and "preview_to" (that hex), "play" ({"commanders": id -> plots it
-## walked, "detachments": the same}) with "t" (0..1) while the last turn is
-## played back.
+## hex) and "preview_to" (that hex), and while the last turn is played back
+## "play" with "t" (0..1): {"span" (movement points the whole turn
+## stands for), "commanders": id -> walk, "detachments": id -> walk,
+## "gone": [{"player", "convoy", "walk"}] for walkers no longer there
+## afterwards (a convoy that delivered)}. A walk is {"plots", "times"}: the
+## hexes entered and the movement points spent on entering each, so
+## everything moves at one speed and stops when its own move is done.
 func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts, extra: Dictionary = {}) -> void:
 	mode = "overworld"
 	_obs = obs
@@ -242,11 +246,12 @@ func _draw_overworld() -> void:
 	# squads without a commander (sw-ip8.7).
 	var det_play: Dictionary = play.get("detachments", {})
 	for det: Dictionary in _obs.get("detachments", []):
-		var at := o + (_along(det_play[det["id"]], t) if det_play.has(det["id"]) else _centre(det["plot"]))
+		var walking: bool = det_play.has(det["id"])
+		var at := o + (_along(det_play[det["id"]], t) if walking else _centre(det["plot"]))
 		var c := at + Vector2(s * 0.42, s * 0.38)
 		var col: Color = PLAYER_COLORS.get(det["player"], TEXT)
 		var h := s * 0.22
-		if det.get("convoy", false):
+		if det.get("convoy", false) or walking:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h * 1.3), c + Vector2(h * 1.3, 0), c + Vector2(0, h * 1.3), c + Vector2(-h * 1.3, 0)]), col)
 			var dest := int(det.get("dest_plot", -1))
 			var to_cmd := int(det.get("dest_commander", -1))
@@ -262,6 +267,17 @@ func _draw_overworld() -> void:
 		var n := (det.get("squads", []) as Array).size()
 		if n > 0:
 			draw_string(font, c + Vector2(h + 2, h), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+	# Walkers that are gone when the turn ends (a convoy that reached its
+	# commander) are still seen walking there.
+	for g: Dictionary in play.get("gone", []):
+		var at := o + _along(g["walk"], t)
+		var col: Color = PLAYER_COLORS.get(g["player"], TEXT)
+		if g.get("convoy", true):
+			var c := at + Vector2(s * 0.42, s * 0.38)
+			var h := s * 0.22
+			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h * 1.3), c + Vector2(h * 1.3, 0), c + Vector2(0, h * 1.3), c + Vector2(-h * 1.3, 0)]), col)
+		else:
+			draw_circle(at, s * 0.36, Color(col, 0.6))
 	var cmd_play: Dictionary = play.get("commanders", {})
 	for cmd: Dictionary in _obs.get("commanders", []):
 		var c := o + (_along(cmd_play[cmd["id"]], t) if cmd_play.has(cmd["id"]) else _centre(cmd["plot"]))
@@ -304,14 +320,21 @@ func _draw_route_preview(o: Vector2, s: float, font: Font, fs: int) -> void:
 	draw_string(font, corner + Vector2(0, fs), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
 
 
-## A point `t` (0..1) of the way along a walk through `plots`, relative to
-## the origin.
-func _along(plots: Array, t: float) -> Vector2:
-	if plots.size() <= 1:
-		return _centre(plots[0]) if plots.size() == 1 else Vector2.ZERO
-	var f := clampf(t, 0.0, 1.0) * (plots.size() - 1)
-	var i := mini(int(f), plots.size() - 2)
-	return _centre(plots[i]).lerp(_centre(plots[i + 1]), f - i)
+## Where a walker is at `t` (0..1) of the turn, relative to the origin.
+## The turn stands for `span` movement points, and the walk enters
+## plots[i] at times[i] points: it moves at the common speed and then
+## waits where it stopped.
+func _along(walk: Dictionary, t: float) -> Vector2:
+	var plots: Array = walk["plots"]
+	var times: Array = walk["times"]
+	if plots.is_empty():
+		return Vector2.ZERO
+	var at := clampf(t, 0.0, 1.0) * float((_extra.get("play", {}) as Dictionary).get("span", 1))
+	for i in range(1, plots.size()):
+		if at < float(times[i]):
+			var from := float(times[i - 1])
+			return _centre(plots[i - 1]).lerp(_centre(plots[i]), (at - from) / maxf(float(times[i]) - from, 0.001))
+	return _centre(plots[plots.size() - 1])
 
 
 func _plot_color(entry: Dictionary) -> Color:

@@ -1,0 +1,22 @@
+{
+	"id": "high_contrast",
+	"name": "High contrast",
+	"font_size": 17,
+	"border_width": 2,
+	"corner_radius": 2,
+	"padding": 8,
+	"colors": {
+		"background": "000000",
+		"panel": "0b0b0b",
+		"text": "ffffff",
+		"dim": "c8c8c8",
+		"accent": "ffd400",
+		"button": "1c1c1c",
+		"button_border": "ffffff",
+		"button_hover": "333333",
+		"button_pressed": "555555",
+		"field": "000000",
+		"field_border": "ffd400",
+		"selection": "0057d9"
+	}
+}

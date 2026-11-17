@@ -686,6 +686,76 @@ func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionar
 	return Inspection.squad(b.state, squad_id, player)
 
 
+## What `player` knows about one hex, for inspecting it (hover cards, the
+## selection panel): {"plot", "known" (ever seen), "visible" (in sight
+## now), "cost" (movement points to enter, -1 impassable), "features":
+## [{"id", "name", "owner", "controllable", "guard": squad names,
+## "value_per_turn", "cache_value", "activities": names, "recruits":
+## [{"name", "cost"}], "produces": [{"name", "turns", "cost", "selected",
+## "progress" (own, selected option only; else -1)}], "line" (own: where
+## its output goes: {"plot", "commander"} or {})}], "commanders": [{"id",
+## "player", "squads" (own: army size, else -1), "engagement"}],
+## "detachments": [{"id", "player", "convoy", "squads" (own: names)}],
+## "battle" (an engagement there)}. Read-only, any phase.
+func inspect_plot(player: int, plot: int) -> Dictionary:
+	var out := {"plot": plot, "known": false, "visible": false, "cost": -1, "features": [], "commanders": [], "detachments": [], "battle": false}
+	if plot < 0 or plot >= rules.plot_count() or not _players.has(player):
+		return out
+	var obs := OverworldVision.observe(state, player)
+	var entry: Dictionary = (obs["plots"] as Dictionary).get(plot, {})
+	if entry.is_empty():
+		return out
+	out["known"] = true
+	out["visible"] = bool(entry.get("visible", false))
+	out["cost"] = OverworldVision.known_costs(state, player)[plot]
+	var production: Dictionary = obs.get("production", {})
+	var lines: Dictionary = obs.get("supply_lines", {})
+	for f: Dictionary in entry.get("features", []):
+		var t := int(f["tmpl"])
+		if t < 0 or t >= rules.hf_names.size():
+			continue
+		var fid := int(f["id"])
+		var guard := PackedStringArray()
+		for g in rules.hf_guard[t]:
+			var gi := rules.squad_index(g)
+			guard.append(rules.sq_names[gi] if gi >= 0 else g)
+		var acts := PackedStringArray()
+		for i in OverworldRules.ACTIVITIES.size():
+			if rules.hf_activities[t] & (1 << i) != 0:
+				acts.append(OverworldRules.ACTIVITIES[i])
+		var recruits := []
+		for i in range(0, rules.hf_recruits[t].size(), 2):
+			recruits.append({"name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
+		var produces := []
+		var opts := rules.hf_produces[t]
+		var made: Dictionary = production.get(fid, {})
+		@warning_ignore("integer_division")
+		for i in opts.size() / OverworldRules.PRODUCTION_STRIDE:
+			var o := i * OverworldRules.PRODUCTION_STRIDE
+			var what := rules.sq_names[opts[o]] if opts[o] >= 0 else "%d × %s" % [opts[o + 4], rules.it_names[opts[o + 3]] if opts[o + 3] >= 0 else "item"]
+			var chosen: bool = not made.is_empty() and int(made["output"]) == i
+			produces.append({"name": what, "turns": opts[o + 1], "cost": opts[o + 2], "selected": chosen,
+				"progress": int(made["progress"]) if chosen else -1})
+		out["features"].append({"id": fid, "name": rules.hf_names[t], "owner": int(f.get("owner", 0)),
+			"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
+			"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "produces": produces,
+			"line": (lines.get(fid, {}) as Dictionary).duplicate()})
+	for c: Dictionary in obs.get("commanders", []):
+		if int(c["plot"]) == plot:
+			out["commanders"].append({"id": c["id"], "player": c["player"], "engagement": c["engagement"],
+				"squads": (c["army"] as Array).size() if c.has("army") else -1})
+	for d: Dictionary in obs.get("detachments", []):
+		if int(d["plot"]) == plot:
+			var names := PackedStringArray()
+			for q: Dictionary in d.get("squads", []):
+				names.append(rules.sq_names[int(q["tmpl"])])
+			out["detachments"].append({"id": d["id"], "player": d["player"], "convoy": d.get("convoy", false), "squads": names})
+	for b: Dictionary in obs.get("battles", []):
+		if int(b["plot"]) == plot:
+			out["battle"] = true
+	return out
+
+
 ## A commander's movement this turn, as the player knows the map:
 ## {"budget", "spent" (by its planned route), "reach": plot -> cheapest cost
 ## from where it stands}. {} if it is not the player's.

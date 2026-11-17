@@ -14,6 +14,7 @@ var _mode: OptionButton
 var _size: OptionButton
 var _vsync: CheckBox
 var _scale: OptionButton
+var _theme: OptionButton
 var _turn: OptionButton
 var _said: Label
 var _sizes: Array[Vector2i] = []
@@ -86,7 +87,24 @@ func _ready() -> void:
 		if is_equal_approx(GameSettings.UI_SCALES[i], float(GameSettings.value("ui_scale"))):
 			_scale.select(i)
 	_scale.item_selected.connect(func(i: int) -> void: _change("ui_scale", GameSettings.UI_SCALES[i]))
+	col.add_child(_heading("Interface"))
+	_theme = OptionButton.new()
+	_theme.name = "Theme"
+	var theme_ids := UiTheme.ids()
+	for i in theme_ids.size():
+		_theme.add_item(str(UiTheme.profile(theme_ids[i])["name"]))
+		if theme_ids[i] == str(GameSettings.value("ui_theme")):
+			_theme.select(i)
+	_theme.item_selected.connect(func(i: int) -> void: _change("ui_theme", theme_ids[i]))
+	col.add_child(_row("Theme", _theme))
 	col.add_child(_row("UI scale", _scale))
+	var where := Label.new()
+	where.text = "Your own themes: put a .json file like the ones in data/ui/themes into %s" % ProjectSettings.globalize_path(UiTheme.USER_DIR)
+	where.add_theme_color_override("font_color", DIM)
+	where.add_theme_font_size_override("font_size", 12)
+	where.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	where.custom_minimum_size = Vector2(390, 0)
+	col.add_child(where)
 	col.add_child(_heading("Game"))
 	_turn = OptionButton.new()
 	_turn.name = "Turn"

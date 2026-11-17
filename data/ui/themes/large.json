@@ -1,0 +1,22 @@
+{
+	"id": "large",
+	"name": "Large text",
+	"font_size": 20,
+	"border_width": 1,
+	"corner_radius": 5,
+	"padding": 10,
+	"colors": {
+		"background": "12151a",
+		"panel": "1d2128",
+		"text": "e6eaf0",
+		"dim": "9aa3b2",
+		"accent": "e6b450",
+		"button": "2b323d",
+		"button_border": "566178",
+		"button_hover": "38414f",
+		"button_pressed": "4a5567",
+		"field": "0d1014",
+		"field_border": "6b7890",
+		"selection": "3b4d6b"
+	}
+}
