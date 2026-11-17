@@ -59,6 +59,13 @@ func texture(template: String, field: String = "icon") -> Texture2D:
 	return _tex[ref]
 
 
+## Whether the art is already cut to its shape (a transparent top-left
+## corner, like a pre-drawn hex tile): drawn whole rather than clipped.
+func shaped(template: String, field: String = "tile") -> bool:
+	var img := image(template, field)
+	return img != null and img.get_pixel(0, 0).a < 0.1
+
+
 ## The template's art as an Image (RGBA8), or null.
 func image(template: String, field: String = "icon") -> Image:
 	var ref: String = _refs.get("%s|%s" % [template, field], "")

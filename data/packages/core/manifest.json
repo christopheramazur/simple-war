@@ -51,6 +51,18 @@
 		"unit_rocketeer": "art/units/rocketeer.png",
 		"unit_scout": "art/units/scout.png",
 		"unit_sergeant": "art/units/sergeant.png",
-		"unit_trooper": "art/units/trooper.png"
+		"unit_trooper": "art/units/trooper.png",
+		"kn_hex_plains": "art/kenney/hex/plains.png",
+		"kn_hex_forest": "art/kenney/hex/forest.png",
+		"kn_hex_hills": "art/kenney/hex/hills.png",
+		"kn_hex_ore_deposit": "art/kenney/hex/ore_deposit.png",
+		"kn_hex_village": "art/kenney/hex/village.png",
+		"kn_hex_barracks": "art/kenney/hex/barracks.png",
+		"kn_hex_depot": "art/kenney/hex/depot.png",
+		"kn_hex_mine": "art/kenney/hex/mine.png",
+		"kn_hex_shrine": "art/kenney/hex/shrine.png",
+		"kn_hex_bandit_camp": "art/kenney/hex/bandit_camp.png",
+		"kn_ground_open": "art/kenney/ground/open.png",
+		"kn_ground_water": "art/kenney/ground/water.png"
 	}
 }

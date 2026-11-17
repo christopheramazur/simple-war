@@ -1,11 +1,11 @@
 {
 	"templates": [
-		{"id": "open", "kind": "feature", "values": {"texture": "ground_open", "name": "Open ground", "color": "2f362d"}},
+		{"id": "open", "kind": "feature", "values": {"texture": "kn_ground_open", "name": "Open ground", "color": "2f362d"}},
 		{"id": "road", "kind": "feature", "values": {"texture": "ground_road", "name": "Road", "color": "4a4840"}},
 		{"id": "forest", "kind": "feature", "values": {"texture": "ground_forest", "name": "Forest", "color": "223527", "blocks_los": true, "cover_evasion_pct": 25, "concealment_pct": 40}},
 		{"id": "ruins", "kind": "feature", "values": {"texture": "ground_ruins", "name": "Ruins", "color": "3d3a3a", "blocks_los": true, "cover_evasion_pct": 40, "concealment_pct": 30}},
 		{"id": "wall", "kind": "feature", "values": {"texture": "ground_wall", "name": "Wall", "color": "8a857c", "blocks_los": true, "impassable": true}},
-		{"id": "water", "kind": "feature", "values": {"texture": "ground_water", "name": "Deep water", "color": "1f3a4d", "impassable": true}},
+		{"id": "water", "kind": "feature", "values": {"texture": "kn_ground_water", "name": "Deep water", "color": "1f3a4d", "impassable": true}},
 		{"id": "ruin_block", "kind": "battle_map", "values": {
 			"name": "Ruined block",
 			"width": 16, "height": 8, "base": "open",

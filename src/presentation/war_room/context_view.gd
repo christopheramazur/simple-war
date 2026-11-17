@@ -219,11 +219,15 @@ func _draw_overworld() -> void:
 		var col := FOG
 		var shade := 1.0
 		var tile: Texture2D = null
+		var whole := false
 		var icon: Texture2D = null
 		if plots.has(p):
 			col = _plot_color(plots[p])
 			if art != null:
-				tile = _plot_art(plots[p], "tile")
+				var tid := _plot_art_id(plots[p], "tile")
+				if not tid.is_empty():
+					tile = art.texture(tid, "tile")
+					whole = art.shaped(tid, "tile")
 				icon = _plot_art(plots[p], "icon")
 			if not plots[p]["visible"]:
 				col = col.darkened(0.45)
@@ -233,7 +237,10 @@ func _draw_overworld() -> void:
 			col = col.darkened(0.35)
 			shade *= 0.65
 		var pts := _hex_points(c, s * 0.97)
-		if tile != null:
+		if tile != null and whole:  # a pre-cut hex: drawn over the hex's box
+			draw_colored_polygon(pts, FOG)
+			draw_texture_rect(tile, Rect2(c - Vector2(sqrt(3.0) * s, 2.0 * s) * 0.5, Vector2(sqrt(3.0) * s, 2.0 * s)), false, Color(shade, shade, shade))
+		elif tile != null:
 			var uvs := PackedVector2Array()
 			for q in pts:
 				uvs.append((q - c) / (s * 2.0) + Vector2(0.5, 0.5))
@@ -243,9 +250,11 @@ func _draw_overworld() -> void:
 		if icon != null:
 			var h := s * 0.6
 			draw_texture_rect(icon, Rect2(c - Vector2(h, h * 1.1), Vector2(h, h) * 2.0), false, Color(shade, shade, shade))
+		if plots.has(p) and (icon != null or whole):
 			var owner := _plot_owner(plots[p])
 			if owner > 0:
-				draw_circle(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.12, 2.5), PLAYER_COLORS.get(owner, TEXT))
+				draw_circle(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.14, 3.0), PLAYER_COLORS.get(owner, TEXT))
+				draw_arc(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.14, 3.0), 0, TAU, 12, BG, 1.0)
 		if reach.has(p):
 			draw_colored_polygon(_hex_points(c, s * 0.97), REACH)
 			if s >= 20.0:
@@ -379,17 +388,23 @@ func _along(walk: Dictionary, t: float) -> Vector2:
 ## A plot's art: the first feature (in FEATURE_COLORS order, then the rest)
 ## with `field` art, or null.
 func _plot_art(entry: Dictionary, field: String) -> Texture2D:
+	var id := _plot_art_id(entry, field)
+	return null if id.is_empty() else art.texture(id, field)
+
+
+## The template ID _plot_art draws, or "".
+func _plot_art_id(entry: Dictionary, field: String) -> String:
 	var ids := {}
 	for f: Dictionary in entry["features"]:
 		if f["tmpl"] >= 0 and f["tmpl"] < _names.size():
 			ids[_names[f["tmpl"]]] = true
 	for pair: Array in FEATURE_COLORS:
 		if ids.has(pair[0]) and art.has_art(pair[0], field):
-			return art.texture(pair[0], field)
+			return pair[0]
 	for id: String in ids:
 		if art.has_art(id, field):
-			return art.texture(id, field)
-	return null
+			return id
+	return ""
 
 
 func _plot_owner(entry: Dictionary) -> int:
