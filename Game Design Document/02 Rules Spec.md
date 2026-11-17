@@ -171,6 +171,10 @@ Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
 
 ### Other combat rules
 - **Terrain, line of sight, cover** (R3Q8): these apply. Movement types use feature cost tables (R6Q8).
+- **Range and vision** (sw-kys.6, 2026-11-17): a squad engages enemies its *side* can see (shared spotting), within its weapon range.
+  - **Direct fire:** each shooter also needs its own line of sight to the unit it hits.
+  - **Indirect fire:** a fire mode flagged `indirect` (the mortar) needs no line of sight. A spotted target in range is enough, so spotters matter to artillery.
+  - **Attack orders:** an attacking squad stops to fight once it has a shot (target in reach, and an indirect weapon or a unit with a clear line). It keeps standing while its weapons reload or cool down. It closes in only when no unit has a shot, so slow weapons that can't fire on the move don't walk into the enemy.
 - **Readying** (R7Q3): a data-driven behaviour in which a squad needs some time before a separate behaviour becomes available, like a siege-mode transformation or building ammunition. While readying, a squad can create Prowess Vacuum, as data. Interrupting a readying squad floats the interrupter's Prowess.
 - **Scavenging** (R3Q7): free for now. Survivors pick up squad upgrades, and limited upgrades are re-equipped up to the maximum on the turn after casualties (R4Q10).
 

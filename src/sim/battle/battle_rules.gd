@@ -94,6 +94,8 @@ var md_accuracy: PackedInt64Array = PackedInt64Array()
 var md_damage: PackedInt64Array = PackedInt64Array()
 var md_moving: PackedByteArray = PackedByteArray()
 var md_aoe: PackedInt64Array = PackedInt64Array()
+## 1 = indirect fire: no unit line of sight needed (spotting suffices).
+var md_indirect: PackedByteArray = PackedByteArray()
 var md_crit_every: PackedInt64Array = PackedInt64Array()
 var md_crit_bonus: PackedInt64Array = PackedInt64Array()
 
@@ -277,6 +279,14 @@ func squad_range(squad_tmpl: int) -> int:
 		if w >= 0:
 			best = maxi(best, wp_range[w])
 	return best
+
+
+## Whether any fire mode of weapon w is indirect.
+func indirect(w: int) -> bool:
+	for m in range(wp_mode_start[w], wp_mode_start[w] + wp_mode_count[w]):
+		if md_indirect[m] == 1:
+			return true
+	return false
 
 
 ## Fire mode for a weapon: moving -> first mode usable on the move; standing
@@ -598,6 +608,7 @@ func _compile_weapons(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 			md_damage.append(DataSchema.to_fixed(m["damage"]))
 			md_moving.append(1 if m.get("moving", false) else 0)
 			md_aoe.append(DataSchema.to_fixed(m.get("aoe_radius", 0)))
+			md_indirect.append(1 if m.get("indirect", false) else 0)
 			md_crit_every.append(int(m.get("crit_every", 0)))
 			md_crit_bonus.append(int(m.get("crit_bonus_pct", 0)))
 	return index

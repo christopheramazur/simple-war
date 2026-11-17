@@ -6,7 +6,9 @@ extends SimSystem
 ##   visible enemy squad within its longest weapon range. Squads falling back
 ##   or withdrawing hold fire.
 ## - Each armed unit picks a fire mode (moving or standing), the nearest living
-##   unit of the engaged squad in range and line of sight, and fires.
+##   unit of the engaged squad in range and line of sight, and fires. An
+##   indirect mode (mortars) needs no line of sight: the engaged squad is
+##   already seen by its side, so a spotter's vision is enough.
 ## - Hits come from an accuracy accumulator: accuracy * proficiency (* Instinct
 ##   efficacy when firing on the move). No dice (R2Q6).
 ## - Every Nth hit is a crit (crit_every / crit_bonus_pct) (R5Q5).
@@ -107,7 +109,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var m := r.pick_mode(w, is_moving)
 		if m < 0:
 			continue
-		var victim := _nearest_target(state, urow, targets, w, pending)
+		var victim := _nearest_target(state, urow, targets, w, m, pending)
 		if victim < 0:
 			continue
 		var accuracy := Stats.unit(state, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m])
@@ -119,7 +121,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			Pools.flow(state, row, BattleSquads.INSTINCT, -Fixed.from_int(r.sink("instinct_fire_moving")), &"fire_moving")
 		for _s in r.md_shots[m]:
 			if _covered(u, victim, pending):
-				var next := _nearest_target(state, urow, targets, w, pending)
+				var next := _nearest_target(state, urow, targets, w, m, pending)
 				if next >= 0:
 					victim = next
 			shots_total += 1
@@ -183,7 +185,7 @@ func _tick_timers(u: BattleUnits, urow: int, r: BattleRules) -> bool:
 
 ## Nearest living target in range and sight, preferring ones whose queued
 ## damage doesn't already cover their HP. -1 if none in reach.
-func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w: int, pending: Dictionary) -> int:
+func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary) -> int:
 	var r := state.rules
 	var u := state.units
 	var best := -1
@@ -199,7 +201,7 @@ func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w
 		var covered := _covered(u, t, pending)
 		if (covered and d >= fallback_d) or (not covered and d >= best_d):
 			continue
-		if not r.los(u.x[urow], u.y[urow], u.x[t], u.y[t]):
+		if r.md_indirect[m] == 0 and not r.los(u.x[urow], u.y[urow], u.x[t], u.y[t]):
 			continue
 		if covered:
 			fallback_d = d

@@ -120,28 +120,61 @@ func _destination(state: BattleState, row: int) -> PackedInt64Array:
 		BattleSquads.Order.MOVE, BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW:
 			return PackedInt64Array([sq.tx[row], sq.ty[row]])
 		BattleSquads.Order.ATTACK_MOVE:
-			if sq.engaged[row] >= 0 and _firing(state, row):
+			if sq.engaged[row] >= 0 and (_firing(state, row) or _has_shot(state, row)):
 				return PackedInt64Array()
 			return PackedInt64Array([sq.tx[row], sq.ty[row]])
 		BattleSquads.Order.ATTACK:
 			var trow := sq.row_of(sq.target[row])
 			if trow < 0 or not sq.is_active(trow):
 				return PackedInt64Array()
-			if sq.engaged[row] == sq.target[row] and _firing(state, row):
+			if sq.engaged[row] == sq.target[row] and (_firing(state, row) or _has_shot(state, row)):
 				return PackedInt64Array()
 			return PackedInt64Array([sq.cx[trow], sq.cy[trow]])
 	return PackedInt64Array()
 
 
-## Engaged squads stop to fight only while they are actually landing fire
-## (fired within the last FIRING_HOLD_S); otherwise they keep closing, so a
-## squad that sees its target but has no unit-level line of fire never stalls.
+## Engaged squads stop to fight only while they are actually shooting: fired
+## within the last FIRING_HOLD_S, or a weapon is still reloading or cooling
+## down from a shot (a mortar's 6 s cycle, sw-kys.6). Otherwise they keep
+## closing, so a squad that sees its target but has no unit-level line of
+## fire never stalls.
 const FIRING_HOLD_S: int = 2
 
 
 func _firing(state: BattleState, row: int) -> bool:
 	var ft := state.squads.fired_tick[row]
-	return ft >= 0 and state.tick - ft <= FIRING_HOLD_S * state.rules.tps
+	if ft < 0:
+		return false
+	if state.tick - ft <= FIRING_HOLD_S * state.rules.tps:
+		return true
+	var u := state.units
+	for urow in Centroids.units_of(state, row):
+		if u.hp[urow] > 0 and (u.cooldown[urow] > 0 or u.reload[urow] > 0):
+			return true
+	return false
+
+
+## An engaged squad stops once it has a shot: its target within reach and a
+## unit carrying an indirect weapon, or a unit with a clear line to the
+## target's centre. Weapons that can't fire on the move (mortars, rockets)
+## need this to open fire under attack orders at all (sw-kys.6); a squad
+## whose units are all blocked keeps closing. The scan stops at the first
+## unit with a shot (usually the first one).
+func _has_shot(state: BattleState, row: int) -> bool:
+	var sq := state.squads
+	var trow := sq.row_of(sq.engaged[row])
+	if trow < 0:
+		return false
+	if Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[trow], sq.cy[trow]) > sq.reach[row]:
+		return false
+	var r := state.rules
+	var u := state.units
+	for urow in Centroids.units_of(state, row):
+		if u.hp[urow] <= 0 or u.weapon[urow] < 0:
+			continue
+		if r.indirect(u.weapon[urow]) or r.los(u.x[urow], u.y[urow], sq.cx[trow], sq.cy[trow]):
+			return true
+	return false
 
 
 ## Pace of the slowest living member at the anchor's terrain.

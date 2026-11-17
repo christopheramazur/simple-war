@@ -59,6 +59,9 @@ const OBJECTS: Dictionary = {
 		"damage": {"type": "fixed", "required": true, "min": 0},
 		"moving": {"type": "bool"},
 		"aoe_radius": {"type": "fixed"},
+		## Indirect fire (mortars): needs no line of sight from the shooter,
+		## only a target its side can see (spotting), within range.
+		"indirect": {"type": "bool"},
 		"crit_every": {"type": "int", "min": 0},
 		"crit_bonus_pct": {"type": "int", "min": 0},
 	},
