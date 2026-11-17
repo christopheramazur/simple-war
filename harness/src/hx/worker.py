@@ -23,6 +23,7 @@ from pathlib import Path
 from hx import paths
 
 IDLE_STOP_S = 600
+IDLE_EXIT_S = 900   # the worker exits after this long with nothing to do; tick or a hook restarts it
 POLL_S = 5
 MAX_ATTEMPTS = 3
 DELEGATE_LOCK_STALE_S = 1800
@@ -309,6 +310,14 @@ class Lifecycle:
         (state_dir() / f"{self.pid}.started").unlink(missing_ok=True)
         return True
 
+    def shutdown(self) -> None:
+        """On worker exit: stop the model if this worker (or hx delegate) started it."""
+        marker = state_dir() / f"{self.pid}.started"
+        if (self.started_by_us or marker.exists()) and self.lm.alive(self.pid):
+            self.lm.stop(self.pid)
+        marker.unlink(missing_ok=True)
+        self.started_by_us = False
+
 
 def tick(con: sqlite3.Connection, life: Lifecycle, log=print) -> bool:
     """Run at most one job. True if one ran."""
@@ -331,17 +340,43 @@ def tick(con: sqlite3.Connection, life: Lifecycle, log=print) -> bool:
     return True
 
 
-def loop(once: bool = False, log=print) -> None:
+def loop(once: bool = False, log=print, idle_exit_s: float = IDLE_EXIT_S, clock=time.time, sleep=time.sleep,
+         life: Lifecycle | None = None) -> None:
+    """Run jobs until the queue has been empty for idle_exit_s (or once drained, with once); then stop
+    what this worker started (local model, gateway) and return, so nothing is left running."""
     con = connect()
     n = recover(con)
     if n:
         log(f"recovered {n} interrupted job(s)")
-    life = Lifecycle()
+    life = life or Lifecycle()
     (state_dir() / "worker.heartbeat").write_text(_now())
-    while True:
-        ran = tick(con, life, log)
-        (state_dir() / "worker.heartbeat").write_text(_now())
-        if once and not ran:
-            return
-        if not ran:
-            time.sleep(POLL_S)
+    idle_since = clock()
+    try:
+        while True:
+            ran = tick(con, life, log)
+            (state_dir() / "worker.heartbeat").write_text(_now())
+            if ran:
+                idle_since = clock()
+                continue
+            if once:
+                return
+            if clock() - idle_since >= idle_exit_s and not delegate_active():
+                log(f"idle {idle_exit_s:.0f}s, exiting")
+                return
+            sleep(POLL_S)
+    finally:
+        _shutdown(life, log)
+        con.close()
+
+
+def _shutdown(life: Lifecycle, log) -> None:
+    try:
+        life.shutdown()
+    except Exception as e:  # never keep the worker alive over a failed stop
+        log(f"stopping the local model failed: {e}")
+    try:
+        from hx.gateway import process
+        if process.STARTED_HERE:
+            log(f"gateway: {process.stop()}")
+    except Exception as e:
+        log(f"stopping the gateway failed: {e}")

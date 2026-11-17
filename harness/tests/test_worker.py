@@ -153,3 +153,29 @@ def test_periodic_tags_idle_sessions_only_and_is_throttled(tmp_path):
 def test_tag_job_skips_a_session_that_wrote_no_transcript(tmp_path):
     out = worker.HANDLERS["tag_session"][0]({"session_id": "ghost", "transcript_path": str(tmp_path / "ghost.jsonl")})
     assert out.startswith("skipped")
+
+
+def test_worker_exits_when_idle_and_stops_what_it_started(monkeypatch):
+    from hx.gateway import process
+    lm, clock = FakeLM(), Clock()
+    life = worker.Lifecycle(lm=lm, clock=clock)
+    assert life.ensure() is None and lm.up  # the worker started the model
+    stopped = []
+    monkeypatch.setattr(process, "STARTED_HERE", True)
+    monkeypatch.setattr(process, "stop", lambda: stopped.append(1) or "stopped")
+
+    def sleep(s):
+        clock.t += s
+    worker.loop(log=lambda m: None, idle_exit_s=60, clock=clock, sleep=sleep, life=life)
+    assert clock.t - 1000.0 >= 60, "it waited out the idle time, then returned"
+    assert not lm.up and lm.stops == 1 and stopped == [1]
+    assert not (worker.state_dir() / "bonsai.started").exists()
+
+
+def test_worker_leaves_a_model_it_did_not_start(monkeypatch):
+    from hx.gateway import process
+    lm = FakeLM(up=True)
+    monkeypatch.setattr(process, "STARTED_HERE", False)
+    monkeypatch.setattr(process, "stop", lambda: pytest.fail("gateway was not ours"))
+    worker.loop(once=True, log=lambda m: None, life=worker.Lifecycle(lm=lm, clock=Clock()))
+    assert lm.up and lm.stops == 0

@@ -56,7 +56,11 @@ def child_env(roster) -> dict:
     return env
 
 
+STARTED_HERE = False  # this process started the gateway (the worker stops it again when it exits)
+
+
 def start(wait: float = 180) -> tuple[bool, str]:
+    global STARTED_HERE
     if alive():
         return True, "already running"
     roster = providers.load()
@@ -73,6 +77,7 @@ def start(wait: float = 180) -> tuple[bool, str]:
     deadline = time.time() + wait
     while time.time() < deadline:
         if alive():
+            STARTED_HERE = True
             return True, f"started pid {proc.pid}, {n} model(s)" + (f"; skipped {skipped}" if skipped else "")
         if proc.poll() is not None:
             return False, f"exited with {proc.returncode}; see {log_file()}"
