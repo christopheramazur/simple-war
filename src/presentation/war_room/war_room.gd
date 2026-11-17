@@ -281,6 +281,8 @@ func _build_ui() -> void:
 	_terrain_colors = ContextView.feature_colors(session.templates)
 	_main = ContextView.new()
 	_main.terrain_colors = _terrain_colors
+	_main.art = ArtSet.core()
+	_main.commander_ids = session.rules.commander_ids
 	_main.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_main.offset_bottom = -HUD_H  # the status and hint lines sit under the view
 	_main.hex_clicked.connect(_on_hex_clicked)
@@ -725,6 +727,7 @@ func _refresh_pips() -> void:
 		pip.engagement = eid
 		pip.size = PIP_SIZE
 		pip.view.terrain_colors = _terrain_colors
+		pip.view.art = _main.art
 		var home := Vector2(12, 12 + i * (PIP_SIZE.y + 10))
 		pip.position = home + contexts.pip_offsets.get(eid, Vector2.ZERO)
 		pip.home = home

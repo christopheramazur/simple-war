@@ -17,6 +17,8 @@ signal battle_box(rect: Rect2, add: bool)
 signal zoomed(factor: float)
 
 const HEX_SIZE: float = 26.0
+## Pixels per battlefield metre when the ground is drawn from textures.
+const GROUND_PX: int = 4
 const ONE: float = 65536.0
 const BG: Color = Color("12151a")
 const FOG: Color = Color("1b1f26")
@@ -44,6 +46,12 @@ const FEATURE_COLORS: Array = [
 ## `color` (GDD 03 §3.5; `feature_colors`). A feature not listed gets a
 ## colour made from its ID, so mod terrain always draws.
 var terrain_colors: Dictionary = {}
+## Package art (sw-kys.3): hex tiles and icons, commander and squad icons,
+## battle ground textures. Null, or a template without art, draws colours.
+var art: ArtSet
+## Commander template IDs by index (OverworldRules.commander_ids), to find
+## an observed commander's icon.
+var commander_ids: PackedStringArray = PackedStringArray()
 
 ## "overworld", "battle" or "" (nothing yet).
 var mode: String = ""
@@ -104,6 +112,7 @@ func _terrain_color(f: String) -> Color:
 
 func _init() -> void:
 	clip_contents = true
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
@@ -208,15 +217,35 @@ func _draw_overworld() -> void:
 		if c.x < -s * 2 or c.y < -s * 2 or c.x > size.x + s * 2 or c.y > size.y + s * 2:
 			continue
 		var col := FOG
+		var shade := 1.0
+		var tile: Texture2D = null
+		var icon: Texture2D = null
 		if plots.has(p):
 			col = _plot_color(plots[p])
+			if art != null:
+				tile = _plot_art(plots[p], "tile")
+				icon = _plot_art(plots[p], "icon")
 			if not plots[p]["visible"]:
 				col = col.darkened(0.45)
+				shade *= 0.55
 		# With a commander selected, what it can't reach this turn is dimmed.
 		if not reach.is_empty() and not reach.has(p):
 			col = col.darkened(0.35)
+			shade *= 0.65
 		var pts := _hex_points(c, s * 0.97)
-		draw_colored_polygon(pts, col)
+		if tile != null:
+			var uvs := PackedVector2Array()
+			for q in pts:
+				uvs.append((q - c) / (s * 2.0) + Vector2(0.5, 0.5))
+			draw_colored_polygon(pts, Color(shade, shade, shade), uvs, tile)
+		else:
+			draw_colored_polygon(pts, col)
+		if icon != null:
+			var h := s * 0.6
+			draw_texture_rect(icon, Rect2(c - Vector2(h, h * 1.1), Vector2(h, h) * 2.0), false, Color(shade, shade, shade))
+			var owner := _plot_owner(plots[p])
+			if owner > 0:
+				draw_circle(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.12, 2.5), PLAYER_COLORS.get(owner, TEXT))
 		if reach.has(p):
 			draw_colored_polygon(_hex_points(c, s * 0.97), REACH)
 			if s >= 20.0:
@@ -282,12 +311,22 @@ func _draw_overworld() -> void:
 	for cmd: Dictionary in _obs.get("commanders", []):
 		var c := o + (_along(cmd_play[cmd["id"]], t) if cmd_play.has(cmd["id"]) else _centre(cmd["plot"]))
 		var r := s * 0.36
-		draw_circle(c, r, PLAYER_COLORS.get(cmd["player"], TEXT))
+		var pc: Color = PLAYER_COLORS.get(cmd["player"], TEXT)
+		draw_circle(c, r, pc)
+		var face := _commander_icon(cmd)
+		if face != null:
+			draw_circle(c, r * 0.86, BG)
+			draw_texture_rect(face, Rect2(c - Vector2(r, r) * 0.95, Vector2(r, r) * 1.9), false)
 		if cmd["id"] == _selected:
 			draw_arc(c, r + 3.0, 0, TAU, 20, SELECT, 2.5)
 		if cmd.has("army"):  # own and allied: squads besides the commander's own
 			var n := (cmd["army"] as Array).filter(func(q: Dictionary) -> bool: return not q.get("own", false)).size()
-			draw_string(font, c + Vector2(-r * 0.45, r * 0.45), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 0.9, fs, BG)
+			if face != null:
+				var b := c + Vector2(r * 0.85, r * 0.75)
+				draw_circle(b, maxf(fs * 0.55, 5.0), pc)
+				draw_string(font, b + Vector2(-fs * 0.5, fs * 0.35), str(n), HORIZONTAL_ALIGNMENT_CENTER, fs, maxi(fs - 2, 8), BG)
+			else:
+				draw_string(font, c + Vector2(-r * 0.45, r * 0.45), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 0.9, fs, BG)
 
 
 ## The route the selected commander would take to the hovered hex, and what
@@ -335,6 +374,36 @@ func _along(walk: Dictionary, t: float) -> Vector2:
 			var from := float(times[i - 1])
 			return _centre(plots[i - 1]).lerp(_centre(plots[i]), (at - from) / maxf(float(times[i]) - from, 0.001))
 	return _centre(plots[plots.size() - 1])
+
+
+## A plot's art: the first feature (in FEATURE_COLORS order, then the rest)
+## with `field` art, or null.
+func _plot_art(entry: Dictionary, field: String) -> Texture2D:
+	var ids := {}
+	for f: Dictionary in entry["features"]:
+		if f["tmpl"] >= 0 and f["tmpl"] < _names.size():
+			ids[_names[f["tmpl"]]] = true
+	for pair: Array in FEATURE_COLORS:
+		if ids.has(pair[0]) and art.has_art(pair[0], field):
+			return art.texture(pair[0], field)
+	for id: String in ids:
+		if art.has_art(id, field):
+			return art.texture(id, field)
+	return null
+
+
+func _plot_owner(entry: Dictionary) -> int:
+	for f: Dictionary in entry["features"]:
+		if int(f.get("owner", 0)) > 0:
+			return int(f["owner"])
+	return 0
+
+
+func _commander_icon(cmd: Dictionary) -> Texture2D:
+	var t := int(cmd.get("tmpl", -1))
+	if art == null or t < 0 or t >= commander_ids.size():
+		return null
+	return art.texture(commander_ids[t])
 
 
 func _plot_color(entry: Dictionary) -> Color:
@@ -545,8 +614,17 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 		draw_circle(at, halo, Color(col, 0.22))
 		front = maxf(front, (at - c).dot(dir))
 		top = minf(top, at.y)
-	for p: Vector2 in d["pts"]:
-		draw_circle(area.position + p * k, ur, col)
+	var sprite: Texture2D = art.texture(String(d["template"])) if art != null and d.has("template") else null
+	var sz := clampf(ur * 3.6, 0.0, 26.0)
+	var per_unit := sprite != null and not compact and sz >= 10.0
+	if not per_unit:
+		for p: Vector2 in d["pts"]:
+			draw_circle(area.position + p * k, ur, col)
+	else:
+		for p: Vector2 in d["pts"]:
+			var at := area.position + p * k
+			draw_circle(at, ur, col)
+			draw_texture_rect(sprite, Rect2(at - Vector2(sz * 0.5, sz * 0.8), Vector2(sz, sz)), false)
 	# Facing: an arrow ahead of the front rank.
 	var side := dir.orthogonal() * (3.0 if compact else 5.0)
 	var base := c + dir * (front + halo + 2.0)
@@ -560,6 +638,9 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 	top -= halo + (5.0 if is_selected or marked else 0.0)
 	var text := "%s %d/%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0))]
 	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, TEXT if is_selected or marked else Color(TEXT, 0.75))
+	if sprite != null and not per_unit:  # too small per unit: one badge by the label
+		var tw := minf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, 140.0)
+		draw_texture_rect(sprite, Rect2(Vector2(c.x - tw * 0.5 - 18, top - 21), Vector2(16, 16)), false)
 	var hp_max := float(d.get("hp_max", 0))
 	if hp_max > 0.0:
 		var frac := clampf(1.0 - float(d.get("hp_lost", 0)) / hp_max, 0.0, 1.0)
@@ -609,13 +690,30 @@ func _terrain_texture(rules: Variant) -> ImageTexture:
 	_terrain_names = PackedStringArray()
 	if r.width <= 0 or r.height <= 0 or r.terrain.size() < r.width * r.height:
 		return null
-	var img := Image.create(r.width, r.height, false, Image.FORMAT_RGB8)
+	# With ground textures, each metre is GROUND_PX pixels cut from its
+	# feature's texture (tiled), drawn with nearest filtering.
+	var srcs := {}
+	if art != null:
+		for f in r.feature_ids:
+			var src := art.image(f, "texture")
+			if src != null:
+				srcs[f] = src
+	var px := GROUND_PX if not srcs.is_empty() else 1
+	var img := Image.create(r.width * px, r.height * px, false, Image.FORMAT_RGBA8)
 	var seen := {}
 	for y in r.height:
 		for x in r.width:
 			var f: String = r.feature_ids[r.terrain[y * r.width + x]]
 			seen[f] = true
-			img.set_pixel(x, y, _terrain_color(f))
+			if px == 1:
+				img.set_pixel(x, y, _terrain_color(f))
+			elif srcs.has(f):
+				var src: Image = srcs[f]
+				var sx := (x * px) % maxi(src.get_width() - px + 1, 1)
+				var sy := (y * px) % maxi(src.get_height() - px + 1, 1)
+				img.blit_rect(src, Rect2i(sx, sy, px, px), Vector2i(x * px, y * px))
+			else:
+				img.fill_rect(Rect2i(x * px, y * px, px, px), _terrain_color(f))
 	_terrain_tex = ImageTexture.create_from_image(img)
 	for f in r.feature_ids:
 		if seen.has(f):

@@ -18,6 +18,10 @@ extends RefCounted
 ## Packages never run code: there is no script loading and no .pck support.
 
 const FORMAT: int = 1
+## Template fields naming art assets (drawing only, sw-kys.3), and the kinds
+## whose fields they are (an item's `icon` is a UI glyph name, not an asset).
+const ART_FIELDS: Array[String] = ["icon", "tile", "texture"]
+const ART_KINDS: Array[String] = ["unit", "squad", "commander", "hex_feature", "feature"]
 const ASSET_EXTENSIONS: Array[String] = ["png", "webp", "jpg", "jpeg", "ogg", "wav", "mp3", "ttf", "otf"]
 
 ## Result fields.
@@ -91,6 +95,7 @@ func _load(dirs: PackedStringArray) -> void:
 	errors.append_array(templates.errors)
 	if templates.is_valid():
 		errors.append_array(DataSchema.validate(templates))
+		_check_art()
 	if errors.is_empty():
 		data_hash = _hash(templates)
 
@@ -213,10 +218,34 @@ func _register_asset(m: Dictionary, aid: String, rel: Variant) -> void:
 	assets["%s:%s" % [pid, aid]] = (m["_dir"] as String).path_join(rel)
 
 
+## The full asset ID ("pkg:id") an art reference names: as given when it
+## names a package, else the last package in load order that has that id
+## (so a mod's asset of the same name wins). "" if there is none.
+func resolve_asset(ref: String) -> String:
+	if ref.contains(":"):
+		return ref if assets.has(ref) else ""
+	for i in range(packages.size() - 1, -1, -1):
+		var full := "%s:%s" % [packages[i]["id"], ref]
+		if assets.has(full):
+			return full
+	return ""
+
+
+func _check_art() -> void:
+	for id in templates.ids():
+		if not ART_KINDS.has(templates.kind_of(id)):
+			continue
+		var v := templates.values_of(id)
+		for f in ART_FIELDS:
+			if v.has(f) and resolve_asset(String(v[f])).is_empty():
+				errors.append("%s: %s '%s' is not an asset of any package" % [id, f, v[f]])
+
+
 ## Loads an image asset through our own loader (never ResourceLoader on mod
-## content, so packages can't smuggle scripts). Returns null if missing.
+## content, so packages can't smuggle scripts). Takes a full or bare asset
+## ID (resolve_asset). Returns null if missing.
 func load_texture(asset_id: String) -> Texture2D:
-	var path: String = assets.get(asset_id, "")
+	var path: String = assets.get(resolve_asset(asset_id), "")
 	if path.is_empty():
 		return null
 	var img := Image.load_from_file(path)

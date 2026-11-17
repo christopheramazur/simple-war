@@ -97,7 +97,13 @@ func test_terrain_is_drawn_from_the_battle_rules() -> void:
 	assert_not_null(rules)
 	var tex := w._main._terrain_texture(rules)
 	assert_not_null(tex)
-	assert_eq(tex.get_size(), Vector2(rules.width, rules.height))
+	assert_eq(tex.get_size(), Vector2(rules.width, rules.height) * ContextView.GROUND_PX, "textured ground: GROUND_PX pixels a metre")
+	w._main.art = null
+	w._main._terrain_rules = null
+	assert_eq(w._main._terrain_texture(rules).get_size(), Vector2(rules.width, rules.height), "no art: a pixel a metre")
+	w._main._terrain_rules = null
+	w._main.art = ArtSet.core()
+	tex = w._main._terrain_texture(rules)
 	assert_same(w._main._terrain_texture(rules), tex, "built once per battle")
 
 

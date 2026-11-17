@@ -126,3 +126,29 @@ func test_load_roots_discovers_packages() -> void:
 	var l := PackageLoader.load_roots(PackedStringArray(["res://data/packages", TMP]))
 	assert_true(l.is_valid(), "\n".join(l.errors))
 	assert_eq(l.package_ids(), PackedStringArray(["core", "found_me"]))
+
+
+# --- art references (sw-kys.3) -------------------------------------------------
+
+func test_core_art_resolves() -> void:
+	var l := PackageLoader.load_dirs(PackedStringArray([CORE]))
+	assert_true(l.is_valid(), "; ".join(l.errors))
+	assert_eq(l.resolve_asset("icon_village"), "core:icon_village")
+	assert_eq(l.resolve_asset("core:icon_village"), "core:icon_village")
+	assert_eq(l.resolve_asset("no_such_art"), "")
+	assert_not_null(l.load_texture("tile_forest"))
+	var art := ArtSet.from_loader(l)
+	assert_not_null(art.texture("hex_village"), "a feature icon")
+	assert_not_null(art.texture("hex_forest", "tile"), "a hex tile")
+	assert_not_null(art.texture("mortar_team"), "a squad icon")
+	assert_not_null(art.texture("siege_captain"), "a commander icon")
+	assert_not_null(art.image("forest", "texture"), "battle ground")
+	assert_null(art.texture("hex_plains"), "plains has a tile, not an icon")
+
+
+func test_unknown_art_is_an_error() -> void:
+	var core_dep := [{"id": "core", "min_version": "0.1.0"}]
+	var mod := _mod("artmod", core_dep, {"defs/a.json": {"patches": [{"id": "hex_village", "values": {"icon": "missing_icon"}}]}})
+	var l := PackageLoader.load_dirs(PackedStringArray([CORE, mod]))
+	assert_false(l.is_valid())
+	assert_true("; ".join(l.errors).contains("missing_icon"), "; ".join(l.errors))

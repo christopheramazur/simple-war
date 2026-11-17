@@ -319,6 +319,8 @@ const KINDS: Dictionary = {
 		"disguise": {"type": "ref:bundle"},
 	},
 	"feature": {
+		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
+		"texture": {"type": "string"},
 		"name": {"type": "string"},
 		"blocks_los": {"type": "bool"},
 		## No movement type can enter it unless its terrain_cost_pct says so
@@ -365,6 +367,8 @@ const KINDS: Dictionary = {
 		"activation": {"type": "obj:activation"},
 	},
 	"unit": {
+		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
+		"icon": {"type": "string"},
 		"name": {"type": "string"},
 		"hp": {"type": "fixed", "required": true, "min": 1},
 		"size_class": {"type": "string", "enum": ["small", "medium", "large", "huge"]},
@@ -377,6 +381,8 @@ const KINDS: Dictionary = {
 		"bundles": {"type": "list:ref:bundle"},
 	},
 	"squad": {
+		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
+		"icon": {"type": "string"},
 		"name": {"type": "string"},
 		"faction": {"type": "string", "required": true},
 		"doctrine": {"type": "string"},
@@ -418,6 +424,9 @@ const KINDS: Dictionary = {
 	## activity here. converts_to: what the "convert" activity turns this
 	## feature into (owned by the converting player).
 	"hex_feature": {
+		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
+		"icon": {"type": "string"},
+		"tile": {"type": "string"},
 		"name": {"type": "string"},
 		"tags": {"type": "list:string"},
 		"move_cost": {"type": "int"},
@@ -502,6 +511,8 @@ const KINDS: Dictionary = {
 	## overworld. movement_points: per turn, in the map's move-cost units.
 	## sight: radius in hexes. squad: the commander's own squad in battles.
 	"commander": {
+		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
+		"icon": {"type": "string"},
 		"name": {"type": "string"},
 		"tags": {"type": "list:string"},
 		"movement_points": {"type": "int", "required": true, "min": 1},
