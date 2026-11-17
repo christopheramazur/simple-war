@@ -35,6 +35,18 @@ def test_hook_logs_arm_once_and_forces(tmp_path):
     assert rows == [{"ts": rows[0]["ts"], "session_id": "sX", "rtk": 0, "forced": True}]
 
 
+def test_hook_denies_commands_too_long_for_the_bash_tool(tmp_path):
+    env = {**os.environ, "HX_DATA_DIR": str(tmp_path), "HX_RTK": "off"}
+    run = lambda cmd: subprocess.run([BASH, str(HOOK)], capture_output=True, text=True, env=env,
+                                     input=json.dumps({"session_id": "sL", "tool_name": "Bash", "tool_input": {"command": cmd}}))
+    long = run("python - <<'EOF'\n" + "x = '''\n" + "a" * 7200 + "\n'''\nEOF")
+    out = json.loads(long.stdout)["hookSpecificOutput"]
+    assert long.returncode == 0 and out["permissionDecision"] == "deny" and "Write tool" in out["permissionDecisionReason"]
+    # Escaping makes the JSON longer than the command; a command under the limit still passes.
+    short = run("printf '\\t\\n\"'\n" * 400)  # 5600 chars, ~7600 as JSON
+    assert short.returncode == 0 and short.stdout == ""
+
+
 def test_arms_ingested_and_compared(tmp_path, monkeypatch):
     monkeypatch.setenv("HX_DATA_DIR", str(tmp_path))
     raw = tmp_path / "raw" / "rtk"

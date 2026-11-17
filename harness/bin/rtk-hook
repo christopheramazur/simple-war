@@ -4,6 +4,19 @@
 # HX_RTK=on|off forces an arm. Each session's arm is logged once to data/raw/rtk/arms.jsonl; ingest
 # loads it and `hx ab rtk` compares the arms. Plain bash: this runs before every Bash call.
 input=$(cat)
+# Length guard: Claude Code on Windows truncates a Bash command at about 7.5K characters, and the cut
+# surfaces as "bash: -c: line N: unexpected EOF while looking for matching `''" (seven failed calls
+# before this guard). Deny long commands up front with what to do instead. HX_BASH_MAX overrides.
+max=${HX_BASH_MAX:-7000}
+if [ "${#input}" -gt "$max" ]; then  # the JSON is never shorter than its command: cheap prefilter
+  len=$(printf '%s' "$input" | jq -r '.tool_input.command | length' 2>/dev/null | tr -d '\r')
+  len=${len:-${#input}}  # no jq: judge by the JSON length
+  if [ "$len" -gt "$max" ]; then
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' \
+      "This command is $len characters; the Bash tool on Windows truncates commands over about 7500, which shows up as an unmatched-quote error. Write the script to a file in the scratchpad with the Write tool (or make the edits with Edit) and run that file instead."
+    exit 0
+  fi
+fi
 sid=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 [ -z "$sid" ] && exit 0
 case "${HX_RTK:-}" in
