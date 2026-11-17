@@ -185,6 +185,46 @@ func set_supply_line(player: int, feature_id: int, plot: int, commander: int = -
 	return err
 
 
+## Steers a detachment by hand along `plots` (sw-kys.8; Convoys.set_route):
+## a chain of neighbouring hexes, possibly several turns long. Empty halts
+## it. "" or why not.
+func set_convoy_route(player: int, detachment_id: int, plots: PackedInt64Array) -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = Convoys.set_route(state, player, detachment_id, plots)
+	if err.is_empty():
+		_log(player, "convoy_route", {"detachment": detachment_id, "plots": plots.duplicate()})
+	return err
+
+
+## What a detachment of `player` can enter this turn: {"budget" (the map's
+## convoy movement points), "reach" (plot -> cost)}; {} if not its own or
+## in a battle.
+func convoy_reach(player: int, detachment_id: int) -> Dictionary:
+	var row := state.detachments.row_of(detachment_id)
+	if row < 0 or state.detachments.player[row] != player or state.detachments.engagement[row] >= 0:
+		return {}
+	return {"budget": rules.convoy_mp,
+		"reach": OverworldPath.reach(state, state.detachments.plot[row], rules.convoy_mp, player)}
+
+
+## The cheapest way for a detachment to plot `to`, as the player knows the
+## map, whole (a convoy keeps walking on later turns). With `via` (the route
+## it already has), the way continues from its end and the result is the
+## whole route: waypoints. Empty if none.
+func convoy_path(player: int, detachment_id: int, to: int, via: PackedInt64Array = PackedInt64Array()) -> PackedInt64Array:
+	var row := state.detachments.row_of(detachment_id)
+	if row < 0 or state.detachments.player[row] != player:
+		return PackedInt64Array()
+	var from := state.detachments.plot[row] if via.is_empty() else via[via.size() - 1]
+	var way := OverworldPath.find(state, from, to, player)
+	if way.is_empty():
+		return PackedInt64Array()
+	var out := via.duplicate()
+	out.append_array(way)
+	return out
+
+
 ## Sends a detachment as a convoy to a plot or one of the player's
 ## commanders (both -1 halts it). "" or why not.
 func rally(player: int, detachment_id: int, plot: int, commander: int = -1) -> String:
@@ -924,6 +964,8 @@ func _replay(inputs: Array) -> void:
 				set_supply_line(i["player"], p["feature"], p["plot"], p["commander"])
 			"rally":
 				rally(i["player"], p["detachment"], p["plot"], p["commander"])
+			"convoy_route":
+				set_convoy_route(i["player"], p["detachment"], p["plots"])
 			"equip":
 				equip(i["player"], p["commander"], p["item"], p["squad"], p["count"])
 			"unequip":

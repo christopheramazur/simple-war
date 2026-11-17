@@ -134,6 +134,10 @@ func _input_text(i: Dictionary) -> String:
 				plots.size(), "" if plots.size() == 1 else "es"] if not plots.is_empty() else "%s: stop" % who
 		"activity":
 			return "%s: %s %s" % [who, String(d.get("activity", "")), String(d.get("option", ""))]
+		"convoy_route":
+			var way: Array = Array(d.get("plots", []))
+			var det := "Convoy %d" % (int(d.get("detachment", -1)) & 0xffff)
+			return "%s: route to %s (%d hex%s)" % [det, EventText.hex(int(way[-1]), r), way.size(), "" if way.size() == 1 else "es"] 				if not way.is_empty() else "%s: halt" % det
 		"battle_orders":
 			var parts := PackedStringArray()
 			for o: Dictionary in d.get("orders", []):

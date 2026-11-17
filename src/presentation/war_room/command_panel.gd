@@ -28,20 +28,25 @@ var session: OverworldSession
 var player: int = 1
 var commander: int = -1
 var plot: int = -1
+var detachment: int = -1
 
 
 ## Shows the selected commander (`commander_id`, -1 for none), or else the
 ## selected hex (`plot_id`, -1 for none), as `for_player` knows them.
-func show_selection(of_session: OverworldSession, for_player: int, commander_id: int, plot_id: int) -> void:
+func show_selection(of_session: OverworldSession, for_player: int, commander_id: int, plot_id: int, detachment_id: int = -1) -> void:
 	session = of_session
 	player = for_player
 	commander = commander_id
 	plot = plot_id
+	detachment = detachment_id
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
 	var cid := commander
 	var obs := session.observe(player)
+	if cid < 0 and detachment >= 0:
+		_detachment_info(obs)
+		return
 	if cid < 0:
 		_hex_info(obs)
 		return
@@ -203,6 +208,37 @@ func _army_info(me: Dictionary, obs: Dictionary) -> void:
 		b.disabled = others.size() >= cap
 		b.pressed.connect(pick_up_requested.emit.bind(int(det["id"])))
 		add_child(b)
+
+
+## A selected garrison or convoy of the player's (sw-kys.8): its squads,
+## where it is going, and Halt. It moves like a commander, but takes no
+## hexes and does no activities.
+func _detachment_info(obs: Dictionary) -> void:
+	var me := {}
+	for d: Dictionary in obs.get("detachments", []):
+		if int(d["id"]) == detachment:
+			me = d
+	if me.is_empty():
+		return
+	var r := session.rules
+	var convoy := bool(me["convoy"])
+	add_child(_title("%s %d at %s" % ["Convoy" if convoy else "Garrison", detachment & 0xffff, EventText.hex(int(me["plot"]), r)]))
+	for q: Dictionary in me.get("squads", []):
+		add_child(_dim_label("  %s  %d/%d units" % [EventText.squad_name(r.squad_ids[int(q["tmpl"])]), int(q.get("alive", 0)), int(q.get("size", 0))]))
+	var route: PackedInt64Array = (obs.get("convoy_routes", {}) as Dictionary).get(detachment, PackedInt64Array())
+	if int(me.get("dest_commander", -1)) >= 0:
+		add_child(_dim_label("Heading to %s, to join its army." % EventText.commander(int(me["dest_commander"]))))
+	elif int(me.get("dest_plot", -1)) >= 0:
+		add_child(_dim_label("Heading to %s%s." % [EventText.hex(int(me["dest_plot"]), r),
+			"" if route.is_empty() else " (%d hex%s to go)" % [route.size(), "" if route.size() == 1 else "es"]]))
+	else:
+		add_child(_dim_label("Holding this hex."))
+	add_child(_dim_label("Moves %d points a turn. Right click a hex to send it; it keeps going on later turns. Convoys take no hexes and do no activities." % r.convoy_mp))
+	if convoy and int(me["engagement"]) < 0 and session.clock.phase == PulseClock.Phase.PLANNING:
+		var halt := Button.new()
+		halt.text = "Halt here"
+		halt.pressed.connect(rally_requested.emit.bind(detachment, -1, -1, "convoy %d" % (detachment & 0xffff)))
+		add_child(halt)
 
 
 ## A selected hex: what the player knows is there, garrisons and convoys

@@ -15,6 +15,9 @@ var turn: int = 0
 ## Planned routes: commander ID -> plots to enter, in order (start excluded).
 ## Set during planning by OverworldOrders; cleared when the turn resolves.
 var routes: Dictionary = {}
+## Convoys steered by hand (sw-kys.8): detachment ID -> the plots it still
+## has to enter, in order, across turns; its destination is the last one.
+var convoy_routes: Dictionary = {}
 ## Planned activities: commander ID -> {"activity": String, "plot": int}.
 ## Set during planning; performed if the commander ends the turn there.
 var activities: Dictionary = {}
@@ -189,7 +192,10 @@ func _snapshot_extra(snap: Dictionary) -> void:
 	var r := {}
 	for cid: int in routes:
 		r[cid] = (routes[cid] as PackedInt64Array).duplicate()
-	snap["overworld"] = {"turn": turn, "routes": r, "activities": activities.duplicate(true), "drops": drops.duplicate(true),
+	var cr := {}
+	for did: int in convoy_routes:
+		cr[did] = (convoy_routes[did] as PackedInt64Array).duplicate()
+	snap["overworld"] = {"turn": turn, "routes": r, "convoy_routes": cr, "activities": activities.duplicate(true), "drops": drops.duplicate(true),
 		"supply_lines": supply_lines.duplicate(true),
 		"value": value.duplicate(), "offers": offers.duplicate(true),
 		"memory": memory.duplicate(true), "teams": teams.duplicate(),
@@ -203,6 +209,10 @@ func _restore_extra(snap: Dictionary) -> void:
 	var r: Dictionary = snap["overworld"].get("routes", {})
 	for cid: int in r:
 		routes[cid] = (r[cid] as PackedInt64Array).duplicate()
+	convoy_routes = {}
+	var cr: Dictionary = snap["overworld"].get("convoy_routes", {})
+	for did: int in cr:
+		convoy_routes[did] = (cr[did] as PackedInt64Array).duplicate()
 	activities = (snap["overworld"].get("activities", {}) as Dictionary).duplicate(true)
 	drops = (snap["overworld"].get("drops", {}) as Dictionary).duplicate(true)
 	supply_lines = (snap["overworld"].get("supply_lines", {}) as Dictionary).duplicate(true)
@@ -228,6 +238,11 @@ func state_hash() -> PackedByteArray:
 	for cid: int in ids:
 		h.update(PackedInt64Array([cid, (routes[cid] as PackedInt64Array).size()]).to_byte_array())
 		h.update((routes[cid] as PackedInt64Array).to_byte_array())
+	ids = convoy_routes.keys()
+	ids.sort()
+	for did: int in ids:
+		h.update(PackedInt64Array([-did - 1, (convoy_routes[did] as PackedInt64Array).size()]).to_byte_array())
+		h.update((convoy_routes[did] as PackedInt64Array).to_byte_array())
 	var text := ""
 	ids = activities.keys()
 	ids.sort()

@@ -36,6 +36,8 @@ var followed: int = -1
 ## Selected commander (-1 = none) and selected hex (-1 = none).
 var selected: int = -1
 var selected_plot: int = -1
+## Selected own detachment (garrison or convoy, sw-kys.8; -1 = none).
+var selected_detachment: int = -1
 ## Overworld camera centre (a plot; -1 = not set yet).
 var camera_plot: int = -1
 var zoom: float = ZOOM_DEFAULT
@@ -138,6 +140,7 @@ func select_commander(cid: int) -> void:
 		return
 	selected = cid
 	selected_plot = -1
+	selected_detachment = -1
 	if focus != OVERWORLD and _commanders[cid]["engagement"] != focus:
 		if followed >= 0:
 			followed = cid
@@ -160,6 +163,17 @@ func follow(cid: int = -2) -> void:
 
 func select_hex(p: int) -> void:
 	selected_plot = p
+	selected_detachment = -1
+	changed.emit()
+
+
+## Selects one of the player's detachments to steer it like a commander
+## (sw-kys.8). Clears the commander and hex selection.
+func select_detachment(did: int) -> void:
+	selected = -1
+	followed = -1
+	selected_plot = -1
+	selected_detachment = did
 	changed.emit()
 
 
@@ -168,6 +182,7 @@ func deselect_all() -> void:
 	selected = -1
 	followed = -1
 	selected_plot = -1
+	selected_detachment = -1
 	if focus != OVERWORLD:
 		_leave_battle(_battles.get(focus, camera_plot))
 	changed.emit()

@@ -65,6 +65,10 @@ var _height: int = 0
 var _camera: int = -1
 var _zoom: float = 1.0
 var _selected: int = -1
+## The selected own detachment (sw-kys.8), -1 = none.
+var _selected_det: int = -1
+## Own steered convoys' routes: detachment ID -> plots.
+var _convoy_routes: Dictionary = {}
 var _selected_plot: int = -1
 var _battles: Dictionary = {}
 ## Own commanders' planned routes: commander ID -> plots.
@@ -138,11 +142,13 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 	_camera = ctx.camera_plot
 	_zoom = ctx.zoom
 	_selected = ctx.selected
+	_selected_det = ctx.selected_detachment
 	_selected_plot = ctx.selected_plot
 	_battles = {}
 	for eid in ctx.battles():
 		_battles[ctx.battle_plot(eid)] = eid
 	_routes = obs.get("routes", {})
+	_convoy_routes = obs.get("convoy_routes", {})
 	queue_redraw()
 
 
@@ -297,11 +303,20 @@ func _draw_overworld() -> void:
 				for cmd: Dictionary in _obs.get("commanders", []):
 					if cmd["id"] == to_cmd:
 						dest = cmd["plot"]
-			if dest >= 0 and play.is_empty():
+			var steered: PackedInt64Array = _convoy_routes.get(det["id"], PackedInt64Array())
+			if not steered.is_empty() and play.is_empty():
+				var prev := c
+				for q in steered:
+					var nxt := o + _centre(q)
+					draw_dashed_line(prev, nxt, Color(col, 0.75) if det["id"] != _selected_det else SELECT, 1.5, 4.0)
+					prev = nxt
+			elif dest >= 0 and play.is_empty():
 				draw_dashed_line(c, o + _centre(dest), Color(col, 0.6), 1.5, 4.0)
 		else:
 			draw_rect(Rect2(c - Vector2(h, h), Vector2(h, h) * 2.0), col)
 		draw_rect(Rect2(c - Vector2(h, h), Vector2(h, h) * 2.0), BG, false, 1.0)
+		if det["id"] == _selected_det:
+			draw_arc(c, h * 1.9, 0, TAU, 20, SELECT, 2.5)
 		var n := (det.get("squads", []) as Array).size()
 		if n > 0:
 			draw_string(font, c + Vector2(h + 2, h), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)

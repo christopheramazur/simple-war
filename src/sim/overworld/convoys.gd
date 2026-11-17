@@ -20,6 +20,12 @@ extends RefCounted
 ##     timeline (OverworldMovement). Like any detachment, it fights what it
 ##     meets: entering a hostile hex, or being entered, starts an engagement
 ##     (interception).
+##   - Steering (sw-kys.8): the owner may route any of its detachments by
+##     hand, like a commander (set_route): a list of plots, through
+##     waypoints, that may take several turns; it walks it at its own
+##     movement points and the route is used up as it goes. Convoys never
+##     take features, pick up caches or perform activities: those stay with
+##     commanders (OverworldMovement.arrive, OverworldActivities).
 ##   - Arrival: at a plot, it becomes a detachment holding it (joining the
 ##     player's one there). At its commander's hex, its squads join the army
 ##     up to the cap; the rest halt there. A convoy whose commander is gone
@@ -114,8 +120,42 @@ static func set_line(s: OverworldState, player: int, fid: int, plot: int, comman
 	var d := s.detachments
 	for row in d.count():
 		if d.line[row] == fid and d.player[row] == player:
+			s.convoy_routes.erase(d.id_at(row))
 			d.set_value(d.id_at(row), &"dest_plot", plot)
 			d.set_value(d.id_at(row), &"dest_commander", commander)
+	return ""
+
+
+## Steers a detachment by hand (sw-kys.8): `plots` is the way to walk, each
+## adjacent to the one before (the first to the detachment's hex) and
+## passable as the player knows the map; it may take several turns. Its
+## last plot becomes the destination. Empty halts it. "" or why not.
+static func set_route(s: OverworldState, player: int, did: int, plots: PackedInt64Array) -> String:
+	var d := s.detachments
+	var row := d.row_of(did)
+	if row < 0:
+		return "no such detachment"
+	if d.player[row] != player:
+		return "not your detachment"
+	if d.engagement[row] >= 0:
+		return "is in a battle"
+	if plots.is_empty():
+		_stop(s, did)
+		return ""
+	var costs := OverworldVision.known_costs(s, player)
+	var at := d.plot[row]
+	for p in plots:
+		if p < 0 or p >= s.rules.plot_count():
+			return "that hex is off the map"
+		if not Hex.adjacent(at, p, s.rules.width):
+			return "the route must be a chain of neighbouring hexes"
+		if costs[p] < 0:
+			return "the route crosses an impassable hex"
+		at = p
+	d.set_value(did, &"dest_plot", plots[plots.size() - 1])
+	d.set_value(did, &"dest_commander", -1)
+	d.set_value(did, &"line", -1)
+	s.convoy_routes[did] = plots.duplicate()
 	return ""
 
 
@@ -137,6 +177,7 @@ static func rally(s: OverworldState, player: int, did: int, plot: int, commander
 	d.set_value(did, &"dest_plot", plot if commander < 0 else -1)
 	d.set_value(did, &"dest_commander", commander)
 	d.set_value(did, &"line", -1)
+	s.convoy_routes.erase(did)
 	return ""
 
 
@@ -252,9 +293,13 @@ static func plan(s: OverworldState, did: int, masks: Dictionary) -> Array:
 	var player := d.player[row]
 	if to < 0 or to == d.plot[row]:
 		return [PackedInt64Array(), PackedInt64Array()]
-	if not masks.has(player):
-		masks[player] = guarded_mask(s, player)
-	var path := OverworldPath.find(s, d.plot[row], to, player, masks[player])
+	var path: PackedInt64Array
+	if s.convoy_routes.has(did):  # steered: the owner's way, guards and all
+		path = s.convoy_routes[did]
+	else:
+		if not masks.has(player):
+			masks[player] = guarded_mask(s, player)
+		path = OverworldPath.find(s, d.plot[row], to, player, masks[player])
 	var plots := PackedInt64Array()
 	var times := PackedInt64Array()
 	var t := 0
@@ -302,6 +347,7 @@ static func deliver(s: OverworldState, did: int) -> bool:
 ## unguarded chests sharing a hex with hostile forces are seized.
 static func settle(s: OverworldState) -> void:
 	var d := s.detachments
+	_trim_routes(s)
 	for did in ids(s):
 		var row := d.row_of(did)
 		if row < 0 or d.engagement[row] >= 0:
@@ -358,7 +404,26 @@ static func _halt(s: OverworldState, did: int, reason: String) -> void:
 	_stop(s, did)
 
 
+## Steered routes lose the plots walked; gone or stopped convoys lose theirs.
+static func _trim_routes(s: OverworldState) -> void:
+	var d := s.detachments
+	for did: int in s.convoy_routes.keys():
+		var row := d.row_of(did)
+		if row < 0 or not is_convoy(s, row):
+			s.convoy_routes.erase(did)
+			continue
+		var route: PackedInt64Array = s.convoy_routes[did]
+		var i := route.find(d.plot[row])
+		if i >= 0:
+			route = route.slice(i + 1)
+		if route.is_empty():
+			s.convoy_routes.erase(did)
+		else:
+			s.convoy_routes[did] = route
+
+
 static func _stop(s: OverworldState, did: int) -> void:
+	s.convoy_routes.erase(did)
 	s.detachments.set_value(did, &"dest_plot", -1)
 	s.detachments.set_value(did, &"dest_commander", -1)
 	s.detachments.set_value(did, &"line", -1)

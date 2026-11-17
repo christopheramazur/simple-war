@@ -272,3 +272,57 @@ func test_fog_and_session() -> void:
 	assert_eq(loaded.state_hash_hex(), x.state_hash_hex())
 	var kinds := x.input_log.map(func(i: Dictionary) -> String: return i["kind"])
 	assert_true(kinds.has("output") and kinds.has("supply"))
+
+
+# --- steering convoys by hand (sw-kys.8) -------------------------------------
+
+## A player-1 garrison at (5,8): a field commander drops its battleforce.
+func _garrison(s: OverworldState) -> int:
+	var cid := Commanders.spawn(s, 1, "field_commander", P(5, 8))
+	return Detachments.drop(s, cid, P(5, 8))
+
+
+func _route_via(s: OverworldState, from: int, stops: Array) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	for to: int in stops:
+		out.append_array(OverworldPath.find(s, from, to, 1))
+		from = to
+	return out
+
+
+func test_a_steered_garrison_walks_its_route_and_takes_nothing() -> void:
+	var s := _s()
+	var did := _garrison(s)
+	var barracks := s.features.id_at(s.feature_row(P(8, 7), _rules().feature_index("hex_barracks")))
+	var mine := s.features.id_at(s.feature_row(P(8, 9), _rules().feature_index("hex_mine")))
+	var route := _route_via(s, P(5, 8), [P(8, 7), P(8, 9)])
+	assert_eq(Convoys.set_route(s, 1, did, route), "")
+	assert_true(Convoys.is_convoy(s, s.detachments.row_of(did)), "routing a garrison makes it a convoy")
+	_turns(s, 1)
+	var row := s.detachments.row_of(did)
+	assert_ne(s.detachments.plot[row], P(5, 8), "it moved")
+	assert_lt((s.convoy_routes.get(did, PackedInt64Array()) as PackedInt64Array).size(), route.size(), "walked plots leave the route")
+	_turns(s, 3)
+	row = s.detachments.row_of(did)
+	assert_eq(s.detachments.plot[row], P(8, 9), "through the waypoint to the end")
+	assert_false(Convoys.is_convoy(s, row), "arrived: a garrison again")
+	assert_false(s.convoy_routes.has(did))
+	assert_eq(s.features.get_value(barracks, &"owner"), 0, "convoys take no features on the way")
+	assert_eq(s.features.get_value(mine, &"owner"), 0, "nor where they stop")
+
+
+func test_steering_checks_and_halts() -> void:
+	var s := _s()
+	var did := _garrison(s)
+	assert_eq(Convoys.set_route(s, 2, did, PackedInt64Array([P(6, 8)])), "not your detachment")
+	assert_eq(Convoys.set_route(s, 1, did, PackedInt64Array([P(9, 8)])), "the route must be a chain of neighbouring hexes")
+	assert_eq(Convoys.set_route(s, 1, did, _route_via(s, P(5, 8), [P(9, 9)])), "")
+	var snap := s.snapshot()
+	var t := OverworldState.create(1, _rules(), 7)
+	t.restore(snap)
+	assert_eq(t.convoy_routes, s.convoy_routes, "saves keep steered routes")
+	assert_eq(t.state_hash(), s.state_hash())
+	assert_eq(Convoys.rally(s, 1, did, P(1, 6), -1), "")
+	assert_false(s.convoy_routes.has(did), "a rally replaces the hand route")
+	assert_eq(Convoys.set_route(s, 1, did, PackedInt64Array()), "")
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(did)), "an empty route halts it")

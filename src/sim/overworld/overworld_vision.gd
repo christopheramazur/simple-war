@@ -319,6 +319,11 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	for cid: int in s.drops:
 		if own.has(cid):
 			drops[cid] = (s.drops[cid] as Dictionary).duplicate()
+	var croutes := {}
+	for did: int in s.convoy_routes:
+		var drow := s.detachments.row_of(did)
+		if drow >= 0 and s.detachments.player[drow] == player:
+			croutes[did] = (s.convoy_routes[did] as PackedInt64Array).duplicate()
 	var acts := {}
 	for cid: int in s.activities:
 		if own.has(cid):
@@ -329,7 +334,7 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 			offers.append(o.duplicate())
 	return {"turn": s.turn, "player": player, "value": s.value_of(player), "plots": plots,
 		"commanders": cmds, "detachments": dets, "battles": battles, "routes": routes, "drops": drops,
-		"activities": acts, "offers": offers, "production": production, "supply_lines": lines,
+		"convoy_routes": croutes, "activities": acts, "offers": offers, "production": production, "supply_lines": lines,
 		"presets": (s.presets.get(player, {}) as Dictionary).duplicate(true)}
 
 

@@ -534,7 +534,7 @@ func _refresh() -> void:
 	_refresh_commanders()
 	_refresh_orders()
 	_refresh_reactions()
-	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot)
+	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
 	_refresh_log()
 	_refresh_phase_banner()
 	_refresh_battle_panel()
@@ -602,6 +602,8 @@ func hints() -> String:
 	if not _target.is_empty():
 		return "Click the hex or one of your commanders to send %s there.  Right click or Esc: cancel" % _target["what"]
 	if contexts.focus == ViewContexts.OVERWORLD:
+		if _own_detachment() >= 0:
+			return "Right click: send the convoy there (it keeps going on later turns; lit hexes are this turn's reach)  ·  Shift+right click: add a waypoint  ·  Right click one of your commanders: join its army  ·  Right click the convoy: halt  ·  Convoys take no hexes and do no activities"
 		if _own_selected() >= 0:
 			return "Right click: move there (lit hexes are in reach; numbers are movement cost)  ·  Shift+right click: add a waypoint  ·  Right click the commander: clear its route  ·  F: follow  ·  Space: end turn"
 		return "Left click: select a commander or a hex  ·  Wheel: zoom (zoom into a battle to enter it)  ·  Tab: go to a battle  ·  Space: end turn"
@@ -617,6 +619,22 @@ func hints() -> String:
 
 ## Reach, movement points and the hovered route for the selected commander.
 func _overworld_extra() -> Dictionary:
+	var did := _own_detachment()
+	if did >= 0 and session.clock.phase == PulseClock.Phase.PLANNING:
+		var cr := session.convoy_reach(player, did)
+		var dx := {"reach": cr.get("reach", {}), "budget": cr.get("budget", 0), "spent": 0}
+		var at: int = session.state.detachments.get_value(did, &"plot")
+		if _hover_plot >= 0 and _hover_plot != at and not cr.is_empty():
+			var via := _convoy_route_of(did) if Input.is_key_pressed(KEY_SHIFT) else PackedInt64Array()
+			var path := session.convoy_path(player, did, _hover_plot, via)
+			var spent := 0
+			for p in path:
+				spent += _step_cost(p, {}, {})
+			dx["preview"] = path
+			dx["preview_to"] = _hover_plot
+			dx["preview_from"] = at
+			dx["preview_cost"] = spent
+		return dx
 	var cid := _own_selected()
 	if cid < 0 or session.clock.phase != PulseClock.Phase.PLANNING:
 		return {}
@@ -651,7 +669,7 @@ func _route_of(cid: int) -> PackedInt64Array:
 func _on_hex_hovered(p: int) -> void:
 	_hover_plot = p
 	_refresh_hover_card()
-	if _play.is_empty() and contexts.focus == ViewContexts.OVERWORLD and _own_selected() >= 0:
+	if _play.is_empty() and contexts.focus == ViewContexts.OVERWORLD and (_own_selected() >= 0 or _own_detachment() >= 0):
 		_show_main()
 
 
@@ -794,6 +812,9 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 			_target = {}
 			_queue_refresh()
 		return
+	if button == MOUSE_BUTTON_RIGHT and _own_detachment() >= 0:
+		_steer(p, shift)
+		return
 	if button == MOUSE_BUTTON_RIGHT:
 		var cid := _own_selected()
 		if cid >= 0 and p >= 0:
@@ -806,11 +827,85 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 		return
 	if p < 0:
 		return
-	for cmd: Dictionary in session.observe(player).get("commanders", []):
+	# A commander first; clicking its hex again selects the garrison or
+	# convoy there (sw-kys.8).
+	var obs := session.observe(player)
+	var det := -1
+	for d: Dictionary in obs.get("detachments", []):
+		if int(d["plot"]) == p and int(d["player"]) == player and int(d["engagement"]) < 0 and int(d["id"]) != contexts.selected_detachment:
+			det = int(d["id"])
+			break
+	for cmd: Dictionary in obs.get("commanders", []):
 		if cmd["plot"] == p and cmd["player"] == player:
-			contexts.select_commander(cmd["id"])
+			if contexts.selected == cmd["id"] and det >= 0:
+				contexts.select_detachment(det)
+			else:
+				contexts.select_commander(cmd["id"])
 			return
+	if det >= 0:
+		contexts.select_detachment(det)
+		return
 	contexts.select_hex(p)
+
+
+## The selected detachment if it is the player's own and not fighting, else -1.
+func _own_detachment() -> int:
+	var did := contexts.selected_detachment
+	var row := session.state.detachments.row_of(did) if did >= 0 else -1
+	if row < 0 or session.state.detachments.player[row] != player:
+		return -1
+	return did
+
+
+## Right click with a detachment selected (sw-kys.8): its own hex halts it,
+## a hex with one of the player's commanders sends it to that commander,
+## any other hex routes it there (Shift: as a waypoint after its route).
+func _steer(p: int, shift: bool) -> String:
+	var did := _own_detachment()
+	if p < 0:
+		contexts.deselect_all()
+		return ""
+	var here: int = session.state.detachments.get_value(did, &"plot")
+	if p == here and not shift:
+		return halt_detachment()
+	if not shift:
+		for cmd: Dictionary in session.observe(player).get("commanders", []):
+			if cmd["plot"] == p and cmd["player"] == player:
+				rally(did, -1, int(cmd["id"]), "convoy %d" % (did & 0xffff))
+				return ""
+	return steer_to(p, shift)
+
+
+## Routes the selected detachment to a hex (the whole way, over as many
+## turns as it takes). With `append`, the hex is a waypoint after its
+## route. "" or why not.
+func steer_to(p: int, append: bool = false) -> String:
+	var did := _own_detachment()
+	if did < 0:
+		return "no convoy selected"
+	var via := _convoy_route_of(did) if append else PackedInt64Array()
+	var path := session.convoy_path(player, did, p, via)
+	var err := "no way there" if path.size() <= via.size() else session.set_convoy_route(player, did, path)
+	_hud_note = err
+	_note("%s convoy %d to %s%s" % ["waypoint for" if append else "route", did & 0xffff, EventText.hex(p, session.rules),
+		(" - refused: " + err) if not err.is_empty() else ""])
+	_queue_refresh()
+	return err
+
+
+## Halts the selected detachment where it is. "" or why not.
+func halt_detachment() -> String:
+	var did := _own_detachment()
+	if did < 0:
+		return "no convoy selected"
+	_hud_note = session.set_convoy_route(player, did, PackedInt64Array())
+	_note("convoy %d halted%s" % [did & 0xffff, "" if _hud_note.is_empty() else " - refused: " + _hud_note])
+	_queue_refresh()
+	return _hud_note
+
+
+func _convoy_route_of(did: int) -> PackedInt64Array:
+	return (session.observe(player).get("convoy_routes", {}) as Dictionary).get(did, PackedInt64Array())
 
 
 # --- planning ------------------------------------------------------------------
