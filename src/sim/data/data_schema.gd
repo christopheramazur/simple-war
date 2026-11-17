@@ -39,7 +39,7 @@ const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 ## Overworld (GDD 02 §2.9). Activities need a commander's route to end on
 ## the plot; "stable" outcomes resolve during planning, "uncertain" ones at
 ## the start of a turn with an uncontested commander (R6Q14).
-const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert"]
+const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert", "hire"]
 const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
 const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
@@ -139,6 +139,13 @@ const OBJECTS: Dictionary = {
 	## (separate from the squad's battle value, R6Q15).
 	"recruit_option": {
 		"squad": {"type": "ref:squad", "required": true},
+		"cost": {"type": "int", "required": true, "min": 0},
+	},
+	## A commander a feature's hire activity offers (GDD 02 §2.5: Value
+	## recruits commanders), and its price in Value. The hired commander
+	## arrives on the hex with its own squad and starting army.
+	"hire_option": {
+		"commander": {"type": "ref:commander", "required": true},
 		"cost": {"type": "int", "required": true, "min": 0},
 	},
 	## A squad or item a feature produces (R5Q10): one every `turns` turns
@@ -433,6 +440,8 @@ const KINDS: Dictionary = {
 		"converts_to": {"type": "ref:hex_feature"},
 		## Squads the recruit activity offers here.
 		"recruits": {"type": "list:obj:recruit_option"},
+		## Commanders the hire activity offers here.
+		"hires": {"type": "list:obj:hire_option"},
 		## Squads it can produce for its owner; the owner selects one (the
 		## first by default) and may run a supply line from it.
 		"produces": {"type": "list:obj:production_option"},

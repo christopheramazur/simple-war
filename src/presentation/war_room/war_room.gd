@@ -374,6 +374,7 @@ func _build_ui() -> void:
 	_commander_box.target_armed.connect(arm_target)
 	_commander_box.rally_requested.connect(rally)
 	_commander_box.supply_line_requested.connect(supply_line)
+	_commander_box.activity_requested.connect(set_activity)
 	col.add_child(_commander_box)
 	_orders_box = VBoxContainer.new()
 	col.add_child(_orders_box)
@@ -1238,6 +1239,20 @@ func set_battleforce(preset: String, lead: bool) -> String:
 	_hud_note = err
 	_note("battleforce of %s: %s, own squad %s%s" % [EventText.commander(cid), "strongest first" if preset.is_empty() else preset,
 		"fights" if lead else "stays out", "" if err.is_empty() else " - refused: " + err])
+	_queue_refresh()
+	return err
+
+
+## Plans the selected commander's activity where its route ends (recruit,
+## hire, refit, ...; "" clears it). Returns "" or why it was refused.
+func set_activity(activity: String, option: String = "") -> String:
+	var cid := _own_selected()
+	if cid < 0:
+		return "no commander selected"
+	var err := session.set_activity(player, cid, activity, option)
+	_hud_note = err
+	_note("%s: %s%s" % [EventText.commander(cid), "activity cleared" if activity.is_empty() else "%s %s" % [activity, option.replace("_", " ")],
+		"" if err.is_empty() else " - refused: " + err])
 	_queue_refresh()
 	return err
 

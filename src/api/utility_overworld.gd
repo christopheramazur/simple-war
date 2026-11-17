@@ -238,6 +238,19 @@ func _candidates(c: Dictionary, obs: Dictionary, r: OverworldRules, ctx: Diction
 					cand["recruit"] = float(r.sq_value[best])
 					cand["activity"] = "recruit"
 					cand["option"] = r.squad_ids[best]
+			# Hiring a commander (sw-kys.2) scores like recruiting its whole
+			# starting army; it wins over a squad when worth more.
+			if int(ft["owner"]) == player and r.has_activity(t, "hire"):
+				for i in range(0, r.hf_hires[t].size(), 2):
+					var cm: int = r.hf_hires[t][i]
+					var cost: int = r.hf_hires[t][i + 1] + r.hf_activity_cost[t]
+					var worth := float(r.sq_value[r.cm_own_squad[cm]]) if r.cm_own_squad[cm] >= 0 else 0.0
+					for sq in r.cm_army[cm]:
+						worth += float(r.sq_value[sq])
+					if cost <= ctx["value"] and worth > float(cand.get("recruit", 0.0)):
+						cand["recruit"] = worth
+						cand["activity"] = "hire"
+						cand["option"] = r.commander_ids[cm]
 		if cand.is_empty():
 			continue
 		cand["plot"] = p

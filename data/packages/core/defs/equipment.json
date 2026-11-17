@@ -29,6 +29,11 @@
 			"name": "Rocket launcher", "range": 45, "min_range": 5, "damage_type": "explosive", "magazine": 1, "reload_ticks": 40,
 			"modes": {"direct": {"shots": 1, "cooldown_ticks": 50, "accuracy": "0.5", "damage": 12, "aoe_radius": 3}}}},
 
+	{"id": "shotgun", "kind": "weapon", "values": {"name": "Breaching shotgun", "range": 15, "damage_type": "kinetic", "magazine": 8, "reload_ticks": 30,
+		"modes": {"blast": {"shots": 3, "cooldown_ticks": 15, "accuracy": "0.55", "damage": 3, "moving": true}}}},
+	{"id": "mortar", "kind": "weapon", "values": {"name": "Light mortar", "range": 90, "min_range": 20, "damage_type": "explosive", "magazine": 1, "reload_ticks": 30,
+		"modes": {"indirect": {"shots": 1, "cooldown_ticks": 60, "accuracy": "0.35", "damage": 10, "aoe_radius": 5}}}},
+
 		{"id": "auspex", "kind": "ability", "values": {
 			"name": "Auspex", "bundle": "auspex_scan", "activation": {"toggle": true}}},
 		{"id": "field_camo", "kind": "ability", "values": {

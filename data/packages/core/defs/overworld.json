@@ -7,15 +7,21 @@
 	{"id": "hex_lake", "kind": "hex_feature", "values": {"name": "Lake", "impassable": true}},
 	{"id": "hex_village", "kind": "hex_feature", "values": {
 		"name": "Village", "controllable": true, "interaction": "stable",
-		"activities": ["recruit"], "value_per_turn": 2, "sight": 2,
-		"recruits": [{"squad": "rifle_squad", "cost": 6}, {"squad": "scout_team", "cost": 4}]}},
+		"activities": ["recruit", "hire"], "value_per_turn": 2, "sight": 2,
+		"recruits": [{"squad": "rifle_squad", "cost": 6}, {"squad": "scout_team", "cost": 4},
+			{"squad": "engineer_team", "cost": 5}],
+		"hires": [{"commander": "outrider", "cost": 10}, {"commander": "field_commander", "cost": 18}]}},
 	{"id": "hex_depot", "kind": "hex_feature", "values": {
 		"name": "Supply depot", "controllable": true, "interaction": "stable",
 		"activities": ["refit"], "refit_cost": 1, "sight": 1}},
 	{"id": "hex_barracks", "kind": "hex_feature", "values": {
 		"name": "Barracks", "controllable": true, "interaction": "stable", "sight": 1,
+		"activities": ["recruit", "hire"],
+		"recruits": [{"squad": "assault_squad", "cost": 7}, {"squad": "mortar_team", "cost": 7}],
+		"hires": [{"commander": "siege_captain", "cost": 16}],
 		"produces": [{"squad": "rifle_squad", "turns": 3, "cost": 2}, {"squad": "scout_team", "turns": 2, "cost": 1},
-			{"item": "carapace_plates", "count": 2, "turns": 2, "cost": 1}]}},
+			{"item": "carapace_plates", "count": 2, "turns": 2, "cost": 1},
+			{"squad": "assault_squad", "turns": 3, "cost": 3}, {"squad": "mortar_team", "turns": 4, "cost": 3}]}},
 	{"id": "hex_mine", "kind": "hex_feature", "values": {
 		"name": "Mine", "controllable": true, "interaction": "stable",
 		"value_per_turn": 3, "sight": 1}},
@@ -70,6 +76,9 @@
 	{"id": "outrider", "kind": "commander", "values": {
 		"name": "Outrider", "movement_points": 90, "sight": 4, "squad": "scout_team",
 		"army": ["scout_team"], "army_cap": 2}},
+	{"id": "siege_captain", "kind": "commander", "values": {
+		"name": "Siege captain", "movement_points": 50, "sight": 3,
+		"squad": "engineer_team", "army": ["mortar_team"], "army_cap": 4}},
 
 	{"id": "preset_recon", "kind": "battleforce_preset", "values": {
 		"name": "Recon", "prefer": ["scout"]}},

@@ -691,7 +691,7 @@ func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionar
 ## now), "cost" (movement points to enter, -1 impassable), "features":
 ## [{"id", "name", "owner", "controllable", "guard": squad names,
 ## "value_per_turn", "cache_value", "activities": names, "recruits":
-## [{"name", "cost"}], "produces": [{"name", "turns", "cost", "selected",
+## [{"id", "name", "cost"}], "hires": [{"id", "name", "cost"}], "produces": [{"name", "turns", "cost", "selected",
 ## "progress" (own, selected option only; else -1)}], "line" (own: where
 ## its output goes: {"plot", "commander"} or {})}], "commanders": [{"id",
 ## "player", "squads" (own: army size, else -1), "engagement"}],
@@ -725,7 +725,11 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 				acts.append(OverworldRules.ACTIVITIES[i])
 		var recruits := []
 		for i in range(0, rules.hf_recruits[t].size(), 2):
-			recruits.append({"name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
+			recruits.append({"id": rules.squad_ids[rules.hf_recruits[t][i]], "name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
+		var hires := []
+		for i in range(0, rules.hf_hires[t].size(), 2):
+			var cm := rules.hf_hires[t][i]
+			hires.append({"id": rules.commander_ids[cm], "name": rules.cm_names[cm], "cost": rules.hf_hires[t][i + 1]})
 		var produces := []
 		var opts := rules.hf_produces[t]
 		var made: Dictionary = production.get(fid, {})
@@ -738,7 +742,7 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 				"progress": int(made["progress"]) if chosen else -1})
 		out["features"].append({"id": fid, "name": rules.hf_names[t], "owner": int(f.get("owner", 0)),
 			"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
-			"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "produces": produces,
+			"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "hires": hires, "produces": produces,
 			"line": (lines.get(fid, {}) as Dictionary).duplicate()})
 	for c: Dictionary in obs.get("commanders", []):
 		if int(c["plot"]) == plot:

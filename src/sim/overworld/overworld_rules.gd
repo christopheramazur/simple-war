@@ -46,6 +46,8 @@ var hf_activity_cost: PackedInt64Array = PackedInt64Array()
 var hf_converts_to: PackedInt64Array = PackedInt64Array()
 ## Recruit options: [squad index, cost, squad index, cost, ...].
 var hf_recruits: Array[PackedInt64Array] = []
+## Hire options: [commander index, cost, ...].
+var hf_hires: Array[PackedInt64Array] = []
 ## Production options: [squad (-1 = item), turns, cost, item (-1), count]
 ## per option (PRODUCTION_STRIDE values).
 var hf_produces: Array[PackedInt64Array] = []
@@ -186,6 +188,15 @@ func recruit_cost(f: int, sq: int) -> int:
 	return -1
 
 
+## The cost of hiring commander index `cm` at feature f, or -1 if not offered.
+func hire_cost(f: int, cm: int) -> int:
+	var r := hf_hires[f]
+	for i in range(0, r.size(), 2):
+		if r[i] == cm:
+			return r[i + 1]
+	return -1
+
+
 func has_activity(feature: int, activity: String) -> bool:
 	return hf_activities[feature] & (1 << ACTIVITIES.find(activity)) != 0
 
@@ -251,6 +262,13 @@ func _compile(t: TemplateTable, map: String) -> void:
 		cm_army_cap.append(int(v.get("army_cap", DEFAULT_ARMY_CAP)))
 		if army.size() > cm_army_cap[cm_army_cap.size() - 1]:
 			errors.append("%s: starts with more squads than its army_cap" % tid)
+	for tid in feature_ids:
+		var hires := PackedInt64Array()
+		for o: Dictionary in t.values_of(tid).get("hires", []):
+			hires.append_array([commander_index(String(o["commander"])), int(o["cost"])])
+		hf_hires.append(hires)
+		if hires.is_empty() == has_activity(feature_index(tid), "hire"):
+			errors.append("%s: the hire activity and 'hires' go together" % tid)
 	if not t.has(map) or t.kind_of(map) != "overworld_map":
 		errors.append("unknown overworld map '%s'" % map)
 		return

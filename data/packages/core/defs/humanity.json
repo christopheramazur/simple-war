@@ -8,6 +8,10 @@
 		{"id": "scout", "parent": "trooper", "values": {"name": "Scout", "hp": 8, "weapon": "carbine"}},
 		{"id": "chi_operative", "parent": "trooper", "values": {"name": "CHI operative", "defense": "carapace", "proficiency_pct": 115}},
 
+		{"id": "breacher", "parent": "trooper", "values": {"name": "Breacher", "hp": 12, "defense": "carapace", "weapon": "shotgun"}},
+		{"id": "engineer", "parent": "trooper", "values": {"name": "Combat engineer", "weapon": "carbine", "proficiency_pct": 95}},
+		{"id": "mortarman", "parent": "trooper", "values": {"name": "Mortarman", "movement": "heavy_foot", "weapon": "mortar"}},
+
 		{"id": "humanity_squad", "kind": "squad", "abstract": true, "values": {
 			"faction": "humanity", "capture_rate": 10, "sight": 45,
 			"formation": {"shape": "line", "spacing": 2},
@@ -32,6 +36,16 @@
 		{"id": "rocket_team", "parent": "humanity_squad", "values": {
 			"name": "Rocket team", "value": 110, "capture_rate": 5, "legend_archetype": "sapper",
 			"members": [{"unit": "rocketeer", "count": 2}, {"unit": "trooper", "count": 1}]}},
+
+		{"id": "assault_squad", "parent": "humanity_squad", "values": {"name": "Assault squad", "value": 115, "capture_rate": 15,
+			"formation": {"shape": "wedge", "spacing": 2},
+			"members": [{"unit": "sergeant", "count": 1}, {"unit": "breacher", "count": 4}]}},
+		{"id": "engineer_team", "parent": "humanity_squad", "values": {"name": "Engineer team", "value": 85, "capture_rate": 15, "legend_archetype": "support",
+			"abilities": ["halt", "fall_back", "retarget", "dig_in"],
+			"members": [{"unit": "engineer", "count": 4}]}},
+		{"id": "mortar_team", "parent": "humanity_squad", "values": {"name": "Mortar team", "value": 105, "capture_rate": 5, "sight": 40, "legend_archetype": "sapper",
+			"formation": {"shape": "blob", "spacing": 3},
+			"members": [{"unit": "mortarman", "count": 2}, {"unit": "trooper", "count": 1}]}},
 
 		{"id": "hf_militia", "parent": "rifle_squad", "values": {
 			"name": "Humanity First militia", "doctrine": "humanity_first", "value": 75,

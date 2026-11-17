@@ -46,6 +46,8 @@ static func describe(e: Dictionary, rules: OverworldRules, viewer: int = 0) -> S
 				"" if n < 0 else "; its army of %d squad%s scattered" % [n, "" if n == 1 else "s"]]
 		&"commander_left_battle":
 			return "%s %s left the battle %s." % [who, commander(int(d.get("commander", -1))), at]
+		&"commander_hired":
+			return "%s hired %s, %s %s." % [who, commander(int(d.get("commander", -1))), _commander_name(d, rules), at]
 		&"squad_recruited":
 			return "%s recruited a %s %s." % [commander(int(d.get("commander", -1))), squad_name(_tmpl(d, rules)), at]
 		&"squad_produced":
@@ -166,3 +168,11 @@ static func _feature(d: Dictionary, rules: OverworldRules, who: String) -> Strin
 
 static func _possessive(who: String) -> String:
 	return "Your" if who == "You" else who + "'s"
+
+
+## A hired commander's template name ("an Outrider").
+static func _commander_name(d: Dictionary, rules: OverworldRules) -> String:
+	var id := String(d.get("tmpl", ""))
+	var i := rules.commander_index(id) if rules != null else -1
+	var n := rules.cm_names[i] if i >= 0 else id.replace("_", " ")
+	return ("an " if "aeiou".contains(n.left(1).to_lower()) else "a ") + n.to_lower()

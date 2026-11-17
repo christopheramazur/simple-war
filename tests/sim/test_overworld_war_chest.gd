@@ -57,7 +57,7 @@ func test_items_compile() -> void:
 	assert_eq(r.it_slot[_it("lmg_kit")], OverworldRules.SLOT_WEAPON)
 	assert_eq(r.it_slot[_it("carapace_plates")], OverworldRules.SLOT_DEFENSE)
 	assert_eq(r.it_slot[_it("camo_netting")], OverworldRules.SLOT_KIT)
-	assert_eq(r.production_count(r.feature_index("hex_barracks")), 3)
+	assert_eq(r.production_count(r.feature_index("hex_barracks")), 5)
 	assert_eq(r.sq_member_keys[r.squad_index("rifle_squad")].size(), 8)
 
 

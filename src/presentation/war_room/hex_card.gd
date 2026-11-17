@@ -60,8 +60,10 @@ static func lines(info: Dictionary, rules: OverworldRules, viewer: int) -> Array
 			out.append(["Its output goes to %s." % EventText.hex(int(line["plot"]), rules), "dim"])
 		for r: Dictionary in f.get("recruits", []):
 			out.append(["A commander here can recruit a %s for %d Value." % [r["name"], int(r["cost"])], "dim"])
+		for h: Dictionary in f.get("hires", []):
+			out.append(["A commander here can hire a new %s for %d Value." % [String(h["name"]).to_lower(), int(h["cost"])], "dim"])
 		var acts: PackedStringArray = f["activities"]
-		var other := Array(acts).filter(func(a: String) -> bool: return a != "recruit")
+		var other := Array(acts).filter(func(a: String) -> bool: return a != "recruit" and a != "hire")
 		if not other.is_empty():
 			out.append(["A commander ending its move here can: %s." % ", ".join(other), "dim"])
 	for c: Dictionary in info.get("commanders", []):

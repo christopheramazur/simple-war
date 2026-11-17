@@ -16,6 +16,9 @@ signal target_armed(kind: String, id: int, what: String)
 signal rally_requested(detachment: int, plot: int, commander: int, what: String)
 ## Send a feature's output to a plot or a commander (both -1 clears it).
 signal supply_line_requested(feature: int, plot: int, commander: int, what: String)
+## Plan (or, with "", clear) the commander's activity where its route ends:
+## recruit a squad, hire a commander (option = template ID), refit, ...
+signal activity_requested(activity: String, option: String)
 
 const DIM: Color = Color("8a93a3")
 
@@ -52,6 +55,7 @@ func show_selection(of_session: OverworldSession, for_player: int, commander_id:
 	if session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	_movement_info(me, obs)
+	_activity_info(me, obs)
 	add_child(_title("Commander %d: battleforce" % (cid & 0xffff)))
 	var plan: Dictionary = me.get("battleforce_plan", {})
 	var pick := OptionButton.new()
@@ -123,6 +127,49 @@ func _movement_info(me: Dictionary, obs: Dictionary) -> void:
 		b.tooltip_text = "It becomes a convoy that walks to where this commander's route ends each turn, and joins the army when they meet."
 		b.pressed.connect(rally_requested.emit.bind(int(det["id"]), -1, cid, what))
 		add_child(b)
+
+
+## What the commander can do where its route ends (GDD 02 §2.9): the
+## planned activity, and a button per option the hex offers (recruit a
+## squad, hire a commander, refit, convert, battle). Costs are paid when
+## the turn resolves.
+func _activity_info(me: Dictionary, obs: Dictionary) -> void:
+	if int(me["engagement"]) >= 0:
+		return
+	var cid := int(me["id"])
+	var route: PackedInt64Array = (obs.get("routes", {}) as Dictionary).get(cid, PackedInt64Array())
+	var dest := int(me["plot"]) if route.is_empty() else route[route.size() - 1]
+	var planned: Dictionary = (obs.get("activities", {}) as Dictionary).get(cid, {})
+	var buttons: Array[Button] = []
+	for f: Dictionary in session.inspect_plot(player, dest).get("features", []):
+		var acts: PackedStringArray = f["activities"]
+		for r: Dictionary in f.get("recruits", []):
+			buttons.append(_activity_button("recruit", String(r["id"]), "Recruit %s (%d Value)" % [r["name"], int(r["cost"])], planned))
+		for h: Dictionary in f.get("hires", []):
+			buttons.append(_activity_button("hire", String(h["id"]), "Hire a %s (%d Value)" % [String(h["name"]).to_lower(), int(h["cost"])], planned))
+		for a in acts:
+			if a != "recruit" and a != "hire":
+				buttons.append(_activity_button(a, "", "%s at %s" % [a.capitalize(), f["name"]], planned))
+	if buttons.is_empty() and planned.is_empty():
+		return
+	add_child(_title("Activity at %s" % EventText.hex(dest, session.rules)))
+	add_child(_dim_label("Value: %d. Performed after moving, if the commander ends its route here." % int(obs.get("value", 0))))
+	for b in buttons:
+		add_child(b)
+	if not planned.is_empty():
+		var clear := Button.new()
+		clear.text = "Cancel planned %s" % String(planned["activity"])
+		clear.pressed.connect(activity_requested.emit.bind("", ""))
+		add_child(clear)
+
+
+func _activity_button(activity: String, option: String, text: String, planned: Dictionary) -> Button:
+	var b := Button.new()
+	var chosen := String(planned.get("activity", "")) == activity and String(planned.get("option", "")) == option
+	b.text = ("✓ " if chosen else "") + text
+	b.disabled = chosen
+	b.pressed.connect(activity_requested.emit.bind(activity, option))
+	return b
 
 
 ## The selected commander's army: every squad, whether it fights, and a

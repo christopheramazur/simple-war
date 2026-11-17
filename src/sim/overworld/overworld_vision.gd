@@ -34,6 +34,7 @@ const _EVENT_FIELDS := {
 	&"feature_converted": [[], ["player"], ["plot"]],
 	&"interaction_offered": [[], ["player"], []],
 	&"squad_recruited": [["commander"], [], []],
+	&"commander_hired": [["commander"], ["player"], ["plot"]],
 	&"army_refitted": [["commander"], [], []],
 	&"squad_transferred": [[], ["player"], []],
 	&"battleforce_deployed": [["commander"], ["player"], []],

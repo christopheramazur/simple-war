@@ -8,6 +8,9 @@ extends RefCounted
 ##   battle:  an engagement starts on the hex (battles begin at turn start).
 ##   recruit: the squad named by the plan joins the army at full strength,
 ##            if the army has room; costs activity_cost + the option's cost.
+##   hire:    a new commander (the template named by the plan) joins the
+##            player on the hex with its starting army; costs activity_cost
+##            + the option's cost.
 ##   refit:   every squad of the army returns to full strength; costs
 ##            activity_cost + refit_cost per unit restored.
 
@@ -54,6 +57,12 @@ static func resolve(s: OverworldState) -> void:
 					elif OverworldArmies.count(s, cid) >= OverworldArmies.cap(s, cid):
 						why = "the army is full"
 					cost += maxi(price, 0)
+				"hire":
+					var cm := s.rules.commander_index(option)
+					var fee := s.rules.hire_cost(t, cm) if cm >= 0 else -1
+					if fee < 0:
+						why = "no longer offered here"
+					cost += maxi(fee, 0)
 				"refit":
 					var lost := OverworldArmies.losses(s, cid)
 					if lost == 0:
@@ -86,6 +95,9 @@ static func _perform(s: OverworldState, row: int, fr: int, activity: String, opt
 		"recruit":
 			var sid := OverworldArmies.add(s, cid, s.rules.squad_index(option))
 			s.events.push(&"squad_recruited", {"commander": cid, "squad": sid, "tmpl": option, "plot": p}, s.tick)
+		"hire":
+			var nid := Commanders.spawn_index(s, player, s.rules.commander_index(option), p)
+			s.events.push(&"commander_hired", {"commander": nid, "by": cid, "tmpl": option, "plot": p, "player": player}, s.tick)
 		"refit":
 			var n := OverworldArmies.refit(s, cid)
 			s.events.push(&"army_refitted", {"commander": cid, "plot": p, "units": n}, s.tick)

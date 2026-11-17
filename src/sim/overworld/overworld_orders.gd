@@ -25,9 +25,10 @@ static func clear_route(s: OverworldState, player: int, commander_id: int) -> St
 	return set_route(s, player, commander_id, PackedInt64Array())
 
 
-## Plans an activity (R4Q12): refit, recruit, battle or convert. It needs
-## the route to end on a hex with a feature offering it (or, with no route,
-## the commander's own hex). Recruit names the squad in `option`. Returns ""
+## Plans an activity (R4Q12): refit, recruit, battle, convert or hire. It
+## needs the route to end on a hex with a feature offering it (or, with no
+## route, the commander's own hex). Recruit names the squad in `option`,
+## hire the commander template. Returns ""
 ## or why it was refused.
 static func set_activity(s: OverworldState, player: int, commander_id: int, activity: String, option: String = "") -> String:
 	var c := s.commanders
@@ -59,6 +60,12 @@ static func set_activity(s: OverworldState, player: int, commander_id: int, acti
 			if OverworldArmies.count(s, commander_id) >= OverworldArmies.cap(s, commander_id):
 				return "the army is full (%d squads)" % OverworldArmies.cap(s, commander_id)
 			cost += price
+		"hire":
+			var cm := s.rules.commander_index(option)
+			var fee := s.rules.hire_cost(t, cm) if cm >= 0 else -1
+			if fee < 0:
+				return "this hex does not hire '%s'" % option
+			cost += fee
 		"refit":
 			var lost := OverworldArmies.losses(s, commander_id)
 			if lost == 0:
