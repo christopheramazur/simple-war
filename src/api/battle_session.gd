@@ -187,6 +187,9 @@ func _pump() -> void:
 
 ## What `player` may know: own squads in full, enemy squads only while seen,
 ## public scores and zones, and this turn's events that involve what they see.
+## Own squads carry "fire" ({enemy id: "shot" | "blocked"}, enemies within
+## reach: LineOfFire) and "sees" (enemy ids in its own sight; other visible
+## enemies are spotted by allies).
 func observe(player: int) -> Dictionary:
 	var d := observe_state(state, player)
 	d["phase"] = phase_name()
@@ -242,6 +245,27 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 		var w := u.weapon[row]
 		if w >= 0 and rules.wp_range[w] > by_id[u.squad[row]]["range"]:
 			by_id[u.squad[row]]["range"] = rules.wp_range[w]
+	# Own squads: what each can do about every visible enemy (sw-kys.7):
+	# "fire" {enemy: "shot" | "blocked"} for enemies within reach, and "sees"
+	# the enemies inside its own sight (the rest are spotted by allies).
+	for row in sq.count():
+		if sq.player[row] != player or not sq.is_active(row) or sq.alive[row] == 0:
+			continue
+		var fire := {}
+		var sees := []
+		for t in sq.count():
+			var tid := sq.id_at(t)
+			if sq.player[t] == player or not visible.has(tid):
+				continue
+			match LineOfFire.check(state, row, t):
+				LineOfFire.SHOT:
+					fire[tid] = "shot"
+				LineOfFire.BLOCKED:
+					fire[tid] = "blocked"
+			if LineOfFire.own_sight(state, row, t):
+				sees.append(tid)
+		by_id[sq.id_at(row)]["fire"] = fire
+		by_id[sq.id_at(row)]["sees"] = sees
 	var zones := []
 	for z in rules.zone_ids.size():
 		zones.append({"id": rules.zone_ids[z], "x": rules.zn_x[z], "y": rules.zn_y[z], "radius": rules.zn_radius[z],

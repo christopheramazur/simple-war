@@ -161,20 +161,8 @@ func _firing(state: BattleState, row: int) -> bool:
 ## whose units are all blocked keeps closing. The scan stops at the first
 ## unit with a shot (usually the first one).
 func _has_shot(state: BattleState, row: int) -> bool:
-	var sq := state.squads
-	var trow := sq.row_of(sq.engaged[row])
-	if trow < 0:
-		return false
-	if Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[trow], sq.cy[trow]) > sq.reach[row]:
-		return false
-	var r := state.rules
-	var u := state.units
-	for urow in Centroids.units_of(state, row):
-		if u.hp[urow] <= 0 or u.weapon[urow] < 0:
-			continue
-		if r.indirect(u.weapon[urow]) or r.los(u.x[urow], u.y[urow], sq.cx[trow], sq.cy[trow]):
-			return true
-	return false
+	var trow := state.squads.row_of(state.squads.engaged[row])
+	return trow >= 0 and LineOfFire.check(state, row, trow) == LineOfFire.SHOT
 
 
 ## Pace of the slowest living member at the anchor's terrain.

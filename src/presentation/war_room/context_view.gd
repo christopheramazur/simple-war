@@ -520,6 +520,7 @@ func _draw_battle() -> void:
 			var mark := "!" if q.is_empty() else ReactionRadial.glyph(q)
 			draw_arc(c, r + 7.0, 0, TAU, 20, SELECT, 1.5)
 			draw_string(font, c + Vector2(r + 6, -r - 4), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, SELECT)
+	_draw_fire_cues(font, pos, selected)
 	# What a selected reactable squad would react to: a line to each
 	# triggering enemy and a ring around it.
 	var triggers: Dictionary = _overlay.get("triggers", {})
@@ -593,6 +594,64 @@ func _battle_squads() -> Array:
 			c += p
 		d["c"] = c / maxf((d["pts"] as Array).size(), 1.0)
 	return out
+
+
+## With one own squad selected (sw-kys.7), what it can do about each visible
+## enemy: a red crosshair ring where it has a shot, a grey dashed ring where
+## the enemy is in range but no unit has a line of fire, and an eye mark on
+## enemies it sees only through allies' spotting ("spotted").
+func _draw_fire_cues(font: Font, pos: Dictionary, selected: Array) -> void:
+	if compact or selected.size() != 1 or not _play.is_empty():
+		return
+	var me: Dictionary = {}
+	for d: Dictionary in _shown:
+		if d["id"] == selected[0] and d.has("fire"):
+			me = d
+	if me.is_empty():
+		return
+	var fire: Dictionary = me["fire"]
+	var sees: Array = me.get("sees", [])
+	for d: Dictionary in _shown:
+		var id: int = d["id"]
+		if d["player"] == me["player"] or not pos.has(id):
+			continue
+		var c: Vector2 = pos[id]
+		var r := 16.0
+		match String(fire.get(id, "")):
+			"shot":
+				draw_arc(c, r, 0, TAU, 28, BATTLE, 2.0)
+				for a in 4:
+					var v := Vector2.from_angle(a * TAU / 4.0)
+					draw_line(c + v * (r - 4.0), c + v * (r + 5.0), BATTLE, 2.0)
+				draw_string(font, c + Vector2(r + 4, r + 10), "in range", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, BATTLE)
+			"blocked":
+				_dashed_circle(c, r, Color(TEXT, 0.6))
+				draw_string(font, c + Vector2(r + 4, r + 10), "no line of fire", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(TEXT, 0.7))
+		if not sees.has(id):
+			var tw := font.get_string_size("spotted", HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
+			_eye(c + Vector2(-r - 12, 0), Color(SELECT, 0.9))
+			draw_string(font, c + Vector2(-r - 22 - tw, 4), "spotted", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(SELECT, 0.85))
+
+
+func _dashed_circle(c: Vector2, r: float, col: Color) -> void:
+	var n := 16
+	for i in n:
+		if i % 2 == 0:
+			draw_arc(c, r, i * TAU / n, (i + 1) * TAU / n, 4, col, 1.5)
+
+
+## A small eye glyph: seen through someone else's eyes.
+func _eye(c: Vector2, col: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 13:
+		var t := float(i) / 12.0 * PI
+		pts.append(c + Vector2(cos(t) * 7.0, -sin(t) * 4.0))
+	for i in range(11, 0, -1):
+		var t := float(i) / 12.0 * PI
+		pts.append(c + Vector2(cos(t) * 7.0, sin(t) * 4.0))
+	pts.append(pts[0])
+	draw_polyline(pts, col, 1.5)
+	draw_circle(c, 2.0, col)
 
 
 ## One squad: its units as dots inside a tinted footprint, an arrow for

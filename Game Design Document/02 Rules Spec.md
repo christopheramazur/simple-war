@@ -175,6 +175,7 @@ Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
   - **Direct fire:** each shooter also needs its own line of sight to the unit it hits.
   - **Indirect fire:** a fire mode flagged `indirect` (the mortar) needs no line of sight. A spotted target in range is enough, so spotters matter to artillery.
   - **Attack orders:** an attacking squad stops to fight once it has a shot (target in reach, and an indirect weapon or a unit with a clear line). It keeps standing while its weapons reload or cool down. It closes in only when no unit has a shot, so slow weapons that can't fire on the move don't walk into the enemy.
+  - **Shown (sw-kys.7):** with one squad selected, each visible enemy is marked "in range" (it has a shot), "no line of fire" (in reach, but no unit has a line), and "spotted" when only allies see it. The marks come from the same rule (LineOfFire) the attack orders use.
 - **Readying** (R7Q3): a data-driven behaviour in which a squad needs some time before a separate behaviour becomes available, like a siege-mode transformation or building ammunition. While readying, a squad can create Prowess Vacuum, as data. Interrupting a readying squad floats the interrupter's Prowess.
 - **Scavenging** (R3Q7): free for now. Survivors pick up squad upgrades, and limited upgrades are re-equipped up to the maximum on the turn after casualties (R4Q10).
 

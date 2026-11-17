@@ -83,10 +83,9 @@ func test_a_spotted_mortar_on_an_attack_order_stands_and_fires() -> void:
 	assert_lt(x, 75.0, "stays put between shots instead of walking in (x=%.0f)" % x)
 
 
-func test_indirect_fire_needs_no_line_of_sight() -> void:
-	var r := _rules()
-	# A mortar position and a target with terrain blocking the line between
-	# them, and a spotter post with a clear view of the target.
+## [mortar post, target, spotter post]: terrain blocks every line between
+## the first two; the spotter has a clear view of the target.
+func _blocked_posts(r: BattleRules) -> Array:
 	var found := []
 	for y in range(5, r.height - 5, 3):
 		for ax in range(10, r.width - 90, 5):
@@ -103,6 +102,12 @@ func test_indirect_fire_needs_no_line_of_sight() -> void:
 				break
 		if not found.is_empty():
 			break
+	return found
+
+
+func test_indirect_fire_needs_no_line_of_sight() -> void:
+	var r := _rules()
+	var found := _blocked_posts(r)
 	assert_false(found.is_empty(), "the map has a blocked line with a clear spotter post")
 	if found.is_empty():
 		return
@@ -150,3 +155,41 @@ func _clear(r: BattleRules, a: Array, b: Array) -> bool:
 		if not r.los(a[0], a[1] + d * ONE, b[0], b[1] + d * ONE):
 			return false
 	return true
+
+
+func _own(obs: Dictionary, sid: int) -> Dictionary:
+	for q: Dictionary in obs["squads"]:
+		if q["id"] == sid:
+			return q
+	return {}
+
+
+func test_observation_says_shot_blocked_and_spotted() -> void:
+	var r := _rules()
+	var s := _bare(r)
+	var m := BattleSetup.spawn_squad(s, 1, r.squad_index("mortar_team"), 70 * ONE, 50 * ONE, 0)
+	var sc := BattleSetup.spawn_squad(s, 1, r.squad_index("scout_team"), 100 * ONE, 50 * ONE, 0)
+	var e := BattleSetup.spawn_squad(s, 2, r.squad_index("rifle_squad"), 150 * ONE, 50 * ONE, 32768)
+	Centroids.update(s)
+	VisionSystem.new().run(s)
+	var obs := BattleSession.observe_state(s, 1)
+	assert_eq(_own(obs, m)["fire"].get(e, ""), "shot", "the mortar reaches 80 m")
+	assert_false((_own(obs, m)["sees"] as Array).has(e), "only the scout sees it")
+	assert_true((_own(obs, sc)["sees"] as Array).has(e))
+	assert_false(_own(obs, sc)["fire"].has(e), "50 m is beyond the scout's carbines")
+	assert_false(_own(obs, e).has("fire"), "enemy squads carry no fire report")
+	# A rifle squad behind cover from a spotted enemy has it in reach but no line.
+	var posts := _blocked_posts(r)
+	if posts.is_empty():
+		return
+	var b := _bare(r)
+	var near: Array = posts[1].duplicate()
+	near[0] -= 38 * ONE
+	if not _blocked(r, near, posts[1]):
+		return  # no blocker within rifle range on this map row
+	var rf := BattleSetup.spawn_squad(b, 1, r.squad_index("rifle_squad"), near[0], near[1], 0)
+	BattleSetup.spawn_squad(b, 1, r.squad_index("scout_team"), posts[2][0], posts[2][1], 0)
+	var en := BattleSetup.spawn_squad(b, 2, r.squad_index("rifle_squad"), posts[1][0], posts[1][1], 32768)
+	Centroids.update(b)
+	VisionSystem.new().run(b)
+	assert_eq(_own(BattleSession.observe_state(b, 1), rf)["fire"].get(en, ""), "blocked")
