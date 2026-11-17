@@ -86,7 +86,9 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | Spend and usage report | `harness/bin/hx report` (`--since all`, `--html --open`); the ledger updates after every turn |
 | Open the editor | `./Godot_v4.7.2-stable_win64.exe` |
 | Import + script check | `harness/bin/hx godot check` (errors only; `--no-import` to parse scripts only). `harness/` and `GD-Agentic-Skills/` carry a `.gdignore` |
-| Game tests | `harness/bin/hx godot test` (GUT summary and failures); writing tests: see `testing-patterns` |
+| Game tests | `harness/bin/hx godot test` (GUT summary and failures); a subset: `--dir tests/sim`, `--file <script>`, `--select <script name>`, `--test <test name>`; writing tests: see `testing-patterns` |
+| Check some scripts | `harness/bin/hx godot check src/a.gd src/b.gd` (parse only, no import) |
+| Run one scene or script headless | `harness/bin/hx godot run <scene.tscn \| script.gd> [--quit-after N] [-- args]` (errors plus the output tail; `--editor` loads editor plugins). Don't call the Godot exe directly |
 | UI mock to PNG | `harness/bin/hx godot mock res://src/presentation/mocks/<name>_mock.gd` (opens a window briefly; writes `Game Design Document/Mocks/<name>.png`) |
 | Harness runs (scenario × variant) | `harness/bin/hx sim run duel_crossroads --variant baseline --variant cautious --seeds 3` (results in `harness/data/sim.duckdb`; `hx sim report`) |
 | Pressure Lab sweep | `harness/bin/hx sim lab morale_drift` (labs in `data/sim/labs/`, tropes in `data/sim/tropes.json`) |
