@@ -163,6 +163,7 @@ func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 	_obs = obs
 	_overlay = overlay
 	_play = {}
+	_clear_hover()
 	queue_redraw()
 
 
@@ -178,6 +179,7 @@ func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}) -> void:
 	_overlay = {"terrain": rec["rules"]}
 	_play = rec
 	_play_t = clampf(t, 0.0, 1.0)
+	_clear_hover()
 	queue_redraw()
 
 
@@ -858,6 +860,21 @@ func squad_at(m: Vector2, radius: float = 4.0) -> int:
 
 
 # --- input -------------------------------------------------------------------
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT and is_inside_tree():
+		_clear_hover()
+
+
+## No hex is under the cursor any more: it left the view, or the view stopped
+## showing the overworld (sw-3zs).
+func _clear_hover() -> void:
+	if _hover_plot < 0:
+		return
+	_hover_plot = -1
+	hex_hovered.emit(-1)
+	queue_redraw()
+
 
 func _gui_input(event: InputEvent) -> void:
 	var mm := event as InputEventMouseMotion

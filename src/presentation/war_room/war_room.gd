@@ -306,6 +306,8 @@ func _build_ui() -> void:
 	hsb.set_content_margin_all(10)
 	_hover_card.add_theme_stylebox_override("panel", hsb)
 	_hover_card.hide()
+	# Wrapped text measures tall until it has a width: follow it back down.
+	_hover_card.minimum_size_changed.connect(_hover_card.reset_size)
 	stage.add_child(_hover_card)
 	_radial = ReactionRadial.new()
 	_radial.hide()
@@ -1559,6 +1561,7 @@ func _start_play(before: Dictionary, turn: int) -> void:
 	_blocker.show()
 	_blocker.move_to_front()
 	_radial.hide()
+	_refresh_hover_card()
 	set_process(true)
 	_show_play()
 
@@ -1599,6 +1602,7 @@ func skip_playback() -> void:
 		return
 	_play = {}
 	_blocker.hide()
+	_refresh_hover_card()
 	set_process(false)
 	contexts.sync(session.observe(player))
 	_queue_refresh()
