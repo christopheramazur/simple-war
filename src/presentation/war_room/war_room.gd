@@ -774,6 +774,14 @@ func _refresh_menu() -> void:
 		pin.pressed.connect(contexts.toggle_pin.bind(m["engagement"]))
 		line.add_child(pin)
 		_menu.add_child(line)
+		var can_join := reserves_ready(m["engagement"])
+		if can_join > 0:
+			var nudge := Label.new()
+			nudge.text = "%d reserve squad%s can join this battle" % [can_join, "" if can_join == 1 else "s"]
+			nudge.add_theme_color_override("font_color", HexCard.ACCENT)
+			nudge.add_theme_font_size_override("font_size", 13)
+			nudge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			_menu.add_child(nudge)
 	if contexts.focus != ViewContexts.OVERWORLD:
 		var back := Button.new()
 		back.text = "Exit to overworld (Esc)"
@@ -1062,11 +1070,54 @@ func _on_command(name: StringName, arg: int) -> void:
 			pl.assign_group(arg, true)
 
 
+## How many more squads the player can send into battle `eid` this turn.
+func reserves_ready(eid: int) -> int:
+	var n := 0
+	for g: Dictionary in session.reserves(player, eid):
+		var ready := (g["squads"] as Array).filter(func(q: Dictionary) -> bool: return not q["sent"] and String(q["why"]).is_empty())
+		n += mini(int(g["open"]), ready.size())
+	return n
+
+
+## The reserves of each of the player's commanders in the battle: a button to
+## send each in, or what stops it (sw-dek).
+func _add_reserves(eid: int) -> void:
+	for g: Dictionary in session.reserves(player, eid):
+		var cid: int = g["commander"]
+		var open: int = g["open"]
+		_orders_box.add_child(_title("%s: reserves (%s)" % [EventText.commander(cid),
+			"battleforce full" if open == 0 else "room for %d more" % open]))
+		for q: Dictionary in g["squads"]:
+			var what := "%s  %d/%d" % [EventText.squad_name(session.rules.squad_ids[int(q["tmpl"])]), int(q["alive"]), int(q["size"])]
+			var why := String(q["why"])
+			var b := Button.new()
+			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			b.disabled = q["sent"] or not why.is_empty()
+			if q["sent"]:
+				b.text = "✓ %s: joins next battle turn" % what
+			elif why.is_empty():
+				b.text = "Send in %s" % what
+				b.pressed.connect(send_reserve.bind(cid, int(q["squad"])))
+			else:
+				b.text = "%s: %s" % [what, why]
+			_orders_box.add_child(b)
+
+
+## Sends a squad from the commander's army into its battle.
+func send_reserve(cid: int, squad: int) -> String:
+	var err := session.reinforce(player, cid, squad)
+	_hud_note = err
+	_note("%s: send in squad %d%s" % [EventText.commander(cid), squad & 0xffff, "" if err.is_empty() else " - refused: " + err])
+	_queue_refresh()
+	return err
+
+
 func _refresh_orders() -> void:
 	_clear(_orders_box)
 	var pl := _focused_planner()
 	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING:
 		return
+	_add_reserves(contexts.focus)
 	_orders_box.add_child(_title("Orders (%d selected)" % pl.selection.size()))
 	if pl.selection.is_empty():
 		return

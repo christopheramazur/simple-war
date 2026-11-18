@@ -90,7 +90,7 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
     - **Guards:** beating a hex's guards clears them for good.
     - **Winners** left on the hex then take its features and caches.
     - **Draws** end the engagement with nothing cleared.
-  - **Reinforcements:** a commander staying in its battle (its own squad deployed) can send squads from the rest of its army. They join at its side's deployment area before the next battle turn, while its squads still fighting are under the battleforce squad cap.
+  - **Reinforcements:** a commander staying in its battle (its own squad deployed) can send squads from the rest of its army. They join at its side's deployment area before the next battle turn, while its squads still fighting are under the battleforce squad cap. Nothing joins by itself: the player sends each squad during Planning, from the reserves list beside the battle's orders, and the battle menu says when reserves can join.
   - **Joining late:** a player who enters a battle tile after the battle began becomes a new side before the next battle turn.
     - **Where:** it arrives at whichever of these is farthest from every squad already fighting, the first on a tie: the scenario's deployment areas, then a strip of the same size along the middle of the top edge, then the bottom edge. Its squads spread along the area and face the middle of the field.
     - **The clock doesn't restart:** the battle's turn limit and scores carry on, so a side that joins late has fewer turns.

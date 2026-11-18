@@ -217,6 +217,14 @@ static func validate_route(s: OverworldState, player: int, commander_id: int, pl
 ## commander's squads are still fighting there; the battleforce squad cap
 ## applies to them. Returns "" or why it was refused.
 static func reinforce(s: OverworldState, player: int, commander_id: int, squad_id: int, in_field: int) -> String:
+	var err := reinforce_error(s, player, commander_id, squad_id, in_field)
+	if err.is_empty():
+		s.squads.set_value(squad_id, &"deployed", s.commanders.get_value(commander_id, &"engagement"))
+	return err
+
+
+## Why that reinforcement can't be sent, or "" if it can.
+static func reinforce_error(s: OverworldState, player: int, commander_id: int, squad_id: int, in_field: int) -> String:
 	var c := s.commanders
 	var row := c.row_of(commander_id)
 	if row < 0:
@@ -242,7 +250,6 @@ static func reinforce(s: OverworldState, player: int, commander_id: int, squad_i
 		return "that squad has no units left"
 	if in_field >= s.rules.bf_cap_squads:
 		return "the battleforce cap is %d squads" % s.rules.bf_cap_squads
-	q.set_value(squad_id, &"deployed", eid)
 	return ""
 
 

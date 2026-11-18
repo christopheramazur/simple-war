@@ -415,6 +415,42 @@ func leave_battle(player: int, commander_id: int) -> String:
 	return err
 
 
+## What the player can still bring into battle `eid`, per commander of its
+## there (sw-dek): [{"commander", "open" (battleforce slots free), "squads":
+## [{"squad", "tmpl", "alive", "size", "sent" (joins at the next Reveal),
+## "why" (why it can't be sent now, "" if it can)}]}]. Commanders with nothing
+## in reserve are left out.
+func reserves(player: int, eid: int) -> Array:
+	var out := []
+	var b: OverworldBattle = battles.get(eid)
+	if b == null:
+		return out
+	var c := state.commanders
+	var q := state.squads
+	var joined := {}
+	for bid: int in b.links:
+		joined[b.links[bid]] = true
+	var phase_err := _planning(player)
+	for row in c.count():
+		if c.player[row] != player or c.engagement[row] != eid:
+			continue
+		var cid := c.id_at(row)
+		var in_field := _in_field(b, cid)
+		var squads := []
+		for id in OverworldArmies.of(state, cid):
+			var r := q.row_of(id)
+			var sent := q.deployed[r] == eid and not joined.has(id)
+			if q.own[r] == 1 or q.alive[r] <= 0 or (q.deployed[r] >= 0 and not sent):
+				continue
+			var why := ""
+			if not sent:
+				why = phase_err if not phase_err.is_empty() else OverworldOrders.reinforce_error(state, player, cid, id, in_field)
+			squads.append({"squad": id, "tmpl": q.tmpl[r], "alive": q.alive[r], "size": q.size[r], "sent": sent, "why": why})
+		if not squads.is_empty():
+			out.append({"commander": cid, "open": maxi(rules.bf_cap_squads - in_field, 0), "squads": squads})
+	return out
+
+
 ## The commander's squads still fighting in battle b, plus those on the way.
 func _in_field(b: OverworldBattle, cid: int) -> int:
 	var n := 0
