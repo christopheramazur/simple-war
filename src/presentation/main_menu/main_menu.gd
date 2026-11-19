@@ -23,6 +23,8 @@ var _profile_text: Label
 var _map_pick: OptionButton
 var _seed: SpinBox
 var _error: Label
+## The menu's windows: options, the saves and replays lists.
+var ui: UiRoot
 
 
 func _ready() -> void:
@@ -156,7 +158,7 @@ func _build_ui() -> void:
 	var options := Button.new()
 	options.name = "Options"
 	options.text = "Options"
-	options.pressed.connect(func() -> void: OptionsScreen.open_over(self))
+	options.pressed.connect(func() -> void: if ui.find(&"options") == null: OptionsScreen.open_over(self))
 	for b: Button in [load_game, replays, editor, options]:
 		b.custom_minimum_size = Vector2(0, 36)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -167,6 +169,8 @@ func _build_ui() -> void:
 	col.add_child(quit)
 	_error = UiTheme.label("", "BadLabel")
 	col.add_child(_error)
+	ui = UiRoot.new()
+	add_child(ui)
 	_describe()
 
 
@@ -256,20 +260,11 @@ func open_replays() -> Control:
 ## A list over the menu with a heading, a scrolling list, a line for a
 ## refusal and a Back button: {"over", "list", "said"}.
 func _list_overlay(node_name: String, title: String) -> Dictionary:
-	var over := Control.new()
+	var over := UiWindow.new()
 	over.name = node_name
-	over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	over.add_child(UiTheme.backdrop("ScreenShadePanel"))
-	var centre := CenterContainer.new()
-	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
-	over.add_child(centre)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(560, 0)
-	panel.theme_type_variation = &"ModalPanel"
-	centre.add_child(panel)
-	var col := VBoxContainer.new()
+	over.id = StringName(node_name)
+	var col := over.dialog(560)
 	col.theme_type_variation = &"FormGap"
-	panel.add_child(col)
 	col.add_child(_heading(title))
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, 300)
@@ -284,9 +279,9 @@ func _list_overlay(node_name: String, title: String) -> Dictionary:
 	col.add_child(said)
 	var close := Button.new()
 	close.text = "Back"
-	close.pressed.connect(over.queue_free)
+	close.pressed.connect(over.close)
 	col.add_child(close)
-	add_child(over)
+	UiRoot.of(self).open(over)
 	return {"over": over, "list": list, "said": said}
 
 

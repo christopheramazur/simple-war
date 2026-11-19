@@ -1,5 +1,5 @@
 class_name ResultsScreen
-extends Control
+extends UiWindow
 ## The results screen (sw-ll4.11): shown over the war room when the match
 ## ends. Says who won and why, how long it took and what each side lost
 ## (MatchDriver.stats), and offers to play again, go to the menu, or look
@@ -7,32 +7,21 @@ extends Control
 
 signal play_again
 signal main_menu
-signal closed
 
 ## `result`: "won", "lost" or "drew" for the viewer. `reason`: the outcome's
 ## text. `stats`: MatchDriver.stats. `offer`: {"replay": show "Play again",
 ## "menu": show "Main menu", "note": a line under the tallies}.
 static func open_over(parent: Node, result: String, reason: String, stats: Dictionary, viewer: int, offer: Dictionary = {}) -> ResultsScreen:
 	var r := ResultsScreen.new()
+	r.id = &"results"
 	r._build(result, reason, stats, viewer, offer)
-	parent.add_child(r)
+	UiRoot.of(parent).open(r)
 	return r
 
 
 func _build(result: String, reason: String, stats: Dictionary, viewer: int, offer: Dictionary) -> void:
 	var note := String(offer.get("note", ""))
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(UiTheme.backdrop("ScreenShadePanel"))
-	var centre := CenterContainer.new()
-	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(520, 0)
-	panel.theme_type_variation = &"ModalPanel"
-	centre.add_child(panel)
-	var col := VBoxContainer.new()
-	col.theme_type_variation = &"ModalGap"
-	panel.add_child(col)
+	var col := dialog(520)
 	var title := Label.new()
 	title.name = "Title"
 	title.text = {"won": "Victory", "lost": "Defeat"}.get(result, "Draw")
@@ -84,13 +73,14 @@ func _build(result: String, reason: String, stats: Dictionary, viewer: int, offe
 		row.add_child(_button("Again", "Play again", play_again.emit))
 	if bool(offer.get("menu", false)):
 		row.add_child(_button("Menu", "Main menu", main_menu.emit))
-	row.add_child(_button("Look", "Look at the map", close_screen))
+	var look := _button("Look", "Look at the map", close_screen)
+	focus_target = look  # the harmless choice, for a player still pressing Space
+	row.add_child(look)
 	col.add_child(row)
 
 
 func close_screen() -> void:
-	closed.emit()
-	queue_free()
+	close()
 
 
 func _button(node_name: String, text: String, on: Callable) -> Button:

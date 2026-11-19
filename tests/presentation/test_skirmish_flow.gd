@@ -151,6 +151,8 @@ func test_the_results_screen_opens_when_the_match_ends() -> void:
 	assert_not_null(w.results.find_child("Again", true, false), "the same map, seed and opponent can be played again")
 	assert_not_null(w.results.find_child("Menu", true, false))
 	# Looking at the map closes it, and it does not come back.
+	await get_tree().process_frame
+	assert_eq(get_viewport().gui_get_focus_owner(), w.results.find_child("Look", true, false), "Space doesn't start a new game")
 	(w.results.find_child("Look", true, false) as Button).pressed.emit()
 	await get_tree().process_frame
 	w._queue_refresh()

@@ -32,7 +32,7 @@ func _hovering() -> WarRoom:
 
 func test_the_card_fits_its_text() -> void:
 	var w := _hovering()
-	assert_true(w._hover_card.visible)
+	assert_true(w._hover_card.is_visible_in_tree())
 	await wait_frames(4)
 	assert_almost_eq(w._hover_card.size.y, w._hover_card.get_combined_minimum_size().y, 1.0)
 	assert_lt(w._hover_card.size.y, 300.0, "a few lines of text, not a column")
@@ -42,22 +42,22 @@ func test_entering_a_battle_with_the_cursor_on_the_map_hides_the_card() -> void:
 	var w := _hovering()
 	assert_true(w.contexts.tab_in())
 	await wait_frames(2)
-	assert_false(w._hover_card.visible)
+	assert_false(w._hover_card.is_visible_in_tree())
 	w.contexts.exit()
 	await wait_frames(2)
-	assert_false(w._hover_card.visible, "not back until the cursor is on a hex again")
+	assert_false(w._hover_card.is_visible_in_tree(), "not back until the cursor is on a hex again")
 
 
 func test_the_cursor_leaving_the_map_hides_the_card() -> void:
 	var w := _hovering()
 	w._main.notification(Control.NOTIFICATION_MOUSE_EXIT)
-	assert_false(w._hover_card.visible)
+	assert_false(w._hover_card.is_visible_in_tree())
 	assert_eq(w._hover_plot, -1)
 
 
 func test_turn_playback_hides_the_card_until_it_ends() -> void:
 	var w := _hovering()
 	w._start_play(w.session.observe(1), 1)
-	assert_false(w._hover_card.visible)
+	assert_false(w._hover_card.is_visible_in_tree())
 	w.skip_playback()
-	assert_true(w._hover_card.visible, "the cursor never left the hex")
+	assert_true(w._hover_card.is_visible_in_tree(), "the cursor never left the hex")

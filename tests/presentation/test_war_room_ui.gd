@@ -220,10 +220,10 @@ func test_hovering_a_hex_says_what_is_there() -> void:
 	assert_eq(s.inspect_plot(9, found)["known"], false, "not for someone who is not playing")
 	# The hover card shows it, and hides over a battle view or unknown ground.
 	w._on_hex_hovered(found)
-	assert_true(w._hover_card.visible)
+	assert_true(w._hover_card.is_visible_in_tree())
 	assert_string_contains("\n".join(_texts(w._hover_card)), str(feat["name"]))
 	w._on_hex_hovered(-1)
-	assert_false(w._hover_card.visible)
+	assert_false(w._hover_card.is_visible_in_tree())
 	# The player's own commander's hex names the commander and its army.
 	var mine := _own_commander(w)
 	var here := "\n".join(HexCard.lines(s.inspect_plot(1, mine["plot"]), s.rules, 1).map(func(l: Array) -> String: return l[0]))
@@ -390,4 +390,6 @@ func test_the_main_menu_has_options() -> void:
 	var b: Button = m.find_child("Options", true, false)
 	assert_not_null(b)
 	b.pressed.emit()
-	assert_not_null(m.get_children().filter(func(c: Node) -> bool: return c is OptionsScreen).front())
+	assert_true(m.ui.find(&"options") is OptionsScreen)
+	b.pressed.emit()
+	assert_eq(m.ui.windows().size(), 1, "pressing again does not stack a second one")

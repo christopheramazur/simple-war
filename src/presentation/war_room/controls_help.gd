@@ -11,8 +11,12 @@ const HELP: Array = [
 ]
 
 
-## The list as a centred panel; `on_close` is called by its Close button.
-static func build(on_close: Callable) -> PanelContainer:
+## The list as a window: a centred panel that leaves the keys to the game,
+## so it can stay open while playing. Esc or Close shuts it.
+static func window() -> UiWindow:
+	var w := UiWindow.new()
+	w.id = &"help"
+	w.captures_keys = false
 	var panel := PanelContainer.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -28,6 +32,8 @@ static func build(on_close: Callable) -> PanelContainer:
 		col.add_child(body)
 	var close := Button.new()
 	close.text = "Close"
-	close.pressed.connect(on_close)
+	close.focus_mode = Control.FOCUS_NONE  # Space stays "end turn"
+	close.pressed.connect(w.close)
 	col.add_child(close)
-	return panel
+	w.add_child(panel)
+	return w

@@ -1,11 +1,9 @@
 class_name OptionsScreen
-extends Control
+extends UiWindow
 ## The options screen (sw-ll4.19; display part of sw-ll4.10): window mode,
 ## window size, vsync, UI scale and turn playback time. An overlay any
-## screen can open over itself (`open_over`). Each change applies at once
+## screen can open over itself (`open_over`; Esc closes it). Each change applies at once
 ## and is saved (GameSettings). Runs standalone (F6).
-
-signal closed
 
 var _mode: OptionButton
 var _size: OptionButton
@@ -20,24 +18,14 @@ var _sizes: Array[Vector2i] = []
 ## Opens the options over `parent` (a full-rect Control or the scene root).
 static func open_over(parent: Node) -> OptionsScreen:
 	var o := OptionsScreen.new()
-	parent.add_child(o)
+	o.id = &"options"
+	UiRoot.of(parent).open(o)
 	return o
 
 
 func _ready() -> void:
 	UiTheme.ensure(get_window())
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(UiTheme.backdrop("ScreenShadePanel"))
-	var centre := CenterContainer.new()
-	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(440, 0)
-	panel.theme_type_variation = &"ModalPanel"
-	centre.add_child(panel)
-	var col := VBoxContainer.new()
-	col.theme_type_variation = &"ModalGap"
-	panel.add_child(col)
+	var col := dialog(440)
 	col.add_child(UiTheme.label("Options", "TitleLabel"))
 	col.add_child(_heading("Display"))
 	_mode = OptionButton.new()
@@ -127,15 +115,7 @@ func _sync() -> void:
 
 
 func close_screen() -> void:
-	closed.emit()
-	queue_free()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	var k := event as InputEventKey
-	if k != null and k.pressed and not k.echo and k.keycode == KEY_ESCAPE:
-		get_viewport().set_input_as_handled()
-		close_screen()
+	close()
 
 
 func _heading(text: String) -> Label:

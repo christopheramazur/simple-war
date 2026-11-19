@@ -142,14 +142,16 @@ var _target: Dictionary = {}
 ## The turn being played back ({} when not): {"t", "obs", "walks",
 ## "battles", "turn"}.
 var _play: Dictionary = {}
-var _blocker: Control
+## The screen's windows (sw-ijp.2): modals, the playback blocker, the hover card.
+var ui: UiRoot
+var _blocker: UiWindow
 ## What the player knows about the hex under the cursor.
 var _hover_card: PanelContainer
+var _hover_win: UiWindow
 var _terrain_colors: Dictionary = {}
 ## The results screen, while it is open.
 var results: ResultsScreen
 var _results_shown: bool = false
-var _help: Control
 
 
 func _ready() -> void:
@@ -291,10 +293,13 @@ func _build_ui() -> void:
 	_hover_card = PanelContainer.new()
 	_hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hover_card.theme_type_variation = &"HoverCardPanel"
-	_hover_card.hide()
 	# Wrapped text measures tall until it has a width: follow it back down.
 	_hover_card.minimum_size_changed.connect(_hover_card.reset_size)
-	stage.add_child(_hover_card)
+	_hover_win = UiWindow.new()
+	_hover_win.layer = UiWindow.Layer.HUD
+	_hover_win.contexts = PackedStringArray(["overworld"])
+	_hover_win.wanted = false
+	_hover_win.add_child(_hover_card)
 	_radial = ReactionRadial.new()
 	_radial.hide()
 	_radial.chosen.connect(_on_reaction_chosen)
@@ -423,7 +428,7 @@ func _build_ui() -> void:
 	var options := Button.new()
 	options.text = "Options"
 	options.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	options.pressed.connect(func() -> void: OptionsScreen.open_over(self))
+	options.pressed.connect(func() -> void: if ui.find(&"options") == null: OptionsScreen.open_over(self))
 	tools.add_child(options)
 	var save := Button.new()
 	save.text = "Save"
@@ -438,25 +443,33 @@ func _build_ui() -> void:
 		back.text = "Main menu"
 		back.pressed.connect(func() -> void: get_tree().change_scene_to_file.call_deferred(menu_scene))
 		side_col.add_child(back)
-	_blocker = Control.new()
-	_blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui = UiRoot.new()  # its own, last, so it draws and hears keys first
+	add_child(ui)
+	ui.open(_hover_win, stage)
+	# While a turn plays out, a click anywhere skips to its end.
+	_blocker = UiWindow.new()
+	_blocker.layer = UiWindow.Layer.BLOCKER
+	_blocker.contexts = PackedStringArray(["playback"])
 	_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
 	_blocker.gui_input.connect(func(e: InputEvent) -> void:
 		var mb := e as InputEventMouseButton
 		if mb != null and mb.pressed and mb.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 			skip_playback())
-	_blocker.hide()
-	add_child(_blocker)
+	ui.open(_blocker)
+	_sync_ui_context()
 
 
 ## Opens or closes the controls list.
 func toggle_help() -> void:
-	if _help != null:
-		_help.queue_free()
-		_help = null
+	ui.toggle(&"help", ControlsHelp.window)
+
+
+## Tells the windows which view is showing: the overworld, a battle, or a
+## turn playing out.
+func _sync_ui_context() -> void:
+	if ui == null or contexts == null:
 		return
-	_help = ControlsHelp.build(toggle_help)
-	add_child(_help)
+	ui.context = &"playback" if not _play.is_empty() else (&"overworld" if contexts.focus == ViewContexts.OVERWORLD else &"battle")
 
 
 func _clear(parent: Node) -> void:
@@ -496,6 +509,7 @@ func _refresh() -> void:
 			_forecasts.erase(eid)
 	if session.clock.phase != PulseClock.Phase.REACTION:
 		_radial.hide()
+	_sync_ui_context()
 	if not _play.is_empty():
 		_show_play()
 		return
@@ -667,10 +681,12 @@ func _on_squad_hovered(id: int) -> void:
 ## during playback.
 func _refresh_hover_card() -> void:
 	_clear(_hover_card)
-	var show_it := _hover_plot >= 0 and _play.is_empty() and contexts != null and contexts.focus == ViewContexts.OVERWORLD
-	var info := session.inspect_plot(player, _hover_plot) if show_it else {}
-	_hover_card.visible = show_it and bool(info.get("known", false))
-	if not _hover_card.visible:
+	if ui == null:
+		return
+	_sync_ui_context()
+	var info := session.inspect_plot(player, _hover_plot) if _hover_plot >= 0 and ui.context == &"overworld" else {}
+	_hover_win.wanted = bool(info.get("known", false))
+	if not _hover_win.wanted:
 		return
 	_hover_card.add_child(HexCard.build(info, session.rules, player))
 	_hover_card.position = Vector2(12.0 + (PIP_SIZE.x + 12.0 if not contexts.pips.is_empty() else 0.0), 12.0)
@@ -1214,9 +1230,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_TAB:
 			contexts.cycle(-1 if k.shift_pressed else 1)
 		KEY_ESCAPE:
-			if _help != null:
-				toggle_help()
-			elif not _target.is_empty():
+			if not _target.is_empty():
 				_target = {}
 				_queue_refresh()
 			elif not _play.is_empty():
@@ -1574,8 +1588,6 @@ func _start_play(before: Dictionary, turn: int) -> void:
 		if walks["commanders"].has(int(cmd["id"])) and not still.has(int(cmd["id"])):
 			(walks["gone"] as Array).append({"player": int(cmd["player"]), "convoy": false, "walk": walks["commanders"][int(cmd["id"])]})
 	_play = {"t": 0.0, "obs": after, "before": before, "walks": walks, "battles": session.playback(player), "turn": turn}
-	_blocker.show()
-	_blocker.move_to_front()
 	_radial.hide()
 	_refresh_hover_card()
 	set_process(true)
@@ -1617,7 +1629,6 @@ func skip_playback() -> void:
 	if _play.is_empty():
 		return
 	_play = {}
-	_blocker.hide()
 	_refresh_hover_card()
 	set_process(false)
 	contexts.sync(session.observe(player))
