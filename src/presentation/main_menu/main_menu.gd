@@ -12,8 +12,6 @@ const WAR_ROOM_SCENE := "res://src/presentation/war_room/war_room.tscn"
 const MENU_SCENE := "res://src/presentation/main_menu/main_menu.tscn"
 ## The map the factory plays by default (hx.factory DEFAULTS["scenario"]).
 const FACTORY_MAP := "skirmish_seeded"
-const PANEL: Color = Color("1d2128")
-const DIM: Color = Color("8a93a3")
 
 ## Profile and map template IDs offered, in menu order.
 var profiles: PackedStringArray = PackedStringArray()
@@ -69,10 +67,7 @@ func _name(id: String) -> String:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color("12151a")
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	add_child(UiTheme.backdrop("ScreenBackgroundPanel"))
 	# The menu is centred while it fits and scrolls when the window is
 	# shorter than it (a small window, or a large UI scale).
 	var scroll := ScrollContainer.new()
@@ -87,18 +82,14 @@ func _build_ui() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "Menu"
 	panel.custom_minimum_size = Vector2(460, 0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PANEL
-	sb.set_content_margin_all(20)
-	sb.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.theme_type_variation = &"MenuPanel"
 	centre.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 7)
+	col.theme_type_variation = &"MenuGap"
 	panel.add_child(col)
 	var title := Label.new()
 	title.text = "Simple War"
-	title.add_theme_font_size_override("font_size", 30)
+	title.theme_type_variation = &"BrandLabel"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 	col.add_child(HSeparator.new())
@@ -118,7 +109,7 @@ func _build_ui() -> void:
 	_profile_text = _dim("")
 	_profile_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_profile_text.custom_minimum_size = Vector2(412, 0)
-	_profile_text.add_theme_font_size_override("font_size", 13)
+	_profile_text.theme_type_variation = &"SmallDimLabel"
 	col.add_child(_profile_text)
 	col.add_child(_dim("Map"))
 	_map_pick = OptionButton.new()
@@ -149,8 +140,7 @@ func _build_ui() -> void:
 	# The rest in two columns, so the menu stays short.
 	var grid := GridContainer.new()
 	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 7)
-	grid.add_theme_constant_override("v_separation", 7)
+	grid.theme_type_variation = &"MenuGap"
 	col.add_child(grid)
 	var load_game := Button.new()
 	load_game.name = "Load"
@@ -175,24 +165,17 @@ func _build_ui() -> void:
 	quit.text = "Quit"
 	quit.pressed.connect(func() -> void: get_tree().quit())
 	col.add_child(quit)
-	_error = _dim("")
-	_error.add_theme_color_override("font_color", Color("e8735f"))
+	_error = UiTheme.label("", "BadLabel")
 	col.add_child(_error)
 	_describe()
 
 
 func _heading(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", 20)
-	return l
+	return UiTheme.label(text, "HeadingLabel")
 
 
 func _dim(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_color_override("font_color", DIM)
-	return l
+	return UiTheme.label(text, "DimLabel")
 
 
 func _selected(ids: PackedStringArray, pick: OptionButton) -> String:
@@ -276,23 +259,16 @@ func _list_overlay(node_name: String, title: String) -> Dictionary:
 	var over := Control.new()
 	over.name = node_name
 	over.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0.03, 0.04, 0.05, 0.8)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	over.add_child(shade)
+	over.add_child(UiTheme.backdrop("ScreenShadePanel"))
 	var centre := CenterContainer.new()
 	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
 	over.add_child(centre)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(560, 0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PANEL
-	sb.set_content_margin_all(24)
-	sb.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.theme_type_variation = &"ModalPanel"
 	centre.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
+	col.theme_type_variation = &"FormGap"
 	panel.add_child(col)
 	col.add_child(_heading(title))
 	var scroll := ScrollContainer.new()
@@ -303,8 +279,7 @@ func _list_overlay(node_name: String, title: String) -> Dictionary:
 	list.name = "List"
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	var said := _dim("")
-	said.add_theme_color_override("font_color", Color("e8735f"))
+	var said := UiTheme.label("", "BadLabel")
 	said.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(said)
 	var close := Button.new()
@@ -351,10 +326,7 @@ static func editor_screen() -> Control:
 	var root := Control.new()
 	root.name = "MapEditor"
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color("12151a")
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(bg)
+	root.add_child(UiTheme.backdrop("ScreenBackgroundPanel"))
 	var col := VBoxContainer.new()
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(col)
@@ -378,7 +350,7 @@ static func editor_screen() -> Control:
 	play.tooltip_text = "Fight a battle on the open map as it is painted now, saved or not"
 	var said := Label.new()
 	said.name = "Said"
-	said.add_theme_color_override("font_color", Color("e8735f"))
+	said.theme_type_variation = &"BadLabel"
 	bar.add_child(VSeparator.new())
 	bar.add_child(opponent)
 	bar.add_child(play)

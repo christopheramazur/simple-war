@@ -13,11 +13,7 @@ var _dragged: bool = false
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color("12151a")
-	sb.border_color = Color("e6b450")
-	sb.set_border_width_all(2)
-	add_theme_stylebox_override("panel", sb)
+	theme_type_variation = &"PipFramePanel"
 	view = ContextView.new()
 	view.compact = true
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE

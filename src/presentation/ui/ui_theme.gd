@@ -14,9 +14,16 @@ extends RefCounted
 ## input (text boxes, number boxes, dropdowns, lists) share the `field`
 ## colour and its border; things that act when pressed (buttons, tabs)
 ## share the `button` colours; panels and plain text have neither.
+##
+## Screens never pick colours or sizes themselves (sw-ijp.1). They name a
+## style from `res://data/ui/styles.json` through `theme_type_variation`:
+## `<Size><Tone>Label` (SmallDimLabel, HeroGoodLabel), `<Tone>Bar`, and the
+## panels, gaps and special labels listed there. Each is built from the
+## profile, so every theme reaches every screen.
 
 const SHIPPED_DIR := "res://data/ui/themes"
 const USER_DIR := "user://ui_themes"
+const STYLES_PATH := "res://data/ui/styles.json"
 const DEFAULT_ID := "default"
 ## Used for anything a profile leaves out.
 const FALLBACK: Dictionary = {
@@ -25,11 +32,15 @@ const FALLBACK: Dictionary = {
 		"background": "12151a", "panel": "1d2128", "text": "dde2ea", "dim": "8a93a3", "accent": "e6b450",
 		"button": "2b323d", "button_border": "465064", "button_hover": "38414f", "button_pressed": "4a5567",
 		"field": "0d1014", "field_border": "5b6779", "selection": "3b4d6b",
+		"soft": "b9c0cc", "line": "323a46", "good": "74d18a", "bad": "e8735f",
+		"overlay": "181b22", "shade": "080a0d",
+		"stamina": "5bb6d9", "instinct": "b38be0", "morale": "74d18a", "prowess": "e6b450", "legend": "e07ab0",
 	},
 }
 
 static var _profiles: Dictionary = {}
 static var _loaded: bool = false
+static var _styles: Dictionary = {}
 
 
 ## Every profile by id: the shipped ones, then the player's own.
@@ -55,6 +66,36 @@ static func profiles() -> Dictionary:
 ## Reads the profile files again (after one was added or changed).
 static func reload() -> void:
 	_loaded = false
+	_styles = {}
+
+
+## The named styles (data/ui/styles.json).
+static func styles() -> Dictionary:
+	if _styles.is_empty():
+		var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(STYLES_PATH))
+		if data is Dictionary:
+			_styles = data
+		else:
+			push_error("UiTheme: can't read %s" % STYLES_PATH)
+	return _styles
+
+
+## A label in a named style.
+static func label(text: String, style: String = "", wrap: bool = false) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.theme_type_variation = style
+	if wrap:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return l
+
+
+## A flat panel in a named style, filling its parent.
+static func backdrop(style: String) -> Panel:
+	var p := Panel.new()
+	p.theme_type_variation = style
+	p.set_anchors_preset(Control.PRESET_FULL_RECT)
+	return p
 
 
 ## Profile ids in menu order: the default first, then by name.
@@ -97,6 +138,12 @@ static func apply(window: Window, id: String = "") -> void:
 	if id.is_empty():
 		id = str(GameSettings.value("ui_theme"))
 	window.theme = build(profile(id))
+
+
+## Themes a window nothing has themed yet (a scene run on its own, F6).
+static func ensure(window: Window) -> void:
+	if window != null and window.theme == null:
+		apply(window)
 
 
 ## A Godot Theme made from a profile.
@@ -172,7 +219,87 @@ static func build(p: Dictionary) -> Theme:
 	var line := StyleBoxLine.new()
 	line.color = Color(color(p, "field_border"), 0.7)
 	t.set_stylebox("separator", "HSeparator", line)
+	_add_styles(t, p)
 	return t
+
+
+## The named styles, built from the profile. Text sizes are written for the
+## default size and grow with the profile's.
+static func _add_styles(t: Theme, p: Dictionary) -> void:
+	var s := styles()
+	var scale := float(p["font_size"]) / float(FALLBACK["font_size"])
+	var sizes: Dictionary = s.get("text_sizes", {})
+	var tones: Dictionary = s.get("tones", {})
+	for size_name: String in sizes:
+		for tone: String in tones:
+			if not (size_name + tone).is_empty():
+				_add_label(t, size_name + tone + "Label", {"size": sizes[size_name], "color": tones[tone]}, p, scale)
+	for tone: String in tones:
+		if not tone.is_empty():
+			_add_panel(t, tone + "Bar", {"bg": tones[tone]}, p)
+	var labels: Dictionary = s.get("labels", {})
+	for style: String in labels:
+		_add_label(t, style, labels[style], p, scale)
+	var panels: Dictionary = s.get("panels", {})
+	for style: String in panels:
+		_add_panel(t, style, panels[style], p)
+	var gaps: Dictionary = s.get("gaps", {})
+	for style: String in gaps:
+		var g: Variant = gaps[style]
+		var h := int(g["h"]) if g is Dictionary else int(g)
+		var v := int(g["v"]) if g is Dictionary else int(g)
+		t.set_type_variation(style, "Container")
+		t.set_constant("separation", style, h)
+		t.set_constant("h_separation", style, h)
+		t.set_constant("v_separation", style, v)
+
+
+## Works on a Label and on a RichTextLabel.
+static func _add_label(t: Theme, style: String, d: Dictionary, p: Dictionary, scale: float) -> void:
+	t.set_type_variation(style, "Label")
+	var size := int(d.get("size", 0))
+	if size > 0:
+		t.set_font_size("font_size", style, roundi(size * scale))
+		t.set_font_size("normal_font_size", style, roundi(size * scale))
+	if not str(d.get("color", "")).is_empty():
+		t.set_color("font_color", style, _resolve(p, d["color"]))
+		t.set_color("default_color", style, _resolve(p, d["color"]))
+	if d.has("outline"):
+		t.set_color("font_outline_color", style, _resolve(p, d["outline"]))
+		t.set_constant("outline_size", style, int(d.get("outline_size", 0)))
+	if d.has("line_spacing"):
+		t.set_constant("line_spacing", style, int(d["line_spacing"]))
+
+
+static func _add_panel(t: Theme, style: String, d: Dictionary, p: Dictionary) -> void:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(_resolve(p, d["bg"]), float(d.get("alpha", 1.0)))
+	var width := int(d.get("border_width", 0))
+	if width > 0:
+		sb.border_color = _resolve(p, d["border"])
+		sb.set_border_width_all(maxi(width, int(p["border_width"])))
+	sb.set_corner_radius_all(int(d.get("radius", 0)))
+	var m: Variant = d.get("margin")
+	if m is Array:
+		sb.content_margin_left = m[0]
+		sb.content_margin_top = m[1]
+		sb.content_margin_right = m[2]
+		sb.content_margin_bottom = m[3]
+	elif m != null:
+		sb.set_content_margin_all(m)
+	t.set_type_variation(style, "PanelContainer")
+	t.set_stylebox("panel", style, sb)
+
+
+## A profile colour by name, or a literal hex colour.
+static func _resolve(p: Dictionary, name: Variant) -> Color:
+	var key := str(name)
+	if p["colors"].has(key):
+		return Color.html(str(p["colors"][key]))
+	if not Color.html_is_valid(key):
+		push_error("UiTheme: unknown colour '%s'" % key)
+		return Color.MAGENTA
+	return Color.html(key)
 
 
 static func _font_colors(t: Theme, type: String, text: Color, dim: Color) -> void:

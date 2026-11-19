@@ -110,11 +110,9 @@ func _build_camera() -> void:
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	_hud = Label.new()
+	UiTheme.ensure(get_window())
+	_hud = UiTheme.label("", "ReplayHudLabel")
 	_hud.position = Vector2(12, 8)
-	_hud.add_theme_color_override("font_color", Color.WHITE)
-	_hud.add_theme_color_override("font_outline_color", Color.BLACK)
-	_hud.add_theme_constant_override("outline_size", 4)
 	layer.add_child(_hud)
 
 

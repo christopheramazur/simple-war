@@ -52,8 +52,6 @@ const SIDE_MAX: float = 640.0
 const BATTLE_W: float = 290.0
 const HUD_H: float = 62.0
 const PIP_SIZE: Vector2 = Vector2(240, 160)
-const PANEL: Color = Color("1d2128")
-const DIM: Color = Color("8a93a3")
 
 @export var player: int = 1
 ## Applied once the demo is built (the mock uses it): "", "battle" (focus
@@ -249,23 +247,17 @@ static func demo_session() -> OverworldSession:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	if get_window() != null and get_window().theme == null:
-		UiTheme.apply(get_window())  # standalone (F6): the menu did not set it
-	var bg := ColorRect.new()
-	bg.color = ContextView.BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	UiTheme.ensure(get_window())  # standalone (F6): the menu did not set it
+	var bg := UiTheme.backdrop("ScreenBackgroundPanel")
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	var row := HBoxContainer.new()
 	row.set_anchors_preset(Control.PRESET_FULL_RECT)
-	row.add_theme_constant_override("separation", 0)
+	row.theme_type_variation = &"NoGap"
 	add_child(row)
 	_battle_col = PanelContainer.new()
 	_battle_col.custom_minimum_size = Vector2(BATTLE_W, 0)
-	var bsb := StyleBoxFlat.new()
-	bsb.bg_color = PANEL
-	bsb.set_content_margin_all(10)
-	_battle_col.add_theme_stylebox_override("panel", bsb)
+	_battle_col.theme_type_variation = &"BattleColumnPanel"
 	var bscroll := ScrollContainer.new()
 	bscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_battle_box = BattlePanel.new()
@@ -298,13 +290,7 @@ func _build_ui() -> void:
 	stage.add_child(_pip_layer)
 	_hover_card = PanelContainer.new()
 	_hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hsb := StyleBoxFlat.new()
-	hsb.bg_color = Color(0.07, 0.08, 0.1, 0.94)
-	hsb.border_color = Color("5b6779")
-	hsb.set_border_width_all(1)
-	hsb.set_corner_radius_all(4)
-	hsb.set_content_margin_all(10)
-	_hover_card.add_theme_stylebox_override("panel", hsb)
+	_hover_card.theme_type_variation = &"HoverCardPanel"
 	_hover_card.hide()
 	# Wrapped text measures tall until it has a width: follow it back down.
 	_hover_card.minimum_size_changed.connect(_hover_card.reset_size)
@@ -323,17 +309,14 @@ func _build_ui() -> void:
 	_hud.offset_right = -8
 	_hud.offset_bottom = -4
 	_hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hud.add_theme_font_size_override("font_size", 13)
-	_hud.add_theme_color_override("font_color", Color("b9c0cc"))
-	_hud.add_theme_color_override("font_outline_color", Color("12151a"))
-	_hud.add_theme_constant_override("outline_size", 4)
+	_hud.theme_type_variation = &"HudLabel"
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(_hud)
 	var side := PanelContainer.new()
 	side.custom_minimum_size = Vector2(clampf(float(GameSettings.value("side_width")) if use_settings else SIDE_W, SIDE_MIN, SIDE_MAX), 0)
-	var grip := ColorRect.new()
+	var grip := Panel.new()
 	grip.name = "SideGrip"
-	grip.color = Color("2b323d")
+	grip.theme_type_variation = &"GripPanel"
 	grip.custom_minimum_size = Vector2(5, 0)
 	grip.mouse_default_cursor_shape = Control.CURSOR_HSIZE
 	grip.tooltip_text = "Drag to make the panel wider or narrower"
@@ -345,23 +328,17 @@ func _build_ui() -> void:
 		if mb != null and mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and use_settings:
 			GameSettings.set_value("side_width", int(side.custom_minimum_size.x)))
 	row.add_child(grip)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PANEL
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 10
-	sb.content_margin_bottom = 8
-	side.add_theme_stylebox_override("panel", sb)
+	side.theme_type_variation = &"SideColumnPanel"
 	row.add_child(side)
 	var side_col := VBoxContainer.new()
-	side_col.add_theme_constant_override("separation", 6)
+	side_col.theme_type_variation = &"ListGap"
 	side.add_child(side_col)
 	var side_scroll := ScrollContainer.new()
 	side_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	side_col.add_child(side_scroll)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.theme_type_variation = &"ListGap"
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	side_scroll.add_child(col)
 	col.add_child(_title("Battles"))
@@ -395,8 +372,8 @@ func _build_ui() -> void:
 	_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_banner.offset_top = 16
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_banner_text = Label.new()
-	_banner_text.add_theme_font_size_override("font_size", 20)
+	_banner.theme_type_variation = &"BannerPanel"
+	_banner_text = UiTheme.label("", "HeadingLabel")
 	_banner.add_child(_banner_text)
 	_banner.hide()
 	stage.add_child(_banner)
@@ -406,15 +383,8 @@ func _build_ui() -> void:
 	_phase_banner.offset_left = 60
 	_phase_banner.offset_right = -60
 	_phase_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var psb := StyleBoxFlat.new()
-	psb.bg_color = Color(0.1, 0.11, 0.14, 0.92)
-	psb.border_color = Color("e6b450")
-	psb.set_border_width_all(1)
-	psb.set_content_margin_all(8)
-	_phase_banner.add_theme_stylebox_override("panel", psb)
-	_phase_text = Label.new()
-	_phase_text.add_theme_color_override("font_color", Color("e6b450"))
-	_phase_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_phase_banner.theme_type_variation = &"BannerPanel"
+	_phase_text = UiTheme.label("", "AccentLabel", true)
 	_phase_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_banner.add_child(_phase_text)
 	_phase_banner.hide()
@@ -499,7 +469,7 @@ func _clear(parent: Node) -> void:
 func _title(text: String) -> GlossaryLabel:
 	var l := GlossaryLabel.new()
 	l.glossary = glossary
-	l.add_theme_color_override("default_color", DIM)
+	l.theme_type_variation = &"DimLabel"
 	l.set_linked(text)
 	return l
 
@@ -776,12 +746,7 @@ func _refresh_menu() -> void:
 		_menu.add_child(line)
 		var can_join := reserves_ready(m["engagement"])
 		if can_join > 0:
-			var nudge := Label.new()
-			nudge.text = "%d reserve squad%s can join this battle" % [can_join, "" if can_join == 1 else "s"]
-			nudge.add_theme_color_override("font_color", HexCard.ACCENT)
-			nudge.add_theme_font_size_override("font_size", 13)
-			nudge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			_menu.add_child(nudge)
+			_menu.add_child(UiTheme.label("%d reserve squad%s can join this battle" % [can_join, "" if can_join == 1 else "s"], "SmallAccentLabel", true))
 	if contexts.focus != ViewContexts.OVERWORLD:
 		var back := Button.new()
 		back.text = "Exit to overworld (Esc)"
@@ -1428,7 +1393,7 @@ func _refresh_log() -> void:
 		_log_box.add_child(_title("Events"))
 		for i in range(messages.size() - 1, maxi(messages.size() - 14, 0) - 1, -1):
 			var l := _title(messages[i])
-			l.add_theme_color_override("default_color", Color("dde2ea"))
+			l.theme_type_variation = &""
 			_log_box.add_child(l)
 	var outcome: Dictionary = session.observe(player).get("outcome", {})
 	_banner.visible = not outcome.is_empty()
@@ -1440,7 +1405,7 @@ func _refresh_log() -> void:
 		if not ai.is_empty():
 			head = "✔ Victory — " if won else ("✖ Defeat — " if outcome["outcome"] != "drew" else "Draw — ")
 		_banner_text.text = head + _say(String(outcome["key"]), String(outcome["text"]))
-		_banner_text.add_theme_color_override("font_color", Color("74d18a") if won else Color("e8735f"))
+		_banner_text.theme_type_variation = &"HeadingGoodLabel" if won else &"HeadingBadLabel"
 		if not _results_shown and _play.is_empty():
 			_results_shown = true
 			_open_results("won" if won else ("drew" if outcome["outcome"] == "drew" else "lost"), _say(String(outcome["key"]), String(outcome["text"])))

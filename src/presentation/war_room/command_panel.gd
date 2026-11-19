@@ -20,7 +20,6 @@ signal supply_line_requested(feature: int, plot: int, commander: int, what: Stri
 ## recruit a squad, hire a commander (option = template ID), refit, ...
 signal activity_requested(activity: String, option: String)
 
-const DIM: Color = Color("8a93a3")
 
 ## Defined terms for the hoverable titles.
 var glossary: Glossary
@@ -189,12 +188,9 @@ func _army_info(me: Dictionary, obs: Dictionary) -> void:
 	var others := army.filter(func(q: Dictionary) -> bool: return not bool(q.get("own", false)))
 	add_child(_title("Commander %d: army %d/%d squads" % [int(me["id"]) & 0xffff, others.size(), cap]))
 	for q: Dictionary in army:
-		var l := Label.new()
-		l.text = "  %s%s  %d/%d units%s" % [EventText.squad_name(r.squad_ids[int(q["tmpl"])]), " (own)" if bool(q.get("own", false)) else "",
-			int(q["alive"]), int(q["size"]), "  · battleforce" if fighting.has(int(q["id"])) else ""]
-		l.add_theme_color_override("font_color", Color("dde2ea") if fighting.has(int(q["id"])) else DIM)
-		l.add_theme_font_size_override("font_size", 13)
-		add_child(l)
+		add_child(UiTheme.label("  %s%s  %d/%d units%s" % [EventText.squad_name(r.squad_ids[int(q["tmpl"])]), " (own)" if bool(q.get("own", false)) else "",
+			int(q["alive"]), int(q["size"]), "  · battleforce" if fighting.has(int(q["id"])) else ""],
+			"SmallLabel" if fighting.has(int(q["id"])) else "SmallDimLabel"))
 	if int(me["engagement"]) >= 0 or session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	for det: Dictionary in obs.get("detachments", []):
@@ -317,17 +313,12 @@ func _line_buttons(fid: int, name: String, obs: Dictionary) -> void:
 
 
 func _dim_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_color_override("font_color", DIM)
-	l.add_theme_font_size_override("font_size", 13)
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	return l
+	return UiTheme.label(text, "SmallDimLabel", true)
 
 
 func _title(text: String) -> GlossaryLabel:
 	var l := GlossaryLabel.new()
 	l.glossary = glossary
-	l.add_theme_color_override("default_color", DIM)
+	l.theme_type_variation = &"DimLabel"
 	l.set_linked(text)
 	return l

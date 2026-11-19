@@ -17,25 +17,14 @@ static func build(on_close: Callable) -> PanelContainer:
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.1, 0.13, 0.97)
-	sb.border_color = Color("e6b450")
-	sb.set_border_width_all(1)
-	sb.set_content_margin_all(18)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.theme_type_variation = &"HelpPanel"
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 8)
+	col.theme_type_variation = &"FormGap"
 	panel.add_child(col)
 	for part: Array in HELP:
-		var head := Label.new()
-		head.text = part[0]
-		head.add_theme_color_override("font_color", Color("e6b450"))
-		col.add_child(head)
-		var body := Label.new()
-		body.text = part[1]
-		body.add_theme_font_size_override("font_size", 13)
+		col.add_child(UiTheme.label(part[0], "AccentLabel"))
+		var body := UiTheme.label(part[1], "SmallLabel", true)
 		body.custom_minimum_size = Vector2(640, 0)
-		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		col.add_child(body)
 	var close := Button.new()
 	close.text = "Close"

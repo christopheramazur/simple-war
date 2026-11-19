@@ -1,0 +1,58 @@
+{
+	"text_sizes": {
+		"": 0,
+		"Caption": 12,
+		"Small": 13,
+		"Card": 14,
+		"Value": 15,
+		"Subhead": 18,
+		"Heading": 20,
+		"Title": 26,
+		"Brand": 30,
+		"Hero": 34
+	},
+	"tones": {
+		"": "",
+		"Text": "text",
+		"Dim": "dim",
+		"Soft": "soft",
+		"Accent": "accent",
+		"Good": "good",
+		"Bad": "bad",
+		"Line": "line",
+		"Stamina": "stamina",
+		"Instinct": "instinct",
+		"Morale": "morale",
+		"Prowess": "prowess",
+		"Legend": "legend"
+	},
+	"labels": {
+		"CardHeadLabel": {"size": 13, "color": "accent", "line_spacing": 0},
+		"HudLabel": {"size": 13, "color": "soft", "outline": "background", "outline_size": 4},
+		"ReplayHudLabel": {"color": "ffffff", "outline": "000000", "outline_size": 4}
+	},
+	"panels": {
+		"ScreenBackgroundPanel": {"bg": "background"},
+		"ScreenShadePanel": {"bg": "shade", "alpha": 0.8},
+		"GripPanel": {"bg": "button"},
+		"MenuPanel": {"bg": "panel", "margin": 20, "radius": 6},
+		"ModalPanel": {"bg": "panel", "margin": 24, "radius": 6},
+		"BattleColumnPanel": {"bg": "panel", "margin": 10},
+		"SideColumnPanel": {"bg": "panel", "margin": [10, 10, 10, 8]},
+		"TooltipCardPanel": {"bg": "panel", "border": "line", "border_width": 1, "margin": 10, "radius": 4},
+		"HoverCardPanel": {"bg": "background", "alpha": 0.94, "border": "field_border", "border_width": 1, "margin": 10, "radius": 4},
+		"HelpPanel": {"bg": "overlay", "alpha": 0.97, "border": "accent", "border_width": 1, "margin": 18},
+		"BannerPanel": {"bg": "overlay", "alpha": 0.92, "border": "accent", "border_width": 1, "margin": 8},
+		"PipFramePanel": {"bg": "background", "border": "accent", "border_width": 2}
+	},
+	"gaps": {
+		"NoGap": 0,
+		"TightGap": 2,
+		"CardGap": 4,
+		"ListGap": 6,
+		"MenuGap": 7,
+		"FormGap": 8,
+		"ModalGap": 10,
+		"StatsGap": {"h": 22, "v": 4}
+	}
+}

@@ -28,6 +28,9 @@ func _initialize() -> void:
 	var mock: Control = script.build()
 	var size := Vector2i(mock.custom_minimum_size)
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	# As the game does, whatever the local settings say; MOCK_UI_THEME picks another profile.
+	var theme_id := OS.get_environment("MOCK_UI_THEME")
+	UiTheme.apply(root, UiTheme.DEFAULT_ID if theme_id.is_empty() else theme_id)
 	root.size = size
 	DisplayServer.window_set_size(size)
 	root.add_child(mock)

@@ -6,22 +6,15 @@ extends RefCounted
 ## selection panel and anything later (a pinned window, a tooltip in the
 ## editor) say the same thing.
 
-const TEXT := Color("dde2ea")
-const DIM := Color("8a93a3")
-const ACCENT := Color("e6b450")
+const LINE_STYLES: Dictionary = {"head": "CardAccentLabel", "dim": "CaptionDimLabel", "text": "CaptionLabel"}
 
 
 static func build(info: Dictionary, rules: OverworldRules, viewer: int) -> VBoxContainer:
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
+	col.theme_type_variation = &"TightGap"
 	col.custom_minimum_size = Vector2(250, 0)
 	for line: Array in lines(info, rules, viewer):
-		var l := Label.new()
-		l.text = line[0]
-		l.add_theme_font_size_override("font_size", 14 if line[1] == "head" else 12)
-		l.add_theme_color_override("font_color", {"head": ACCENT, "dim": DIM}.get(line[1], TEXT))
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		col.add_child(l)
+		col.add_child(UiTheme.label(line[0], LINE_STYLES.get(line[1], "CaptionLabel"), true))
 	return col
 
 

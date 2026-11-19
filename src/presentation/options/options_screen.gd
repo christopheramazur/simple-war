@@ -7,9 +7,6 @@ extends Control
 
 signal closed
 
-const PANEL: Color = Color("1d2128")
-const DIM: Color = Color("8a93a3")
-
 var _mode: OptionButton
 var _size: OptionButton
 var _vsync: CheckBox
@@ -28,29 +25,20 @@ static func open_over(parent: Node) -> OptionsScreen:
 
 
 func _ready() -> void:
+	UiTheme.ensure(get_window())
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var shade := ColorRect.new()
-	shade.color = Color(0.03, 0.04, 0.05, 0.8)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(shade)
+	add_child(UiTheme.backdrop("ScreenShadePanel"))
 	var centre := CenterContainer.new()
 	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(centre)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(440, 0)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = PANEL
-	sb.set_content_margin_all(24)
-	sb.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.theme_type_variation = &"ModalPanel"
 	centre.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
+	col.theme_type_variation = &"ModalGap"
 	panel.add_child(col)
-	var title := Label.new()
-	title.text = "Options"
-	title.add_theme_font_size_override("font_size", 26)
-	col.add_child(title)
+	col.add_child(UiTheme.label("Options", "TitleLabel"))
 	col.add_child(_heading("Display"))
 	_mode = OptionButton.new()
 	_mode.name = "Mode"
@@ -98,10 +86,7 @@ func _ready() -> void:
 	_theme.item_selected.connect(func(i: int) -> void: _change("ui_theme", theme_ids[i]))
 	col.add_child(_row("Theme", _theme))
 	col.add_child(_row("UI scale", _scale))
-	var where := Label.new()
-	where.text = "Your own themes: put a .json file like the ones in data/ui/themes into %s" % ProjectSettings.globalize_path(UiTheme.USER_DIR)
-	where.add_theme_color_override("font_color", DIM)
-	where.add_theme_font_size_override("font_size", 12)
+	var where := UiTheme.label("Your own themes: put a .json file like the ones in data/ui/themes into %s" % ProjectSettings.globalize_path(UiTheme.USER_DIR), "CaptionDimLabel")
 	where.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	where.custom_minimum_size = Vector2(390, 0)
 	col.add_child(where)
@@ -115,9 +100,7 @@ func _ready() -> void:
 			_turn.select(i)
 	_turn.item_selected.connect(func(i: int) -> void: _change("turn_seconds", GameSettings.TURN_SECONDS[i]))
 	col.add_child(_row("A turn plays out over", _turn))
-	_said = Label.new()
-	_said.add_theme_color_override("font_color", DIM)
-	_said.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_said = UiTheme.label("", "DimLabel", true)
 	_said.custom_minimum_size = Vector2(390, 0)
 	col.add_child(_said)
 	var close := Button.new()
@@ -156,10 +139,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _heading(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_color_override("font_color", Color("e6b450"))
-	return l
+	return UiTheme.label(text, "AccentLabel")
 
 
 func _row(text: String, control: Control) -> HBoxContainer:

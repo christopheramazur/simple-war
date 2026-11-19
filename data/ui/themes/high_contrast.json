@@ -17,6 +17,17 @@
 		"button_pressed": "555555",
 		"field": "000000",
 		"field_border": "ffd400",
-		"selection": "0057d9"
+		"selection": "0057d9",
+		"soft": "ffffff",
+		"line": "ffffff",
+		"good": "00ff7f",
+		"bad": "ff6b5e",
+		"overlay": "000000",
+		"shade": "000000",
+		"stamina": "5bb6d9",
+		"instinct": "b38be0",
+		"morale": "00ff7f",
+		"prowess": "e6b450",
+		"legend": "e07ab0"
 	}
 }
