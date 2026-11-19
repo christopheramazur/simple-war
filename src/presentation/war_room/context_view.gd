@@ -15,6 +15,9 @@ signal battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: bo
 ## A box dragged in a battle (metres).
 signal battle_box(rect: Rect2, add: bool)
 signal zoomed(factor: float)
+## Asks the owner to move the battle camera (wheel zoom about the cursor,
+## middle-button drag, pan_by): magnification and centre (metres).
+signal battle_camera(zoom: float, centre: Vector2)
 
 const HEX_SIZE: float = 26.0
 ## Pixels per battlefield metre when the ground is drawn from textures.
@@ -90,6 +93,11 @@ var _silhouettes: Dictionary = {}
 ## What the last battle draw showed: [{"id", "c" (metres), "pts", ...}].
 var _shown: Array = []
 var _press_at: Vector2 = Vector2.ZERO
+## Battle camera (ViewContexts owns it; set_camera): magnification over the
+## fitted field and the field point at the view's centre (metres).
+var _cam_zoom: float = 1.0
+var _cam_centre: Vector2 = ViewContexts.NO_CENTRE
+var _dragging_cam: bool = false
 var _box: Rect2 = Rect2()
 var _pressing: bool = false
 ## The battle terrain texture, built once per BattleRules.
@@ -993,23 +1001,79 @@ func _terrain_texture(rules: Variant) -> ImageTexture:
 
 
 func _draw_legend(font: Font, area: Rect2) -> void:
-	var x := area.position.x + 6.0
-	var y := area.end.y - 8.0
+	var x := maxf(area.position.x, 0.0) + 6.0
+	var y := minf(area.end.y, size.y) - 8.0
 	for f in _terrain_names:
 		draw_rect(Rect2(x, y - 9, 10, 10), _terrain_color(f).lightened(0.15))
 		draw_string(font, Vector2(x + 13, y), f, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, TEXT)
 		x += 22.0 + font.get_string_size(f, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 
 
-## The battlefield's rect in this view (Rect2() if no battle).
+## Sets the battle camera (ViewContexts.zoom and battle_centre); compact
+## views always show the whole field.
+func set_camera(z: float, centre: Vector2) -> void:
+	_cam_zoom = maxf(z, 1.0)
+	_cam_centre = centre
+	queue_redraw()
+
+
+## The battlefield's rect in this view (Rect2() if no battle): fitted to
+## the view, then magnified about the camera centre, which is kept where
+## the field still fills the view.
 func battle_area() -> Rect2:
 	var w := float(_obs.get("width", 0))
 	var h := float(_obs.get("height", 0))
 	if mode != "battle" or w <= 0 or h <= 0:
 		return Rect2()
+	var k := _fit_k(w, h) * (1.0 if compact else _cam_zoom)
+	var c := _clamp_centre(_cam_centre, k)
+	return Rect2(size / 2.0 - c * k, Vector2(w, h) * k)
+
+
+func _fit_k(w: float, h: float) -> float:
 	var pad := 6.0 if compact else 16.0
-	var k := minf((size.x - pad * 2) / w, (size.y - pad * 2) / h)
-	return Rect2((size - Vector2(w, h) * k) / 2.0, Vector2(w, h) * k)
+	return maxf(minf((size.x - pad * 2) / w, (size.y - pad * 2) / h), 0.001)
+
+
+## A camera centre (metres) kept so the field never leaves a gap it could
+## fill: an axis the field fits on stays centred.
+func _clamp_centre(c: Vector2, k: float) -> Vector2:
+	var field := Vector2(float(_obs.get("width", 0)), float(_obs.get("height", 0)))
+	if c.x < 0.0 and c.y < 0.0:
+		c = field / 2.0
+	var pad := 6.0 if compact else 16.0
+	var half := (size / 2.0 - Vector2(pad, pad)) / k
+	var out := c
+	for i in 2:
+		out[i] = field[i] / 2.0 if half[i] * 2.0 >= field[i] else clampf(c[i], half[i], field[i] - half[i])
+	return out
+
+
+## Asks to zoom the battle camera by `factor`, keeping the field point under
+## view point `at` where it is.
+func zoom_camera(factor: float, at: Vector2) -> void:
+	var w := float(_obs.get("width", 0))
+	var h := float(_obs.get("height", 0))
+	if mode != "battle" or compact or w <= 0 or h <= 0:
+		return
+	var z := clampf(_cam_zoom * factor, 1.0, ViewContexts.BATTLE_ZOOM_MAX)
+	var m := to_battle(at)
+	var k := _fit_k(w, h) * z
+	var c := _clamp_centre(m - (at - size / 2.0) / k, k)
+	set_camera(z, c)
+	battle_camera.emit(z, c if z > 1.0 else ViewContexts.NO_CENTRE)
+
+
+## Asks to move the battle camera by `delta` view pixels: the view looks
+## that way, so the field slides the other way (a drag passes -motion).
+func pan_camera(delta: Vector2) -> void:
+	var area := battle_area()
+	if area.size == Vector2.ZERO or compact or _cam_zoom <= 1.0:
+		return
+	var k := area.size.x / float(_obs["width"])
+	var c := _clamp_centre((size / 2.0 - area.position + delta) / k, k)
+	set_camera(_cam_zoom, c)
+	battle_camera.emit(_cam_zoom, c)
 
 
 ## A view point to battlefield metres, and back.
@@ -1058,6 +1122,10 @@ func _clear_hover() -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	var mm := event as InputEventMouseMotion
+	if mm != null and _dragging_cam:
+		pan_camera(-mm.relative)
+		accept_event()
+		return
 	if mm != null and _pressing and mode == "battle":
 		if mm.position.distance_to(_press_at) > 6.0:
 			_box = Rect2(_press_at, mm.position - _press_at)
@@ -1080,6 +1148,14 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	var mb := event as InputEventMouseButton
 	if mb == null:
+		return
+	if mode == "battle" and not compact and mb.button_index == MOUSE_BUTTON_MIDDLE:
+		_dragging_cam = mb.pressed
+		accept_event()
+		return
+	if mode == "battle" and not compact and mb.pressed and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		zoom_camera(1.25 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 0.8, mb.position)
+		accept_event()
 		return
 	if mode == "battle" and mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:

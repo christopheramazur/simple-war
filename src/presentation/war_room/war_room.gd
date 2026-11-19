@@ -112,7 +112,7 @@ var _forecasts: Dictionary = {}
 var _reacted: Dictionary = {}
 var _turn_seen: int = -1
 var _attack_armed: bool = false
-var _input: PlanningInput
+var _planning_input: PlanningInput
 var _radial: ReactionRadial
 var _radial_opp: Dictionary = {}
 var _orders_box: VBoxContainer
@@ -184,6 +184,7 @@ func _ready() -> void:
 	_turn_seen = session.turns_resolved()
 	contexts = ViewContexts.new(player)
 	contexts.changed.connect(_queue_refresh)
+	contexts.camera_changed.connect(_on_camera_changed)
 	contexts.sync(session.observe(player))
 	match demo_view:
 		"battle":
@@ -222,6 +223,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if contexts != null and contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
+		contexts.camera_changed.disconnect(_on_camera_changed)
 
 
 ## A demo: test_vale with player 1 fighting the bandit camp and player 2's
@@ -264,6 +266,7 @@ func _build_ui() -> void:
 	_main.battle_pressed.connect(_on_battle_pressed)
 	_main.battle_box.connect(_on_battle_box)
 	_main.zoomed.connect(func(f: float) -> void: contexts.zoom_by(f))
+	_main.battle_camera.connect(func(z: float, c: Vector2) -> void: contexts.set_battle_camera(z, c))
 	_main.hex_hovered.connect(_on_hex_hovered)
 	_main.squad_hovered.connect(_on_squad_hovered)
 	panels["map"] = _main
@@ -284,9 +287,9 @@ func _build_ui() -> void:
 	_radial.hide()
 	_radial.chosen.connect(_on_reaction_chosen)
 	panels["radial"] = _radial
-	_input = PlanningInput.new()
-	_input.command.connect(_on_command)
-	add_child(_input)
+	_planning_input = PlanningInput.new()
+	_planning_input.command.connect(_on_command)
+	add_child(_planning_input)
 	_hud = UiTheme.label("", "HudLabel", true)
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panels["hud"] = _hud
@@ -467,8 +470,17 @@ func _refresh() -> void:
 	_refresh_hud()
 
 
+## The battle camera moved: only the main view redraws.
+func _on_camera_changed() -> void:
+	if not _play.is_empty():
+		_show_play()
+	else:
+		_show_main()
+
+
 ## Draws the focused context into the main view (cheap: no panels).
 func _show_main() -> void:
+	_main.set_camera(contexts.zoom, contexts.battle_centre)
 	if contexts.focus == ViewContexts.OVERWORLD:
 		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts, _overworld_extra())
 		return
@@ -500,8 +512,10 @@ func view_as(p: int) -> void:
 	player = p
 	if contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
+		contexts.camera_changed.disconnect(_on_camera_changed)
 	contexts = ViewContexts.new(player)
 	contexts.changed.connect(_queue_refresh)
+	contexts.camera_changed.connect(_on_camera_changed)
 	planners = {}
 	_forecasts = {}
 	_inspected = -1
@@ -540,7 +554,7 @@ func hints() -> String:
 		return "ATTACK-MOVE: right click where to go; the squads fight what they meet"
 	if pl != null and not pl.selection.is_empty():
 		return "Right click: move  ·  Right click an enemy: attack  ·  Alt+right click: new line  ·  H hold  ·  A attack-move  ·  B fall back  ·  R run  ·  Ctrl+1-9: make a group  ·  Space: end turn"
-	return "Left click or drag: select squads  ·  Click any squad: its card  ·  Hover: weapon range  ·  Tab: next battle  ·  Esc: overworld  ·  Space: end turn"
+	return "Left click or drag: select squads  ·  Click any squad: its card  ·  Wheel: zoom  ·  Middle drag or arrows: pan  ·  Tab: next battle  ·  Esc: overworld  ·  Space: end turn"
 
 
 ## Reach, movement points and the hovered route for the selected commander.
@@ -1162,9 +1176,40 @@ func _jump_to_reaction(o: Dictionary) -> void:
 	_open_radial.call_deferred(o["engagement"], o["squad"])
 
 
+## Buttons take keyboard focus when clicked, and a focused button would
+## take Space (ui_accept) for itself. Keys belong to the war room's
+## commands, so a key press first drops a button's focus; Enter still
+## presses it.
+func _input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k == null or not k.pressed or k.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+		return
+	var owner := get_viewport().gui_get_focus_owner()
+	if not owner is BaseButton:
+		return
+	# A window that keeps the keys (options, dialogs) keeps its focus too.
+	var n: Node = owner
+	while n != null and n != self:
+		if n is UiWindow and (n as UiWindow).captures_keys:
+			return
+		n = n.get_parent()
+	owner.release_focus()
+
+
+## Arrow keys: how far one press (or key repeat) pans the battle camera.
+const PAN_STEP: float = 60.0
+const _PAN_KEYS: Dictionary = {KEY_LEFT: Vector2.LEFT, KEY_RIGHT: Vector2.RIGHT, KEY_UP: Vector2.UP, KEY_DOWN: Vector2.DOWN}
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
-	if k == null or not k.pressed or k.echo:
+	if k == null or not k.pressed:
+		return
+	if _PAN_KEYS.has(k.keycode) and contexts.focus != ViewContexts.OVERWORLD:
+		_main.pan_camera(_PAN_KEYS[k.keycode] * PAN_STEP)
+		get_viewport().set_input_as_handled()
+		return
+	if k.echo:
 		return
 	match k.keycode:
 		KEY_TAB:
@@ -1554,6 +1599,7 @@ func _show_play() -> void:
 		_main.show_overworld(_play["obs"], session.rules.feature_ids, contexts, {"play": _play["walks"], "t": t})
 	elif battles.has(eid):
 		_main.title = battle_name(eid)
+		_main.set_camera(contexts.zoom, contexts.battle_centre)
 		_main.show_playback(battles[eid], t, session.observe_battle(player, eid))
 	for pip in _pip_layer.get_children():
 		if pip is PipPanel and battles.has((pip as PipPanel).engagement):

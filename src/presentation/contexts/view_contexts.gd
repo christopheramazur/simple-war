@@ -16,10 +16,17 @@ extends RefCounted
 ## Zoom transition (R4Q15): zooming the overworld in past ZOOM_ENTER with a
 ## battle hex in context (the selected hex, the selected commander's hex,
 ## else the camera's) enters that battle at the default zoom.
+## Battle camera: in a battle `zoom` is the magnification over the whole
+## field fitting the view (1, up to BATTLE_ZOOM_MAX) and `battle_centre` the
+## field point (metres) at the view's centre, (-1, -1) for the field's
+## centre. The view computes moves (it knows the field and its own size)
+## and asks for them with set_battle_camera; both reset on entering a battle.
 ## Several battles at once: the focused battle plus up to MAX_PIPS movable
 ## picture-in-picture views; the battles menu focuses or pins any of them.
 
 signal changed
+## The battle camera moved (set_battle_camera): only the main view redraws.
+signal camera_changed
 
 const OVERWORLD: int = -1
 const ZOOM_MIN: float = 0.5
@@ -28,6 +35,8 @@ const ZOOM_DEFAULT: float = 1.0
 ## Zooming the overworld in to this level enters the battle in context.
 const ZOOM_ENTER: float = 3.0
 const MAX_PIPS: int = 3
+const BATTLE_ZOOM_MAX: float = 6.0
+const NO_CENTRE: Vector2 = Vector2(-1, -1)
 
 ## Engagement ID of the focused battle, or OVERWORLD.
 var focus: int = OVERWORLD
@@ -41,11 +50,13 @@ var selected_detachment: int = -1
 ## Overworld camera centre (a plot; -1 = not set yet).
 var camera_plot: int = -1
 var zoom: float = ZOOM_DEFAULT
+## The focused battle's camera centre (metres; NO_CENTRE = the field's).
+var battle_centre: Vector2 = NO_CENTRE
 ## Battles in picture-in-picture views, in order, and where each was moved
 ## to (engagement ID -> Vector2 offset).
 var pips: Array[int] = []
 var pip_offsets: Dictionary = {}
-## Camera bookmarks (R1Q4): slot -> {"focus", "plot", "zoom"}.
+## Camera bookmarks (R1Q4): slot -> {"focus", "plot", "zoom", "centre"}.
 var bookmarks: Dictionary = {}
 
 var _player: int = 0
@@ -232,6 +243,7 @@ func focus_battle(eid: int) -> void:
 		pip_offsets.erase(eid)
 	focus = eid
 	zoom = ZOOM_DEFAULT
+	battle_centre = NO_CENTRE
 	changed.emit()
 
 
@@ -241,6 +253,16 @@ func exit() -> void:
 		return
 	_leave_battle(_battles.get(focus, camera_plot))
 	changed.emit()
+
+
+## Moves the focused battle's camera: `z` clamped to 1..BATTLE_ZOOM_MAX,
+## `centre` in metres (NO_CENTRE for the field's centre).
+func set_battle_camera(z: float, centre: Vector2) -> void:
+	if focus == OVERWORLD:
+		return
+	zoom = clampf(z, ZOOM_DEFAULT, BATTLE_ZOOM_MAX)
+	battle_centre = centre if zoom > ZOOM_DEFAULT else NO_CENTRE
+	camera_changed.emit()
 
 
 ## Zooms by a factor. On the overworld, reaching ZOOM_ENTER with a battle
@@ -282,7 +304,7 @@ func look_at(p: int) -> void:
 ## Saves where the camera is: the focused context, the overworld camera
 ## and the zoom.
 func set_bookmark(slot: int) -> void:
-	bookmarks[slot] = {"focus": focus, "plot": camera_plot, "zoom": zoom}
+	bookmarks[slot] = {"focus": focus, "plot": camera_plot, "zoom": zoom, "centre": battle_centre}
 	changed.emit()
 
 
@@ -296,6 +318,7 @@ func recall_bookmark(slot: int) -> void:
 	camera_plot = b["plot"]
 	if b["focus"] != OVERWORLD and _battles.has(b["focus"]):
 		focus_battle(b["focus"])
+		set_battle_camera(b["zoom"], b.get("centre", NO_CENTRE))
 		return
 	focus = OVERWORLD
 	zoom = b["zoom"]
@@ -336,6 +359,7 @@ func move_pip(eid: int, offset: Vector2) -> void:
 func _leave_battle(p: int) -> void:
 	focus = OVERWORLD
 	zoom = ZOOM_DEFAULT
+	battle_centre = NO_CENTRE
 	camera_plot = _commanders[followed]["plot"] if _commanders.has(followed) else p
 
 
