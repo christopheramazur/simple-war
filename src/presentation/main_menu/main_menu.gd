@@ -28,6 +28,7 @@ var ui: UiRoot
 
 
 func _ready() -> void:
+	PerfRecorder.start_if_requested(get_tree())
 	if GameSettings.saved():
 		GameSettings.apply(get_window())
 	else:

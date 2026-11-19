@@ -442,6 +442,12 @@ func _queue_refresh() -> void:
 
 
 func _refresh() -> void:
+	PerfRecorder.begin(&"ui_refresh")
+	_refresh_inner()
+	PerfRecorder.end(&"ui_refresh")
+
+
+func _refresh_inner() -> void:
 	_dirty = false
 	if not is_inside_tree():
 		return
@@ -480,6 +486,7 @@ func _on_camera_changed() -> void:
 
 ## Draws the focused context into the main view (cheap: no panels).
 func _show_main() -> void:
+	PerfRecorder.set_context("overworld" if contexts.focus == ViewContexts.OVERWORLD else "battle")
 	_main.set_camera(contexts.zoom, contexts.battle_centre)
 	if contexts.focus == ViewContexts.OVERWORLD:
 		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts, _overworld_extra())
@@ -1507,7 +1514,10 @@ func _end_turn() -> void:
 			auto_play = false
 			_hud_note = "the recording has ended"
 	else:
+		PerfRecorder.begin(&"end_turn_driver")
 		played = driver.end_turn()
+		PerfRecorder.end(&"end_turn_driver")
+		PerfRecorder.mark("turn %d resolved=%s" % [session.turns_resolved(), played])
 	if session.turns_resolved() != _turn_seen:
 		_new_turn()
 	_flush_pending()
@@ -1592,6 +1602,7 @@ func _process(delta: float) -> void:
 
 ## Draws the moment of the playback in the main view and the PiPs.
 func _show_play() -> void:
+	PerfRecorder.set_context("playback_overworld" if contexts.focus == ViewContexts.OVERWORLD else "playback_battle")
 	var t: float = _play["t"]
 	var battles: Dictionary = _play["battles"]
 	var eid := contexts.focus

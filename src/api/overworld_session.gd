@@ -539,8 +539,12 @@ func _pump() -> void:
 			continue
 		_execute_pending = false
 		_opportunities = {}
+		PerfRecorder.begin(&"sim_battles")
 		_run_battles()
+		PerfRecorder.end(&"sim_battles")
+		PerfRecorder.begin(&"sim_overworld")
 		last_events = OverworldTurn.resolve(state)
+		PerfRecorder.end(&"sim_overworld")
 		_start_battles()
 		if rules.triggers != null:
 			rules.triggers.run(state, state.events.all(), false)  # battles starting, guards dispersed
@@ -671,6 +675,7 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 ## victim unit, damage (fixed), by unit]] every hit on a unit the player saw}.
 ## A battle that ended this turn is still here.
 func playback(player: int) -> Dictionary:
+	PerfRecorder.begin(&"playback_build")
 	var out := {}
 	var me := BattleSquads.bit(player)
 	for eid: int in _playback:
@@ -717,6 +722,7 @@ func playback(player: int) -> Dictionary:
 				hits.append(h)
 		out[eid] = {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots,
 			"volleys": volleys, "hits": hits}
+	PerfRecorder.end(&"playback_build")
 	return out
 
 

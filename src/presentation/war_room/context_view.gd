@@ -193,18 +193,23 @@ func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}) -> void:
 	_play = rec
 	_play_t = clampf(t, 0.0, 1.0)
 	if _fx == null or not is_same(_fx_src, rec):
+		PerfRecorder.begin(&"fx_build")
 		_fx = BattleFx.from_playback(rec)
+		PerfRecorder.end(&"fx_build")
 		_fx_src = rec
 	_clear_hover()
 	queue_redraw()
 
 
 func _draw() -> void:
+	var sec := &"draw_pip" if compact else (&"draw_overworld" if mode == "overworld" else &"draw_battle")
+	PerfRecorder.begin(sec)
 	draw_rect(Rect2(Vector2.ZERO, size), BG)
 	if mode == "overworld":
 		_draw_overworld()
 	elif mode == "battle":
 		_draw_battle()
+	PerfRecorder.end(sec)
 
 
 # --- overworld ---------------------------------------------------------------

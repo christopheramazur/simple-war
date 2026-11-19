@@ -73,7 +73,9 @@ func note(text: String) -> void:
 func end_turn() -> bool:
 	var before := session.turns_resolved()
 	for i in 4:
+		PerfRecorder.begin(&"ai_act")
 		ai_act()
+		PerfRecorder.end(&"ai_act")
 		for p in session.players():
 			session.ready(p)
 		var ph := session.clock.phase
@@ -84,10 +86,12 @@ func end_turn() -> bool:
 	var resolved := session.turns_resolved() != before
 	if resolved:
 		tally(session.last_events)
+		PerfRecorder.begin(&"match_log_autosave")
 		if match_log != null:
 			match_log.turn_resolved()
 		if autosave:
 			save_game(AUTOSAVE)
+		PerfRecorder.end(&"match_log_autosave")
 	return resolved
 
 
