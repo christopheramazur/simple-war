@@ -16,8 +16,29 @@ const SAMPLES: int = 5
 ## "reactions" (names the own squad could react with)}] in canonical order
 ## (tick, squad, target), "errors": the drafted orders' errors}.
 static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) -> Dictionary:
+	return _forecast(_copy(state), sim, player, orders)
+
+
+## The same forecast as a job for a worker thread (sw-j4u): the copy is
+## taken now, on the caller's thread, and shared caches are filled; the
+## returned Callable runs the turn on the copy with its own BattleSim and
+## only reads what is shared (the rules), so it may run while the caller
+## carries on. The caller must not run the real battle until it is done.
+static func job(state: BattleState, player: int, orders: Array) -> Callable:
+	Stats.warm(state.rules)
+	Fixed.warm()
+	var scratch := _copy(state)
+	var o := orders.duplicate(true)
+	return func() -> Dictionary: return _forecast(scratch, BattleSim.new(), player, o)
+
+
+static func _copy(state: BattleState) -> BattleState:
 	var scratch := BattleState.new(state.id, state.rules)
 	scratch.restore(state.snapshot())
+	return scratch
+
+
+static func _forecast(scratch: BattleState, sim: BattleSim, player: int, orders: Array) -> Dictionary:
 	var sq := scratch.squads
 	var me := BattleSquads.bit(player)
 	var withdrawn: PackedByteArray = sq.take_column(&"withdrawn")
@@ -30,7 +51,7 @@ static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) 
 	var ghosts := {}
 	var contacts := []
 	var seen := {}
-	var n: int = state.rules.ticks_per_turn
+	var n: int = scratch.rules.ticks_per_turn
 	var every := maxi(n / SAMPLES, 1)
 	scratch.begin_turn()
 	for t in n:

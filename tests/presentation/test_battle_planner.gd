@@ -131,6 +131,47 @@ func test_intent_forecast_is_read_only_and_fog_safe() -> void:
 	assert_eq(s.forecast_battle(2, eid, []), {}, "not player 2's battle")
 
 
+func test_a_forecast_on_a_worker_thread_matches_the_main_thread_one() -> void:
+	var w: WarRoom = load("res://src/presentation/war_room/war_room.tscn").instantiate()
+	add_child_autofree(w)
+	var s := w.session
+	var eid: int = w.contexts.battles()[0]
+	var mine: Array = (s.observe_battle(1, eid)["squads"] as Array).filter(func(q: Dictionary) -> bool: return q["player"] == 1)
+	var o := [{"squad": mine[0]["id"], "type": "move", "x": mine[0]["x"] + 30 * ONE, "y": mine[0]["y"]}]
+	var before := s.state_hash_hex()
+	var job := s.forecast_job(1, eid, o)
+	assert_true(job.is_valid())
+	var out := {}
+	var task := WorkerThreadPool.add_task(func() -> void: out["r"] = job.call())
+	# The main thread carries on meanwhile: the same forecast here too.
+	var here := s.forecast_battle(1, eid, o)
+	WorkerThreadPool.wait_for_task_completion(task)
+	assert_eq(out["r"], here, "same ghosts and contacts either way")
+	assert_eq(s.state_hash_hex(), before, "nothing changed")
+	assert_false(s.forecast_job(2, eid, []).is_valid(), "not player 2's battle")
+
+
+func test_drafting_an_order_does_not_wait_for_its_forecast() -> void:
+	var w: WarRoom = load("res://src/presentation/war_room/war_room.tscn").instantiate()
+	w.demo_view = "battle"
+	add_child_autofree(w)
+	var eid := w.contexts.focus
+	var pl := w.planner(eid)
+	pl.select([pl.own_squads()[0]])
+	var t0 := Time.get_ticks_usec()
+	w._on_command(&"hold", 0)
+	var spent := Time.get_ticks_usec() - t0
+	assert_true(w._forecast_jobs.has(eid), "forecasting in the background")
+	assert_lt(spent, 60000, "the order returns before a ~100 ms forecast could")
+	w._on_command(&"run", 0)
+	assert_true(w._forecast_jobs[eid]["again"], "a change meanwhile forecasts again afterwards")
+	w.wait_forecasts()
+	assert_true(w._forecasts.has(eid))
+	assert_true(w._forecast_jobs.is_empty())
+	await get_tree().process_frame
+	assert_true(w._forecast_jobs.is_empty(), "a late callback of a collected job changes nothing")
+
+
 func test_war_room_planning_submits_drafts() -> void:
 	var w: WarRoom = load("res://src/presentation/war_room/war_room.tscn").instantiate()
 	w.demo_view = "battle"
@@ -141,7 +182,8 @@ func test_war_room_planning_submits_drafts() -> void:
 	pl.select([id])
 	w._on_command(&"hold", 0)
 	assert_eq((w.session.battles[eid] as OverworldBattle).orders[1], [{"squad": id, "type": "hold"}], "submitted at once")
-	assert_true(w._forecasts.has(eid), "and forecast")
+	w.wait_forecasts()
+	assert_true(w._forecasts.has(eid), "and forecast (on a worker thread)")
 	w._on_command(&"assign_group", 4)
 	pl.deselect()
 	w._on_command(&"recall_group", 4)

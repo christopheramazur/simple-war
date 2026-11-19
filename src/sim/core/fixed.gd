@@ -243,6 +243,11 @@ static func atan2(y: int, x: int) -> int:
 	return round_div(angle, 1 << 8) & ANGLE_MASK
 
 
+## Builds the shared lookup tables now, before any worker thread reads them.
+static func warm() -> void:
+	_ensure_sin_table()
+
+
 ## Builds the quarter-wave sine table with integer-only Taylor series (Q30),
 ## so every machine produces the identical table.
 static func _ensure_sin_table() -> void:

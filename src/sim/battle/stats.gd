@@ -9,6 +9,17 @@ extends RefCounted
 static var _defs: Dictionary = {}  # StringName -> StatDef
 
 
+## Fills the definition cache with every registered stat, so a battle run
+## on a worker thread (IntentForecast.job) only ever reads it.
+static func warm(rules: BattleRules) -> void:
+	if rules == null or rules.stats == null:
+		return
+	for id in rules.stats.ids():
+		var k := StringName(id)
+		if not _defs.has(k):
+			_defs[k] = rules.stats.find(id)
+
+
 static func def_of(state: BattleState, stat: StringName) -> StatDef:
 	var d: StatDef = _defs.get(stat)
 	if d == null:

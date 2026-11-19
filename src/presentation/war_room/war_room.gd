@@ -108,6 +108,13 @@ var _dirty: bool = false
 ## Engagement ID -> BattlePlanner, and -> its latest forecast.
 var planners: Dictionary = {}
 var _forecasts: Dictionary = {}
+## Planning forecasts run on a worker thread (sw-j4u), at most one per
+## battle: engagement ID -> {"task", "token", "out" (the result lands in
+## out["result"]), "again" (drafts changed meanwhile: forecast again)}.
+var _forecast_jobs: Dictionary = {}
+var _forecast_token: int = 0
+## Off: forecasts run at once on the main thread (it stalls ~0.1 s).
+var threaded_forecasts: bool = true
 ## Reactions queued this window: "eid,squad,trigger" -> reaction name.
 var _reacted: Dictionary = {}
 var _turn_seen: int = -1
@@ -221,6 +228,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	wait_forecasts()
 	if contexts != null and contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
 		contexts.camera_changed.disconnect(_on_camera_changed)
@@ -882,13 +890,65 @@ func _on_draft(eid: int) -> void:
 	if session.clock.phase == PulseClock.Phase.PLANNING:
 		_pending.erase(eid)
 		var errs := session.submit_battle_orders(player, eid, orders)
-		_forecasts[eid] = session.forecast_battle(player, eid, orders)
+		_forecast(eid, orders)
 		_note("%s orders: %s%s" % [battle_name(eid), _orders_text(orders), "" if errs.is_empty() else " - refused: " + "; ".join(errs)])
 	else:
 		_pending[eid] = true
 		_hud_note = "moves are locked until Planning: your drawn orders are queued"
 		_note("%s orders drawn in the %s phase (queued for Planning): %s" % [battle_name(eid), session.phase_name(), _orders_text(orders)])
 	_queue_refresh()
+
+
+## Forecasts a battle's drafts on a worker thread; the ghosts show when it
+## is done. A forecast already running for the battle runs once more
+## afterwards, with the drafts as they are then.
+func _forecast(eid: int, orders: Array) -> void:
+	if not threaded_forecasts:
+		_forecasts[eid] = session.forecast_battle(player, eid, orders)
+		return
+	if _forecast_jobs.has(eid):
+		_forecast_jobs[eid]["again"] = true
+		return
+	PerfRecorder.begin(&"forecast_snapshot")
+	var job := session.forecast_job(player, eid, orders)
+	PerfRecorder.end(&"forecast_snapshot")
+	if not job.is_valid():
+		_forecasts.erase(eid)
+		return
+	_forecast_token += 1
+	var token := _forecast_token
+	var out := {}
+	var task := WorkerThreadPool.add_task(func() -> void:
+		out["result"] = job.call()
+		_forecast_done.call_deferred(eid, token), false, "intent forecast")
+	_forecast_jobs[eid] = {"task": task, "token": token, "out": out, "again": false}
+
+
+## A forecast finished: its ghosts show, and if the drafts changed while it
+## ran, the battle is forecast again.
+func _forecast_done(eid: int, token: int) -> void:
+	var j: Dictionary = _forecast_jobs.get(eid, {})
+	if j.is_empty() or j["token"] != token:
+		return  # already collected by wait_forecasts
+	_forecast_jobs.erase(eid)
+	WorkerThreadPool.wait_for_task_completion(j["task"])
+	if not session.battles.has(eid) or session.clock.phase != PulseClock.Phase.PLANNING:
+		return
+	_forecasts[eid] = j["out"].get("result", {})
+	if j["again"] and planners.has(eid):
+		_forecast(eid, (planners[eid] as BattlePlanner).orders())
+	_show_main()
+
+
+## Waits for every running forecast and keeps its result. The turn must not
+## resolve while one runs, and tests use it to see the ghosts at once.
+func wait_forecasts() -> void:
+	for eid: int in _forecast_jobs.keys():
+		var j: Dictionary = _forecast_jobs[eid]
+		_forecast_jobs.erase(eid)
+		WorkerThreadPool.wait_for_task_completion(j["task"])
+		if session != null and session.battles.has(eid) and session.clock.phase == PulseClock.Phase.PLANNING:
+			_forecasts[eid] = j["out"].get("result", {})
 
 
 ## A new turn: forecasts and reactions start over; drafts too, except
@@ -1499,6 +1559,7 @@ func _end_turn() -> void:
 	if not _play.is_empty():
 		skip_playback()
 		return
+	wait_forecasts()
 	_hud_note = ""
 	_target = {}
 	_note("end turn (%s)" % session.phase_name())

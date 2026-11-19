@@ -353,6 +353,16 @@ func forecast_battle(player: int, engagement_id: int, orders: Array) -> Dictiona
 	return IntentForecast.run(b.state, _battle_sim, player, orders)
 
 
+## forecast_battle as a job for a worker thread (IntentForecast.job): an
+## invalid Callable when there is nothing to forecast. Callers must let it
+## finish before the turn resolves.
+func forecast_job(player: int, engagement_id: int, orders: Array) -> Callable:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if clock.phase != PulseClock.Phase.PLANNING or b == null or not b.state.players.has(player):
+		return Callable()
+	return IntentForecast.job(b.state, player, orders)
+
+
 ## Sends a squad from a staying commander's army into its battle.
 func reinforce(player: int, commander_id: int, squad_id: int) -> String:
 	var err := _planning(player)
