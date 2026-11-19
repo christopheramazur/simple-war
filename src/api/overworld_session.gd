@@ -603,8 +603,8 @@ func _run_battles() -> void:
 
 
 ## Runs one battle turn, keeping a frame per tick (and one before the
-## first): PLAYBACK_STRIDE ints per unit. Whatever hook the sim already has
-## still runs.
+## first): PLAYBACK_STRIDE ints per unit, and the turn's shot and hit traces
+## (BattleState.trace_shots). Whatever hook the sim already has still runs.
 func _record_turn(eid: int, b: OverworldBattle) -> void:
 	var frames: Array[PackedInt64Array] = []
 	var first_tick := b.state.tick
@@ -616,18 +616,36 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 			frames.append(_frame(st))
 	frames.append(_frame(b.state))
 	_battle_sim.tick_hook = capture
+	b.state.trace_shots = true
+	b.state.shot_trace = PackedInt64Array()
+	b.state.hit_trace = PackedInt64Array()
 	_battle_sim.execute_turn(b.state)
+	b.state.trace_shots = false
 	_battle_sim.tick_hook = was
+	var last := frames.size() - 1
 	var shots := []
 	for e in b.state.turn_log:
 		if e.type == &"squad_fired":
-			shots.append([clampi(e.tick - first_tick + 1, 0, frames.size() - 1), int(e.data["squad"]), int(e.data["target"])])
-	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames, "shots": shots}
+			shots.append([clampi(e.tick - first_tick + 1, 0, last), int(e.data["squad"]), int(e.data["target"])])
+	# Frame i holds the state after tick first_tick + i - 1, so what happened
+	# in a tick shows from the frame after it.
+	var volleys := []
+	var st := b.state.shot_trace
+	for o in range(0, st.size(), BattleState.SHOT_STRIDE):
+		volleys.append([clampi(st[o] - first_tick + 1, 0, last), st[o + 1], st[o + 2], st[o + 3] == 1])
+	var hits := []
+	var ht := b.state.hit_trace
+	for o in range(0, ht.size(), BattleState.HIT_STRIDE):
+		hits.append([clampi(ht[o] - first_tick + 1, 0, last), ht[o + 1], ht[o + 2], ht[o + 3]])
+	b.state.shot_trace = PackedInt64Array()
+	b.state.hit_trace = PackedInt64Array()
+	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames,
+		"shots": shots, "volleys": volleys, "hits": hits}
 
 
-const PLAYBACK_STRIDE: int = 7
-
-
+## Ints per unit in a playback frame: ID, squad, player, x, y, squad facing,
+## seen_by, template, HP, max HP, activity (BattleSession.ACT_* bits).
+const PLAYBACK_STRIDE: int = 11
 static func _frame(st: BattleState) -> PackedInt64Array:
 	var u := st.units
 	var sq := st.squads
@@ -636,7 +654,8 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 		var srow := sq.row_of(u.squad[row])
 		if srow < 0 or not sq.is_active(srow):
 			continue
-		f.append_array(PackedInt64Array([u.id_at(row), u.squad[row], sq.player[srow], u.x[row], u.y[row], sq.facing[srow], sq.seen_by[srow]]))
+		f.append_array(PackedInt64Array([u.id_at(row), u.squad[row], sq.player[srow], u.x[row], u.y[row], sq.facing[srow], sq.seen_by[srow],
+			u.tmpl[row], u.hp[row], u.hp_max[row], BattleSession.activity(st, row)]))
 	return f
 
 
@@ -644,9 +663,13 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 ## and as the player saw it (needs keep_playback): engagement ID ->
 ## {"rules" (BattleRules), "width", "height", "frames": one Dictionary per
 ## tick (the first is the turn's start), squad ID -> {"player", "facing",
-## "ids": unit IDs, "units": their points in metres}, "shots": [[frame, squad,
-## target]] where the player saw both ends}. A battle that ended this turn
-## is still here.
+## "ids": unit IDs, "units": their points in metres, "tmpls": unit template
+## IDs, "hp": HP fractions (0..1), "acts": activity bits (ACT_*)}, "shots":
+## [[frame, squad, target]] where the player saw both ends, "volleys":
+## [[frame, shooter unit, victim unit, hit]] every shot where the player saw
+## both units, landing (or passing) at that frame, and "hits": [[frame,
+## victim unit, damage (fixed), by unit]] every hit on a unit the player saw}.
+## A battle that ended this turn is still here.
 func playback(player: int) -> Dictionary:
 	var out := {}
 	var me := BattleSquads.bit(player)
@@ -654,24 +677,46 @@ func playback(player: int) -> Dictionary:
 		var rec: Dictionary = _playback[eid]
 		if not (rec["players"] as PackedInt64Array).has(player):
 			continue
+		var r: BattleRules = rec["rules"]
 		var frames := []
+		# Per frame, the unit IDs the player saw.
+		var seen := []
 		for f: PackedInt64Array in rec["frames"]:
 			var squads := {}
+			var units := {}
 			for o in range(0, f.size(), PLAYBACK_STRIDE):
 				if f[o + 2] != player and f[o + 6] & me == 0:
 					continue
 				if not squads.has(f[o + 1]):
-					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": []}
-				(squads[f[o + 1]]["ids"] as Array).append(f[o])
-				(squads[f[o + 1]]["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
+					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": []}
+				var d: Dictionary = squads[f[o + 1]]
+				(d["ids"] as Array).append(f[o])
+				(d["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
+				var t := f[o + 7]
+				(d["tmpls"] as Array).append(r.unit_ids[t] if t >= 0 and t < r.unit_ids.size() else "")
+				(d["hp"] as Array).append(clampf(float(f[o + 8]) / maxf(float(f[o + 9]), 1.0), 0.0, 1.0))
+				(d["acts"] as Array).append(f[o + 10])
+				units[f[o]] = true
 			frames.append(squads)
+			seen.append(units)
 		var shots := []
 		for sh: Array in rec["shots"]:
 			var at: Dictionary = frames[sh[0]]
 			if at.has(sh[1]) and at.has(sh[2]):
 				shots.append(sh)
-		var r: BattleRules = rec["rules"]
-		out[eid] = {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots}
+		# A shot is shown when the player saw both units the tick before it
+		# (a victim it killed is gone from the frame it lands in).
+		var volleys := []
+		for v: Array in rec.get("volleys", []):
+			var at: Dictionary = seen[maxi(v[0] - 1, 0)]
+			if at.has(v[1]) and at.has(v[2]):
+				volleys.append(v)
+		var hits := []
+		for h: Array in rec.get("hits", []):
+			if (seen[maxi(h[0] - 1, 0)] as Dictionary).has(h[1]):
+				hits.append(h)
+		out[eid] = {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots,
+			"volleys": volleys, "hits": hits}
 	return out
 
 

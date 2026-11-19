@@ -127,7 +127,10 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			shots_total += 1
 			if state.fx_listening.has("attack"):
 				Effects.on_event(state, "attack", sq.id_at(row), u.id_at(urow), sq.id_at(trow), u.id_at(victim), Fixed.ONE)
-			if not _roll_hit(u, urow, acc):
+			var hit := _roll_hit(u, urow, acc)
+			if state.trace_shots:
+				state.shot_trace.append_array(PackedInt64Array([state.tick, u.id_at(urow), u.id_at(victim), 1 if hit else 0]))
+			if not hit:
 				continue
 			hits_total += 1
 			var dmg := base_dmg

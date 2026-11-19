@@ -82,6 +82,11 @@ var _hover_squad: int = -1
 ## how far through it (0..1); empty when the view shows the present.
 var _play: Dictionary = {}
 var _play_t: float = 0.0
+## The played-back turn's effects (sw-aba), built once per playback entry.
+var _fx: BattleFx
+var _fx_src: Dictionary = {}
+## Unit template ID -> white silhouette of its art, for hit flashes.
+var _silhouettes: Dictionary = {}
 ## What the last battle draw showed: [{"id", "c" (metres), "pts", ...}].
 var _shown: Array = []
 var _press_at: Vector2 = Vector2.ZERO
@@ -179,6 +184,9 @@ func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}) -> void:
 	_overlay = {"terrain": rec["rules"]}
 	_play = rec
 	_play_t = clampf(t, 0.0, 1.0)
+	if _fx == null or not is_same(_fx_src, rec):
+		_fx = BattleFx.from_playback(rec)
+		_fx_src = rec
 	_clear_hover()
 	queue_redraw()
 
@@ -522,7 +530,7 @@ func _draw_battle() -> void:
 			draw_line(to + Vector2(-4, 4), to + Vector2(4, -4), col, 1.5)
 			if pending:
 				draw_string(font, to + Vector2(6, -4), "queued", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SELECT)
-	if playing:
+	if playing and not _play.has("volleys"):
 		_draw_shots(pos)
 	var selected: Array = _overlay.get("selected", [])
 	var reactable: Dictionary = _overlay.get("reactable", {})
@@ -537,6 +545,8 @@ func _draw_battle() -> void:
 			var mark := "!" if q.is_empty() else ReactionRadial.glyph(q)
 			draw_arc(c, r + 7.0, 0, TAU, 20, SELECT, 1.5)
 			draw_string(font, c + Vector2(r + 6, -r - 4), mark, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, SELECT)
+	if playing and _fx != null:
+		_draw_fx(area, k, font)
 	_draw_fire_cues(font, pos, selected)
 	# What a selected reactable squad would react to: a line to each
 	# triggering enemy and a ring around it.
@@ -591,19 +601,28 @@ func _battle_squads() -> Array:
 					if to.has(sa["ids"][j]):
 						pts[j] = (pts[j] as Vector2).lerp(to[sa["ids"][j]], f - i)
 			var d: Dictionary = (info.get(id, {}) as Dictionary).duplicate()
-			d.merge({"id": id, "player": sa["player"], "facing": sa["facing"], "pts": pts, "alive": pts.size()}, true)
+			d.merge({"id": id, "player": sa["player"], "facing": sa["facing"], "pts": pts, "alive": pts.size(),
+				"uids": sa["ids"], "tmpls": sa.get("tmpls", []), "uhp": sa.get("hp", []), "acts": sa.get("acts", [])}, true)
 			out.append(d)
 	else:
 		var by := {}
 		for u: Dictionary in _obs.get("units", []):
 			if not by.has(u["squad"]):
-				by[u["squad"]] = []
-			(by[u["squad"]] as Array).append(Vector2(u["x"], u["y"]) / ONE)
+				by[u["squad"]] = {"pts": [], "uids": [], "tmpls": [], "uhp": [], "acts": []}
+			var b: Dictionary = by[u["squad"]]
+			(b["pts"] as Array).append(Vector2(u["x"], u["y"]) / ONE)
+			(b["uids"] as Array).append(u["id"])
+			(b["tmpls"] as Array).append(u.get("tmpl", ""))
+			(b["uhp"] as Array).append(clampf(float(u["hp"]) / maxf(float(u.get("hp_max", u["hp"])), 1.0), 0.0, 1.0))
+			(b["acts"] as Array).append(int(u.get("acts", 0)))
 		for sq: Dictionary in _obs.get("squads", []):
 			if sq.get("destroyed", false) or sq.get("withdrawn", false):
 				continue
 			var d := sq.duplicate()
-			d["pts"] = by.get(sq["id"], [Vector2(sq["x"], sq["y"]) / ONE])
+			if by.has(sq["id"]):
+				d.merge(by[sq["id"]], true)
+			else:
+				d["pts"] = [Vector2(sq["x"], sq["y"]) / ONE]
 			out.append(d)
 	for d: Dictionary in out:
 		var c := Vector2.ZERO
@@ -700,22 +719,44 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 	var dir := Vector2(cos(ang), sin(ang))
 	var front := 0.0
 	var top := c.y
+	var sprite: Texture2D = art.texture(String(d["template"])) if art != null and d.has("template") else null
+	var tmpls: Array = d.get("tmpls", [])
+	var arted := not compact and art != null and (sprite != null or (not tmpls.is_empty() and art.has_art(String(tmpls[0]))))
 	for p: Vector2 in d["pts"]:
 		var at := area.position + p * k
-		draw_circle(at, halo, Color(col, 0.22))
+		if not arted:  # unit art brings its own team-coloured shadow
+			draw_circle(at, halo, Color(col, 0.22))
 		front = maxf(front, (at - c).dot(dir))
 		top = minf(top, at.y)
-	var sprite: Texture2D = art.texture(String(d["template"])) if art != null and d.has("template") else null
-	var sz := clampf(ur * 3.6, 0.0, 26.0)
-	var per_unit := sprite != null and not compact and sz >= 10.0
-	if not per_unit:
-		for p: Vector2 in d["pts"]:
-			draw_circle(area.position + p * k, ur, col)
-	else:
-		for p: Vector2 in d["pts"]:
-			var at := area.position + p * k
+	# Each unit as its own art (sw-aba), on a team-coloured shadow, with
+	# its health bar and activity tray; a dot without art or when compact.
+	var sz := _unit_px(k, d["pts"])
+	var uids: Array = d.get("uids", [])
+	var uhp: Array = d.get("uhp", [])
+	var acts: Array = d.get("acts", [])
+	var playing := not _play.is_empty() and _fx != null
+	var tilt: Dictionary = _fx.recoil(_frame_f()) if playing else {}
+	var flash: Dictionary = _fx.flashes(_frame_f()) if playing else {}
+	var per_unit := false
+	var status := []
+	for j in (d["pts"] as Array).size():
+		var at := area.position + (d["pts"][j] as Vector2) * k
+		var tid := String(tmpls[j]) if j < tmpls.size() else ""
+		var tex: Texture2D = art.texture(tid) if art != null and not tid.is_empty() else null
+		if tex == null:
+			tex = sprite
+		if compact or tex == null:
 			draw_circle(at, ur, col)
-			draw_texture_rect(sprite, Rect2(at - Vector2(sz * 0.5, sz * 0.8), Vector2(sz, sz)), false)
+			continue
+		per_unit = true
+		var uid: int = uids[j] if j < uids.size() else -1
+		_draw_unit(tex, tid, at, sz, col, float(tilt.get(uid, 0.0)), float(flash.get(uid, 0.0)))
+		status.append([at + Vector2(0, -sz * 0.85 - 3.0), float(uhp[j]) if j < uhp.size() else -1.0, int(acts[j]) if j < acts.size() else 0])
+	# Bars over every sprite, so a neighbour never hides one.
+	for st: Array in status:
+		_draw_unit_status(st[0], sz, st[1], st[2])
+	if per_unit:
+		top -= sz * 0.85 + 5.0
 	# Facing: an arrow ahead of the front rank.
 	var side := dir.orthogonal() * (3.0 if compact else 5.0)
 	var base := c + dir * (front + halo + 2.0)
@@ -729,7 +770,7 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 	top -= halo + (5.0 if is_selected or marked else 0.0)
 	var text := "%s %d/%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0))]
 	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, TEXT if is_selected or marked else Color(TEXT, 0.75))
-	if sprite != null and not per_unit:  # too small per unit: one badge by the label
+	if sprite != null and not per_unit:  # no unit art: one badge by the label
 		var tw := minf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, 140.0)
 		draw_texture_rect(sprite, Rect2(Vector2(c.x - tw * 0.5 - 18, top - 21), Vector2(16, 16)), false)
 	var hp_max := float(d.get("hp_max", 0))
@@ -738,6 +779,145 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 		draw_rect(Rect2(Vector2(c.x - 15, top - 4), Vector2(30, 3)), Color(0, 0, 0, 0.6))
 		draw_rect(Rect2(Vector2(c.x - 15, top - 4), Vector2(30 * frac, 3)), Color("74d18a") if frac > 0.5 else BATTLE)
 	return r
+
+
+## A unit's art size in pixels at `k` pixels per metre: about 2.6 m, but
+## no wider than its squad's closest pair of units, so a rank stays legible.
+static func _unit_px(k: float, pts: Array = []) -> float:
+	var gap := INF
+	for i in pts.size():
+		for j in range(i + 1, pts.size()):
+			gap = minf(gap, (pts[i] as Vector2).distance_to(pts[j]))
+	return clampf(minf(k * 2.6, gap * k * 1.15), 10.0, 30.0)
+
+
+## One unit's art standing at `at` (its feet), tilted by `tilt` radians
+## about its feet (recoil), on a team-coloured shadow; `flash` (0..1) rings
+## it in yellow-white and brightens it (a hit).
+func _draw_unit(tex: Texture2D, tmpl: String, at: Vector2, sz: float, col: Color, tilt: float, flash: float) -> void:
+	draw_set_transform(at, 0.0, Vector2(1.0, 0.45))
+	draw_circle(Vector2.ZERO, sz * 0.42, Color(col, 0.85))
+	draw_set_transform(at, tilt, Vector2.ONE)
+	var rect := Rect2(Vector2(-sz * 0.5, -sz * 0.85), Vector2(sz, sz))
+	var sil := _silhouette(tmpl, tex) if flash > 0.0 else null
+	if sil != null:
+		var ring := Color(1.0, 0.95, 0.55, flash)
+		for o: Vector2 in [Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(0, -1.5), Vector2(0, 1.5)]:
+			draw_texture_rect(sil, Rect2(rect.position + o, rect.size), false, ring)
+	draw_texture_rect(tex, rect, false)
+	if sil != null:
+		draw_texture_rect(sil, rect, false, Color(1.0, 1.0, 0.85, 0.45 * flash))
+	draw_set_transform(Vector2.ZERO)
+
+
+## A unit's art as a white silhouette (cached per template), or null.
+func _silhouette(tmpl: String, tex: Texture2D) -> Texture2D:
+	var key := tmpl if not tmpl.is_empty() else str(tex.get_rid())
+	if _silhouettes.has(key):
+		return _silhouettes[key]
+	var img := tex.get_image()
+	var sil: Texture2D = null
+	if img != null:
+		img = img.duplicate()
+		if img.is_compressed():
+			img.decompress()
+		img.convert(Image.FORMAT_RGBA8)
+		for y in img.get_height():
+			for x in img.get_width():
+				img.set_pixel(x, y, Color(1, 1, 1, 1.0 if img.get_pixel(x, y).a > 0.15 else 0.0))
+		sil = ImageTexture.create_from_image(img)
+	_silhouettes[key] = sil
+	return sil
+
+
+## Activity tray colours: moving, attacking, reloading.
+const ACT_COLORS: Array = [Color("9fd0ff"), Color("ff9a5c"), Color("f2d25c")]
+
+
+## A unit's status row centred over `at`: its health bar (`hp` 0..1, < 0
+## for unknown) with its activity tray to the right (BattleSession.ACT_*).
+func _draw_unit_status(at: Vector2, sz: float, hp: float, acts: int) -> void:
+	var w := clampf(sz * 0.7, 8.0, 18.0)
+	var x := at.x - w * 0.5
+	if hp >= 0.0:
+		var bar := Rect2(Vector2(x, at.y - 1.0), Vector2(w, 2.0))
+		draw_rect(bar.grow(0.75), Color(0, 0, 0, 0.75))
+		var hc := Color("74d18a") if hp > 0.6 else (Color("e6c450") if hp > 0.3 else BATTLE)
+		draw_rect(Rect2(bar.position, Vector2(w * hp, bar.size.y)), hc)
+	var g := 4.0
+	var cx := x + w + 2.0 + g * 0.5
+	for i in 3:
+		if acts & (1 << i) == 0:
+			continue
+		var c := Vector2(cx, at.y)
+		draw_rect(Rect2(c - Vector2(g * 0.5 + 1, g * 0.5 + 1), Vector2(g + 2, g + 2)), Color(0, 0, 0, 0.65))
+		_activity_glyph(i, c, g * 0.5, ACT_COLORS[i])
+		cx += g + 3.0
+
+
+## Tiny activity marks: a chevron (moving), a crosshair (attacking), a
+## turning arrow (reloading).
+func _activity_glyph(i: int, c: Vector2, r: float, col: Color) -> void:
+	match i:
+		0:
+			draw_polyline(PackedVector2Array([c + Vector2(-r * 0.6, -r), c + Vector2(r * 0.6, 0), c + Vector2(-r * 0.6, r)]), col, 1.2)
+		1:
+			draw_arc(c, r * 0.75, 0, TAU, 10, col, 1.0)
+			draw_line(c + Vector2(-r, 0), c + Vector2(r, 0), col, 1.0)
+			draw_line(c + Vector2(0, -r), c + Vector2(0, r), col, 1.0)
+		2:
+			draw_arc(c, r * 0.8, -PI * 0.5, PI, 8, col, 1.2)
+			draw_line(c + Vector2(0, -r * 0.8), c + Vector2(r * 0.5, -r * 1.2), col, 1.2)
+			draw_line(c + Vector2(0, -r * 0.8), c + Vector2(r * 0.5, -r * 0.3), col, 1.2)
+
+
+## The playback moment as a frame index (float).
+func _frame_f() -> float:
+	return _play_t * float(maxi((_play.get("frames", []) as Array).size() - 1, 0))
+
+
+## The played-back turn's effects (sw-aba): units just killed toppling and
+## fading, projectiles in flight, and floating damage and "miss" text.
+func _draw_fx(area: Rect2, k: float, font: Font) -> void:
+	var f := _frame_f()
+	var sz := _unit_px(k, [Vector2.ZERO, Vector2(2.5, 0)])
+	if not compact:
+		for d: Dictionary in _fx.dying(f):
+			var tid := String(d["tmpl"])
+			var tex: Texture2D = art.texture(tid) if art != null and not tid.is_empty() else null
+			var at := area.position + (d["pos"] as Vector2) * k
+			var fade: float = d["fade"]
+			if tex != null:
+				draw_set_transform(at, (1.0 - fade) * 1.2, Vector2.ONE)
+				draw_texture_rect(tex, Rect2(Vector2(-sz * 0.5, -sz * 0.85), Vector2(sz, sz)), false, Color(1, 0.7, 0.6, fade))
+				draw_set_transform(Vector2.ZERO)
+			else:
+				draw_circle(at, 3.0, Color(BATTLE, fade))
+	for p: Dictionary in _fx.projectiles(f):
+		var col: Color = PLAYER_COLORS.get(p["player"], TEXT)
+		var head := area.position + (p["at"] as Vector2) * k
+		var tail := area.position + (p["tail"] as Vector2) * k
+		if not area.has_point(head):  # a miss leaving the field
+			continue
+		var a: float = p["alpha"]
+		draw_line(tail, head, Color(col.lightened(0.5), 0.55 * a), 1.0 if compact else 2.0)
+		draw_circle(head, 1.5 if compact else 3.5, Color(col.lightened(0.3), 0.35 * a))
+		draw_circle(head, 1.0 if compact else 2.0, Color(1.0, 0.97, 0.8, a))
+	if compact:
+		return
+	for t: Dictionary in _fx.floaters(f):
+		var rise: float = t["rise"]
+		var at := area.position + (t["at"] as Vector2) * k
+		var miss: bool = t["miss"]
+		var fs := 10 if miss else 13
+		var stack := float(t["stack"])
+		var text: String = t["text"]
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var pos := Vector2(at.x - w * 0.5 + stack * 5.0, at.y - sz - 12.0 - rise * 14.0 - stack * 9.0)
+		var a := 1.0 if rise < 0.6 else 1.0 - (rise - 0.6) / 0.4
+		var col := Color(0.78, 0.8, 0.84, 0.8 * a) if miss else Color(1.0, 0.86, 0.35, a)
+		draw_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 3, Color(0, 0, 0, 0.8 * a))
+		draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
 ## Zones: who holds each and how far its control has built.

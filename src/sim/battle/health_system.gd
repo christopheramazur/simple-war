@@ -72,6 +72,8 @@ func _drain(state: BattleState, q: PackedInt64Array, tally: Dictionary, pairs: A
 		var vid := u.id_at(victim)
 		var tid := sq.id_at(trow)
 		var by_unit := q[o + Health.Q_BY_UNIT]
+		if state.trace_shots and dealt > 0:
+			state.hit_trace.append_array(PackedInt64Array([state.tick, vid, dealt, by_unit]))
 		if killed:
 			state.commands.despawn(&"unit", vid)
 			if enemy:

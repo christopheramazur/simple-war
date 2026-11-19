@@ -45,6 +45,16 @@ var fx_had_mods: bool = false
 ## Derived cache, rebuilt every tick by Centroids: squad row -> unit rows.
 ## Not state: never hashed or saved.
 var squad_units: Dictionary = {}
+## Presentation trace (sw-aba), off unless a viewer asks: when `trace_shots`,
+## combat appends every shot (SHOT_STRIDE: tick, shooter unit, victim unit,
+## hit 0/1) to `shot_trace`, and health every hit applied (HIT_STRIDE: tick,
+## victim unit, damage dealt to HP and temp HP, by unit) to `hit_trace`.
+## Write-only for the sim: never read by a system, hashed or saved.
+var trace_shots: bool = false
+var shot_trace: PackedInt64Array = PackedInt64Array()
+var hit_trace: PackedInt64Array = PackedInt64Array()
+const SHOT_STRIDE: int = 4
+const HIT_STRIDE: int = 4
 
 
 func _init(context_id: int, battle_rules: BattleRules, seed_value: int = 0) -> void:

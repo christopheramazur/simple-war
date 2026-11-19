@@ -240,7 +240,10 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 	for row in u.count():
 		if not visible.has(u.squad[row]):
 			continue
-		units.append({"id": u.id_at(row), "squad": u.squad[row], "x": u.x[row], "y": u.y[row], "hp": u.hp[row]})
+		var ut := u.tmpl[row]
+		units.append({"id": u.id_at(row), "squad": u.squad[row], "x": u.x[row], "y": u.y[row], "hp": u.hp[row],
+			"hp_max": u.hp_max[row], "tmpl": rules.unit_ids[ut] if ut >= 0 and ut < rules.unit_ids.size() else "",
+			"acts": activity(state, row)})
 		# A squad's range is its longest weapon's among living units.
 		var w := u.weapon[row]
 		if w >= 0 and rules.wp_range[w] > by_id[u.squad[row]]["range"]:
@@ -284,6 +287,26 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 		"squads": squads, "units": units, "zones": zones, "scores": scores, "events": events,
 		"result": state.result.duplicate(true),
 	}
+
+
+## Activity bits of observed units and playback frames (sw-aba).
+const ACT_MOVING: int = 1
+const ACT_ATTACKING: int = 2
+const ACT_RELOADING: int = 4
+
+
+## A unit's activity bits: moving this tick, attacking (fired this tick or
+## waiting out its cooldown) and reloading.
+static func activity(st: BattleState, row: int) -> int:
+	var u := st.units
+	var a := 0
+	if u.moving[row] == 1:
+		a |= ACT_MOVING
+	if u.reload[row] > 0:
+		a |= ACT_RELOADING
+	elif u.cooldown[row] > 0 or u.fired_tick[row] == st.tick:
+		a |= ACT_ATTACKING
+	return a
 
 
 ## The inspection window's data for one squad (Inspection), in any phase.
