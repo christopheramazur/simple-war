@@ -1,0 +1,38 @@
+{
+	"id": "war_room",
+	"row": [
+		{
+			"id": "battle",
+			"kind": "column",
+			"style": "BattleColumnPanel",
+			"width": 290,
+			"views": ["battle"],
+			"scroll": ["battle_panel"]
+		},
+		{
+			"id": "stage",
+			"kind": "stage",
+			"layers": [
+				{"id": "map", "anchor": "full_rect", "offsets": [0, 0, 0, -62]},
+				{"id": "pips", "anchor": "full_rect"},
+				"radial",
+				{"id": "hud", "anchor": "bottom_wide", "offsets": [8, 0, -8, -4], "grow": "up"},
+				{"id": "outcome_banner", "anchor": "center_top", "offsets": [0, 16, 0, 0]},
+				{"id": "phase_banner", "anchor": "top_wide", "offsets": [60, 56, -60, 0]}
+			]
+		},
+		{
+			"id": "side",
+			"kind": "column",
+			"style": "SideColumnPanel",
+			"gap": "ListGap",
+			"width": 250,
+			"min_width": 220,
+			"max_width": 640,
+			"width_setting": "side_width",
+			"grip": true,
+			"scroll": ["battles_title", "battles", "commanders_title", "commanders", "commander", "orders", "reactions", "events"],
+			"footer": ["end_turn", "replay_controls", "tools", "main_menu"]
+		}
+	]
+}

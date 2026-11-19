@@ -46,11 +46,6 @@ extends Control
 ## session. The demo handles it itself.
 signal end_turn_requested
 
-const SIDE_W: float = 250.0
-const SIDE_MIN: float = 220.0
-const SIDE_MAX: float = 640.0
-const BATTLE_W: float = 290.0
-const HUD_H: float = 62.0
 const PIP_SIZE: Vector2 = Vector2(240, 160)
 
 @export var player: int = 1
@@ -130,7 +125,8 @@ var _banner_text: Label
 var messages: PackedStringArray = PackedStringArray()
 var _log_turn: int = -1
 ## The left column shown in a battle: scores and the squad card.
-var _battle_col: PanelContainer
+## Where the panels are (data/ui/layouts/war_room.json).
+var layout: UiLayout
 var _battle_box: BattlePanel
 ## The squad whose card is shown (clicked), and the one under the cursor.
 var _inspected: int = -1
@@ -253,43 +249,27 @@ func _build_ui() -> void:
 	var bg := UiTheme.backdrop("ScreenBackgroundPanel")
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
-	var row := HBoxContainer.new()
-	row.set_anchors_preset(Control.PRESET_FULL_RECT)
-	row.theme_type_variation = &"NoGap"
-	add_child(row)
-	_battle_col = PanelContainer.new()
-	_battle_col.custom_minimum_size = Vector2(BATTLE_W, 0)
-	_battle_col.theme_type_variation = &"BattleColumnPanel"
-	var bscroll := ScrollContainer.new()
-	bscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# Every panel is built here and registered by id; where each goes is
+	# data (data/ui/layouts/war_room.json, UiLayout).
+	var panels := {}
 	_battle_box = BattlePanel.new()
 	_battle_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bscroll.add_child(_battle_box)
-	_battle_col.add_child(bscroll)
-	_battle_col.hide()
-	row.add_child(_battle_col)
-	var stage := Control.new()
-	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(stage)
+	panels["battle_panel"] = _battle_box
 	_terrain_colors = ContextView.feature_colors(session.templates)
 	_main = ContextView.new()
 	_main.terrain_colors = _terrain_colors
 	_main.art = ArtSet.core()
 	_main.commander_ids = session.rules.commander_ids
-	_main.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_main.offset_bottom = -HUD_H  # the status and hint lines sit under the view
 	_main.hex_clicked.connect(_on_hex_clicked)
 	_main.battle_pressed.connect(_on_battle_pressed)
 	_main.battle_box.connect(_on_battle_box)
 	_main.zoomed.connect(func(f: float) -> void: contexts.zoom_by(f))
 	_main.hex_hovered.connect(_on_hex_hovered)
 	_main.squad_hovered.connect(_on_squad_hovered)
-	stage.add_child(_main)
+	panels["map"] = _main
 	_pip_layer = Control.new()
-	_pip_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_pip_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(_pip_layer)
+	panels["pips"] = _pip_layer
 	_hover_card = PanelContainer.new()
 	_hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hover_card.theme_type_variation = &"HoverCardPanel"
@@ -303,55 +283,19 @@ func _build_ui() -> void:
 	_radial = ReactionRadial.new()
 	_radial.hide()
 	_radial.chosen.connect(_on_reaction_chosen)
-	stage.add_child(_radial)
+	panels["radial"] = _radial
 	_input = PlanningInput.new()
 	_input.command.connect(_on_command)
 	add_child(_input)
-	_hud = Label.new()
-	_hud.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_hud.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_hud.offset_left = 8
-	_hud.offset_right = -8
-	_hud.offset_bottom = -4
-	_hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hud.theme_type_variation = &"HudLabel"
+	_hud = UiTheme.label("", "HudLabel", true)
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage.add_child(_hud)
-	var side := PanelContainer.new()
-	side.custom_minimum_size = Vector2(clampf(float(GameSettings.value("side_width")) if use_settings else SIDE_W, SIDE_MIN, SIDE_MAX), 0)
-	var grip := Panel.new()
-	grip.name = "SideGrip"
-	grip.theme_type_variation = &"GripPanel"
-	grip.custom_minimum_size = Vector2(5, 0)
-	grip.mouse_default_cursor_shape = Control.CURSOR_HSIZE
-	grip.tooltip_text = "Drag to make the panel wider or narrower"
-	grip.gui_input.connect(func(e: InputEvent) -> void:
-		var mm := e as InputEventMouseMotion
-		if mm != null and (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-			side.custom_minimum_size.x = clampf(side.custom_minimum_size.x - mm.relative.x, SIDE_MIN, SIDE_MAX)
-		var mb := e as InputEventMouseButton
-		if mb != null and mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed and use_settings:
-			GameSettings.set_value("side_width", int(side.custom_minimum_size.x)))
-	row.add_child(grip)
-	side.theme_type_variation = &"SideColumnPanel"
-	row.add_child(side)
-	var side_col := VBoxContainer.new()
-	side_col.theme_type_variation = &"ListGap"
-	side.add_child(side_col)
-	var side_scroll := ScrollContainer.new()
-	side_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	side_col.add_child(side_scroll)
-	var col := VBoxContainer.new()
-	col.theme_type_variation = &"ListGap"
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	side_scroll.add_child(col)
-	col.add_child(_title("Battles"))
+	panels["hud"] = _hud
+	panels["battles_title"] = _title("Battles")
 	_menu = VBoxContainer.new()
-	col.add_child(_menu)
-	col.add_child(_title("Commanders"))
+	panels["battles"] = _menu
+	panels["commanders_title"] = _title("Commanders")
 	_cmds = VBoxContainer.new()
-	col.add_child(_cmds)
+	panels["commanders"] = _cmds
 	_commander_box = CommandPanel.new()
 	_commander_box.glossary = glossary
 	_commander_box.battleforce_chosen.connect(set_battleforce)
@@ -361,44 +305,36 @@ func _build_ui() -> void:
 	_commander_box.rally_requested.connect(rally)
 	_commander_box.supply_line_requested.connect(supply_line)
 	_commander_box.activity_requested.connect(set_activity)
-	col.add_child(_commander_box)
+	panels["commander"] = _commander_box
 	_orders_box = VBoxContainer.new()
-	col.add_child(_orders_box)
+	panels["orders"] = _orders_box
 	_reactions_box = VBoxContainer.new()
 	_reactions_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panels["reactions"] = _reactions_box
 	_log_box = VBoxContainer.new()
 	_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var stack := VBoxContainer.new()
-	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stack.add_child(_reactions_box)
-	stack.add_child(_log_box)
-	col.add_child(stack)
+	panels["events"] = _log_box
 	_banner = PanelContainer.new()
-	_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_banner.offset_top = 16
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner.theme_type_variation = &"BannerPanel"
 	_banner_text = UiTheme.label("", "HeadingLabel")
 	_banner.add_child(_banner_text)
 	_banner.hide()
-	stage.add_child(_banner)
+	panels["outcome_banner"] = _banner
 	_phase_banner = PanelContainer.new()
-	_phase_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_phase_banner.offset_top = 56
-	_phase_banner.offset_left = 60
-	_phase_banner.offset_right = -60
 	_phase_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_phase_banner.theme_type_variation = &"BannerPanel"
 	_phase_text = UiTheme.label("", "AccentLabel", true)
 	_phase_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_phase_banner.add_child(_phase_text)
 	_phase_banner.hide()
-	stage.add_child(_phase_banner)
+	panels["phase_banner"] = _phase_banner
 	var end := Button.new()
 	end.text = "End turn (Space)"
 	end.pressed.connect(func() -> void: end_turn_requested.emit())
-	side_col.add_child(end)
+	panels["end_turn"] = end
 	_end_button = end
+	panels["replay_controls"] = null
 	if replay != null:
 		end.text = "Next turn (Space)"
 		var watch := HBoxContainer.new()
@@ -418,7 +354,7 @@ func _build_ui() -> void:
 		side_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		side_pick.pressed.connect(view_next_player)
 		watch.add_child(side_pick)
-		side_col.add_child(watch)
+		panels["replay_controls"] = watch
 	var tools := HBoxContainer.new()
 	var controls := Button.new()
 	controls.text = "Controls"
@@ -437,12 +373,15 @@ func _build_ui() -> void:
 	save.pressed.connect(save_game)
 	save.disabled = replay != null
 	tools.add_child(save)
-	side_col.add_child(tools)
+	panels["tools"] = tools
+	panels["main_menu"] = null
 	if not menu_scene.is_empty() and ResourceLoader.exists(menu_scene):
 		var back := Button.new()
 		back.text = "Main menu"
 		back.pressed.connect(func() -> void: get_tree().change_scene_to_file.call_deferred(menu_scene))
-		side_col.add_child(back)
+		panels["main_menu"] = back
+	layout = UiLayout.build(UiLayout.spec("war_room", panels.keys()), panels, self, use_settings)
+	var stage: Control = layout.regions.get("stage", self)
 	ui = UiRoot.new()  # its own, last, so it draws and hears keys first
 	add_child(ui)
 	ui.open(_hover_win, stage)
@@ -469,7 +408,9 @@ func toggle_help() -> void:
 func _sync_ui_context() -> void:
 	if ui == null or contexts == null:
 		return
-	ui.context = &"playback" if not _play.is_empty() else (&"overworld" if contexts.focus == ViewContexts.OVERWORLD else &"battle")
+	var view := &"overworld" if contexts.focus == ViewContexts.OVERWORLD else &"battle"
+	layout.set_view(view)
+	ui.context = &"playback" if not _play.is_empty() else view
 
 
 func _clear(parent: Node) -> void:
@@ -513,7 +454,6 @@ func _refresh() -> void:
 	if not _play.is_empty():
 		_show_play()
 		return
-	_battle_col.visible = contexts.focus != ViewContexts.OVERWORLD
 	_show_main()
 	_refresh_pips()
 	_refresh_menu()

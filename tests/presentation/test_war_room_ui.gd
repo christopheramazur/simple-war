@@ -86,7 +86,7 @@ func test_the_squad_card_shows_strength_weapons_and_range() -> void:
 	w._on_battle_pressed(Vector2(sq["x"], sq["y"]) / float(Fixed.ONE), MOUSE_BUTTON_LEFT, false, false, false, false)
 	assert_eq(w.card_squad(), sq["id"])
 	await get_tree().process_frame
-	assert_true(w._battle_col.visible)
+	assert_true(w.layout.regions["battle"].visible)
 	assert_string_contains("\n".join(_texts(w._battle_box)), "Weapon range 40 m")
 	assert_eq(w._main.squad_at(Vector2(sq["x"], sq["y"]) / float(Fixed.ONE)), sq["id"])
 
