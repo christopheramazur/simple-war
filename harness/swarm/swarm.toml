@@ -3,7 +3,7 @@
 
 [run]
 end_at = "2026-11-24T13:00:00+00:00"   # 4 days from the start (2026-11-20 ~13:30 UTC)
-max_concurrent_turns = 3                # shared by orchestrator, workers, designers, researchers (auditor is outside it); Nous 429s at ~4
+max_concurrent_turns = 4                # shared by orchestrator, workers, designers, researchers (auditor is outside it); Nous 429s at ~4
 commit_every_s = 900                    # housekeeping: STATUS.md + commit docs/swarm
 
 [orchestrator]

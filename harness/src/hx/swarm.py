@@ -739,6 +739,16 @@ class Supervisor:
             ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
         _write(STATE / "supervisor.pid", str(os.getpid()))
         (STATE / "STOP").unlink(missing_ok=True)
+        for j in jobs():  # turns killed with a previous supervisor: run them again (the worktree keeps their commits)
+            if j["status"] == "running":
+                j["status"] = "queued"
+                save_job(j)
+        d = STATE / "research"
+        for p in d.glob("*.json") if d.exists() else []:
+            r = json.loads(p.read_text(encoding="utf-8"))
+            if r["status"] == "running":
+                r["status"] = "queued"
+                _write(p, json.dumps(r))
         log(f"supervisor start pid={os.getpid()} end_at={self.end.isoformat()}")
         event("supervisor_start", pid=os.getpid())
         threads = [threading.Thread(target=self._guard, args=(self.orchestrator_loop,), name="orchestrator"),
