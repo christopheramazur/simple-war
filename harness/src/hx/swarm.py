@@ -274,10 +274,12 @@ def merge_worker(bead: str) -> str:
                 raise ValueError(f"tests failed on the merged branch ({' '.join(c[-2:])}); main is untouched. "
                                  f"Send it back to a worker or reject it. Tail:\n" + (t.stdout + t.stderr)[-1500:])
         with file_lock("git"):
-            if git("status", "--porcelain", "--untracked-files=no").stdout.strip():
-                raise ValueError("main checkout has uncommitted tracked changes; try again later")
-            if git("merge", "--ff-only", j["branch"]).returncode:
-                continue  # main moved while we tested: merge it in and test again
+            ff = git("merge", "--ff-only", j["branch"])
+            if ff.returncode:
+                if git("merge-base", "--is-ancestor", "HEAD", j["branch"]).returncode:
+                    continue  # main moved while we tested: merge it in and test again
+                raise ValueError("fast-forward of main failed (uncommitted changes in the main checkout?): "
+                                 + (ff.stdout + ff.stderr)[-400:])
             p = git("push", "-q", "origin", "HEAD")
             git("worktree", "remove", "--force", j["worktree"])
             git("branch", "-D", j["branch"])
@@ -732,6 +734,9 @@ class Supervisor:
             self.wait(self.c["run"]["commit_every_s"])
 
     def run(self) -> None:
+        if sys.platform == "win32":  # keep the PC awake while the swarm runs (cleared when this process exits)
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)  # ES_CONTINUOUS | ES_SYSTEM_REQUIRED
         _write(STATE / "supervisor.pid", str(os.getpid()))
         (STATE / "STOP").unlink(missing_ok=True)
         log(f"supervisor start pid={os.getpid()} end_at={self.end.isoformat()}")
