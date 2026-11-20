@@ -1,6 +1,6 @@
 # Angelfall: story kin, themes, and tutorial framing — summary
 
-Status: draft by craft-researcher
+Status: reviewed by games-researcher
 Report: [../reports/angelfall-story-kin-themes-and-tutorial-framing-for-the-team.md](../reports/angelfall-story-kin-themes-and-tutorial-framing-for-the-team.md)
 
 ## What we looked at
@@ -17,7 +17,7 @@ Eight novels/games/films that share Simple War's themes (reality-as-a-fraying op
 ## What it means for Simple War
 - **Tutorial (GDD 06 §6.9, Vision release step 2):** the slice already has the New Alexandria shape — hangar zones as shuttle LZs, CR-0 robots that guard but can't board, blocking Angels as the "turrets" to clear. The report's recommended spine (open on Jeff's small local problem, teach routing/escort there, then widen to the spaceport) is input to the Angelfall rework and the narrative-pass interview (README Open topic 3) — options, not decisions.
 - **Jeff (GDD 06 §6.8):** the Bauman model is already canon (right about exactly one thing, wrong about everything else, seclusion if mishandled, relationship-gated auto-resolve line). Keep his comedy as coping under dread; never make him an oracle.
-- **Factions (GDD 06 §6.7):** three splinters = three moral loops over one shared roster (Frostpunk's same-systems-different-question trick); Brood War-style interludes carry cross-splinter beats; Lawbringers enter late as raid-boss allies, True Believers as the Duran-style betrayal.
+- **Factions (GDD 06 §6.7):** three splinters = three moral loops over one shared roster (Frostpunk's same-systems-different-question trick); Brood War-style interludes carry cross-splinter beats. Report option for the narrative pass, not canon: Lawbringers entering late as raid-boss allies, True Believers as a Duran-style betrayal (canon only says they are a campaign-only antagonist using Lawbringer assets).
 - **Theme delivery (GDD 06 §6.1, §6.8):** irreversible hardship choices plus an end-of-campaign report that states what the player's command became, without scoring it. Dispositions already live in the sim; this is narrative-pass territory — prepare options, user decides.
 - **Lore channels (Vision pillar 3, GDD 07):** glossary tooltips as the primary layer, unit/attack flavour second, optional hub scenes third, Jeff as diegetic summariser. Accept that opt-in depth means some players see none of it.
 
