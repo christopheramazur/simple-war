@@ -1,20 +1,21 @@
 # Swarm status
 
-Updated 2026-11-20 16:32 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-20 16:47 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 3, craft-researcher: 1, games-researcher: 2, lead-designer: 2, orchestrator: 6, tech-lead: 1, ux-art-director: 1 |
+| Turns per role | auditor: 4, craft-researcher: 1, games-researcher: 2, lead-designer: 3, orchestrator: 6, tech-lead: 1, ux-art-director: 1 |
 | Worker turns / research turns (24 h) | 4 / 2 |
 | Workers queued / running / awaiting review | - / - / - |
 | Merged / rejected (all time) | 1 / 0 |
-| Gateway calls last hour (rate-limited) | 77 (12) |
+| Gateway calls last hour (rate-limited) | 87 (11) |
 | Incidents | 0 postmortem(s) |
 
 ## Last audits
 - 2026-11-20T14:31:39+00:00 **WARN** auditor recorded no verdict
 - 2026-11-20T15:16:39+00:00 **WARN** auditor recorded no verdict
 - 2026-11-20T16:01:39+00:00 **WARN** auditor recorded no verdict
+- 2026-11-20T16:45:05+00:00 **WARN** Window 16:01-16:31 UTC: compliance clean, health poor. 54 gateway calls, all nous/qwen4-max (47 success, 7 Nous 429 = 13% rate-limited, normal); 1,207,502 prompt + 12,976 completion tokens; cost $0.00 for every caller; 65 swarm log banners 
 
 ## Recently merged
 - sw-aty (2026-11-20T13:49)
