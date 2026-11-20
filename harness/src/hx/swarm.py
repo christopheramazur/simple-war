@@ -203,6 +203,26 @@ def jobs() -> list[dict]:
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(d.glob("*.json"))] if d.exists() else []
 
 
+def fill_gitlinks(wt: Path) -> list[str]:
+    """Gitlink folders (GD-Agentic-Skills, addons/custom_graph_editor) are empty in a new worktree, and in the main
+    checkout they are plain folders without their own .git. Copy them in: a separate copy, never a link back."""
+    import shutil
+    done = []
+    for line in git("ls-files", "-s", cwd=wt).stdout.splitlines():
+        if not line.startswith("160000 "):
+            continue
+        path = line.split("\t", 1)[1]
+        src, dst = ROOT / path, wt / path
+        if not src.is_dir() or (dst.exists() and any(dst.iterdir())):
+            continue
+        try:
+            shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns(".git"))
+            done.append(path)
+        except OSError as e:
+            log(f"fill_gitlinks {path}: {e!r}")
+    return done
+
+
 def spawn_worker(bead: str, note: str = "") -> dict:
     if not re.fullmatch(r"[A-Za-z0-9._-]+", bead):
         raise ValueError("bad bead id")
@@ -226,6 +246,7 @@ def spawn_worker(bead: str, note: str = "") -> dict:
         if r.returncode:
             raise ValueError("worktree add failed: " + r.stderr[-300:])
         base = git("rev-parse", "HEAD").stdout.strip()
+    fill_gitlinks(wt)
     attempts = (j or {}).get("attempts", 0) + 1
     j = {"bead": bead, "status": "queued", "worktree": str(wt), "branch": branch, "base": base,
          "created": now().isoformat(timespec="seconds"), "attempts": attempts, "note": note,
