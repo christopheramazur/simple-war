@@ -58,7 +58,7 @@ def roster(tmp_path, monkeypatch):
     monkeypatch.setattr(providers, "PROVIDERS_FILE", cfg)
     monkeypatch.setenv("HX_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("HX_SECRETS_FILE", str(tmp_path / "s.env"))
-    for k in ("GROQ_API_KEY", "CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID"):
+    for k in ("GROQ_API_KEY", "CLOUDFLARE_API_KEY", "CLOUDFLARE_ACCOUNT_ID", "HX_GATEWAY_KEY"):
         monkeypatch.delenv(k, raising=False)
     yield providers.load()
     keyring.set_keyring(old)
