@@ -9,7 +9,7 @@ static var _rules_cache: BattleRules
 
 func _rules() -> BattleRules:
 	if _rules_cache == null:
-		var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 		_rules_cache = BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
 	return _rules_cache
 
@@ -218,7 +218,7 @@ func test_reaction_triggers_on_contact() -> void:
 
 func test_vacuum_only_at_or_above_threshold() -> void:
 	# The designer's example: CR 10 contested by CR 1 nets 9 a turn.
-	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	var r := BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
 	r.sq_cr[r.squad_index("heavy_weapons_team")] = 1
 	var s := BattleState.new(1, r, 1)

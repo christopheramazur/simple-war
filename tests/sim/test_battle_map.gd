@@ -9,11 +9,11 @@ static var _loader: PackageLoader
 
 func _l() -> PackageLoader:
 	if _loader == null:
-		_loader = PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	return _loader
 
 
-## The core package plus `maps` (id -> battle_map values) and a scenario
+## The fixture package plus `maps` (id -> battle_map values) and a scenario
 ## "t" made from duel_crossroads with `scenario` laid over it.
 func _table(maps: Dictionary, scenario: Dictionary) -> TemplateTable:
 	var defs := _l().defs.duplicate()
