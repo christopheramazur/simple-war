@@ -77,7 +77,7 @@ litellm_prefix = "openai/"
 models = [{ alias = "qwen4-max", model = "qwen/qwen4-max:free" }]
 monthly_budget_usd = 0
 hard_stop = true
-trains_on_data = true  # unless Privacy Mode is on (Account Settings → Privacy Settings → Privacy Mode)
+trains_on_data = false  # Privacy Mode is on (user confirmed 2026-11-20); it trains on prompts when off
 signup_url = "https://portal.nousresearch.com/login"
 key_url = "https://portal.nousresearch.com"
 steps = [
