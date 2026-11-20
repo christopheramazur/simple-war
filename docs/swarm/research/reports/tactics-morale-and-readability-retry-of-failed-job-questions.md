@@ -1,0 +1,79 @@
+# Tactics morale and readability
+Date: 2026-11-20. Requested by: craft-researcher.
+
+## Questions
+1. Which 6-10 squad-based tactics games/wargames are closest to Simple War (squads of several units, morale/pressure/rout, hex overworld feeding tactical battles, WeGo or pausable real-time)? Titles, systems, concrete numbers.
+2. How does each surface morale, pressure and rout risk (bars, icons, condition phrases, exact numbers), and which approaches keep rules transparent with no hidden randomness?
+3. What did players praise/criticise about combat readability and the overworld-to-battle loop, and which lessons transfer to several parallel battles with tab/tile swapping?
+
+## Short answer (5 lines)
+- Closest matches: HoMM3, Battle Brothers, Total War, Combat Mission, Close Combat, Wargame: Red Dragon, Dominions 6, Symphony of War.
+- The readable games use a small ladder of named states (3-9 rungs), not a raw number alone: Battle Brothers' 5 states and Wargame's 4 are the best models for "conditions, not vague labels".
+- Exact numbers live in tooltips/logs (Dominions 6, HoMM3), while the at-a-glance layer stays a word + icon; colour-only bars (Total War) are the accessibility trap.
+- Players praise visible triggers and replayable resolution (Combat Mission WeGo, Dominions logs); they criticise hidden aggregates (Total War army losses), unclear stat effects (Symphony of War) and unexplained routs (Dominions 6).
+- For parallel battles: per-tile worst-state summaries, threshold forecasts ("one bad hit from breaking"), a source-tagged pressure ledger, and configurable break alerts/auto-pause.
+
+## Findings
+
+### Q1 - Closest titles, systems and numbers
+1. **Heroes of Might and Magic III** (New World Computing, 1999). Stacks are squads of many creatures; hex overworld feeds hex battles. Morale is an integer -3..+3 per stack; good morale grants an extra action, bad morale freezes the turn. Exact per-turn chances: +1 = 4.2% (1/24), +2 = 8.3% (1/12), +3 = 12.5% (1/8); -1 = 8.3%, -2 = 16.7%, -3 = 25% (bad is twice as likely as good at equal magnitude). Modifiers are enumerable: Leadership +1..+3, same-town army +1, mixed towns -1..-5, undead in army -1, map objects (Rally Flag +1, Warrior's Tomb -3) until next battle. Undead/golems/elementals are immune. [1]
+2. **Battle Brothers** (Overhype, 2017). Hex overworld feeds hex tactical battles; a company of ~12-20 brothers, each an individual. Five morale states: Confident (+1), Steady (0), Wavering (-1), Breaking (-2), Fleeing (-3); undead are Unbreakable. Event-driven positive/negative morale checks roll against the Bravery/Resolve attribute; difficulty scales with how powerful and close the slain unit was. Fleeing units run and can rally back to Wavering. [2][3]
+3. **Total War (Rome II / Warhammer)** (Creative Assembly). Campaign map feeds pausable real-time battles of unit blocks. Morale = a hidden pool surfaced as a coloured banner bar (green healthy, yellow penalty, red wavering/about to break) plus tooltip state words; routing units flee and can be rallied by the general; "shattered" units cannot rally (e.g. after the general dies). Warhammer exposes a Leadership number and lists modifiers (recent losses, fatigue, flanking, army losses). [4][5]
+4. **Combat Mission (CMx2, e.g. Battle for Normandy)** (Battlefront). WeGo: plan orders, then watch a fixed turn resolve (commonly 60 s; not re-verified this session), replayable at leisure. Squads are teams of individual soldiers with their own tac-AI. Nine morale levels shown in the unit panel: OK, Cautious, Nervous, Rattled, Shaken, Panic, Broken, Surrender, Rout; suppression is a separate channel that makes men cower and raises morale-failure chance. [6][7]
+5. **Close Combat: The Bloody First** (Matrix/Slitherine, 2019). Pausable real-time; strategic campaign map feeds tactical battles of fire teams/squads. Suppression/pinning reduces rate and accuracy of fire; flanking drains morale fast. A realism setting picks troop morale: Fearless (never suppressed/panicked), Motivated, Cautious. [8]
+6. **Wargame: Red Dragon** (Eugen, 2014). Real-time (no pause in multiplayer); a deck is a battlegroup of squads/vehicles. Four morale states: Calm (100% effectiveness), Worried/Stressed (slightly lower), Panic (much lower, still fighting), Rout (flees, ignores orders). Driven by balance of power, fire intensity and recent losses; weapon "suppression" stats are visible in the armory. [9]
+7. **Dominions 6** (Illwinter, 2024). Province map feeds auto-resolved battles with a full combat log; squads are groups of units under a commander. Morale is a visible number; a check is squad-average morale + DRN (two open-ended dice) + survivor bonus (0-5) vs 14 + DRN; ties hold. Triggers: >=20% casualties since last check, <=4 units with one wounded, fear, or army at 50% HP lost (then every turn); at most one check per squad per turn. Army auto-routs at 75% HP lost. Routed squads flee to their map edge at -4 defence and scatter to adjacent provinces. Battles usually end by rout, not annihilation. [10]
+8. **Symphony of War: The Nephilim Saga** (Dancing Dragon, 2022). Overworld feeds auto-battler close-ups; squads of up to 9 units on a 15-tile formation grid, up to 20 squads deployed. Capacity = leader Leadership (first 5 units free; most units cost 10, 6th +2, 7th +4, 8th +6, 9th +8). Morale is tactical: encirclement and leader-targeting lower it; low morale makes a squad take more damage, high morale can grant bonus attacks; cavalry charges inflict morale-shattering Shock; low-morale outmatched enemies can be forced to surrender (removed from field, bonus rewards). [11][12]
+
+Adjacent (not full entries): Phoenix Point (geoscape feeds tactical missions; Will Points fund abilities and panic states) and Unity of Command II / Frozen Synapse (hex clarity and deterministic WeGo planning respectively) are worth a follow-up pass; their primary pages were not reachable this session.
+
+### Q2 - How morale/pressure/rout risk is surfaced
+- **Word + icon ladder at a glance, numbers on demand.** Battle Brothers shows a flag/state per brother; Wargame a state word on the unit card; Combat Mission a state word in the attributes panel. Dominions 6 and HoMM3 put the exact number and modifiers in the unit/hero screen, and Dominions logs every roll. This two-layer pattern (condition phrase for speed, exact math for depth) is exactly Simple War's "chosen verbosity" pillar. [2][9][6][10][1]
+- **Named states with defined effects.** Battle Brothers' dev blog states the design goal explicitly: a clear continuum of descriptive states so the player can act before a brother breaks and understand why anyone flees; each state has a defined combat effect. Wargame's four states each name an effectiveness level. These are "conditions, not vague labels" in practice. [2][9]
+- **Colour-only bars are the weak pattern.** Total War's banner bar is green/yellow/red with the state word only in a tooltip; the underlying pool and the army-losses aggregate (community-called "Combat Potential") are hidden, which players complain about. HoMM3's own manual misstates the morale probabilities (claims symmetric 1/24 per point); the community had to reverse-engineer the real table - a cautionary tale that displayed rules must equal used rules. [4][5][1]
+- **Separate channels need separate names.** Combat Mission players confuse morale with suppression because both degrade units; the wiki and forums spend effort disentangling them. Simple War's five SIMPL pools must not collapse into one generic "suppressed" icon. [6][7]
+- **Determinism vs dice.** None of the eight is fully deterministic: HoMM3, Battle Brothers and Dominions roll hidden dice for morale checks; Total War and Wargame hide pools. They stay *readable* by exposing states, triggers and (Dominions) every roll. Simple War can go further: replace the DRN/dice with visible deterministic accumulators and show the running total, which no comparator does. [1][2][10]
+
+### Q3 - Praise, criticism, and lessons for parallel battles
+- **Praised:** Battle Brothers' state ladder for being readable and actionable (dev goal, echoed by players); Combat Mission's WeGo-with-replay ("the best take on the WeGo system" - r/computerwargames); Dominions' blow-by-battle log and the community wiki's "Measured" claims (formulas verified over n=18,679+ logged checks); Symphony of War's squad loop and in-game reference manual (PC Gamer, 81/100). [2][6][10][11]
+- **Criticised:** Total War's hidden army-losses penalty and sudden rallies ("broken, routing" units turning "confident, eager" in seconds - Steam thread); Dominions 6 "units routed for no clear reason" (Steam) despite the log, because triggers are not surfaced at the moment of decision; Symphony of War's "precise effect of stats... aren't very clear" (PC Gamer); Combat Mission's morale/suppression confusion (Battlefront); Phoenix Point players losing time coordinating multiple geoscape squads because arrivals do not auto-pause or alert (Steam). [5][10][11][7][13]
+- **Transfer to several parallel battles with tab/tile swapping:**
+  1. Each battle tile needs a worst-state summary (the lowest SIMPL band across its squads) plus a trend, so a glance at the overworld tells you which battle needs attention - the Battle Brothers flag / Total War banner idea lifted to the battle level.
+  2. Threshold forecasts ("one bad hit from breaking", "breaks in ~2 ticks at current drain") turn the hidden pool into a decision aid; this is the readable part of Wargame/Dominions without their dice.
+  3. A source-tagged pressure ledger per battle (already GDD R6Q3) is the Dominions log done deterministically; filter it by verbosity.
+  4. Configurable alerts/auto-pause on band breaks and routs across battles answers the Phoenix Point multi-squad attention complaint; Combat Mission's replay is the model for catching up after swapping away.
+  5. Keep the overworld-to-battle loop tight like Symphony of War (manage -> fight -> manage) and carry consequences back (Dominions scatter/rally, HoMM map-object morale) so parallel battles feel connected, not isolated.
+
+## Relevance to Simple War
+- Vision pillars 1-3 (parallel play; transparent deterministic rules; conditions not vague labels) map directly onto the two-layer pattern above: named band conditions at a glance, exact math at chosen verbosity (`01 Vision and Pillars.md`, pillars 1-3; R2Q6, R5Q5).
+- Simple War's Morale is a *governor* pool, not damage-driven (`02 Rules Spec.md` "Morale: the governor", R4Q4: no direct damage link; five bands Surging/Primed/Neutral/Fraying/Broken per `07 Glossary.md` and decision-log R4Q4). So the closest mechanical analogues are the pressure/cohesion family (Wargame, Combat Mission suppression, Total War leadership) rather than HoMM3's extra-turn morale. The *readability* lessons still transfer from all eight.
+- The harness already measures band time, breaks and tropes (`05 Harness and AI Factory.md`); the "pressure cooker / seesaw / rout cascade" findings are the same phenomena players complained about in Total War and Dominions - surfacing them to the player is the readability fix.
+- Accessibility pillar (never colour alone) rules out Total War's colour-only banner; use word + icon + colour together.
+
+## Options and recommendations
+1. **Named-band ladder + threshold forecast (recommended).** Map the five SIMPL bands to defined condition phrases and show distance-to-next-band / ticks-to-break at higher verbosity. Trade-off: more text; mitigated by the verbosity setting and hover glossary. Models: Battle Brothers, Wargame.
+2. **Per-battle tile summary + trend.** Worst band + direction arrow + break countdown on each battle tile/tab. Trade-off: tile clutter; keep to one icon + one word. Models: Total War banner, Battle Brothers flags.
+3. **Deterministic pressure ledger + filtered log.** Every exchange source-tagged (R6Q3), replayable. Trade-off: log volume; default to band-change events, expand to full math. Model: Dominions 6 log + "Measured" verification.
+4. **Configurable break/rout alerts and optional auto-pause.** Trade-off: interrupts flow; off by default in ranked, on for accessibility. Models: Phoenix Point complaint, Combat Mission replay.
+5. **Distinct iconography per SIMPL pool.** Avoid one generic "suppressed" state. Trade-off: five icons to learn; teach via glossary. Model: Combat Mission confusion.
+6. **Overworld carryover (later).** Rout scatter/rally and persistent morale modifiers give the hex overworld stakes. Trade-off: scope; GDD already defers contagion/battle-event inputs (R5Q3), so keep this a post-MVP option. Models: Dominions 6, HoMM3.
+
+## Sources
+1. https://heroes.thelazy.net/index.php/Morale - HoMM3 wiki: exact morale probability table, named states, full modifier list; notes the manual's probability error.
+2. https://battlebrothersgame.com/dev-blog-20-bravery-morale/ - Overhype dev blog: morale design goals, five states and effects, event-driven checks vs Bravery.
+3. https://battlebrothers.fandom.com/wiki/Morale - wiki (search snippet; page 403): six states incl. Unbreakable, resolve-based checks.
+4. https://r2encv2.totalwar.com/en/manual/single-player/0087_enc_page_battle_play_phase_conflict_morale/index.html - official Rome II encyclopaedia: banner bar colours, routing, rallying, shattering.
+5. https://steamcommunity.com/app/594570/discussions/0/2266943550302453936/ - Steam "Leadership?": player confusion at sudden rallies; army-losses/CP discussed in r/totalwar "Army Losses".
+6. https://combatmission.fandom.com/wiki/Morale - wiki (search snippet; page 403): CMx2 nine morale levels OK..Rout; Suppression page shows cowering/posture.
+7. https://community.battlefront.com/topic/102770-morale-suppression-levels/ - Battlefront forum (403; snippet): players confusing morale vs suppression lists.
+8. https://www.magicgameworld.com/close-combat-the-bloody-first-basic-tactics-guide/ and .../realism-settings-guide/ - suppression/flanking tactics; Fearless/Motivated/Cautious morale settings.
+9. https://www.wargame-rd.com/en/rd-gameplay-morale.html - official Wargame RD site: four morale states and their effectiveness, morale drivers.
+10. https://dom6.wiki/mechanics/morale/ - Jake's Dominions 6 wiki (CC BY-SA 4.0): check formula, triggers, army rout, rout behaviour; "Measured" claims with sample sizes. Steam "Units routed for no clear reason" (app 2511500) for the criticism.
+11. https://www.pcgamer.com/symphony-of-war-the-nephilim-saga-review/ - PC Gamer 81/100: squad loop praise, morale/surrender mechanics, "precise effect of stats... aren't very clear".
+12. https://symphonyofwar.wiki.gg/wiki/Squad - official wiki: 9 units / 15 tiles, capacity = leadership with exact costs, squad types. Wikipedia confirms up to 20 squads.
+13. https://steamcommunity.com/app/839770/discussions/0/3463848715768131445/ - Phoenix Point Steam: no auto-pause/alert when a squad's flight arrives, losing time across squads.
+
+## Confidence and gaps
+- High: HoMM3 table, Battle Brothers states/goals, Wargame states, Dominions 6 formula, Symphony of War numbers (primary or well-corroborated sources).
+- Medium: Combat Mission nine states and Close Combat settings rest on search snippets / one guide because Fandom and Battlefront returned 403; the CM 60-second turn length is widely documented but was not re-verified here.
+- Gaps: Wargame's exact cohesion thresholds (wiki 403); Phoenix Point Will Point numbers (fextralife 404) - listed as adjacent, not a full entry; Total War Warhammer leadership modifier magnitudes are community-derived, not official. No source invented; unreachable pages are flagged.
