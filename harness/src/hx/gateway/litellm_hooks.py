@@ -20,6 +20,36 @@ from hx.gateway import budget, config
 SWARM_MODEL = "nous/qwen4-max"
 
 
+class Pacer:
+    """AIMD pacing of call starts for a provider with an adaptive fair-share limit (Nous, 2026-11-20):
+    four agents calling at once got ~90% 429s, so calls wait here instead of bouncing.
+    The gap between starts grows x1.6 on each 429 and shrinks x0.93 on each success."""
+
+    def __init__(self, gap: float = 4.0, lo: float = 2.0, hi: float = 90.0):
+        import asyncio
+        self.gap, self.lo, self.hi = gap, lo, hi
+        self.next_at = 0.0
+        self.lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        import asyncio
+        async with self.lock:
+            delay = self.next_at - time.monotonic()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self.next_at = time.monotonic() + self.gap
+
+    def ok(self) -> None:
+        self.gap = max(self.lo, self.gap * 0.93)
+
+    def limited(self) -> None:
+        self.gap = min(self.hi, self.gap * 1.6)
+        self.next_at = max(self.next_at, time.monotonic() + self.gap)
+
+
+PACED = {"nous"}
+
+
 def _caller(data: dict) -> str:
     """x-hx-caller from the request headers, wherever this LiteLLM version puts them."""
     for src in ((data.get("metadata") or {}).get("headers"), (data.get("proxy_server_request") or {}).get("headers")):
@@ -50,6 +80,7 @@ class HxHooks(CustomLogger):
         self.aliases = config.alias_map(self.roster)  # "groq/llama70b" -> "groq"
         self.tracker = budget.Tracker(self.roster)
         self.tracker.seed(budget.read_log())
+        self.pacers = {p: Pacer() for p in PACED}
 
     def _provider(self, model: str | None) -> str | None:
         return self.aliases.get(model or "")
@@ -71,6 +102,8 @@ class HxHooks(CustomLogger):
             budget.append_log({"ts": _now(), "provider": pid, "model_group": model, "status": "refused",
                                "error": d.reason})
             raise HTTPException(status_code=429, detail=d.reason)
+        if pid in self.pacers:
+            await self.pacers[pid].wait()
         return data
 
     def _row(self, kwargs, status: str) -> dict:
@@ -92,12 +125,17 @@ class HxHooks(CustomLogger):
     async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
         row = self._row(kwargs, "success")
         budget.append_log(row)
+        if row["provider"] in self.pacers:
+            self.pacers[row["provider"]].ok()
         if row["provider"]:
             self.tracker.record(row["provider"], time.time(),
                                 (row["prompt_tokens"] or 0) + (row["completion_tokens"] or 0), row["cost_usd"])
 
     async def async_log_failure_event(self, kwargs, response_obj, start_time, end_time):
-        budget.append_log(self._row(kwargs, "failure"))
+        row = self._row(kwargs, "failure")
+        budget.append_log(row)
+        if row["provider"] in self.pacers and "RateLimit" in (row["error"] or ""):
+            self.pacers[row["provider"]].limited()
 
 
 def _now() -> str:
