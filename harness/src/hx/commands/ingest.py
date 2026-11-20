@@ -118,14 +118,18 @@ def _import_ab_arms(con) -> int:
 def mark_gateway_duplicates(con) -> int:
     """OpenCode calls routed through our gateway are logged twice: by OpenCode (session attributed,
     source 'opencode-gateway') and by the gateway (no session). Mark the gateway copy 'gateway-dup'
-    so reports count each call once. Same model and output tokens; the gateway's prompt tokens are
-    OpenCode's input + cache read; timestamps within 2 minutes. Idempotent."""
+    so reports count each call once. Same model; the gateway's prompt tokens are OpenCode's input + cache
+    read; the gateway's completion tokens are OpenCode's output, plus its thinking tokens for reasoning
+    models (Qwen4 Max: OpenCode splits reasoning out, the gateway counts it); timestamps within 15 minutes
+    (the gateway logs at the end of a call, and paced providers queue calls first: gaps of 2-4 min seen
+    2026-11-20; exact token equality on both sides keeps the wide window safe). Idempotent."""
     return con.execute("""
         UPDATE call SET source = 'gateway-dup' WHERE call_id IN (
             SELECT g.call_id FROM call g JOIN call o
-              ON o.source = 'opencode-gateway' AND g.model = o.model AND g.output_tokens = o.output_tokens
+              ON o.source = 'opencode-gateway' AND g.model = o.model
+             AND g.output_tokens IN (o.output_tokens, o.output_tokens + coalesce(o.thinking_tokens, 0))
              AND g.input_tokens = o.input_tokens + o.cache_read_tokens
-             AND abs(epoch(g.ts) - epoch(o.ts)) <= 120
+             AND abs(epoch(g.ts) - epoch(o.ts)) <= 900
             WHERE g.client = 'gateway' AND g.source = 'gateway')""").fetchone()[0]
 
 

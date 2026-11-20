@@ -137,8 +137,15 @@ def test_gateway_copies_of_opencode_calls_are_marked(tmp_path):
          "ts": datetime(2026, 11, 1, 0, 0, 4), "input_tokens": 11336, "cache_read_tokens": 0, "output_tokens": 2},
         {**base, "call_id": "gw2", "client": "gateway", "source": "gateway",
          "ts": datetime(2026, 11, 1, 0, 0, 4), "input_tokens": 999, "cache_read_tokens": 0, "output_tokens": 2},
+        # a reasoning model: OpenCode splits 9 thinking tokens out of the output, the gateway counts all 13
+        {**base, "call_id": "oc-q", "session_id": "s", "client": "opencode", "source": "opencode-gateway",
+         "model": "nous/qwen4-max", "ts": datetime(2026, 11, 1, 0, 1, 0), "input_tokens": 9719,
+         "cache_read_tokens": 2304, "output_tokens": 4, "thinking_tokens": 9},
+        {**base, "call_id": "gw-q", "client": "gateway", "source": "gateway", "model": "nous/qwen4-max",
+         "ts": datetime(2026, 11, 1, 0, 1, 5), "input_tokens": 12023, "cache_read_tokens": 0, "output_tokens": 13},
     ])
     mark_gateway_duplicates(con)
     mark_gateway_duplicates(con)
     assert dict(con.execute("SELECT call_id, source FROM call").fetchall()) == \
-           {"oc": "opencode-gateway", "gw": "gateway-dup", "gw2": "gateway"}
+           {"oc": "opencode-gateway", "gw": "gateway-dup", "gw2": "gateway",
+            "oc-q": "opencode-gateway", "gw-q": "gateway-dup"}
