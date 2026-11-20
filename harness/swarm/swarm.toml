@@ -1,0 +1,48 @@
+# Qwen swarm cadence and limits (read by hx swarm on every loop; edits apply without a restart where noted).
+# The model is not configurable here on purpose: it is pinned in hx/swarm.py, opencode.json and the gateway.
+
+[run]
+end_at = "2026-11-24T13:00:00+00:00"   # 4 days from the start (2026-11-20 ~13:30 UTC)
+max_concurrent_turns = 3                # shared by orchestrator, workers, designers, researchers (auditor is outside it); Nous 429s at ~4
+commit_every_s = 900                    # housekeeping: STATUS.md + commit docs/swarm
+
+[orchestrator]
+pause_s = 90
+turn_timeout_s = 1800
+
+[workers]
+max_parallel = 2
+max_open = 4          # queued + running + finished-awaiting-merge
+timeout_s = 3600
+
+[audit]
+every_s = 1800
+window_min = 30
+turn_timeout_s = 900
+fail_streak = 2       # consecutive FAIL verdicts that stop the orchestrator (WARN never counts)
+max_postmortems_per_day = 3
+
+[designers]
+base = "designer"
+roles = ["lead-designer", "ux-art-director", "tech-lead"]
+every_s = 2700        # each designer gets a turn about every 45 min
+turn_timeout_s = 1500
+initial_delay_s = 120
+
+[researchers]
+base = "researcher"
+roles = ["games-researcher", "craft-researcher"]
+every_s = 3600
+turn_timeout_s = 1500
+initial_delay_s = 300
+
+[research]
+max_queued = 3
+timeout_s = 2400
+
+[retro]
+every_s = 43200       # twice a day
+turn_timeout_s = 1800
+
+[merge]
+test_timeout_s = 1500

@@ -1,0 +1,9 @@
+# Research agenda
+
+Shared backlog for the research leads (see `harness/swarm/roles/researcher.md`). Most valuable first.
+
+- [ ] Tactics games with mechanics like Simple War's: which squad-based tactics and wargames handle morale/pressure, squads of units, and overworld-to-battle loops well, and what made them readable? Questions: 1) Which 6-10 titles are closest, and why? 2) How does each surface morale/pressure to the player? 3) What did players praise and criticise? (added by user brief)
+- [ ] Stories with themes like the Narrative Bible's: which novels, games, films and comics share its setting and themes, and what structures (tutorial framing, faction arcs) worked? Questions: 1) Closest 6-10 works and the shared themes; 2) How tutorials/prologues introduce a world like Angelfall's; 3) Pitfalls to avoid. (added by user brief)
+- [ ] Art styles and assets for a "clear, easy to read, and accessible" tactics game: Questions: 1) Which games' visual styles are praised for readability at a glance, and what techniques do they share (silhouettes, palettes, outlines, icons)? 2) Which free asset packs (CC0 or permissive, commercial use allowed) fit, with URLs and licences? 3) Colour-blind-safe palette guidance for unit/team colours. (added by user brief)
+- [ ] Accessibility guidelines for turn-based tactics games: which items from the Game Accessibility Guidelines and Xbox Accessibility Guidelines apply, ranked by impact and cost for Simple War? (added by user brief)
+- [ ] Autonomous coding-agent teams: practices that raise merge rate and quality (task sizing, review gates, prompt structure, test-first), and what this swarm should adopt. (added by user brief)

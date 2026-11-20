@@ -32,6 +32,10 @@ def add_args(p) -> None:
 def run(args) -> Result:
     from hx import delegate
     r = Result("delegate")
+    import os
+    if os.environ.get("HX_SWARM"):  # swarm agents run on Qwen4 Max only; delegate could route anywhere
+        r.checks.append(Check("swarm", FAIL, "hx delegate is disabled inside the Qwen swarm; use hx swarm spawn / research"))
+        return r
     prompt = args.prompt if args.prompt is not None else sys.stdin.read()
     for f in args.input:
         prompt += f"\n\n--- {Path(f).name} ---\n" + Path(f).read_text(encoding="utf-8", errors="replace")

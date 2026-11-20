@@ -17,6 +17,32 @@ from hx import providers
 from hx.gateway import budget, config
 
 
+SWARM_MODEL = "nous/qwen4-max"
+
+
+def _caller(data: dict) -> str:
+    """x-hx-caller from the request headers, wherever this LiteLLM version puts them."""
+    for src in ((data.get("metadata") or {}).get("headers"), (data.get("proxy_server_request") or {}).get("headers")):
+        if isinstance(src, dict):
+            for k, v in src.items():
+                if k.lower() == "x-hx-caller":
+                    return str(v)
+    return ""
+
+
+def _logged_caller(kwargs: dict, md: dict) -> str | None:
+    """x-hx-caller for a finished call: LiteLLM versions keep request headers in different places."""
+    lp = kwargs.get("litellm_params") or {}
+    for d in (md, lp.get("metadata") or {}, kwargs.get("metadata") or {}):
+        if isinstance(d, dict) and d.get("hx_caller"):
+            return d["hx_caller"]
+    for data in (lp, kwargs, {"metadata": md}):
+        c = _caller(data if isinstance(data, dict) else {})
+        if c:
+            return c
+    return None
+
+
 class HxHooks(CustomLogger):
     def __init__(self):
         super().__init__()
@@ -31,6 +57,13 @@ class HxHooks(CustomLogger):
     async def async_pre_call_hook(self, user_api_key_dict, cache, data: dict, call_type):
         model = data.get("model")
         pid = self._provider(model)
+        caller = _caller(data)
+        if caller.startswith("swarm") and model != SWARM_MODEL:  # the Qwen swarm fails closed (harness/swarm)
+            budget.append_log({"ts": _now(), "provider": pid, "model_group": model, "status": "refused",
+                               "error": f"swarm caller {caller} may only use {SWARM_MODEL}", "caller": caller})
+            raise HTTPException(status_code=403, detail=f"swarm callers may only use {SWARM_MODEL}")
+        if caller and isinstance(data.get("metadata"), dict):
+            data["metadata"]["hx_caller"] = caller  # survives into the success/failure log row
         if pid is None:
             raise HTTPException(status_code=404, detail=f"unknown model {model!r}; see hx gateway status")
         d = self.tracker.check(pid, time.time())
@@ -53,7 +86,7 @@ class HxHooks(CustomLogger):
             "completion_tokens": s.get("completion_tokens"), "cost_usd": s.get("response_cost") or 0.0,
             "latency_s": round(end - start, 3) if isinstance(start, (int, float)) and isinstance(end, (int, float)) else None,
             "error": (err.get("error_message") or str(kwargs.get("exception") or ""))[:500] or None,
-            "caller": (md.get("headers") or {}).get("x-hx-caller") if isinstance(md.get("headers"), dict) else None,
+            "caller": _logged_caller(kwargs, md),
         }
 
     async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):

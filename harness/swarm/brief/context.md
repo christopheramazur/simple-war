@@ -1,0 +1,9 @@
+Facts about the environment this brief will run in (2026-11-20):
+
+- Project: "Simple War", a Godot 4.7 tactics game. Design authority is the GDD (`Game Design Document/`, 8 docs). Tasks live in beads (`bd` CLI, 223 issues, ~81 ready). Agent rules in `AGENTS.md`. Tests: `harness/bin/hx godot test`; harness tests `uv run --project harness pytest -q`.
+- The user's own coding agent is Claude Code on a paid subscription. Claude Code sessions cannot run on Qwen. Qwen4 Max (free, via Nous Portal, rate limits unpublished, ~5-35 s per call) is reachable only through the local LiteLLM gateway (127.0.0.1:4000) and driven as a tool-using agent by headless OpenCode: `opencode run --standalone --auto -m hx/nous/qwen4-max "<prompt>"`, optionally `--session <id>` to continue a session. One `opencode run` is one agent turn that may do many tool calls, then exits.
+- So a "long-running session" must be a supervisor process that re-invokes OpenCode turns in a loop, carrying state in files between turns. The supervisor will be a Python verb in the harness CLI (`hx swarm`), detached so it survives for 4 days.
+- Usage evidence available to an auditor: gateway logs per model (`harness/data/raw/gateway/*.jsonl`), `hx providers` (requests/tokens per provider today), `hx report` (Claude Code token spend from transcripts), the delegate log (`harness/data/raw/delegate/`), and git log authorship.
+- Other models that could leak in: `hx delegate` routes to Bonsai (local), Gemini, Groq, OpenRouter, or `claude -p` (paid subscription). Claude Code sessions started by the user also show in the ledger.
+- Several agents editing one git checkout at once will collide; git worktrees per worker avoid that.
+- The user is mostly away for 4 days. Pushing to origin is allowed; force-push and history rewrites are not. Spending money is never allowed.

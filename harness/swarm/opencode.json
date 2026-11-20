@@ -1,0 +1,48 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "bash",
+  "model": "hx/nous/qwen4-max",
+  "small_model": "hx/nous/qwen4-max",
+  "provider": {
+    "hx": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "hx gateway (swarm: Qwen4 Max free only)",
+      "options": {
+        "baseURL": "http://127.0.0.1:4000/v1",
+        "apiKey": "{env:HX_GATEWAY_KEY}",
+        "headers": {
+          "x-hx-caller": "swarm-{env:HX_SWARM_ROLE}"
+        }
+      },
+      "models": {
+        "nous/qwen4-max": {
+          "name": "Qwen4 Max (Nous, free)",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
+        }
+      }
+    }
+  },
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git push --force*": "deny",
+      "git push -f*": "deny",
+      "git push * --force*": "deny",
+      "git rebase*": "deny",
+      "git reset --hard*": "deny",
+      "git filter-branch*": "deny",
+      "git checkout main*": "deny",
+      "git switch main*": "deny",
+      "claude *": "deny",
+      "*hx delegate*": "deny",
+      "opencode *": "deny",
+      "*opencode-cli*": "deny",
+      "bd forget*": "deny",
+      "bd delete*": "deny",
+      "rm -rf /*": "deny"
+    }
+  }
+}

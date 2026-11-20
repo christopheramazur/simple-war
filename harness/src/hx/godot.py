@@ -9,7 +9,18 @@ _BIN_RE = re.compile(r"^Godot_v(?P<ver>[\w.\-]+?)-stable_win64(?P<console>_conso
 
 
 def binaries(root: Path) -> dict[str, Path]:
-    """Map 'editor'/'console' -> binary path for the newest version at repo root."""
+    """Map 'editor'/'console' -> binary path for the newest version at repo root.
+    A git worktree has no Godot binaries (they are untracked), so it falls back to the main checkout."""
+    found = _scan(root)
+    if not found:
+        from hx import paths
+        main = paths.main_root(root)
+        if main != root.resolve():
+            found = _scan(main)
+    return found
+
+
+def _scan(root: Path) -> dict[str, Path]:
     found: dict[str, tuple[str, Path]] = {}
     for p in root.glob("Godot_v*-stable_win64*.exe"):
         m = _BIN_RE.match(p.name)

@@ -26,6 +26,18 @@ def repo_root() -> Path:
         return HARNESS_ROOT.parent
 
 
+@cache
+def main_root(start: Path | None = None) -> Path:
+    """The main checkout (the parent of the shared .git dir), also when called from a git worktree."""
+    cwd = start or HARNESS_ROOT
+    try:
+        out = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                             cwd=cwd, capture_output=True, text=True, timeout=10, check=True)
+        return Path(out.stdout.strip()).resolve().parent
+    except (OSError, subprocess.SubprocessError):
+        return repo_root()
+
+
 def data_dir() -> Path:
     override = os.environ.get("HX_DATA_DIR")
     return Path(override) if override else HARNESS_ROOT / "data"
