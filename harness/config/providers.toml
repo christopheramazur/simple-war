@@ -68,6 +68,26 @@ steps = [
 notes = "Daily free-model cap is account-wide, resets midnight UTC. Keep the balance >= 0 or free models return 402. Sources: openrouter.ai/docs/faq, docs/guides/overview/auth/provisioning-api-keys. Key page path unverified."
 verified = "2026-10-31"
 
+[provider.nous]
+name = "Nous Portal (free :free models)"
+kind = "api"
+keys = ["NOUS_API_KEY"]
+base_url = "https://inference-api.nousresearch.com/v1"
+litellm_prefix = "openai/"
+models = [{ alias = "qwen4-max", model = "qwen/qwen4-max:free" }]
+monthly_budget_usd = 0
+hard_stop = true
+trains_on_data = true  # unless Privacy Mode is on (Account Settings → Privacy Settings → Privacy Mode)
+signup_url = "https://portal.nousresearch.com/login"
+key_url = "https://portal.nousresearch.com"
+steps = [
+  "Sign up at https://portal.nousresearch.com (Free plan; no top-up needed for :free models).",
+  "Account Settings → Privacy Settings → turn on Privacy Mode (otherwise prompts may be used for training).",
+  "Create an API key in the portal, then run: harness/bin/hx secrets set NOUS_API_KEY",
+]
+notes = "Qwen4 Max is free for a limited time (2026-11-20, no end date published); the paid id is qwen/qwen4-max. Free plan: 'Standard rate limits', no numbers published. Base URL and model id checked against GET /v1/models 2026-11-20; chat without a key returns 402. API-key page path not published."
+verified = "2026-11-20"
+
 [provider.gemini]
 name = "Google Gemini API (AI Studio free tier)"
 kind = "api"
