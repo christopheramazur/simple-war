@@ -45,7 +45,7 @@
 			"members": [{"unit": "engineer", "count": 4}]}},
 		{"id": "mortar_team", "parent": "humanity_squad", "values": {"icon": "unit_mortarman", "name": "Mortar team", "value": 105, "capture_rate": 5, "sight": 40, "legend_archetype": "sapper",
 			"formation": {"shape": "blob", "spacing": 3},
-			"members": [{"unit": "mortarman", "count": 2}, {"unit": "trooper", "count": 1}]}},
+			"members": [{"unit": "mortarman", "count": 3}]}},
 
 		{"id": "hf_militia", "parent": "rifle_squad", "values": {
 			"name": "Humanity First militia", "doctrine": "humanity_first", "value": 75,
