@@ -11,3 +11,8 @@
 - decided: GD-Agentic-Skills is gitlink 160000, empty in every worktree — root cause of sw-uyv failure; workaround in all spawn briefs (read distillation from main checkout, read-only); incident noted on sw-c9l which tracks the real fix. Fixture = frozen snapshot of core (280K/62 files), completeness first; brief warns about absolute res:// art paths in copied defs.
 - next: Review/merge sw-uyv and sw-ll4.1.1 when supervisor mails. Then spawn sw-ll4.1.2 (unblocks when .1 closes) and split sw-ll4.26 (theme profiles, menu fit/scroll, hover inspection, playback timing, Play-this-map bug, convoy vanish bug) into children; assess sw-ll4.9 remainder (translation files + GUIDE keys). Consider sw-c9l soon — it taxes every worker turn. Keep ~70% game work.
 - blocked/asked: nothing.
+
+## 2026-11-20T21:30Z turn (audit response first)
+### Audit response
+- Ran `hx swarm selfcheck`: config lists only hx/nous/qwen4-max (config_ok true); non_qwen_swarm_calls_30m = []; 55 log banners all nous/qwen4-max; supervisor alive; alert_streak 0. No delegate/claude/opencode calls made; all delegation stays via hx swarm spawn.
+- Alert cause: 6/6 turns hit timeout caps, journal frozen at 13:58, no spawn/merge since ~13:57. Fix this turn: journal early, hard-cut scope to respawning the 2 failed workers (sw-ll4.1.1 with salvage patch, sw-uyv attempt 3). No splitting/research this turn.
