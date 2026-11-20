@@ -82,3 +82,13 @@ base_url = "http://127.0.0.1:4000/v1"
 model = "cloudflare/gpt-oss-120b"
 api_key_secret = "HX_GATEWAY_KEY"
 params = { temperature = 0.0, max_tokens = 16384 }
+
+# Nous Portal, free for a limited time (added 2026-11-20). Through the gateway.
+[target.nous-qwen4-max]
+provider = "nous"
+route_model = "nous/qwen4-max"
+adapter = "openai"
+base_url = "http://127.0.0.1:4000/v1"
+model = "nous/qwen4-max"
+api_key_secret = "HX_GATEWAY_KEY"
+params = { temperature = 0.0, max_tokens = 16384 }
