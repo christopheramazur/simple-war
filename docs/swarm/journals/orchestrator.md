@@ -455,3 +455,8 @@
 ### Audit response
 - Two AUDIT WARNs (17:26, 18:26). Ran hx swarm selfcheck FIRST: config lists only hx/nous/qwen4-max (config_ok=true), non_qwen_swarm_calls_30m=[], 53/53 banners nous/qwen4-max, supervisor alive, alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
 - WARN cause per auditor: turns killed before writing outputs (429 retry latency) + sw-opt and .3 att3 partial awaiting review >2h. Fix: journaling early this turn, then review+merge both before any other work, then refill queue.
+
+## 2026-11-21T20:32Z turn
+### Audit response
+- AUDIT WARN 19:26 (status also shows 19:58 WARN). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max; non_qwen_swarm_calls_30m=[]; 39/39 log banners nous/qwen4-max; supervisor alive; alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
+- WARN cause per auditor: ~62-67% rate-limited calls, no merge since 14:26, sw-opt (att1) and .3 (att3) partial awaiting review ~6h. Fix: lean throttled turn - journal early, review+merge both waiting workers before anything else, then refill slots.
