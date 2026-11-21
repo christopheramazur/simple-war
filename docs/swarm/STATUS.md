@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 10:35 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 10:50 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 26, craft-researcher: 7, games-researcher: 8, lead-designer: 10, orchestrator: 26, tech-lead: 6, ux-art-director: 7 |
-| Worker turns / research turns (24 h) | 13 / 9 |
-| Workers queued / running / awaiting review | - / sw-ll4.26.2 / sw-0nl |
+| Turns per role | auditor: 26, craft-researcher: 7, games-researcher: 8, lead-designer: 10, orchestrator: 28, tech-lead: 6, ux-art-director: 7 |
+| Worker turns / research turns (24 h) | 14 / 9 |
+| Workers queued / running / awaiting review | - / sw-0nl / sw-ll4.26.2 |
 | Merged / rejected (all time) | 6 / 0 |
-| Gateway calls last hour (rate-limited) | 125 (17) |
+| Gateway calls last hour (rate-limited) | 172 (12) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 10:10 UTC **WARN** ([report](audits/20261121-1002.md)) |
+| Latest audit | 11-21 10:49 UTC **WARN** |
 
 ## Recently merged
 - sw-aty (2026-11-20T13:49)
@@ -23,6 +23,10 @@ Updated 2026-11-21 10:35 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 10:49 UTC **WARN**
+
+Audit 10:19-10:49 UTC: compliance clean - 126 gateway calls all nous/qwen4-max (116 success, 10 rate-limited failures, ~8% 429s), 176 log banners all qwen4-max, cost 0 USD, no delegate/Claude activity, zero turn failures. WARN on health: merge gap 07:07->10:49 ~3h42m with workers running exceeds the standing 2h clause; another merge_red this window. Positives: orchestrator root-caused the red gates (journal c213b2f), sw-0nl finished and attempt 2 queued 10:44, research active. Recommend: review/merge sw-0nl attempt-1 output promptly - a merge returns PASS.
 
 ### 11-21 10:10 UTC **WARN** ([report](audits/20261121-1002.md))
 
@@ -39,8 +43,4 @@ PASS: compliance clean in 08:04-08:34 window — 32 gateway calls all nous/qwen4
 ### 11-21 07:39 UTC **PASS** ([report](audits/20261121-0734.md))
 
 PASS: 07:04-07:34 window, 40 gateway calls all nous/qwen4-max (33 ok, 7 rate-limited 429s = 17.5%), ~1.78M prompt / 35k completion tokens, cost 0 USD; 59 model banners all qwen4-max; no hx delegate, no Claude activity. Health good: sw-ll4.26.1 WIP reviewed and merged 07:07 (merge gap 05:42->07:07 = 1h25m, inside 2h clause), sw-0nl spawned/queued 07:12, research job queued, orchestrator active (8 ok calls), zero turn failures. sw-ll4.26.2 running ~1h49m of its 2h cap, 13 ok calls with 11.3k completion tokens.
-
-### 11-21 06:59 UTC **PASS** ([report](audits/20261121-0655.md))
-
-PASS: 06:25-06:55 window, 43 gateway calls all nous/qwen4-max (orchestrator 14, lead-designer 12, sw-ll4.26.2 10, sw-ll4.26.1 4, games-researcher 3), 1.47M prompt / 33.6k completion tokens, cost 0 USD, 6 rate-limited failures (14 percent), 98 model banners all nous/qwen4-max, no hx delegate and no Claude activity. Zero turn failures. Health good: sw-ll4.26.1 finished attempt 1 (partial) and awaits review, sw-ll4.26.2 running, orchestrator active (13 ok calls, design-triage commit 959e72a). Last merge 05:42, about 73 min ago, inside the 2h clause. Recommend orchestrator review partial sw-ll4.26.1 promptly: merge salvageable work or respawn with root cause, not blind retry.
 
