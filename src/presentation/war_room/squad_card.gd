@@ -9,7 +9,8 @@ extends RefCounted
 ## per unit, and follows the shown moment during playback (moment()).
 ## SIMPL pools draw as five-segment meters with ticks at the band floors the
 ## observation carries (sw-1jy.3, GDD 02 §2.8): band icon + word always, the
-## exact percent only at higher verbosity; never colour alone.
+## exact percent and the points to the next lower band only at higher
+## verbosity (sw-1jy.4); never colour alone.
 ## A first, one-page form of the inspection window (Mocks/
 ## inspection_window.png); the tabs and per-stat traces are not built.
 
@@ -28,11 +29,11 @@ const BAND_ICONS: Dictionary = {
 ## `squad`: its entry in observe_battle's "squads". `insp`: inspect_battle's
 ## result ({} shows only what the observation has). `viewer`: the player
 ## looking. `tps`: ticks per second, for effect times. `verbose`: also show
-## value / capacity and the exact percent on the SIMPL meters, and the exact
-## tick counts on weapon timers. `ctx`: display context the caller resolves —
-## "rules" (BattleRules: range bands, damage types, timer totals),
-## "weapon_names" (weapon ID -> display name) and "target_name" (the engaged
-## squad's name, for the activity line).
+## value / capacity, the exact percent and the sim's points-to-drop on the
+## SIMPL meters, and the exact tick counts on weapon timers. `ctx`: display
+## context the caller resolves — "rules" (BattleRules: range bands, damage
+## types, timer totals), "weapon_names" (weapon ID -> display name) and
+## "target_name" (the engaged squad's name, for the activity line).
 static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 10, verbose: bool = false, ctx: Dictionary = {}) -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.theme_type_variation = &"CardGap"
@@ -421,6 +422,13 @@ static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: b
 	if verbose:
 		var pct_i := Fixed.round_div(int(pd["value"]) * 100, int(pd["capacity"])) if int(pd["capacity"]) > 0 else 0
 		text += " / %s  (%d%%)" % [Fixed.to_display(pd["capacity"]), pct_i]
+		# The distance is the sim's own arithmetic (sw-1jy.4), read here,
+		# never recomputed: how many points this pool can lose before the
+		# band drops. Broken has no lower band, so it adds nothing.
+		var drop := BattleRules.points_to_drop(int(pd["value"]), int(pd["capacity"]), PackedInt64Array(floors))
+		var bi := DataSchema.BANDS.find(band)
+		if drop >= 0 and bi > 0:
+			text += "  · %s to %s" % [Fixed.to_display(drop), _band_word(DataSchema.BANDS[bi - 1])]
 	row.add_child(_lbl(text, "CaptionDimLabel"))
 	return row
 

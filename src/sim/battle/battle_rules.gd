@@ -235,12 +235,40 @@ func facing_at(x: int, y: int) -> int:
 
 
 func band_of(value: int, capacity: int) -> int:
+	return band_for(value, capacity, band_floor_pct)
+
+
+## The band mapping as pure arithmetic on the same fixed-point values
+## (sw-1jy.4): read-only queries outside the sim call this instead of
+## recomputing pool math (GDD 02 §2.1, the displayed number is the used one).
+static func band_for(value: int, capacity: int, floors: PackedInt64Array) -> int:
 	var pct := Fixed.round_div(value * 100, capacity) if capacity > 0 else 0
 	var band := 0
-	for b in BANDS.size():
-		if pct >= band_floor_pct[b]:
+	for b in floors.size():
+		if pct >= floors[b]:
 			band = b
 	return band
+
+
+## The pool points `value` can lose before its band drops one step (sw-1jy.4,
+## GDD 01 pillar 3, 02 §2.8): the distance to the next lower band crossing,
+## in the sim's own fixed-point points. The smallest loss that drops the
+## band, found with band_for itself so the rounding can never diverge.
+## -1 when there is no lower band (Broken, or no capacity). Read-only
+## current-state arithmetic: no state, no RNG, no pending drains.
+static func points_to_drop(value: int, capacity: int, floors: PackedInt64Array) -> int:
+	var b := band_for(value, capacity, floors)
+	if b <= 0:
+		return -1
+	var lo := 0
+	var hi := value
+	while lo < hi:
+		var mid := (lo + hi) >> 1
+		if band_for(mid, capacity, floors) >= b:
+			hi = mid
+		else:
+			lo = mid + 1
+	return value - lo + 1
 
 
 ## Line of sight between two points: blocked when more than LOS_DEPTH

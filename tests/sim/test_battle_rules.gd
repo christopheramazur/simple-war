@@ -256,3 +256,37 @@ func test_band_of_follows_the_compiled_floors() -> void:
 		if floor_pct > 0:
 			assert_eq(r.band_of(Fixed.round_div((floor_pct - 1) * cap, 100), cap), b - 1,
 				"one percent below the %s floor" % DataSchema.BANDS[b])
+
+
+func test_points_to_drop_is_the_smallest_loss_that_drops_a_band() -> void:
+	# sw-1jy.4: the distance uses the same mapping as band_of, at any
+	# capacity, including the rounding edges. Check the crossing itself.
+	var r := _rules()
+	for cap: int in [100 * ONE, 200 * ONE, 333 * ONE, 7 * ONE]:
+		for pct: int in [0, 14, 15, 39, 40, 52, 64, 65, 89, 90, 100]:
+			var v := Fixed.round_div(pct * cap, 100)
+			var b := r.band_of(v, cap)
+			var d := BattleRules.points_to_drop(v, cap, r.band_floor_pct)
+			if b == 0:
+				assert_eq(d, -1, "Broken has no lower band (%d%% of %d)" % [pct, cap / ONE])
+				continue
+			assert_true(d >= 1, "a drop always costs at least one point")
+			assert_eq(r.band_of(v - d, cap), b - 1, "losing the distance drops one band")
+			assert_eq(r.band_of(v - d + 1, cap), b, "one point less stays in the band")
+	assert_eq(BattleRules.points_to_drop(50 * ONE, 0, r.band_floor_pct), -1, "no capacity reads as Broken")
+
+
+func test_points_to_drop_reads_the_given_floors() -> void:
+	# Custom floors, not the GDD defaults: the helper reads what it is given.
+	# FPDR rounds percent ties away from zero, so 49.5% still reads as 50%:
+	# the crossing sits half a percent below the floor, not at it.
+	var floors := PackedInt64Array([0, 20, 50, 80, 95])
+	var cap := 100 * ONE
+	assert_eq(BattleRules.points_to_drop(50 * ONE, cap, floors), ONE / 2 + 1,
+		"half a percent of rounding headroom, then one point")
+	var v := 52 * ONE
+	var d := BattleRules.points_to_drop(v, cap, floors)
+	assert_eq(d, 5 * ONE / 2 + 1, "52 -> below 49.5 crosses the 50 floor")
+	assert_eq(BattleRules.band_for(v - d, cap, floors), 1, "losing the distance drops one band")
+	assert_eq(BattleRules.band_for(v - d + 1, cap, floors), 2, "one point less stays in the band")
+	assert_eq(BattleRules.points_to_drop(19 * ONE, cap, floors), -1, "below the first floor is Broken")

@@ -27,3 +27,9 @@
 - decided: ranked recs = profile card with disclosed dials (aggression/caution/expansion mirroring MAP-Elites axes), ITB-style intent telegraph at reveal, difficulty via optimality/fuzz + timers + composition not stat buffs, anti-cheese guardrails (objective awareness, don't-repeat weighting), optional fully disclosed handicap slider kept off by default.
 - next: await next assignment via inbox.
 - blocked/asked: none. Gaps flagged: Reddit fetches blocked (6 snippet-only sources), TW difficulty numbers conflict across patches, AW CO-coded-AI claim single-forum unverified, ITB GDC PDF only snippet-readable.
+
+## 2026-11-21 ~13:45 UTC turn
+- did: report for games-researcher at docs/swarm/research/reports/map-editors-and-mod-scenes-that-keep-tactics-games-alive-war.md; 25 sources, 10 full reads (WG campaign-editor + scripted-events + spotlight-18 blogs, Wesnoth BuildingMaps/Distributing_content/PblWML wikis + addons index, KillHouse Workshop docs, DK2 Steam editor-guide transcript, ITB-ModLoader GitHub README).
+- decided: recs = Maps tab MVP order paint/stamps+one-click skirmish playtest > zones/deployment/victory > closed-vocab trigger UI > mirror toggle; defer cutscenes/campaign graph/elevation; package metadata copy Wesnoth _server.pbl (id/title/x.y.z/type/tags/deps/preview/feedback) + ruleset pin + headless-rendered preview PNG; sharing option B (export/import now, codes+featured row later, Workshop deferred with networking).
+- next: await next assignment via inbox.
+- blocked/asked: none. Gaps flagged: no editor usage telemetry anywhere (most-used/dead-weight is inference); subsetgames.com 403 both hosts (ITB mod list snippet-only, ~460k views); Wesnoth 1.18 addon list >5MB unfetchable (no exact count); WG Workshop-hub role vs built-in codes unverified (single blog).

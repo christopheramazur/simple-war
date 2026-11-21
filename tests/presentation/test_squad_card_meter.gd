@@ -136,3 +136,40 @@ func test_the_fill_follows_the_value_and_the_percent_is_verbose_only() -> void:
 	assert_string_contains(vtext, "(52%)", "the exact percent at higher verbosity")
 	assert_string_contains(vtext, "%s / %s" % [Fixed.to_display(Pools.value(st, _row, BattleSquads.MORALE)),
 		Fixed.to_display(Pools.capacity(st, _row, BattleSquads.MORALE))], "value / capacity")
+
+
+## The text label of one SIMPL meter row, found by its pool name label.
+func _meter_text(pool: String, verbose: bool) -> String:
+	for seg: Panel in _with_meta(_card(verbose), &"band"):
+		var row: Node = seg.get_parent().get_parent()
+		var first := row.get_child(0) as Label
+		if first != null and first.text == pool.capitalize():
+			return (row.get_child(row.get_child_count() - 1) as Label).text
+	return ""
+
+
+func test_verbose_shows_the_sim_distance_to_the_next_lower_band() -> void:
+	# sw-1jy.4: the displayed distance equals the sim helper's value (GDD 02
+	# §2.1, displayed = used); the card never does its own pool math.
+	var st := _session.state
+	var pcts: Array[int] = [52, 70, 22, 95, 44]
+	for p in DataSchema.SIMPL.size():
+		_set_pool(p, pcts[p])
+	var default_text := "\n".join(_texts(_card()))
+	for p in DataSchema.SIMPL.size():
+		var d := BattleRules.points_to_drop(Pools.value(st, _row, p), Pools.capacity(st, _row, p),
+			st.rules.band_floor_pct)
+		var b := Pools.band(st, _row, p)
+		var phrase := "%s to %s" % [Fixed.to_display(d), DataSchema.BANDS[b - 1].capitalize()]
+		assert_false(default_text.contains(phrase), "no distance at the default verbosity")
+		assert_string_contains(_meter_text(DataSchema.SIMPL[p], true), phrase,
+			"%s shows the sim-derived distance" % DataSchema.SIMPL[p])
+
+
+func test_a_broken_pool_has_no_distance_even_verbose() -> void:
+	_set_pool(BattleSquads.MORALE, 5)
+	var st := _session.state
+	assert_eq(Pools.band(st, _row, BattleSquads.MORALE), Pools.BROKEN)
+	assert_eq(BattleRules.points_to_drop(Pools.value(st, _row, BattleSquads.MORALE),
+		Pools.capacity(st, _row, BattleSquads.MORALE), st.rules.band_floor_pct), -1, "no lower band")
+	assert_false(_meter_text("morale", true).contains(" to "), "nothing below Broken")
