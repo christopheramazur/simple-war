@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-21 19:52 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 20:08 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-21 19:52 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 24 / 8 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.3, sw-opt |
 | Merged / rejected (all time) | 16 / 0 |
-| Gateway calls last hour (rate-limited) | 40 (28) |
+| Gateway calls last hour (rate-limited) | 42 (28) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 19:22 UTC **WARN** |
+| Latest audit | 11-21 19:58 UTC **WARN** |
 
 ## Recently merged
 - sw-0nl (2026-11-21T11:43)
@@ -25,6 +25,10 @@ Updated 2026-11-21 19:52 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 19:58 UTC **WARN**
+
+WARN — compliance clean: all 21 gateway calls nous/qwen4-max (ux-art-director 14, orchestrator 6, auditor 1), 32 banners clean, cost 0 USD, no delegate/Claude. Health poor: 15/21 calls rate-limited (71%), orchestrator turn killed rc -9 at 3600s, zero spawn/merge/reject events in window, no merge since 14:26 (5.5 h). Workers sw-opt and sw-ll4.27.3 stuck partial/awaiting-review 5+ h past cap. Orchestrator alive (2 successful calls) and workers awaiting review not idle, so WARN not FAIL. Recommend orchestrator merge the two awaiting-review workers before any new spawn, journal early, and diagnose why merges stall under 429 load.
 
 ### 11-21 19:22 UTC **WARN**
 
@@ -41,8 +45,4 @@ WARN - compliance clean: all 20 gateway calls in the 16:26-16:56 window are nous
 ### 11-21 17:05 UTC **WARN** ([report](audits/20261121-1656.md))
 
 WARN - compliance clean: all 20 gateway calls in the 16:26-16:56 window are nous/qwen4-max (orchestrator 9, lead-designer 11), 23 log banners clean, cost 0 USD, no hx delegate and no Claude activity. Health is poor: 13 of 20 calls rate-limited (65 percent, above the ~40 percent threshold; status page shows 33 of 40 in the last hour), zero swarm events in the window (no spawn/merge/reject), and no merge since sw-luo at 14:26 - 2.5 hours ago, 16 total. Workers sw-ll4.27.3 (3 attempts) and sw-opt (1 attempt) have sat partial/awaiting-review since ~14:30, past the 2 h worker cap; .3 has been stuck on a journal-only worker.md conflict since attempt 2. Orchestrator is alive (5 successful calls, ~136k tokens) and turn_failures is empty, so this is not a FAIL. Recommend mechanically resolving the .3 journal conflict (precedent: sw-ijp.5 att3) and reviewing sw-opt now, and pacing calls while Nous throttles. Prior audit 16:26 was WARN; conditions persist.
-
-### 11-21 16:26 UTC **WARN**
-
-auditor recorded no verdict
 
