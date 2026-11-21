@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 07:49 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 08:04 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 22, craft-researcher: 6, games-researcher: 8, lead-designer: 10, orchestrator: 22, tech-lead: 5, ux-art-director: 6 |
+| Turns per role | auditor: 23, craft-researcher: 6, games-researcher: 8, lead-designer: 10, orchestrator: 22, tech-lead: 5, ux-art-director: 6 |
 | Worker turns / research turns (24 h) | 11 / 7 |
 | Workers queued / running / awaiting review | sw-0nl / sw-ll4.26.2 / - |
 | Merged / rejected (all time) | 6 / 0 |
-| Gateway calls last hour (rate-limited) | 70 (11) |
+| Gateway calls last hour (rate-limited) | 70 (10) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 07:39 UTC **PASS** ([report](audits/20261121-0655.md)) |
+| Latest audit | 11-21 07:39 UTC **PASS** ([report](audits/20261121-0734.md)) |
 
 ## Recently merged
 - sw-aty (2026-11-20T13:49)
@@ -24,7 +24,7 @@ Updated 2026-11-21 07:49 UTC. Generation 1, audit alert streak 0. Supervisor run
 
 ## Last audits (newest first)
 
-### 11-21 07:39 UTC **PASS** ([report](audits/20261121-0655.md))
+### 11-21 07:39 UTC **PASS** ([report](audits/20261121-0734.md))
 
 PASS: 07:04-07:34 window, 40 gateway calls all nous/qwen4-max (33 ok, 7 rate-limited 429s = 17.5%), ~1.78M prompt / 35k completion tokens, cost 0 USD; 59 model banners all qwen4-max; no hx delegate, no Claude activity. Health good: sw-ll4.26.1 WIP reviewed and merged 07:07 (merge gap 05:42->07:07 = 1h25m, inside 2h clause), sw-0nl spawned/queued 07:12, research job queued, orchestrator active (8 ok calls), zero turn failures. sw-ll4.26.2 running ~1h49m of its 2h cap, 13 ok calls with 11.3k completion tokens.
 
