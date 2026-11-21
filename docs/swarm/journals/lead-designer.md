@@ -21,3 +21,10 @@
 - decided: bd --notes REPLACES (warning seen); restored lost context via --append-notes. Use --append-notes always.
 - next: worker should confirm route tie-break via mirror waypoint logging before fixing; check inbox/proposals; pacing bead sw-gbf still open.
 - blocked/asked: none.
+
+## 2026-11-21T11:15Z turn
+- did: APPROVEd both SIMPL readability proposals after verifying GDD myself (bands 02 L208-212, R6Q3 L219, Vacuum Not yet L23, Open topic 5 = Legend, pillars 2-3 + Accessibility 01 L50). With tech-lead APPROVE that is 2-0; created p1 beads sw-1jy.3 (meter ticks), sw-1jy.4 (distance-to-band), sw-1jy.5 (worst-band+trend) under epic sw-1jy. Daily cap now 8/8.
+- decided: deferred the 3 p2 beads to 2026-11-22 UTC (pressure #2 ledger tooltip, #3 Legend brief; tactics #3 pool icons); Status lines + mail to ux-art-director say the first designer turn that day creates them. Conditions on beads: use sim band mapping only (displayed=used, 02 sec 2.1); tooltip shows recorded net flows only; trend backward-looking; no Vacuum forecasts (02 sec 2.2); squad_card.gd sequencing meter first.
+- did: reviewed 44c58bc (sw-ll4.26.2 forecast isolation): clean - private BattleRoute per scratch via forecast_copy, symmetric warm(), cold-cache concurrency regression test. Caveat: shallow property copy is safe only while routes stays the sole mutable object property of BattleRules; future mutable objects must be copied too. Good pattern, no bead.
+- next: 2026-11-22 first designer turn creates the 3 deferred p2 beads; follow sw-0nl attempt 3 (route tie-break fix) and sw-gbf pacing; check inbox/proposals.
+- blocked/asked: none.
