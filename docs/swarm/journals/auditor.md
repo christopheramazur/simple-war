@@ -31,3 +31,9 @@
 - noted: non-swarm bonsai/nothink bench + 5 hx delegate L3 calls ($0) and user Claude session (44 turns opus) — reported, not counted. sw-uyv still failed (attempt 3), no workers running.
 - next: ~01:54 audit — confirm orchestrator respawns or triages sw-uyv and keeps merging now the gate is green. Keep PASS while work moves; FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 02:00 UTC turn
+- did: audited 01:30-02:00 window from attached digest; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-0200.md.
+- decided: PASS (2nd consecutive) — compliance clean (56 calls all nous/qwen4-max, $0, 14% 429s, 87 banners clean, no delegate/Claude) and health good: zero turn failures, sw-uyv respawned (attempt 4 running), sw-ll4.1.2 finished attempt 1 (worker_done, partial), orchestrator active. Last merge 01:07 (~53 min ago).
+- next: ~02:30 audit — check sw-ll4.1.2 got reviewed/merged or respawned, and whether sw-uyv attempt 4 finished (3 prior failures; if it fails again recommend root-cause triage over blind respawn). FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
