@@ -232,3 +232,27 @@ func test_vacuum_only_at_or_above_threshold() -> void:
 		amounts.append(s.zone_amount[z])
 	assert_eq(amounts, [9, 18, 17, 16, 15])
 	assert_eq(s.zone_owner[z], 1)
+
+
+func test_band_of_maps_percent_to_bands_at_the_gdd_boundaries() -> void:
+	# GDD 02 §2.8: each side of every band threshold, plus the extremes.
+	var r := _rules()
+	var cap := 100 * ONE
+	var cases: Array = [[0, "broken"], [14, "broken"], [15, "fraying"], [39, "fraying"],
+		[40, "neutral"], [64, "neutral"], [65, "primed"], [89, "primed"], [90, "surging"], [100, "surging"]]
+	for c: Array in cases:
+		assert_eq(DataSchema.BANDS[r.band_of(int(c[0]) * ONE, cap)], String(c[1]), "%d%% of capacity" % int(c[0]))
+	assert_eq(r.band_of(50 * ONE, 0), 0, "no capacity reads as Broken")
+
+
+func test_band_of_follows_the_compiled_floors() -> void:
+	# The mapping is driven by the compiled band_floor_pct (data-overridable),
+	# at any capacity: read the floors, never re-declare them here.
+	var r := _rules()
+	var cap := 200 * ONE
+	for b in DataSchema.BANDS.size():
+		var floor_pct := int(r.band_floor_pct[b])
+		assert_eq(r.band_of(Fixed.round_div(floor_pct * cap, 100), cap), b, "at the %s floor" % DataSchema.BANDS[b])
+		if floor_pct > 0:
+			assert_eq(r.band_of(Fixed.round_div((floor_pct - 1) * cap, 100), cap), b - 1,
+				"one percent below the %s floor" % DataSchema.BANDS[b])
