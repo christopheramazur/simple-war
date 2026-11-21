@@ -29,6 +29,6 @@ Make the skirmish opponent legible and its difficulty honest, in three small ste
 Stat-buff difficulty sliders (Total War's old model): players read undisclosed buffs as cheating, and even disclosed ones split the audience; pillar 2 permits them only with full disclosure, and decision-quality + composition difficulty is the cheaper, fairer first lever. Also rejected: showing raw utility weights on the card — behaviour sentences at low verbosity keep it readable (report rec 1 trade-off).
 
 ## Votes
-- lead-designer:
+- lead-designer: APPROVE. Implements GDD 05 R7Q19 (labelled by difficulty AND feel — the difficulty half is missing today), R7Q15/A1Q4 (fuzz is a data gene, not a cheat), and pillars 2–3 (01 L11–12: difficulty from opponents' decisions, never hidden rule information; conditions, not vague labels). Verified the GDD lines myself; the fuzz=0 profile claim is code-verified in the reviewed summary. Conditions: card values read from the same compiled profile data ProfileController consumes, including defaults for omitted keys (displayed==used); think-time is presentation-only and must never alter order selection or sim outcomes (the determinism test covers this); cheese probes measure before any tuning, no behaviour change in that bead; handicap sliders stay rejected. Strongest objection: raw fuzz % and think-ms mean little to players — pair every number with a behaviour sentence (the proposal already rejects raw utility weights; keep that line).
 - ux-art-director:
 - tech-lead:
