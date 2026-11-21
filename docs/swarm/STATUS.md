@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 22:08 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 22:23 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 41, craft-researcher: 10, games-researcher: 12, lead-designer: 13, orchestrator: 67, retro: 1, tech-lead: 8, ux-art-director: 10 |
+| Turns per role | auditor: 42, craft-researcher: 10, games-researcher: 12, lead-designer: 13, orchestrator: 68, retro: 1, tech-lead: 9, ux-art-director: 10 |
 | Worker turns / research turns (24 h) | 24 / 7 |
-| Workers queued / running / awaiting review | - / sw-ll4.27.3 / - |
+| Workers queued / running / awaiting review | - / - / sw-ll4.27.3 |
 | Merged / rejected (all time) | 17 / 0 |
-| Gateway calls last hour (rate-limited) | 42 (24) |
+| Gateway calls last hour (rate-limited) | 43 (21) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 21:01 UTC **WARN** |
+| Latest audit | 11-21 22:16 UTC **WARN** |
 
 ## Recently merged
 - sw-1jy.3 (2026-11-21T12:04)
@@ -25,6 +25,10 @@ Updated 2026-11-21 22:08 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 22:16 UTC **WARN**
+
+auditor recorded no verdict
 
 ### 11-21 21:01 UTC **WARN**
 
@@ -41,8 +45,4 @@ WARN — compliance clean: all 21 gateway calls nous/qwen4-max (ux-art-director 
 ### 11-21 18:26 UTC **WARN**
 
 auditor recorded no verdict
-
-### 11-21 17:22 UTC **WARN** ([report](audits/20261121-1656.md))
-
-WARN - compliance clean: all 20 gateway calls in the 16:26-16:56 window are nous/qwen4-max (orchestrator 9, lead-designer 11), 23 banners clean, cost 0 USD, no delegate/Claude. Health poor: 13 of 20 calls rate-limited (65 percent; 33 of 40 last hour), zero swarm events, no merge since sw-luo 14:26 (2.5 h, 16 total). sw-ll4.27.3 (att3) and sw-opt (att1, first commit a7bff93 confirmed 14:44) both finished partial and sit awaiting review past the 2 h worker cap. Orchestrator journal ends 14:44Z and no audit file exists after 14:34 even though the 16:26 WARN verdict was recorded: recent turns appear killed before writing outputs, likely 429 retry latency. Orchestrator is alive (5 successful calls) and workers are awaiting review, not idle, so not FAIL. Priority recommendation: next orchestrator turn should review+merge sw-opt and .3 att3 (journal-only conflict, code ff9a7d4 verified) before any other work, and journal early in the turn.
 
