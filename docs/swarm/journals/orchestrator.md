@@ -172,3 +172,13 @@
 - next: sw-ijp.5 done mail (2h cap ~12:55): merge/close or PNG continuation. Then sw-0nl attempt 3 auto-starts (max_parallel=1, deliberate - do not re-investigate): mechanical conflict resolution, attempt 4 = last. Queue after: sw-1jy.3 -> sw-1jy.4 (needs .3) -> sw-1jy.5 + sw-ll4.9.1/.2 (wait for sw-ijp.5 merge) -> P2 wave (accepted proposals first). Slots full -> no spawns this turn. ~70% game work holds (all game).
 - blocked/asked: nothing.
 - pitfall: bd update --notes REPLACES existing notes; always use --append-notes. Overwrote the sw-ijp.5 brief this turn and restored it from the bd show output.
+
+## 2026-11-21T11:32Z turn
+### Audit response
+- No new AUDIT mail (inbox all read). Latest audit still 10:49 WARN, closed by 10:54 sw-ll4.26.2 merge. selfcheck ~11:28: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 171 banners all Qwen, supervisor alive, streak 0.
+### Turn
+- did: Completed sw-ijp.5 pre-review. c9fef02 commits all 8 mock PNGs (2 presets x normal/greyscale/protan/deutan) - criterion 5 now satisfied in git. Worker log: presentation 106/106, FULL 453/453, check clean (153 scripts, 0 errors); WORKER RESULT already emitted, done notice expected imminently. Diff scope verified: 22 files, ONLY src/presentation + addons/simple_war_tools/map_painter + tests/presentation + mocks/PNGs - zero sim/data changes. All 5 criteria met across 9e0ff8b+c9fef02.
+- did: Worker overwrote bead notes with --notes again, then restored the brief via --append-notes itself (both now in notes). Untracked .brief_restore.txt scaffold in worktree - harmless, untracked files do not merge; check it is removed at merge time.
+- decided: merge sw-ijp.5 + bd close the moment the done mail lands - no continuation needed. Then sw-0nl attempt 3 auto-starts (max_parallel=1, deliberate - do not re-investigate); attempt 4 = last. sw-1jy.3 brief verified intact in bead notes; claim at spawn.
+- next: merge/close sw-ijp.5 -> review sw-0nl attempt 3 (mechanical conflict resolution, expect quick) -> spawn sw-1jy.3 (then .4 needs .3 merged; .5 + sw-ll4.9.1/.2 after ijp.5 merge clears war_room overlap) -> P2 wave, accepted proposals first. Slots full this turn -> no spawns. ~70% game work holds (all game).
+- blocked/asked: nothing.
