@@ -50,3 +50,8 @@
 - decided: sw-uyv's import/UID breakage was a one-off: its branch base predates f5b037a (user started tracking .uid files); worker repaired it itself (git archive main -- *.uid + copy main's .godot/uid_cache.bin, both gitignored/local). New worktrees branch from current main and get canonical .uid files, so no spawn-side fix needed; sw-7vh (needs-human) still tracks the guardrail env root fix. Kept supervisor WIP commit 7dd3959 in main history (no squash; no history rewrites).
 - next: review/merge sw-p70 when supervisor mails (acceptance: bare `uv run --project harness pytest -q` AND with PYTHONPATH=main/harness/src both 217 green; conftest sys.path pin). Then review sw-ll4.26.1. Queue after: sw-ll4.26.2 (convoy vanish, brief in notes), then sw-0nl (seat bias; lead-designer notes name the suspects: combat_system.gd:60-68 + ~190-215 row-order tie-breaks, zone_controller.gd:44-50 shared zone-list tie-break; acceptance = mirror-swap regression test; hit rolls are accumulators not RNG, so seed plumbing alone won't fix it). Keep ~70% game work.
 - blocked/asked: nothing.
+
+## 2026-11-21T05:50Z turn
+### Audit response
+- 05:03 WARN was merge-gap (02:06->05:03 no merges), not compliance. Resolved by events: sw-uyv merged 05:27 (closed), sw-p70 merged 05:42 (closed, 793ed29 conftest pin on main). Audit rec 1 (root-cause merge_red) was done last turn: PYTHONPATH bootstrap paradox, fixed by attempt 2. Rec 2/3 moot (sw-uyv merged green).
+- selfcheck: config_ok true, only hx/nous/qwen4-max; non_qwen_swarm_calls_30m=[]; 97 banners all nous/qwen4-max; supervisor alive; alert_streak 0. All delegation via hx swarm spawn only.
