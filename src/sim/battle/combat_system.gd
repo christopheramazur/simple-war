@@ -9,6 +9,10 @@ extends SimSystem
 ##   unit of the engaged squad in range and line of sight, and fires. An
 ##   indirect mode (mortars) needs no line of sight: the engaged squad is
 ##   already seen by its side, so a spotter's vision is enough.
+## - Reload and cooldown run in real time (GDD 02 §2.6, R6Q8): every living
+##   armed unit ticks both timers each tick, engaged or not, concurrently.
+##   Emptying a magazine sets both at once, so the gap to the next shot is
+##   max(reload, cooldown), not their sum.
 ## - Hits come from an accuracy accumulator: accuracy * proficiency (* Instinct
 ##   efficacy when firing on the move). No dice (R2Q6).
 ## - Every Nth hit is a crit (crit_every / crit_bonus_pct) (R5Q5).
@@ -29,6 +33,7 @@ func run(ctx: SimContext) -> void:
 	var sq := state.squads
 	for row in sq.count():
 		_engage(state, row)
+	_tick_timers(state)
 	for row in sq.count():
 		var target := sq.engaged[row]
 		if target < 0:
@@ -103,7 +108,9 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var w := u.weapon[urow]
 		if w < 0:
 			continue
-		if _tick_timers(u, urow, r):
+		# Readiness gate: the timer pass already ticked this tick; a timer
+		# that reached 0 means the unit may fire now. Never tick here too.
+		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
 		var is_moving := u.moving[urow] == 1
 		var m := r.pick_mode(w, is_moving)
@@ -166,24 +173,28 @@ static func _covered(u: BattleUnits, t: int, pending: Dictionary) -> bool:
 	return int(pending.get(t, 0)) >= u.hp[t]
 
 
-## Advances reload and cooldown; true while the unit can't fire this tick.
-func _tick_timers(u: BattleUnits, urow: int, r: BattleRules) -> bool:
-	if u.reload[urow] > 0:
-		var rl: PackedInt64Array = u.take_column(&"reload")
-		rl[urow] -= 1
-		var done := rl[urow] == 0
-		u.put_column(&"reload", rl)
-		if done:
-			var ammo: PackedInt64Array = u.take_column(&"ammo")
-			ammo[urow] = r.wp_magazine[u.weapon[urow]]
-			u.put_column(&"ammo", ammo)
-		return true
-	if u.cooldown[urow] > 0:
-		var cd: PackedInt64Array = u.take_column(&"cooldown")
-		cd[urow] -= 1
-		u.put_column(&"cooldown", cd)
-		return true
-	return false
+## Real-time weapon timers (GDD 02 §2.6): every living armed unit's reload
+## and cooldown tick down once per tick, concurrently, whether or not its
+## squad is engaged (holding fire or moving included). A reload reaching 0
+## refills the magazine. Row order and integer math keep it deterministic.
+func _tick_timers(state: BattleState) -> void:
+	var u := state.units
+	var r := state.rules
+	var rl: PackedInt64Array = u.take_column(&"reload")
+	var cd: PackedInt64Array = u.take_column(&"cooldown")
+	var ammo: PackedInt64Array = u.take_column(&"ammo")
+	for urow in u.count():
+		if u.hp[urow] <= 0 or u.weapon[urow] < 0:
+			continue
+		if rl[urow] > 0:
+			rl[urow] -= 1
+			if rl[urow] == 0:
+				ammo[urow] = r.wp_magazine[u.weapon[urow]]
+		if cd[urow] > 0:
+			cd[urow] -= 1
+	u.put_column(&"reload", rl)
+	u.put_column(&"cooldown", cd)
+	u.put_column(&"ammo", ammo)
 
 
 ## Nearest living target in range and sight, preferring ones whose queued

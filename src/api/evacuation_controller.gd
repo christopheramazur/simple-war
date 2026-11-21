@@ -6,8 +6,9 @@ extends RefCounted
 ##     a hangar (the control console) and stays there, out of the way.
 ##   - Civilian squads (templates in `civilians`) spread over the hangar
 ##     zones (zones whose ID starts with "hangar").
-##   - Every other squad escorts the civilians: attack-moves to the hangars
-##     in turn.
+##   - Every other squad escorts the civilians: it intercepts the nearest
+##     visible enemy while one is seen (screening the civilians from hunters),
+##     and otherwise attack-moves to the hangars in turn.
 
 var player: int
 var lead: String
@@ -44,6 +45,20 @@ func orders(obs: Dictionary) -> Array:
 			target = hangars[n % hangars.size()]
 			n += 1
 		else:
+			# Escorts screen the civilians: intercept the nearest visible
+			# enemy while one is seen, else press on to the hangars.
+			var foe := {}
+			var best_d := 0
+			for e: Dictionary in obs["squads"]:
+				if e["player"] == player or e["destroyed"] or e["withdrawn"]:
+					continue
+				var d := Fixed.distance(s["x"], s["y"], e["x"], e["y"])
+				if foe.is_empty() or d < best_d:
+					foe = e
+					best_d = d
+			if not foe.is_empty():
+				out.append({"squad": s["id"], "type": "attack", "target": foe["id"]})
+				continue
 			var to: Dictionary = hangars[n % hangars.size()]
 			n += 1
 			out.append({"squad": s["id"], "type": "attack_move", "x": to["x"], "y": to["y"]})
