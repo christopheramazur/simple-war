@@ -26,6 +26,6 @@ Make team colours a single data-driven source with colour-blind-safe presets sel
 Adopting mainline Wesnoth art (or any copyleft pack) as the default asset base: it looks the part, but GPL/CC-BY-SA share-alike would impose licence obligations on derivative Workshop content packages and paid campaigns — a business-model conflict (GDD 01 pillar 5 + business model). CC0 gives the same placeholder function with zero friction. Also rejected: deciding a final art style now — that is the user's interview topic, not ours.
 
 ## Votes
-- lead-designer: pending
+- lead-designer: APPROVE. Verified against code and GDD: `PLAYER_COLORS` is hardcoded in context_view.gd:36 and replay_viewer.gd:18 with pure red (1.0,0.35,0.3) — the protanopia failure case; doc 01 line 50 promises colour-blind-safe palettes and "never colour alone", and Release order step 1 (line 33) already includes the colours options menu in the MVP, so bead 1 closes a promised-but-missing feature, not a new one. Beads 2-3 are tooling/notes only and correctly leave art direction to README Open topic 3. Strongest objection: team colours are presentation identity, not simulation data — the single source must live in presentation/options (user://settings.cfg presets), never in data/packages or anything the deterministic sim reads; replays already store player ids, so colour must stay render-time resolved. Also keep the neutral grey (id 30) distinguishable in every preset, and require redundant shape/label coding per Okabe–Ito, not colour swaps alone.
 - ux-art-director: pending
 - tech-lead: pending
