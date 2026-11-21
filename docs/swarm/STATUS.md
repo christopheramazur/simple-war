@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-21 20:53 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 21:08 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-21 20:53 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 24 / 7 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.3 |
 | Merged / rejected (all time) | 17 / 0 |
-| Gateway calls last hour (rate-limited) | 41 (25) |
+| Gateway calls last hour (rate-limited) | 40 (24) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 19:58 UTC **WARN** ([report](audits/20261121-1956.md)) |
+| Latest audit | 11-21 21:01 UTC **WARN** |
 
 ## Recently merged
 - sw-1jy.3 (2026-11-21T12:04)
@@ -25,6 +25,10 @@ Updated 2026-11-21 20:53 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 21:01 UTC **WARN**
+
+WARN (throttle only, recovery underway) 20:26-20:56Z: 21 gateway calls all nous/qwen4-max (orchestrator 10, games-researcher 10, auditor 1), 23 log banners all nous/qwen4-max, cost 0 USD, no delegate or Claude activity, 0 turn failures. 12/21 calls rate-limited = 57% (25/41 = 61% last hour), above the ~40% WARN line; games-researcher took 7 of 10 as 429s. Progress resumed: sw-opt merged 20:42, first merge since 14:26 (17 total); orchestrator alive with 6 successful calls and no killed turn this window. Backlog: sw-ll4.27.3 att3 partial since 14:33, 6+ h awaiting review; no workers running or queued. Recommend: merge .3 att3 next turn, then spawn from ready beads; space out games-researcher calls.
 
 ### 11-21 19:58 UTC **WARN** ([report](audits/20261121-1956.md))
 
@@ -41,8 +45,4 @@ auditor recorded no verdict
 ### 11-21 17:22 UTC **WARN** ([report](audits/20261121-1656.md))
 
 WARN - compliance clean: all 20 gateway calls in the 16:26-16:56 window are nous/qwen4-max (orchestrator 9, lead-designer 11), 23 banners clean, cost 0 USD, no delegate/Claude. Health poor: 13 of 20 calls rate-limited (65 percent; 33 of 40 last hour), zero swarm events, no merge since sw-luo 14:26 (2.5 h, 16 total). sw-ll4.27.3 (att3) and sw-opt (att1, first commit a7bff93 confirmed 14:44) both finished partial and sit awaiting review past the 2 h worker cap. Orchestrator journal ends 14:44Z and no audit file exists after 14:34 even though the 16:26 WARN verdict was recorded: recent turns appear killed before writing outputs, likely 429 retry latency. Orchestrator is alive (5 successful calls) and workers are awaiting review, not idle, so not FAIL. Priority recommendation: next orchestrator turn should review+merge sw-opt and .3 att3 (journal-only conflict, code ff9a7d4 verified) before any other work, and journal early in the turn.
-
-### 11-21 17:05 UTC **WARN** ([report](audits/20261121-1656.md))
-
-WARN - compliance clean: all 20 gateway calls in the 16:26-16:56 window are nous/qwen4-max (orchestrator 9, lead-designer 11), 23 log banners clean, cost 0 USD, no hx delegate and no Claude activity. Health is poor: 13 of 20 calls rate-limited (65 percent, above the ~40 percent threshold; status page shows 33 of 40 in the last hour), zero swarm events in the window (no spawn/merge/reject), and no merge since sw-luo at 14:26 - 2.5 hours ago, 16 total. Workers sw-ll4.27.3 (3 attempts) and sw-opt (1 attempt) have sat partial/awaiting-review since ~14:30, past the 2 h worker cap; .3 has been stuck on a journal-only worker.md conflict since attempt 2. Orchestrator is alive (5 successful calls, ~136k tokens) and turn_failures is empty, so this is not a FAIL. Recommend mechanically resolving the .3 journal conflict (precedent: sw-ijp.5 att3) and reviewing sw-opt now, and pacing calls while Nous throttles. Prior audit 16:26 was WARN; conditions persist.
 
