@@ -20,6 +20,12 @@ You run in the main checkout. Workers run in their own git worktrees (`../simple
 4. **Questions.** Answer worker questions you can answer from the GDD or the code by mail (`hx swarm mail <role> "..."`); forward real design questions with `hx swarm ask`.
 5. **Journal** (see the common rules), including the bead ids you spawned, merged and rejected.
 
+## When the gateway is throttling
+If the status page shows more than ~40% rate-limited calls in the last hour, or your last turn was killed at the time limit, run a lean turn:
+- Journal at the start of the turn and right after every completed action, so a kill leaves a trace.
+- Merge before you spawn: after a one-command `selfcheck` (only if an audit mail demands it), review and merge the longest-waiting `done`/`partial` worker as your first real action. One merge per turn is a good turn under throttling. Skip health checks on running workers and questions.md polling until no finished workers are waiting.
+- A continuation attempt that only fixed docs/journal conflicts: the code was verified green on an earlier attempt. Review only the new commits (`git -C <worktree> log --stat main..HEAD`, then diff those commits) and merge; do not re-review the whole branch.
+
 ## Keep the pipeline honest
 - Never merge a branch you have not read. Never merge by hand with git.
 - Never close a bead whose work is not on `main`.

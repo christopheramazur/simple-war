@@ -132,3 +132,24 @@
 - decided: PASS — compliance clean (125 calls all nous/qwen4-max, 182 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), zero turn failures. Two merges in window: sw-ll4.27.2 13:40 and sw-1jy.4 13:50 (15 total). sw-1jy.4 respawn delivered 2 commits; WIP auto-commit f70ffdd was harness end-of-turn capture, merged fine.
 - next: ~14:32 audit — confirm sw-ll4.27.3 early commits (running since 13:41, cap ~15:41) and sw-luo spawns when the slot frees; sw-rlg brief pre-written. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 14:34 UTC turn
+- did: audited 14:04-14:34 window from digest + workers -v + orchestrator journal; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1434.md.
+- decided: PASS — compliance clean (162 calls all nous/qwen4-max, 219 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), 0 turn failures. sw-luo merged (16 total), findings routed to sw-ll4.10 notes + sw-opt (running since 14:27). .3 att1 code conflict -> att2 ff9a7d4 keeps both features 496/496 -> att3 queued for journal-only worker.md conflict; both merge aborts clean, targeted triage not blind loop.
+- noted: sw-opt 1 failed gateway call recovered without turn failure; designer ask sw-884.5 jitter unanswered since 14:14 (non-blocking, default recorded). Recommended filing swarm-harness bead for additive journal-conflict auto-resolution now, not at attempt 4.
+- next: ~15:04 audit — confirm .3 att3 journal-only merge lands and sw-opt first commit (orchestrator rechecks commitless at ~50 min); pipeline .3 -> sw-opt -> .6 -> P2 wave is full. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 16:56 UTC turn
+- did: audited 16:26-16:56 window from digest + orchestrator journal tail + audits dir; recorded WARN FIRST via hx swarm verdict (replaced once to add killed-turn evidence); wrote docs/swarm/audits/20261121-1656.md.
+- decided: WARN — compliance clean (20 calls all nous/qwen4-max, 23 banners, cost 0 USD, no delegate/Claude, 0 turn failures) but 65% 429s (33/40 last hour), zero events, no merge since 14:26 (2.5 h). sw-opt (a7bff93) and .3 att3 both partial/awaiting-review past 2 h cap. Orchestrator alive (5 ok calls), workers not idle -> not FAIL.
+- noted: orchestrator journal ends 14:44Z and no audit file after 14:34 despite 16:26 WARN recorded -> recent turns killed before writing outputs (429 latency). Recommended orchestrator merge sw-opt + .3 att3 before anything else and journal early; sw-2sq (journal-conflict harness bead) already filed 14:41.
+- next: ~17:26 audit — check sw-opt/.3 merges landed and orchestrator journal resumed. If still zero events + stale journal + workers stuck, consider FAIL for loop-without-effect (edge: workers awaiting review, not idle). Keep verdict-first order.
+- blocked/asked: none.
+
+## 2026-11-21 19:56 UTC turn
+- did: audited 19:26-19:56 window from digest + orchestrator journal/workers -v/killed-turn tail/bd ready; recorded WARN FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1956.md.
+- decided: WARN — compliance clean (21 calls all nous/qwen4-max, 32 banners, cost 0 USD, no delegate/Claude) but 71% 429s (15/21), orchestrator turn killed rc -9 @3600s, zero spawn/merge/reject, no merge since 14:26 (5.5 h). sw-opt (3 commits) + sw-ll4.27.3 (7 commits, att3) awaiting review 5+ h. Orchestrator alive+reviewing, workers not idle -> WARN not FAIL.
+- root cause: 429 latency makes each orchestrator turn time out mid-review before it can merge. Killed 18:43 turn was actively reviewing (still calling model at buzzer), not looping. Orchestrator self-correcting (selfcheck config_ok, merge-first plan, retro 18:57 throttle playbook) but nothing merged yet.
+- next: ~20:26 audit — did ONE merge land (sw-opt or .3 att3)? Recommended one-merge-per-turn + journal-immediately + throttle ux-art-director (14 calls/10 RL this window). If still zero merges + another killed turn, escalate toward FAIL for loop-without-effect. Keep verdict-first order.
+- blocked/asked: none. fail_streak=0 (WARNs do not increment). Several recent auditor turns recorded no verdict (same 429 latency) — write verdict+file early.
