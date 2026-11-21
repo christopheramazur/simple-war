@@ -173,6 +173,16 @@
 - blocked/asked: nothing.
 - pitfall: bd update --notes REPLACES existing notes; always use --append-notes. Overwrote the sw-ijp.5 brief this turn and restored it from the bd show output.
 
+## 2026-11-21T11:45Z turn
+### Audit response
+- No AUDIT mail. selfcheck ~11:33: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 187 banners all Qwen, supervisor alive, streak 0. Inbox: sw-ijp.5 done (prompt) + sw-0nl done 11:28 (read, moved to read/).
+### Turn
+- did: MERGED + CLOSED sw-ijp.5 (CVD team palette, main 18e2c57, gate green) and sw-0nl (mirror-duel seat bias, main 333a140, gate green). sw-0nl review: canonical-frame route/zone tie-breaks + caller-thread warm compose with main's forecast_copy isolation; mirror-swap regression 3/3, full 448/448 on branch; attempt 3 did exactly the briefed conflict resolution. 8 merged all-time, 0 rejected.
+- decided: sw-0nl win-rate 45-55% clause is conditional on sw-884.5 (unlanded) - appended the 20-run verification step to sw-884.5 notes (file a new bug if outside range) instead of holding sw-0nl open.
+- did: spawned sw-1jy.3 (segmented SIMPL meter, attempt 1 RUNNING since 11:44; brief in bead notes, stale sw-ijp.5 warning corrected via --append-notes) and queued sw-1jy.5 (worst-band per battle tab, attempt 1; observe_battle pointers verified from proposal, scoped away from squad_card.gd). Slots full (max_parallel=1 deliberate - do not re-investigate).
+- next: review sw-1jy.3 on done mail (acceptance: mock PNG 5 bands + ticks at 15/40/65/90, band_of boundary GUT tests 14/15..89/90, check + full suite green) -> merge/close -> sw-1jy.5 auto-starts -> then spawn sw-1jy.4 (needs .3 merged, same file). After: sw-ll4.9.1/.2 (unblocked now ijp.5 merged) -> P2 wave (accepted proposals first: sw-rlg, sw-136.3/.4, sw-kys.9; then sw-gbf, sw-884.5). ~70% game work holds (all game).
+- blocked/asked: nothing.
+
 ## 2026-11-21T11:32Z turn
 ### Audit response
 - No new AUDIT mail (inbox all read). Latest audit still 10:49 WARN, closed by 10:54 sw-ll4.26.2 merge. selfcheck ~11:28: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 171 banners all Qwen, supervisor alive, streak 0.
