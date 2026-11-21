@@ -282,3 +282,13 @@
 - did: No designer formal answer yet in questions.md (12:07 ask open); tech-lead-confirmed default (a) downward stands for sw-1jy.4 re-spawn.
 - next: .1 done mail -> verify full suite + determinism green + sim re-run + WORKER RESULT in log -> hx swarm merge sw-ll4.27.1 + bd close -> .4 auto-starts -> review on done (click-does-not-skip, Space/Esc skip, banner keys-only, right-click order gate, presentation tests; brief in bead notes, line refs below :502 drifted +26) -> merge/close -> spawn .2 (brief in bead notes) -> write .3/.6 briefs when .2 lands -> spawn .3 then .6. After wave: re-spawn sw-1jy.4 fresh, ll4.9.1/.2, P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9), then sw-884.5/sw-eo8.7/sw-cgl.4, sw-c9l. ~70% game work holds (all game).
 - blocked/asked: nothing; designer formal answer pending (non-blocking).
+
+## 2026-11-21T12:49Z turn
+### Audit response
+- No AUDIT mail (inbox only read/). Latest audit 12:26 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: sw-ll4.27.1 still running (~25 min in, healthy: commit 34cfcf8 pre-reviewed at 12:50, worker now in sim/API code + final gates). Untracked in its worktree: probe_angelfall.gd (scratch probe - must NOT land on main, check at review) and test_combat_timers.gd.uid (fine to commit, repo tracks .uid). .4 queued, brief intact. Slots full -> no spawns, no merges.
+- did: Prepped next wave: appended line-drift updates to sw-ll4.9.1 and sw-ll4.9.2 briefs via --append-notes (verified 2 ORCHESTRATOR blocks each, history intact). war_room.gd drift: _say :1577, KEY_SHIFT :590/:607, _PAN_KEYS :1295, _unhandled_input :1298; glossary EN gained sw-1jy.5 entries (enumerate from file). Warned .9.2 to preserve .4 skip-playback semantics + tests when moving keys to GUIDE.
+- decided: P2-wave briefs (sw-rlg, sw-136.3/.4, sw-kys.9) NOT pre-written now - they spawn after the ll4.9 wave and code will have moved; designer proposals carry acceptance text. questions.md 11:14 self-review ask is for lead-designer, not mine.
+- next: .1 done mail -> verify full suite + determinism + sim re-run + WORKER RESULT + probe_angelfall.gd NOT committed -> hx swarm merge sw-ll4.27.1 + bd close -> .4 auto-starts -> review on done (click-does-not-skip, Space/Esc skip, banner keys-only, right-click gate) -> merge/close -> spawn .2 (brief in bead notes) -> write .3/.6 briefs when .2 lands -> spawn .3 then .6. After wave: re-spawn sw-1jy.4 fresh (direction (a) confirmed), ll4.9.1/.2 (briefs updated), P2 wave, then sw-884.5/sw-eo8.7/sw-cgl.4, sw-c9l. ~70% game work holds (all game).
+- blocked/asked: nothing; designer formal answer to 12:07 direction ask still open (non-blocking, tech-lead-confirmed default (a) stands).
