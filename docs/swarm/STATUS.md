@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 20:08 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 20:23 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 39, craft-researcher: 10, games-researcher: 11, lead-designer: 13, orchestrator: 66, retro: 1, tech-lead: 8, ux-art-director: 9 |
+| Turns per role | auditor: 39, craft-researcher: 10, games-researcher: 11, lead-designer: 13, orchestrator: 66, retro: 1, tech-lead: 8, ux-art-director: 10 |
 | Worker turns / research turns (24 h) | 24 / 8 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.3, sw-opt |
 | Merged / rejected (all time) | 16 / 0 |
-| Gateway calls last hour (rate-limited) | 42 (28) |
+| Gateway calls last hour (rate-limited) | 41 (28) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 19:58 UTC **WARN** |
+| Latest audit | 11-21 19:58 UTC **WARN** ([report](audits/20261121-1956.md)) |
 
 ## Recently merged
 - sw-0nl (2026-11-21T11:43)
@@ -26,7 +26,7 @@ Updated 2026-11-21 20:08 UTC. Generation 1, audit alert streak 0. Supervisor run
 
 ## Last audits (newest first)
 
-### 11-21 19:58 UTC **WARN**
+### 11-21 19:58 UTC **WARN** ([report](audits/20261121-1956.md))
 
 WARN — compliance clean: all 21 gateway calls nous/qwen4-max (ux-art-director 14, orchestrator 6, auditor 1), 32 banners clean, cost 0 USD, no delegate/Claude. Health poor: 15/21 calls rate-limited (71%), orchestrator turn killed rc -9 at 3600s, zero spawn/merge/reject events in window, no merge since 14:26 (5.5 h). Workers sw-opt and sw-ll4.27.3 stuck partial/awaiting-review 5+ h past cap. Orchestrator alive (2 successful calls) and workers awaiting review not idle, so WARN not FAIL. Recommend orchestrator merge the two awaiting-review workers before any new spawn, journal early, and diagnose why merges stall under 429 load.
 
