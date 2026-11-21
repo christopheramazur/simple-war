@@ -121,7 +121,10 @@ func test_supply_line_to_a_commander() -> void:
 	var got := _of(ev, &"convoy_delivered")
 	assert_eq(got.size(), 1)
 	assert_eq(OverworldArmies.count(s, a), 3, "two rifle squads plus the delivered one")
-	assert_eq(s.detachments.count(), 0)
+	assert_eq(s.detachments.count(), 1, "the empty shell stays (sw-ll4.26.2)")
+	var shell := Detachments.at(s, P(8, 4))[0]
+	assert_true(Detachments.squads_of(s, shell).is_empty())
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(shell)), "no route left: it halts there")
 
 
 func test_convoys_route_around_known_guards() -> void:
@@ -166,7 +169,10 @@ func test_a_convoy_heads_for_where_its_commander_is_going() -> void:
 	assert_eq(Convoys.aim(s, did), P(4, 9), "the end of the route it can afford")
 	var ev := OverworldTurn.resolve(s)
 	assert_eq(s.commanders.get_value(a, &"plot"), P(4, 9))
-	assert_false(s.detachments.is_alive(did), "it caught up and joined the army")
+	assert_true(s.detachments.is_alive(did), "the shell stays after delivery (sw-ll4.26.2)")
+	assert_true(Detachments.squads_of(s, did).is_empty(), "it caught up and joined the army")
+	assert_eq(s.detachments.get_value(did, &"plot"), P(4, 9))
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(did)), "no route left: it halts there")
 	assert_eq(OverworldArmies.count(s, a), before + 1)
 	assert_eq(_of(ev, &"convoy_delivered")[0].data["plot"], P(4, 9))
 
@@ -193,11 +199,67 @@ func test_a_commander_picks_up_its_convoy_on_the_way() -> void:
 	assert_eq(Convoys.aim(s, did), end)
 	var ev := OverworldTurn.resolve(s)
 	assert_eq(s.commanders.get_value(a, &"plot"), end, "the commander finished its route")
-	assert_false(s.detachments.is_alive(did))
+	assert_true(s.detachments.is_alive(did), "the shell stays after the pickup (sw-ll4.26.2)")
+	assert_true(Detachments.squads_of(s, did).is_empty())
 	assert_eq(OverworldArmies.count(s, a), before + 1)
 	var met: int = _of(ev, &"convoy_delivered")[0].data["plot"]
 	assert_ne(met, end, "they met on the way, before the route's end")
 	assert_true(route.has(met))
+	assert_eq(s.detachments.get_value(did, &"plot"), met, "it halts where it was picked up")
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(did)))
+
+
+## A delivered convoy with no route left halts on the hex as an empty shell:
+## it cannot fight, and a hostile commander seizes its chest (sw-ll4.26.2).
+func test_delivery_halts_the_empty_shell_on_the_hex() -> void:
+	var s := _s()
+	var a := Commanders.spawn(s, 1, "field_commander", P(2, 9))
+	var did := s.detachments.spawn({&"player": 1, &"plot": P(1, 9), &"dest_commander": a})
+	s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": _rules().squad_index("rifle_squad"), &"alive": 8, &"size": 8})
+	var ev := OverworldTurn.resolve(s)
+	assert_eq(_of(ev, &"convoy_delivered").size(), 1)
+	assert_true(s.detachments.is_alive(did), "the shell stays")
+	assert_true(Detachments.squads_of(s, did).is_empty())
+	assert_eq(s.detachments.get_value(did, &"plot"), P(2, 9))
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(did)), "no route left: it halts")
+	var halted := _of(ev, &"convoy_halted")
+	assert_eq(halted.size(), 1)
+	assert_eq(halted[0].data["reason"], "delivered")
+	# The empty shell cannot fight; a hostile commander seizes its chest.
+	WarChest.add(s, _rules().item_index("carapace_plates"), 1, -1, did, -1)
+	assert_eq(OverworldOrders.set_route(s, 1, a, PackedInt64Array([P(1, 9)])), "")
+	var b := Commanders.spawn(s, 2, "field_commander", P(3, 9))
+	assert_eq(OverworldOrders.set_route(s, 2, b, PackedInt64Array([P(2, 9)])), "")
+	ev = OverworldTurn.resolve(s)
+	assert_eq(_of(ev, &"items_seized").size(), 1, "a chest without squads cannot fight")
+	assert_eq(s.engagement_at(P(2, 9)), -1)
+	assert_false(s.detachments.is_alive(did), "seized: the shell is disbanded")
+
+
+## A delivered convoy with a steered route left keeps walking it
+## (sw-ll4.26.2): delivery hands over the load, not the movement order.
+func test_delivery_continues_a_steered_route() -> void:
+	var s := _s()
+	var a := Commanders.spawn(s, 1, "field_commander", P(2, 9))
+	var before := OverworldArmies.count(s, a)
+	var did := s.detachments.spawn({&"player": 1, &"plot": P(1, 9), &"dest_commander": a})
+	s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": _rules().squad_index("rifle_squad"), &"alive": 8, &"size": 8})
+	assert_eq(Convoys.set_route(s, 1, did, PackedInt64Array([P(2, 9), P(3, 9), P(4, 9)])), "")
+	s.detachments.set_value(did, &"dest_commander", a)  # steered and sent to the commander
+	var ev := OverworldTurn.resolve(s)
+	assert_eq(_of(ev, &"convoy_delivered").size(), 1)
+	assert_eq(OverworldArmies.count(s, a), before + 1)
+	assert_true(s.detachments.is_alive(did), "the shell stays")
+	assert_true(Detachments.squads_of(s, did).is_empty())
+	assert_eq(s.detachments.get_value(did, &"plot"), P(2, 9))
+	assert_eq(s.detachments.get_value(did, &"dest_commander"), -1, "delivery done")
+	assert_true(Convoys.is_convoy(s, s.detachments.row_of(did)), "the route left is its own order")
+	assert_eq(s.convoy_routes[did], PackedInt64Array([P(3, 9), P(4, 9)]), "walked plots leave the route")
+	ev = OverworldTurn.resolve(s)
+	assert_gt(_of(ev, &"convoy_moved").size(), 0, "it walks on")
+	assert_eq(s.detachments.get_value(did, &"plot"), P(4, 9))
+	assert_eq(_of(ev, &"convoy_arrived").size(), 1)
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(did)), "route done: a garrison again")
 
 
 func test_convoys_on_one_line_merge() -> void:

@@ -65,7 +65,10 @@ static func describe(e: Dictionary, rules: OverworldRules, viewer: int = 0) -> S
 		&"convoy_arrived":
 			return "%s convoy arrived %s and now holds it." % [_possessive(who), at]
 		&"convoy_halted":
-			return "%s convoy halted %s (its commander's army is full or gone)." % [_possessive(who), at]
+			var why := "its commander's army is full or gone"
+			if d.get("reason", "") == "delivered":
+				why = "it delivered its load"
+			return "%s convoy halted %s (%s)." % [_possessive(who), at, why]
 		&"convoys_merged":
 			return "%s convoys merged %s." % [_possessive(who), at]
 		&"convoy_rallied":

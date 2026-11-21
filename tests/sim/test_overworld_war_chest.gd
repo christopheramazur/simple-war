@@ -204,7 +204,9 @@ func test_items_travel_by_convoy() -> void:
 		ev.append_array(OverworldTurn.resolve(s))
 	assert_eq(_of(ev, &"convoy_delivered").size(), 1)
 	assert_eq(WarChest.count_of(s, _it("carapace_plates"), a, -1, -1), 2)
-	assert_eq(s.detachments.count(), 0)
+	assert_eq(s.detachments.count(), 1, "the empty shell stays (sw-ll4.26.2)")
+	var shell := Detachments.at(s, P(8, 4))[0]
+	assert_eq(WarChest.count_of(s, _it("carapace_plates"), -1, shell, -1), 0, "the chest went with the delivery")
 
 
 func test_session_and_fog() -> void:
