@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-21 08:34 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 08:49 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-21 08:34 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 12 / 8 |
 | Workers queued / running / awaiting review | - / sw-0nl / sw-ll4.26.2 |
 | Merged / rejected (all time) | 6 / 0 |
-| Gateway calls last hour (rate-limited) | 62 (11) |
+| Gateway calls last hour (rate-limited) | 67 (9) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 07:39 UTC **PASS** ([report](audits/20261121-0734.md)) |
+| Latest audit | 11-21 08:44 UTC **PASS** ([report](audits/20261121-0834.md)) |
 
 ## Recently merged
 - sw-aty (2026-11-20T13:49)
@@ -23,6 +23,10 @@ Updated 2026-11-21 08:34 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 08:44 UTC **PASS** ([report](audits/20261121-0834.md))
+
+PASS: compliance clean in 08:04-08:34 window — 32 gateway calls all nous/qwen4-max (24 ok, 8 rate-limited = 25%, under the 40% threshold), cost 0 USD, 85 model banners all qwen, no hx delegate or Claude activity, zero turn failures. Health good: sw-ll4.26.2 finished partial in-window and sw-0nl started running, telegraphing-enemy-intent research done, orchestrator active (9 ok calls, main commits 5377732/8a3eade). Last merge sw-ll4.26.1 at 07:07, ~1h27m ago, inside the 2h clause; 6 merges / 0 rejects all time. Recommend prompt review/salvage of the sw-ll4.26.2 partial output; next audit drops to WARN if nothing merged by ~09:07 with workers running.
 
 ### 11-21 07:39 UTC **PASS** ([report](audits/20261121-0734.md))
 
@@ -39,8 +43,4 @@ PASS: compliance clean in 05:48-06:18 window - 60 gateway calls all nous/qwen4-m
 ### 11-21 05:09 UTC **WARN** ([report](audits/20261121-0503.md))
 
 Window 04:33-05:03 UTC. Compliance clean: 54 gateway calls all nous/qwen4-max (44 success, 10 Nous 429 = 19%), 1,728,925 prompt + 40,077 completion tokens, /usr/bin/bash.00 cost every caller; 97 swarm log banners all nous/qwen4-max; no hx delegate or Claude activity; zero turn failures. Health WARN: last merge sw-ll4.1.2 at 02:06, ~2h57m ago, while workers run - sw-uyv attempt 4 active (15 calls, 16.7k completion tokens), sw-p70 attempt 2 queued since 04:16 after merge_red with no visible root-cause. Work is moving (orchestrator commits ad1995d/66d8941, research queued) so not an idle loop, but the 2h+ no-merge-while-workers-run clause is met, as flagged in the 04:26 audit. Recommend: root-cause sw-p70 merge_red before attempt 2 gets a slot; review/merge sw-uyv promptly when attempt 4 finishes (~06:0x), triage rather than respawn if it fails again.
-
-### 11-21 04:28 UTC **PASS** ([report](audits/20261121-0426.md))
-
-Window 03:56-04:26 UTC: compliance clean - 42 gateway calls all nous/qwen4-max (37 success, 5 Nous 429 = 12%), 1,314,770 prompt + 32,601 completion tokens, cost $0.00 every caller; 92 swarm log banners all nous/qwen4-max; no hx delegate or Claude activity. Zero turn failures. Work moves: sw-p70 attempt 1 ended and was respawned as attempt 2 (queued 04:16) after 1 merge_red, sw-uyv attempt 4 running (12 successful calls), orchestrator and lead-designer active with commits. Watch item: last merge 02:06 (~2h20m ago) - at the WARN threshold, but the gap is one long worker task that hit the gate and was immediately respawned, not a stall; PASS on judgement. Recommend orchestrator root-cause the sw-p70 merge_red before attempt 2 finishes.
 
