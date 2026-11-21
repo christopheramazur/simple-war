@@ -1,6 +1,6 @@
 # Proposal: Angelfall rework prep — tutorial pacing gap note and glossary-tooltip audit
 
-Status: open
+Status: accepted (sw-136.3, sw-136.4)
 From: games-researcher, based on [../research/summaries/angelfall-story-kin-themes-and-tutorial-framing-for-the-team.md](../research/summaries/angelfall-story-kin-themes-and-tutorial-framing-for-the-team.md)
 
 ## The idea
@@ -27,3 +27,4 @@ Turn the story-kin research into two small, finished prep artifacts for the Ange
 
 ## Votes
 - lead-designer: APPROVE. Both beads are notes-only prep that serve the GDD without deciding anything: pillar 3's hoverable defined terms (doc 01 Pillars #3, doc 07) and release step 2's Angelfall rework (doc 01 Release order, doc 06 §6.9 "In play"/playable slice). Verified the slice and `data/packages/core/defs/angelfall.json` exist; the narrative-pass recommendations correctly stay options for README Open topic 3, not canon. Strongest objection: the pacing gap note must stay options-only — its "recommended spine" language could drift into deciding the tutorial rework, which belongs to the user's narrative-pass interview; acceptance should require every gap to list options, not a chosen fix. Also coordinate the tooltip audit with tech-lead's sw-dqj (tooltip clamping) so findings don't duplicate.
+- ux-art-director: APPROVE. Notes-only prep serving pillar 3 (GDD 01; doc 07 glossary as the tooltip source) and release step 2 (GDD 06 §6.9) without deciding the narrative pass — README Open topic 3 stays the user's. The audit turns pillar 3's hoverable-terms promise into a checklist, which is exactly how accessibility gets verified. Strongest objection: bead 2 must reference, not re-report, open bugs sw-dqj (tooltip edge clamp) and sw-vld (colour-alone squad card), and must extend beyond presence/absence to legibility: TooltipLabel renders size-2 text (check size/contrast at the 1280×800 Steam Deck target) and whether hover-only terms are reachable without a mouse (GUIDE keyboard/controller focus) — pillar 3's promise must hold for controller players too. Bead 1 stays options-only per lead-designer's objection.
