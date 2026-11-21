@@ -179,3 +179,45 @@ static func _commander_name(d: Dictionary, rules: OverworldRules) -> String:
 	var i := rules.commander_index(id) if rules != null else -1
 	var n := rules.cm_names[i] if i >= 0 else id.replace("_", " ")
 	return ("an " if "aeiou".contains(n.left(1).to_lower()) else "a ") + n.to_lower()
+
+
+# --- battle glance summaries (sw-1jy.5) --------------------------------------
+
+## Placeholder band glyphs: word + icon together, never colour alone (GDD 01
+## Accessibility). Art direction may replace them (README Open topic 3).
+const BAND_ICONS: Dictionary = {"broken": "✖", "fraying": "▼", "neutral": "■", "primed": "▲", "surging": "★"}
+## Trend marks; "new" (no record yet) has none.
+const TREND_MARKS: Dictionary = {"worsening": "↘", "improving": "↗", "steady": "→", "new": ""}
+
+
+## A band's word, through the same translation key the glossary uses.
+static func band_word(band: String) -> String:
+	return _t("band." + band, band.capitalize())
+
+
+## A SIMPL pool's word (the glossary's key).
+static func pool_word(pool: String) -> String:
+	return _t("pool." + pool, pool.capitalize())
+
+
+## A trend's word.
+static func trend_word(trend: String) -> String:
+	return _t("trend." + trend, trend)
+
+
+## One battle's glance line (OverworldSession.battle_summary): the worst
+## band of the player's own squads as icon + word, then the backward-looking
+## trend as word + mark. "" for an empty summary.
+static func battle_summary(sum: Dictionary) -> String:
+	if sum.is_empty():
+		return ""
+	var band := String(sum["band"])
+	var trend := String(sum["trend"])
+	var mark := String(TREND_MARKS.get(trend, ""))
+	return "%s %s · %s%s" % [BAND_ICONS.get(band, "?"), band_word(band), trend_word(trend),
+		"" if mark.is_empty() else " " + mark]
+
+
+static func _t(key: String, fallback: String) -> String:
+	var s := String(TranslationServer.translate(key))
+	return fallback if s == key else s

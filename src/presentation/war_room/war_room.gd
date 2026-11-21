@@ -502,7 +502,9 @@ func _show_main() -> void:
 	PerfRecorder.set_context("overworld" if contexts.focus == ViewContexts.OVERWORLD else "battle")
 	_main.set_camera(contexts.zoom, contexts.battle_centre)
 	if contexts.focus == ViewContexts.OVERWORLD:
-		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts, _overworld_extra())
+		var extra := _overworld_extra()
+		extra["summaries"] = _battle_summaries()
+		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts, extra)
 		return
 	var obs := session.observe_battle(player, contexts.focus)
 	var pl := planner(contexts.focus)
@@ -714,7 +716,8 @@ func _refresh_pips() -> void:
 		pip.chosen.connect(func(e: int) -> void: contexts.focus_battle(e))
 		pip.moved.connect(func(e: int, off: Vector2) -> void: contexts.move_pip(e, off))
 		_pip_layer.add_child(pip)
-		pip.view.title = battle_name(eid)
+		var sum := session.battle_summary(player, eid)
+		pip.view.title = battle_name(eid) + ("" if sum.is_empty() else " · " + EventText.battle_summary(sum))
 		pip.view.show_battle(session.observe_battle(player, eid), {"terrain": _battle_rules(eid)})
 
 
@@ -734,6 +737,14 @@ func _refresh_menu() -> void:
 		pin.pressed.connect(contexts.toggle_pin.bind(m["engagement"]))
 		line.add_child(pin)
 		_menu.add_child(line)
+		var sum := session.battle_summary(player, m["engagement"])
+		if not sum.is_empty():
+			var l := _title(EventText.battle_summary(sum))
+			l.theme_type_variation = &"SmallAccentLabel"
+			l.tooltip_text = "Worst SIMPL band across your squads in this battle: %s (%s, squad %d).\nThe trend compares with the last recorded turn%s." % [
+				EventText.band_word(String(sum["band"])), EventText.pool_word(String(sum["pool"])), int(sum["squad"]) & 0xffff,
+				"" if String(sum["prev_band"]).is_empty() else " (was %s)" % EventText.band_word(String(sum["prev_band"]))]
+			_menu.add_child(l)
 		var can_join := reserves_ready(m["engagement"])
 		if can_join > 0:
 			_menu.add_child(UiTheme.label("%d reserve squad%s can join this battle" % [can_join, "" if can_join == 1 else "s"], "SmallAccentLabel", true))
@@ -747,6 +758,17 @@ func _refresh_menu() -> void:
 ## A short, stable name for a battle while it lasts (its engagement slot).
 static func battle_name(eid: int) -> String:
 	return "Battle %d" % ((eid & 0xffffffff) + 1)
+
+
+## Each of the player's battles' glance summary (battle_summary), for the
+## overworld's battle tiles.
+func _battle_summaries() -> Dictionary:
+	var out := {}
+	for eid: int in contexts.battles():
+		var sum := session.battle_summary(player, eid)
+		if not sum.is_empty():
+			out[eid] = sum
+	return out
 
 
 func _refresh_commanders() -> void:

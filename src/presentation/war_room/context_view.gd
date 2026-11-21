@@ -304,6 +304,13 @@ func _draw_overworld() -> void:
 			draw_polyline(pts, SELECT, 2.5)
 		if p == _hover_plot:
 			draw_polyline(pts, Color(1, 1, 1, 0.5), 1.5)
+	# Glance summaries after every hex: a label under a battle hex would be
+	# painted over by the next row's fill (sw-1jy.5).
+	for p: int in _battles:
+		var c := o + _centre(p)
+		if c.x < -s * 2 or c.y < -s * 2 or c.x > size.x + s * 2 or c.y > size.y + s * 2:
+			continue
+		_draw_battle_summary(c, s, font, fs, _battles[p])
 	if play.is_empty():
 		for cmd: Dictionary in _obs.get("commanders", []):
 			var route: PackedInt64Array = _routes.get(cmd["id"], PackedInt64Array())
@@ -385,6 +392,23 @@ func _draw_overworld() -> void:
 				draw_string(font, b + Vector2(-fs * 0.5, fs * 0.35), str(n), HORIZONTAL_ALIGNMENT_CENTER, fs, maxi(fs - 2, 8), BG)
 			else:
 				draw_string(font, c + Vector2(-r * 0.45, r * 0.45), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 0.9, fs, BG)
+
+
+## The battle's glance summary under its hex (sw-1jy.5): the worst SIMPL
+## band of the player's own squads as word + icon, and the backward-looking
+## trend — never colour alone. A pure projection of show_overworld's extra
+## "summaries" (OverworldSession.battle_summary).
+func _draw_battle_summary(c: Vector2, s: float, font: Font, fs: int, eid: int) -> void:
+	var sum: Dictionary = (_extra.get("summaries", {}) as Dictionary).get(eid, {})
+	if sum.is_empty():
+		return
+	var text := EventText.battle_summary(sum)
+	var px := maxi(fs - 2, 9)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var at := c + Vector2(-w * 0.5 - 3.0, s * 0.95)
+	at.x = clampf(at.x, 2.0, maxf(size.x - w - 8.0, 2.0))
+	draw_rect(Rect2(at, Vector2(w + 6.0, px + 4.0)), Color(BG, 0.85))
+	draw_string(font, at + Vector2(3.0, px), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, TEXT)
 
 
 ## The route the selected commander would take to the hovered hex, and what

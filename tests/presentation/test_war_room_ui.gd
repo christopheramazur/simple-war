@@ -42,6 +42,8 @@ func _own_commander(w: WarRoom) -> Dictionary:
 func _texts(node: Node, out: PackedStringArray = PackedStringArray()) -> PackedStringArray:
 	if node is Label:
 		out.append((node as Label).text)
+	elif node is RichTextLabel:
+		out.append((node as RichTextLabel).get_parsed_text())
 	for c in node.get_children():
 		_texts(c, out)
 	return out
@@ -285,6 +287,34 @@ func test_without_playback_time_the_result_shows_at_once() -> void:
 	assert_false(w.playing())
 	assert_false(w.session.keep_playback)
 	assert_eq(w.session.playback(1), {})
+
+
+func test_battle_tabs_and_tiles_show_the_worst_band_and_trend() -> void:
+	var w := _demo()
+	var eids := w.contexts.battles()
+	assert_eq(eids.size(), 2, "the demo has two battles")
+	# Break one own squad's morale in the first battle.
+	var b: OverworldBattle = w.session.battles[eids[0]]
+	var row := -1
+	for r in b.state.squads.count():
+		if b.state.squads.player[r] == 1 and b.state.squads.is_active(r):
+			row = r
+			break
+	assert_ne(row, -1)
+	var morale := DataSchema.SIMPL.find("morale")
+	Pools.flow(b.state, row, morale, -Pools.value(b.state, row, morale), &"test")
+	w._queue_refresh()
+	await get_tree().process_frame
+	var sum := w.session.battle_summary(1, eids[0])
+	assert_eq(sum["band"], "broken")
+	var texts := "\n".join(_texts(w._menu))
+	assert_string_contains(texts, EventText.band_word("broken"), "the tab says the band as a word")
+	assert_string_contains(texts, String(EventText.BAND_ICONS["broken"]), "and an icon, never colour alone")
+	assert_string_contains(texts, EventText.trend_word(String(sum["trend"])), "with the backward-looking trend")
+	var sums: Dictionary = w._main._extra["summaries"]
+	assert_eq(sums.size(), 2, "both battle tiles carry a summary")
+	assert_eq(sums[eids[0]]["band"], "broken")
+	assert_eq(sums[eids[1]], w.session.battle_summary(1, eids[1]))
 
 
 func test_reach_and_waypoints() -> void:
