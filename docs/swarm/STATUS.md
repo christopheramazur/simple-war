@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 18:22 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 18:37 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 37, craft-researcher: 10, games-researcher: 11, lead-designer: 13, orchestrator: 64, tech-lead: 8, ux-art-director: 9 |
+| Turns per role | auditor: 38, craft-researcher: 10, games-researcher: 11, lead-designer: 13, orchestrator: 65, tech-lead: 8, ux-art-director: 9 |
 | Worker turns / research turns (24 h) | 24 / 9 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.3, sw-opt |
 | Merged / rejected (all time) | 16 / 0 |
-| Gateway calls last hour (rate-limited) | 42 (27) |
+| Gateway calls last hour (rate-limited) | 41 (28) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 17:22 UTC **WARN** ([report](audits/20261121-1656.md)) |
+| Latest audit | 11-21 18:26 UTC **WARN** |
 
 ## Recently merged
 - sw-0nl (2026-11-21T11:43)
@@ -25,6 +25,10 @@ Updated 2026-11-21 18:22 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 18:26 UTC **WARN**
+
+auditor recorded no verdict
 
 ### 11-21 17:22 UTC **WARN** ([report](audits/20261121-1656.md))
 
@@ -41,8 +45,4 @@ auditor recorded no verdict
 ### 11-21 15:26 UTC **WARN**
 
 auditor recorded no verdict
-
-### 11-21 14:34 UTC **PASS** ([report](audits/20261121-1434.md))
-
-PASS for 14:04-14:34Z: 162 gateway calls, all nous/qwen4-max (orchestrator 71, worker sw-ll4.27.3 39, ux-art-director 16, worker sw-luo 15, craft-researcher 14, worker sw-opt 7 incl 1 failed call that did not fail its turn), ~7.93M prompt + 146k completion tokens, cost 0 USD, 0 rate-limited, 219 model banners all clean, no hx delegate or Claude activity. Health: 1 merge (sw-luo accessibility audit, 16 total), 3 spawns, 3 worker_done, 0 turn failures. sw-ll4.27.3 now at attempt 3 with 0 rejects all-time; checking orchestrator triage before judging it a loop, but spawns and merges show work is moving.
 
