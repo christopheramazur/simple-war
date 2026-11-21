@@ -127,6 +127,96 @@ func test_a_turn_plays_out_before_the_next_planning_is_shown() -> void:
 	assert_true(w._main._play.is_empty(), "the view shows the present again")
 
 
+## Ends a turn in the demo's first battle with its first own squad moving,
+## so the room plays the turn back; returns that squad's id (sw-ll4.27.4).
+func _play_a_moving_turn(w: WarRoom) -> int:
+	w.turn_seconds = 5.0
+	assert_true(w.contexts.tab_in())
+	var pl := w.planner(w.contexts.focus)
+	pl.select(pl.own_squads())
+	var squad: int = pl.selection[0]
+	pl.move_to(pl.selection_centre() + Vector2(30, 0))
+	var turn := w.session.turns_resolved()
+	var guard := 0
+	while w.session.turns_resolved() == turn and guard < 4:
+		guard += 1
+		w.end_turn_requested.emit()
+	assert_true(w.playing(), "the room plays the resolved turn back")
+	return squad
+
+
+## A left click during playback inspects the squad under it instead of
+## skipping; no click or planning command issues orders (sw-ll4.27.4).
+func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
+	var w := _demo()
+	var squad := _play_a_moving_turn(w)
+	var eid := w.contexts.focus
+	var pl := w.planner(eid)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# The hint and the banner name only the keys.
+	assert_string_contains(w.hints(), "Space or Esc")
+	assert_string_contains(w._phase_text.text, "Space or Esc")
+	assert_false(w.hints().contains("click: skip"), "the hint no longer offers click-to-skip")
+	assert_false(w._phase_text.text.contains("click to skip"), "nor does the banner")
+	# A left click on the playing squad: its card shows, playback goes on.
+	var centre := Vector2.ZERO
+	var found := false
+	for d: Dictionary in w._main._battle_squads():
+		if d["id"] == squad:
+			centre = d["c"]
+			found = true
+	assert_true(found, "the squad is drawn mid-playback")
+	var view_pos: Vector2 = w._main.to_view(centre)
+	var global: Vector2 = w._main.get_global_transform_with_canvas() * view_pos
+	var at: Vector2 = w._blocker.get_global_transform_with_canvas().affine_inverse() * global
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = true
+	mb.position = at
+	w._blocker.gui_input.emit(mb)
+	assert_true(w.playing(), "a click no longer skips the playback")
+	assert_eq(w._inspected, squad, "the click inspected the squad under it")
+	assert_eq(w.card_squad(), squad)
+	var squad_name := ""
+	for sq: Dictionary in w.session.observe_battle(1, eid)["squads"]:
+		if sq["id"] == squad:
+			squad_name = String(sq["name"])
+	assert_string_contains("\n".join(_texts(w._battle_box)), squad_name, "the battle panel shows its card")
+	await get_tree().process_frame
+	assert_eq(w._main._overlay.get("inspected", -1), squad, "the view highlights the inspected squad")
+	# Right clicks, box selects and planning commands order nothing meanwhile.
+	var drafts_before := pl.drafts.duplicate(true)
+	var selection_before := pl.selection.duplicate()
+	mb.button_index = MOUSE_BUTTON_RIGHT
+	w._blocker.gui_input.emit(mb)
+	w._on_battle_pressed(centre, MOUSE_BUTTON_RIGHT, false, false, false, false)
+	w._on_battle_box(Rect2(centre, Vector2(10, 10)), false)
+	w._on_command(&"hold", 0)
+	assert_true(w.playing(), "none of them skipped the playback")
+	assert_eq(pl.drafts, drafts_before, "none of them drafted an order")
+	assert_eq(pl.selection, selection_before, "the selection is untouched")
+
+
+## Space and Esc still skip the playback to its end (sw-ll4.27.4).
+func test_space_and_esc_skip_the_playback() -> void:
+	var w := _demo()
+	_play_a_moving_turn(w)
+	var k := InputEventKey.new()
+	k.keycode = KEY_SPACE
+	k.pressed = true
+	w._unhandled_input(k)
+	assert_false(w.playing(), "Space skips to the end")
+	await get_tree().process_frame
+	assert_true(w._main._play.is_empty(), "the view shows the present again")
+	_play_a_moving_turn(w)
+	k = InputEventKey.new()
+	k.keycode = KEY_ESCAPE
+	k.pressed = true
+	w._unhandled_input(k)
+	assert_false(w.playing(), "Esc skips too")
+
+
 func test_the_overworld_turn_plays_out_too() -> void:
 	var w := _skirmish()
 	w.turn_seconds = 5.0

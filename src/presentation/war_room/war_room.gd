@@ -22,11 +22,12 @@ extends Control
 ## selected hex has a "send to" button: the next hex or commander clicked
 ## is its destination.
 ##
-## Playback (sw-ll4.19): with `turn_seconds` above 0, a resolved turn is
-## played out over that long (commanders and convoys walk their hexes,
+## Playback (sw-ll4.19, sw-ll4.27.4): with `turn_seconds` above 0, a resolved
+## turn is played out over that long (commanders and convoys walk their hexes,
 ## battles replay tick by tick) before the next Planning is shown. Space or
-## a click skips it. The game itself has already resolved: playback only
-## delays what is drawn.
+## Esc skips it; a left click inspects the squad under it (its card shows)
+## and no click issues orders. The game itself has already resolved: playback
+## only delays what is drawn.
 ##
 ## Planning in the focused battle (sw-ip8.3, GDD 01 Input and UI, 02 §2.2):
 ## a BattlePlanner per battle keeps the selection, control groups and
@@ -401,15 +402,14 @@ func _build_ui() -> void:
 	ui = UiRoot.new()  # its own, last, so it draws and hears keys first
 	add_child(ui)
 	ui.open(_hover_win, stage)
-	# While a turn plays out, a click anywhere skips to its end.
+	# While a turn plays out, the blocker keeps clicks from the panels (no
+	# orders mid-turn); a left click in a battle inspects the squad under it
+	# instead of skipping (sw-ll4.27.4). Space and Esc still skip.
 	_blocker = UiWindow.new()
 	_blocker.layer = UiWindow.Layer.BLOCKER
 	_blocker.contexts = PackedStringArray(["playback"])
 	_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	_blocker.gui_input.connect(func(e: InputEvent) -> void:
-		var mb := e as InputEventMouseButton
-		if mb != null and mb.pressed and mb.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
-			skip_playback())
+	_blocker.gui_input.connect(_on_playback_clicked)
 	ui.open(_blocker)
 	_sync_ui_context()
 
@@ -556,7 +556,7 @@ func view_next_player() -> void:
 ## What the mouse and keys do in the present context, in one line.
 func hints() -> String:
 	if not _play.is_empty():
-		return "Turn %d is playing out.  Space or click: skip to the end" % int(_play["turn"])
+		return "Turn %d is playing out.  Space or Esc: skip to the end  ·  click a squad: its card" % int(_play["turn"])
 	if replay != null:
 		var where := "the recording has ended" if replay.at_end() else "turn %d of %d" % [session.turns_resolved() + 1, replay.turns()]
 		var odd := "" if replay.diverged_turn < 0 else "  ·  WARNING: turn %d did not match the recording" % replay.diverged_turn
@@ -792,6 +792,8 @@ func _refresh_commanders() -> void:
 # --- input ---------------------------------------------------------------------
 
 func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
+	if not _play.is_empty():
+		return  # playback: no orders or selection changes (sw-ll4.27.4)
 	if not _target.is_empty():
 		if p >= 0 and button == MOUSE_BUTTON_LEFT:
 			send_to(p)
@@ -1034,6 +1036,8 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 	if button == MOUSE_BUTTON_LEFT and (hit >= 0 or not (shift or ctrl)):
 		_inspected = hit  # any squad in sight: its card (empty ground closes it)
 		_queue_refresh()
+	if not _play.is_empty():
+		return  # playback: inspection only, no selection or orders (sw-ll4.27.4)
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		if button == MOUSE_BUTTON_LEFT and hit >= 0:
 			if pl.own_squads().has(hit):
@@ -1065,7 +1069,7 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 
 func _on_battle_box(rect: Rect2, add: bool) -> void:
 	var pl := _focused_planner()
-	if pl != null and session.clock.phase == PulseClock.Phase.PLANNING:
+	if pl != null and session.clock.phase == PulseClock.Phase.PLANNING and _play.is_empty():
 		pl.select_box(rect, add)
 
 
@@ -1079,7 +1083,7 @@ func _on_command(name: StringName, arg: int) -> void:
 			contexts.set_bookmark(arg)
 			return
 	var pl := _focused_planner()
-	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING:
+	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING or not _play.is_empty():
 		return
 	match name:
 		&"hold", &"fall_back", &"withdraw":
@@ -1673,6 +1677,7 @@ func _start_play(before: Dictionary, turn: int) -> void:
 	_play = {"t": 0.0, "obs": after, "before": before, "walks": walks, "battles": session.playback(player), "turn": turn}
 	_radial.hide()
 	_refresh_hover_card()
+	_refresh_battle_panel()  # the card shows the turn being played, not the last planning
 	set_process(true)
 	_show_play()
 
@@ -1699,14 +1704,31 @@ func _show_play() -> void:
 	elif battles.has(eid):
 		_main.title = battle_name(eid)
 		_main.set_camera(contexts.zoom, contexts.battle_centre)
-		_main.show_playback(battles[eid], t, session.observe_battle(player, eid))
+		_main.show_playback(battles[eid], t, session.observe_battle(player, eid), _inspected)
 	for pip in _pip_layer.get_children():
 		if pip is PipPanel and battles.has((pip as PipPanel).engagement):
 			var e := (pip as PipPanel).engagement
 			(pip as PipPanel).view.show_playback(battles[e], t, session.observe_battle(player, e))
 	_phase_banner.show()
-	_phase_text.text = "Turn %d is playing out (%d%%).  Space or click to skip." % [int(_play["turn"]), int(t * 100.0)]
+	_phase_text.text = "Turn %d is playing out (%d%%).  Space or Esc to skip." % [int(_play["turn"]), int(t * 100.0)]
 	_refresh_hud()
+
+
+## A click while the turn plays out (the blocker hears it): a left click in
+## a battle inspects the squad under it — its card shows in the battle panel
+## for the moment being shown — and nothing else. No click skips or orders
+## (sw-ll4.27.4); Space and Esc skip.
+func _on_playback_clicked(e: InputEvent) -> void:
+	var mb := e as InputEventMouseButton
+	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if _play.is_empty() or contexts.focus == ViewContexts.OVERWORLD:
+		return
+	var global: Vector2 = _blocker.get_global_transform_with_canvas() * mb.position
+	var local: Vector2 = _main.get_global_transform_with_canvas().affine_inverse() * global
+	_inspected = _main.squad_at(_main.to_battle(local))
+	_refresh_battle_panel()
+	_queue_refresh()
 
 
 ## Ends the playback: the view shows the present again.

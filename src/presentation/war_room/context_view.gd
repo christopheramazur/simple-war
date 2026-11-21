@@ -184,13 +184,14 @@ func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 ## Shows a moment of a battle turn being played back: `rec` is the
 ## battle's entry in OverworldSession.playback, `t` how far through (0..1).
 ## Squads are drawn where they were then; orders and selection are not
-## drawn. `obs` (may be {}) names the squads still known.
-func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}) -> void:
+## drawn. `obs` (may be {}) names the squads still known; `inspected` is the
+## clicked squad, highlighted while its card shows (sw-ll4.27.4).
+func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}, inspected: int = -1) -> void:
 	mode = "battle"
 	_obs = obs.duplicate()
 	_obs["width"] = rec["width"]
 	_obs["height"] = rec["height"]
-	_overlay = {"terrain": rec["rules"]}
+	_overlay = {"terrain": rec["rules"], "inspected": inspected}
 	_play = rec
 	_play_t = clampf(t, 0.0, 1.0)
 	if _fx == null or not is_same(_fx_src, rec):
