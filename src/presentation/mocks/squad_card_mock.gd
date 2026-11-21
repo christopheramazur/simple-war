@@ -22,7 +22,7 @@ static func build() -> Control:
 	var floors: Array = _squad(s, mine)["band_floor_pct"]
 	var ctx := _ctx(s, l.templates)
 	var root := Control.new()
-	root.custom_minimum_size = Vector2(1380, 1620)
+	root.custom_minimum_size = Vector2(1380, 1420)
 	root.add_child(UiTheme.backdrop("ScreenBackgroundPanel"))
 	var sheet := VBoxContainer.new()
 	sheet.theme_type_variation = &"ListGap"
@@ -50,36 +50,34 @@ static func build() -> Control:
 		"Adds value / capacity and the exact percent."))
 	# Activity and weapon status (sw-ll4.27.3), live inspection data.
 	sheet.add_child(UiTheme.label("Activity and weapon status: the glossary's words for the simulation's codes; "
-		+ "every number is the simulation's. The playback card follows the shown moment, not the end of the turn.",
-		"SmallDimLabel", true))
+		+ "every number is the simulation's. The playback card follows the shown moment (engaged, its volley's "
+		+ "victim and distance), not the end of the turn.", "SmallDimLabel", true))
 	var line2 := HBoxContainer.new()
 	line2.add_theme_constant_override("separation", 24)
 	sheet.add_child(line2)
 	line2.add_child(_wrap("Holding position", "The hold-position order still fires: HOLDING is not 'holding fire'. "
 		+ "Each unit's hold reason, ammo and the weapon's range band.",
 		SquadCard.build(_squad(s, mine), s.inspect(1, mine), 1, s.state.rules.tps, false, ctx)))
+	# The status row shows a squad that took casualties: two troopers down,
+	# so the card also reads its strength at less than full.
 	var st := s.state
-	var sq := st.squads
 	var enemy := -1
-	for r in sq.count():
-		if sq.player[r] == 2 and sq.is_active(r):
-			enemy = sq.id_at(r)
-			sq.seen_by[r] |= BattleSquads.bit(1)
+	for r in st.squads.count():
+		if st.squads.player[r] == 2 and st.squads.is_active(r):
+			enemy = st.squads.id_at(r)
 			break
-	st.tick = 5
-	sq.engaged[row] = enemy
-	sq.fired_tick[row] = 4
-	var ectx := ctx.duplicate()
-	ectx["target_name"] = st.rules.sq_names[sq.tmpl[sq.row_of(enemy)]]
-	line2.add_child(_wrap("Engaged", "Fired on the last completed tick: 'Firing at <target>'. The target's name "
-		+ "comes from the observation.",
-		SquadCard.build(_squad(s, mine), s.inspect(1, mine), 1, st.rules.tps, false, ectx)))
 	var us := Centroids.units_of(st, row)
+	for i in [6, 7]:
+		Health.queue(st, -1, enemy, st.units.id_at(us[i]), mine, 99 * Fixed.ONE, 0)
+	HealthSystem.new().run(st)
+	st.commands.apply(st)
+	Centroids.update(st)
+	us = Centroids.units_of(st, row)
 	st.units.set_value(st.units.id_at(us[0]), &"reload", 12)
 	st.units.set_value(st.units.id_at(us[1]), &"cooldown", 25)
 	line2.add_child(_wrap("Held fire: timers", "Reloading and cooling down, in words and seconds (ticks / tps), "
-		+ "with the progress already done. Verbose adds the exact ticks.",
-		SquadCard.build(_squad(s, mine), s.inspect(1, mine), 1, st.rules.tps, true, ectx)))
+		+ "with the progress already done. Higher verbosity adds the exact tick counts.",
+		SquadCard.build(_squad(s, mine), s.inspect(1, mine), 1, st.rules.tps, false, ctx)))
 	line2.add_child(_playback_variant(s, mine, ctx))
 	return root
 
@@ -97,6 +95,7 @@ static func _variant(s: BattleSession, row: int, mine: int, percents: Array, ver
 static func _wrap(title: String, note: String, card: Control) -> Control:
 	var panel := PanelContainer.new()
 	panel.theme_type_variation = &"BattleColumnPanel"
+	panel.custom_minimum_size = Vector2(420, 0)
 	var col := VBoxContainer.new()
 	col.theme_type_variation = &"CardGap"
 	panel.add_child(col)
