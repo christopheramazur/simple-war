@@ -1,0 +1,122 @@
+{
+"templates": [
+	{"id": "hex_plains", "kind": "hex_feature", "values": {"tile": "kn_hex_plains", "name": "Plains"}},
+	{"id": "hex_forest", "kind": "hex_feature", "values": {"tile": "kn_hex_forest", "name": "Forest", "move_cost": 5}},
+	{"id": "hex_hills", "kind": "hex_feature", "values": {"tile": "kn_hex_hills", "name": "Hills", "move_cost": 10}},
+	{"id": "hex_road", "kind": "hex_feature", "values": {"tile": "tile_road", "name": "Road", "move_cost": -5}},
+	{"id": "hex_lake", "kind": "hex_feature", "values": {"tile": "tile_lake", "name": "Lake", "impassable": true}},
+	{"id": "hex_village", "kind": "hex_feature", "values": {"tile": "kn_hex_village", 
+		"name": "Village", "controllable": true, "interaction": "stable",
+		"activities": ["recruit", "hire"], "value_per_turn": 2, "sight": 2,
+		"recruits": [{"squad": "rifle_squad", "cost": 6}, {"squad": "scout_team", "cost": 4},
+			{"squad": "engineer_team", "cost": 5}],
+		"hires": [{"commander": "outrider", "cost": 10}, {"commander": "field_commander", "cost": 18}]}},
+	{"id": "hex_depot", "kind": "hex_feature", "values": {"tile": "kn_hex_depot", 
+		"name": "Supply depot", "controllable": true, "interaction": "stable",
+		"activities": ["refit"], "refit_cost": 1, "sight": 1}},
+	{"id": "hex_barracks", "kind": "hex_feature", "values": {"tile": "kn_hex_barracks", 
+		"name": "Barracks", "controllable": true, "interaction": "stable", "sight": 1,
+		"activities": ["recruit", "hire"],
+		"recruits": [{"squad": "assault_squad", "cost": 7}, {"squad": "mortar_team", "cost": 7}],
+		"hires": [{"commander": "siege_captain", "cost": 16}],
+		"produces": [{"squad": "rifle_squad", "turns": 3, "cost": 2}, {"squad": "scout_team", "turns": 2, "cost": 1},
+			{"item": "carapace_plates", "count": 2, "turns": 2, "cost": 1},
+			{"squad": "assault_squad", "turns": 3, "cost": 3}, {"squad": "mortar_team", "turns": 4, "cost": 3}]}},
+	{"id": "hex_mine", "kind": "hex_feature", "values": {"tile": "kn_hex_mine", 
+		"name": "Mine", "controllable": true, "interaction": "stable",
+		"value_per_turn": 3, "sight": 1}},
+	{"id": "hex_supply_cache", "kind": "hex_feature", "values": {"icon": "icon_supply_cache", 
+		"name": "Supply cache", "interaction": "stable", "cache_value": 5}},
+	{"id": "hex_arms_cache", "kind": "hex_feature", "values": {"icon": "icon_arms_cache", 
+		"name": "Arms cache", "interaction": "stable",
+		"items": [{"item": "lmg_kit", "count": 2}, {"item": "carapace_plates", "count": 4}]}},
+	{"id": "hex_ore_deposit", "kind": "hex_feature", "values": {"icon": "icon_ore_deposit", "tile": "kn_hex_ore_deposit", 
+		"name": "Ore deposit", "interaction": "stable", "activities": ["convert"],
+		"activity_cost": 5, "converts_to": "hex_mine"}},
+	{"id": "hex_shrine", "kind": "hex_feature", "values": {"tile": "kn_hex_shrine", 
+		"name": "Wayside shrine", "interaction": "uncertain", "activities": ["battle"]}},
+	{"id": "hex_angel_host", "kind": "hex_feature", "values": {"icon": "icon_angel_host", 
+		"name": "Angel host", "tags": ["angel", "placeholder"], "interaction": "uncertain", "activities": ["battle"],
+		"guard": ["scout_team"]}},
+	{"id": "hex_bandit_camp", "kind": "hex_feature", "values": {"tile": "kn_hex_bandit_camp", 
+		"name": "Bandit camp", "interaction": "uncertain", "activities": ["battle"],
+		"guard": ["rifle_squad", "rifle_squad"]}},
+
+	{"id": "trigger_vale", "parent": "test_vale", "values": {
+		"name": "Trigger vale",
+		"elimination": false,
+		"triggers": ["vale_angels_gather", "vale_shrine_blessing", "vale_village_taken"]}},
+	{"id": "vale_angels_gather", "kind": "trigger", "values": {
+		"text": "Angels gather in front of the mine on turn 2 (behaviour data, R6Q17).",
+		"on": "turn_resolved",
+		"if": [{"check": "turn", "op": ">=", "value": 2}],
+		"do": [
+			{"do": "add_feature", "feature": "hex_angel_host", "col": 8, "row": 8},
+			{"do": "add_var", "name": "angels", "value": 1},
+			{"do": "message", "key": "vale.angels_gather", "text": "Angels gather before the mine."}
+		]}},
+	{"id": "vale_shrine_blessing", "kind": "trigger", "values": {
+		"text": "Accepting the shrine's offer grants 5 Value to whoever answered.",
+		"on": "offer_answered",
+		"where": {"template": "hex_shrine", "choice": "accept"},
+		"max_fires": 0,
+		"do": [
+			{"do": "add_value", "player": "$player", "amount": 5},
+			{"do": "message", "player": "$player", "key": "vale.shrine_blessing", "text": "The shrine blesses your cause."}
+		]}},
+	{"id": "vale_village_taken", "kind": "trigger", "values": {
+		"text": "Taking player 2's village rewards player 1 once.",
+		"on": "feature_captured",
+		"where": {"player": 1, "col": 14, "row": 5},
+		"do": [{"do": "add_value", "player": 1, "amount": 10}, {"do": "set_var", "name": "village_taken", "value": 1}]}},
+
+	{"id": "field_commander", "kind": "commander", "values": {"icon": "commander_field_commander", 
+		"name": "Field commander", "movement_points": 60, "sight": 3, "squad": "rifle_squad",
+		"army": ["rifle_squad", "rifle_squad"], "army_cap": 6}},
+	{"id": "outrider", "kind": "commander", "values": {"icon": "commander_outrider", 
+		"name": "Outrider", "movement_points": 90, "sight": 4, "squad": "scout_team",
+		"army": ["scout_team"], "army_cap": 2}},
+	{"id": "siege_captain", "kind": "commander", "values": {"icon": "commander_siege_captain", 
+		"name": "Siege captain", "movement_points": 50, "sight": 3,
+		"squad": "engineer_team", "army": ["mortar_team"], "army_cap": 4}},
+
+	{"id": "preset_recon", "kind": "battleforce_preset", "values": {
+		"name": "Recon", "prefer": ["scout"]}},
+	{"id": "preset_assault", "kind": "battleforce_preset", "values": {
+		"name": "Assault", "prefer": ["damage", "sapper"], "avoid": ["scout"]}},
+	{"id": "preset_hold", "kind": "battleforce_preset", "values": {
+		"name": "Hold the line", "prefer": ["tank", "damage"]}},
+
+	{"id": "test_vale", "kind": "overworld_map", "values": {
+		"name": "Test vale", "width": 16, "height": 12, "base_move_cost": 10,
+		"battleforce": {"squads": 3, "value": 250},
+		"battle_scenario": "ow_field",
+		"convoy_movement": 40,
+		"elimination": true,
+		"passes": [
+			{"op": "fill", "feature": "hex_plains"},
+			{"op": "rect", "feature": "hex_forest", "col": 2, "row": 1, "w": 4, "h": 3},
+			{"op": "rect", "feature": "hex_hills", "col": 10, "row": 8, "w": 3, "h": 3},
+			{"op": "place", "feature": "hex_lake", "col": 7, "row": 2},
+			{"op": "place", "feature": "hex_lake", "col": 8, "row": 2},
+			{"op": "line", "feature": "hex_road", "col": 0, "row": 6, "to_col": 15, "to_row": 5},
+			{"op": "place", "feature": "hex_village", "col": 1, "row": 6, "owner": 1},
+			{"op": "place", "feature": "hex_village", "col": 14, "row": 5, "owner": 2},
+			{"op": "place", "feature": "hex_mine", "col": 8, "row": 9},
+			{"op": "place", "feature": "hex_bandit_camp", "col": 11, "row": 3},
+			{"op": "scatter", "feature": "hex_supply_cache", "count": 3, "spacing": 3,
+				"avoid": ["hex_lake", "hex_village", "hex_mine", "hex_bandit_camp"]},
+			{"op": "place", "feature": "hex_ore_deposit", "col": 2, "row": 10},
+			{"op": "place", "feature": "hex_shrine", "col": 3, "row": 7},
+			{"op": "place", "feature": "hex_depot", "col": 6, "row": 4},
+			{"op": "place", "feature": "hex_barracks", "col": 8, "row": 7},
+			{"op": "place", "feature": "hex_arms_cache", "col": 13, "row": 10}
+		],
+		"starts": [
+			{"player": 1, "commander": "field_commander", "col": 2, "row": 6},
+			{"player": 1, "commander": "outrider", "col": 1, "row": 5},
+			{"player": 2, "commander": "field_commander", "col": 13, "row": 5},
+			{"player": 2, "commander": "outrider", "col": 14, "row": 4}
+		]}}
+]
+}

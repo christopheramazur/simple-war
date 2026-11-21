@@ -64,7 +64,7 @@ func test_registry_skips_non_stats() -> void:
 
 
 func test_read_base_from_templates() -> void:
-	var loader := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var loader := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	var t := loader.templates
 	var carapace: Dictionary = {}
 	for tid in t.ids():

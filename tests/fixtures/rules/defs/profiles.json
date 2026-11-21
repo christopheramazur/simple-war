@@ -1,0 +1,38 @@
+{
+"templates": [
+	{"id": "profile_utility", "kind": "controller_profile", "values": {
+		"name": "Utility",
+		"text": "Utility processes on both layers, seeing the default fitness shaping as its mask.",
+		"overworld": {"process": "utility"},
+		"battle": {"process": "utility"}}},
+
+	{"id": "profile_aggressor", "kind": "controller_profile", "values": {
+		"name": "Aggressor",
+		"text": "Hunts enemy forces: underrates them, values the exchange and pressure, stops exploring once it has met the enemy.",
+		"overworld": {"process": "utility", "params": {"risk": "0.8", "outcome_weight": "1.5"}},
+		"battle": {"process": "utility", "params": {"run": true, "fall_back_pct": 60}},
+		"mask": {
+			"force_ratio": {"base": "1.5"},
+			"value_efficiency": {"base": "1.5"},
+			"pressure": {"base": "1.0"},
+			"objective_control": {"base": "0.5"},
+			"economy": {"base": "0.3"},
+			"exploration": {"base": "1.0", "gates": [{"condition": "since_contact", "points": [[-1, "1.0"], [0, "0.2"]]}]},
+			"commander_safety": {"base": "0.2"}
+		}}},
+
+	{"id": "profile_turtle", "kind": "controller_profile", "values": {
+		"name": "Turtle",
+		"text": "Builds an economy and keeps its commanders safe; fights only with a clear edge.",
+		"overworld": {"process": "utility", "params": {"risk": "1.5", "outcome_weight": "0.7"}},
+		"battle": {"process": "utility", "params": {"fall_back_pct": 20}},
+		"mask": {
+			"economy": {"base": "1.5"},
+			"objective_control": {"base": "1.0"},
+			"commander_safety": {"base": "2.0"},
+			"force_ratio": {"base": "1.0"},
+			"exploration": {"base": "0.5"},
+			"value_efficiency": {"base": "0.5"}
+		}}}
+]
+}

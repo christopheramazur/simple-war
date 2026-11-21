@@ -1,5 +1,6 @@
 extends GutTest
-## Battle rules end to end on the core Duel scenario. Tasks sw-eo8.1-6, sw-1jy.1-2.
+## Battle rules end to end on the frozen fixture's Duel scenario (sw-ll4.1.1).
+## Tasks sw-eo8.1-6, sw-1jy.1-2.
 
 const ONE := Fixed.ONE
 
@@ -8,7 +9,7 @@ static var _loader: PackageLoader
 
 func _rules() -> BattleRules:
 	if _loader == null:
-		_loader = PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	var r := BattleRules.compile(_loader.templates, "duel_crossroads", _loader.data_hash)
 	assert_true(r.is_valid(), "\n".join(r.errors))
 	return r
