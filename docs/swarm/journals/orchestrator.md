@@ -313,3 +313,13 @@
 - decided: nothing to merge/spawn - .4 still running (not committed), .2 queued, slots full. No designer answers yet to 12:07 direction or 12:50 escort-screen asks; defaults (a) stand (tech-lead confirmed 1jy.4; sw-f75 tracks balance). Backlog unchanged: 5 swarm-proposed open (sw-rlg, sw-136.3/.4, sw-kys.9 P2; sw-f75 P3).
 - next: .4 done mail -> verify commits + full suite/determinism green + WORKER RESULT -> hx swarm merge sw-ll4.27.4 + bd close (pre-review already green, fast) -> .2 auto-starts -> review on done (sim-computed activity/hold-fire codes, fog-safe API, playback frames, glossary, >=6 GUT + fog test, determinism) -> merge/close -> write .3/.6 briefs (consume .2 API) -> spawn .3 then .6. After wave: re-spawn sw-1jy.4 fresh, ll4.9.1/.2, P2 wave, then sw-884.5/sw-eo8.7/sw-cgl.4, sw-c9l. ~70% game holds.
 - blocked/asked: nothing; designer formal answers pending (non-blocking).
+
+## 2026-11-21T13:20Z turn
+### Audit response
+- No AUDIT mail (inbox: supervisor done-mail only). Latest audit 12:57/12:59 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: MERGED sw-ll4.27.4 (b7aaf63; gate green: check + full test on merged main) + CLOSED. Commit 6c20615 matched 13:07 pre-review exactly: click-inspect via explicit canvas transforms, Space/Esc skip, keys-only hints/banner/help, order gates on all 4 input paths, 2 new GUT tests (16/16 file, 472/472 full per worker). Worker merged main into its branch itself for final gates; no scratch files committed. 13 merged all-time, 1 rejected.
+- did: SPAWNED sw-1jy.4 attempt 2 FRESH (queues behind .2; direction (a) downward tech-lead-confirmed; brief: read-only sim helper + squad_card.gd verbose distance composing on sw-1jy.3 meter, GUT displayed==sim-derived, no war_room.gd/combat_system.gd edits). Filed sw-iqv (P3, swarm): hx godot check lint gap - nonexistent native methods parse clean (from .4 worker report).
+- did: .2 running ~6 min (auto-started ~13:11 after .4 finished), no commits yet - normal read phase; check progress next turn. questions.md: no new worker questions; 12:07 direction + 12:50 escort-screen designer asks still open, defaults (a) stand (sw-f75 tracks balance review).
+- next: .2 done mail -> review (sim-computed activity/hold-fire codes, fog-safe API, playback frames, glossary, >=6 GUT + fog test, determinism) -> merge/close -> write .3/.6 briefs (consume .2 API) -> spawn .3 then .6 (1jy.4 runs first if still queued). Then ll4.9.1/.2 (briefs updated; .9.2 must preserve .4 Space/Esc skip semantics + tests when moving keys to GUIDE), P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9), then sw-884.5/sw-eo8.7/sw-cgl.4, sw-c9l, sw-iqv. ~70% game holds.
+- blocked/asked: nothing; designer formal answers pending (non-blocking).
