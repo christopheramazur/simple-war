@@ -173,6 +173,16 @@
 - blocked/asked: nothing.
 - pitfall: bd update --notes REPLACES existing notes; always use --append-notes. Overwrote the sw-ijp.5 brief this turn and restored it from the bd show output.
 
+## 2026-11-21T11:45Z turn
+### Audit response
+- No AUDIT mail. selfcheck ~11:33: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 187 banners all Qwen, supervisor alive, streak 0. Inbox: sw-ijp.5 done (prompt) + sw-0nl done 11:28 (read, moved to read/).
+### Turn
+- did: MERGED + CLOSED sw-ijp.5 (CVD team palette, main 18e2c57, gate green) and sw-0nl (mirror-duel seat bias, main 333a140, gate green). sw-0nl review: canonical-frame route/zone tie-breaks + caller-thread warm compose with main's forecast_copy isolation; mirror-swap regression 3/3, full 448/448 on branch; attempt 3 did exactly the briefed conflict resolution. 8 merged all-time, 0 rejected.
+- decided: sw-0nl win-rate 45-55% clause is conditional on sw-884.5 (unlanded) - appended the 20-run verification step to sw-884.5 notes (file a new bug if outside range) instead of holding sw-0nl open.
+- did: spawned sw-1jy.3 (segmented SIMPL meter, attempt 1 RUNNING since 11:44; brief in bead notes, stale sw-ijp.5 warning corrected via --append-notes) and queued sw-1jy.5 (worst-band per battle tab, attempt 1; observe_battle pointers verified from proposal, scoped away from squad_card.gd). Slots full (max_parallel=1 deliberate - do not re-investigate).
+- next: review sw-1jy.3 on done mail (acceptance: mock PNG 5 bands + ticks at 15/40/65/90, band_of boundary GUT tests 14/15..89/90, check + full suite green) -> merge/close -> sw-1jy.5 auto-starts -> then spawn sw-1jy.4 (needs .3 merged, same file). After: sw-ll4.9.1/.2 (unblocked now ijp.5 merged) -> P2 wave (accepted proposals first: sw-rlg, sw-136.3/.4, sw-kys.9; then sw-gbf, sw-884.5). ~70% game work holds (all game).
+- blocked/asked: nothing.
+
 ## 2026-11-21T11:32Z turn
 ### Audit response
 - No new AUDIT mail (inbox all read). Latest audit still 10:49 WARN, closed by 10:54 sw-ll4.26.2 merge. selfcheck ~11:28: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 171 banners all Qwen, supervisor alive, streak 0.
@@ -182,3 +192,63 @@
 - decided: merge sw-ijp.5 + bd close the moment the done mail lands - no continuation needed. Then sw-0nl attempt 3 auto-starts (max_parallel=1, deliberate - do not re-investigate); attempt 4 = last. sw-1jy.3 brief verified intact in bead notes; claim at spawn.
 - next: merge/close sw-ijp.5 -> review sw-0nl attempt 3 (mechanical conflict resolution, expect quick) -> spawn sw-1jy.3 (then .4 needs .3 merged; .5 + sw-ll4.9.1/.2 after ijp.5 merge clears war_room overlap) -> P2 wave, accepted proposals first. Slots full this turn -> no spawns. ~70% game work holds (all game).
 - blocked/asked: nothing.
+
+## 2026-11-21T11:55Z turn
+### Audit response
+- No AUDIT mail (inbox empty, only read/). Latest audit 11:22 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate - do not re-investigate).
+### Turn
+- did: Verified pipeline: sw-0nl merged+closed (STATUS.md 'awaiting review' was stale), sw-1jy.3 running since 11:44 (~10 min, no commits yet - normal), sw-1jy.5 queued. Slots full -> no spawns, no merges, no worker questions.
+- did: Re-verified sw-ll4.9.1/.2 briefs after ijp.5 merge: const EN unchanged (glossary.gd:23, rules_text.gd:8), _say now war_room.gd:1555 (was 1550); both briefs intact and spawn-ready.
+- did: Confirmed queue from bd ready + swarm-proposed list: after .3 merge -> spawn sw-1jy.4 (write brief post-merge, depends on .3's squad_card meter) -> sw-ll4.9.1/.2 -> P2 accepted proposals (sw-rlg, sw-136.3/.4, sw-kys.9) then sw-884.5/sw-eo8.7/sw-cgl.4. Appended scoping note to sw-rlg: pipeline-level variants, reuse ijp.5 CVD approach, harness-only. ~70% game work holds.
+- next: review sw-1jy.3 on done mail (acceptance: mock PNG 5 bands + ticks 15/40/65/90, band_of boundary GUT tests 14/15..89/90, check + full suite green) -> merge/close -> sw-1jy.5 auto-starts -> spawn sw-1jy.4 with post-merge pointers.
+- blocked/asked: nothing.
+
+## 2026-11-21T11:56Z turn
+### Audit response
+- No AUDIT mail (inbox harness/data/swarm/mail/orchestrator holds only read/). Latest audit 11:22 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate - do not re-investigate).
+### Turn
+- did: Pre-reviewed sw-1jy.3 commit e67de27 (worker still running, ~10 min in): observe_state exposes compiled band_floor_pct read-only; squad_card _simpl_meter = 5 segments at floors + ticks 15/40/65/90 + icon/word always + percent only verbose + tr() fallback + theme-tone fills + _stat_bar fallback. Layering, data-as-data, never-colour-alone all good. band_of already on main (battle_rules.gd:237); boundary GUT tests written but UNCOMMITTED (tests/sim/test_battle_rules.gd - compliant: calls band_of, GDD boundary cases + compiled-floor test at cap 200).
+- did: Brief intact in bead notes; appended merge checklist via --append-notes. Missing for merge: committed tests, squad_card_mock.gd + PNG (5 bands + ticks), worker log check + full suite green.
+- decided: on done mail verify the 3 missing items in git/log -> hx swarm merge + bd close; if mock/tests still missing -> spawn continuation on same branch (commit them, nothing else). Never merge while the worker is running.
+- next: sw-1jy.3 done mail -> merge/close -> sw-1jy.5 auto-starts -> spawn sw-1jy.4 (brief post-merge, layers on this meter). Then sw-ll4.9.1/.2 (briefs spawn-ready) -> P2 accepted proposals (sw-rlg, sw-136.3/.4, sw-kys.9) then sw-884.5/sw-eo8.7/sw-cgl.4. Slots full (1 running + 1 queued) -> no spawns. ~70% game work holds (all game).
+- blocked/asked: nothing.
+
+## 2026-11-21T12:08Z turn
+### Audit response
+- No AUDIT mail (inbox only read/). Latest audit 11:22 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate - do not re-investigate).
+### Turn
+- did: Reviewed sw-1jy.3 new commits 6db7df2/abb369c/eadc5db (tests read compiled floors + GDD boundary cases 14/15..89/90 + cap-200; mock PNG 5 bands + ticks 15/40/65/90; .uid files). Worker log: check clean 154 scripts, full suite 465/465. Waited for done, MERGED (gate green) + CLOSED sw-1jy.3. 10 merged all-time, 0 rejected.
+- did: sw-1jy.5 auto-started ~12:02. Spawned sw-1jy.4 attempt 1 (queued): post-merge brief - sim helper next to band_of (battle_rules.gd:237), to_drop observe field (battle_session.gd:231-240), verbose branch squad_card.gd:183, defining-property tests, mock update + PNG. Slots full (1 running + 1 queued).
+- decided: distance direction ambiguous (up vs down). hx swarm ask to designers, default (a) downward points-to-drop per pillar-3 phrase; assumption in bead notes; reversible one-line change. Pool-icons bead deferred to 11-22 (8/day cap) - .4 does not wait for it; icons layer on later.
+- next: sw-1jy.5 done mail -> review (worst-band per battle tab: fog-safe own squads only, trend backward-looking, word+icon) -> merge/close -> sw-1jy.4 auto-starts -> review on done (check inbox for designer direction answer; if changed, mail the worker). Then sw-ll4.9.1/.2 (briefs spawn-ready) -> P2 wave: sw-rlg, sw-136.3/.4, sw-kys.9, then sw-884.5/sw-eo8.7/sw-cgl.4. ~70% game work holds (all game).
+- blocked/asked: direction question to designers (non-blocking, default taken).
+
+## 2026-11-21T12:12Z turn
+### Audit response
+- No AUDIT mail (inbox only read/; the sw-1jy.3 done notice was already handled last turn - workers list confirms merged). Latest audit 11:54 PASS, streak 0; no selfcheck needed. Config untouched (max_parallel=1 deliberate).
+### Turn
+- did: sw-1jy.5 actually STARTED 12:01 (queued 11:45 behind max_parallel=1), ~10 min in, no commits yet but log shows active work (reading view_contexts/battle_state/mock_runner) - healthy, not stuck. sw-1jy.4 queued attempt 1, brief intact. Slots full -> no spawns, no merges, no worker questions.
+- did: Direction ask confirmed sent 11:57 (answers arrive in inbox); no answer yet, default (a) downward points-to-drop stands in sw-1jy.4 notes. Backlog re-checked: 4 open swarm-proposed = sw-rlg, sw-136.3/.4, sw-kys.9 (matches P2 wave plan). war_room.gd untouched by the 1jy.3 merge, _say still :1555 -> sw-ll4.9.1/.2 briefs still spawn-ready.
+- decided: sw-1jy.5 branched from main BEFORE the 1jy.3 merge (base 333a140); it must not touch squad_card.gd per brief. If it edits battle_session observe (trend history), hx swarm merge may hit a small conflict - it merges main in first; on red/conflict spawn continuation, never hand-merge.
+- next: sw-1jy.5 done mail -> review (fog-safe own-squad worst band, backward-looking trend, word+icon, mock PNG with 2+ battles, GUT via Game API, check+full green) -> merge/close -> sw-1jy.4 auto-starts -> check inbox for designer direction answer before reviewing .4 (if changed, mail worker). Then sw-ll4.9.1/.2 -> P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9) -> sw-884.5/sw-eo8.7/sw-cgl.4; sw-c9l (orphan gitlink, ways-of-working) after those. ~70% game work holds (all game).
+- blocked/asked: nothing new; designer direction answer pending (non-blocking).
+
+## 2026-11-21T12:21Z turn
+### Audit response
+- No AUDIT mail (inbox only read/). Latest audit 11:54 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: User playtest message 12:13Z reorders queue: sw-ll4.27.1 (P1 mortar bug) NEXT, then .4, then .2 -> .3/.6. Dequeued zero-commit queued sw-1jy.4 via hx swarm reject (verified DONE={merged,rejected} is respawnable, so nothing lost; rejection reason + bead note say re-spawn fresh after the playtest wave). Claimed + spawned sw-ll4.27.1 attempt 1 with full brief: combat_system.gd run :27-39, _tick_timers :170-186 serial + engaged-only, _after_fire :228-241 sets both; fix = concurrent timer pass for all living armed units before fire pass + readiness gate in _fire_squad; 3 acceptance GUT tests, determinism green, turn-hash change in commit msg, hx sim re-run, no data/GDD changes.
+- did: Pre-wrote spawn-ready briefs into beads: sw-ll4.27.4 (war_room.gd _blocker :405-413 click-to-skip, banners :557/:1686, KEY_SPACE :1305-1307, other skip callers :1294/:1565/:1664, right-click order gate, GUIDE action if available else keep KEY_SPACE, mind sw-hk0 focus bug; tests in tests/presentation/) and sw-ll4.27.2 (battle_session.gd observe :193/observe_state :203/inspect :319/activity :303, overworld_session.gd observe_battle :795/inspect_battle :813/_frame :663; reasons computed in sim not UI; glossary codes; spawn ONLY after .1 merges).
+- did: sw-1jy.5 still running, healthy (commit c296519 worst-band glance+trend; log active on context_view battle summaries). Never merge while running. No designer direction answer yet; default (a) downward stands for sw-1jy.4.
+- next: sw-1jy.5 done mail -> review (fog-safe own-squad worst band, backward trend, word+icon, mock PNG 2+ battles, GUT via Game API) -> merge/close -> sw-ll4.27.1 auto-starts -> review on done (3 acceptance tests + determinism + sims) -> merge/close -> spawn sw-ll4.27.4 (brief ready) -> then .2 -> .3 -> .6. After wave: re-spawn sw-1jy.4 fresh, then ll4.9.1/.2, then P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9) + sw-ll4.27.5. ~70% game work holds (all game).
+- blocked/asked: nothing new; designer direction answer pending (non-blocking).
+
+## 2026-11-21T12:26Z turn
+### Audit response
+- No AUDIT mail (inbox only read/). Latest audit 11:54 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: Full PRE-REVIEW of sw-1jy.5 (3 commits c296519/e119e3a/813044d) while worker runs final gates. Sim battle_summary (overworld_session.gd) fog-safe own-squads-only via Pools.band, player-gated; backward-looking trend from _band_history recorded at battle start + each turn, saved with game but never fed to sim (determinism safe, erased on battle end). Presentation pure projection (context_view _draw_battle_summary from extra["summaries"], war_room tabs/PiPs/menu). Word+icon never colour alone. Tests: fog (enemy drain no-op), gating, forecast-never-moves-trend, save persistence, UI tab/tile test. Mock PNG verified: 2 battles, Broken·worsening + Surging·improving on tabs AND tiles. Check gate clean 154/0. Worker still running full suite -> NOT merged yet.
+- did: Appended note to sw-ll4.27.4: this merge adds ~26 lines to war_room.gd; brief line refs below :502 drift, locate by symbol (_blocker :405-413 unchanged).
+- decided: on done mail verify full suite green + WORKER RESULT in log -> hx swarm merge sw-1jy.5 + bd close. Conflict-free expected (no overlap with 1jy.3: squad_card/battle_rules untouched; battle_session untouched).
+- next: merge/close 1jy.5 -> sw-ll4.27.1 auto-starts (P1 mortar) -> review on done (3 acceptance tests + determinism + sims) -> merge/close -> spawn sw-ll4.27.4 (brief ready, mind line drift) -> .2 -> .3 -> .6. After wave: re-spawn sw-1jy.4 fresh, ll4.9.1/.2, P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9). ~70% game work holds (all game).
+- blocked/asked: nothing new; designer direction answer pending (non-blocking, default (a) downward stands for sw-1jy.4).

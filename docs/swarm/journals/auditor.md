@@ -99,3 +99,16 @@
 - decided: PASS (ends 3 health WARNs) — compliance clean (163 calls all nous/qwen4-max, 168 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), zero turn failures. sw-ll4.26.2 merged 10:54 (forecast-isolation fix gated green) closed the ~3h47m merge drought. sw-0nl att2 merge conflict triaged -> att3 = mechanical resolution (att4 declared last), not blind respawn. sw-ijp.5 committed early (9e0ff8b+c9fef02, all 8 PNGs), pre-review 5/5 criteria, full suite 453/453 green.
 - next: ~11:50 audit — confirm sw-ijp.5 merged/closed on done mail (~12:55 cap) and .brief_restore.txt scaffold stays out; sw-0nl att3 quick mechanical merge. If att3 red, recommend triage bead not att4 burn. Keep PASS while merges land. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 11:53 UTC turn
+- did: audited 11:23-11:53 window from attached digest + status page + workers -v/branch refs; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1153.md.
+- decided: PASS — compliance clean (69 calls all nous/qwen4-max, cost 0 USD, 0% 429s, 76 banners clean, no delegate/Claude), zero turn failures. Two merges in window: sw-ijp.5 11:29 and sw-0nl 11:43 (att3 mechanical resolution merged, no att4 burn) — 9 total; prior WARN conditions resolved. sw-1jy.3 running since 11:44 with early commit e67de27 (~9 min in, habit holds); sw-1jy.5 queued.
+- next: ~12:23 audit — check sw-1jy.3 incremental commits (cap ~13:44) and sw-1jy.5 spawning when a slot frees; keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 12:26 UTC turn
+- did: audited 11:55-12:25 window from attached digest + workers -v/branch logs; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1225.md.
+- decided: PASS — compliance clean (139 calls all nous/qwen4-max, 199 banners clean, cost 0 USD, 0% 429s, zero turn failures). sw-1jy.3 merged 12:04 (10 total); sw-1jy.5 running with 3 early commits (cap ~13:45); sw-ll4.27.1 queued. Reject in window = sw-1jy.4 with ZERO commits — recommended root-cause before respawn, not blind retry.
+- noted: first external activity in a while — 9 hx delegate calls (all qwen4-max L3) + Claude Code session fdff218d (opus-5-5, 85 turns, 60k out tokens). User-side per digest, not charged to swarm; flagged for orchestrator awareness only.
+- next: ~12:56 audit — confirm sw-1jy.5 reviewed/merged near its 13:45 cap and sw-ll4.27.1 spawned; check sw-1jy.4 was triaged not blind-respawned; re-check external Claude/delegate activity (escalate only if tied to swarm). Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.

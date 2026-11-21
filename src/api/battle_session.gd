@@ -235,6 +235,9 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 					"band": DataSchema.BANDS[Pools.band(state, row, p)],
 				}
 			d["pools"] = pools
+			# The compiled band floors (read-only), so pool meters can place
+			# their threshold ticks without owning the thresholds (sw-1jy.3).
+			d["band_floor_pct"] = Array(rules.band_floor_pct)
 		squads.append(d)
 	var units := []
 	for row in u.count():
