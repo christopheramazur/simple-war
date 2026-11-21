@@ -460,3 +460,4 @@
 ### Audit response
 - AUDIT WARN 19:26 (status also shows 19:58 WARN). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max; non_qwen_swarm_calls_30m=[]; 39/39 log banners nous/qwen4-max; supervisor alive; alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
 - WARN cause per auditor: ~62-67% rate-limited calls, no merge since 14:26, sw-opt (att1) and .3 (att3) partial awaiting review ~6h. Fix: lean throttled turn - journal early, review+merge both waiting workers before anything else, then refill slots.
+- did: reviewed sw-opt att1 (3 commits: a7bff93 code, ab2d055 GUT, 9d88949 journal) - presentation-only, F2+F3 done, 4 tests, mocks present. hx swarm merge sw-opt = MERGED (check+test green). bd close sw-opt. First merge since 14:26.
