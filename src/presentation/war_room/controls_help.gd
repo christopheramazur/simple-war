@@ -4,10 +4,11 @@ extends RefCounted
 ## war_room.gd, sw-ll4.8). Shown by the "Controls" button.
 
 const HELP: Array = [
-	["Anywhere", "Space: end the turn (or skip a turn that is playing out)\nTab / Shift+Tab: next / previous battle\nEsc: leave a battle for the overworld\nMouse wheel: zoom; zooming in on a battle hex enters it\nBackspace: deselect everything"],
+	["Anywhere", "Space: end the turn (or skip a turn that is playing out)\nTab / Shift+Tab: next / previous battle\nEsc: leave a battle for the overworld (or skip a turn that is playing out)\nMouse wheel: zoom; zooming in on a battle hex enters it\nBackspace: deselect everything"],
 	["Overworld", "Left click: select a commander or a hex (the panel on the right says what is there)\nRight click: move the selected commander there. Lit hexes are in reach this turn; the number is the movement cost\nShift + right click: add a waypoint, so the route goes there next\nRight click the commander itself: clear its route\nF: follow the selected commander\nGarrisons, convoys and producing features: select their hex, press \"Send to\", then click a hex or one of your commanders"],
 	["Battle", "Left click or drag a box: select your squads (Shift adds, Ctrl toggles, double click selects the type)\nLeft click any squad: show its card on the left. Hovering shows its weapon range\nRight click: move the selection there (Alt: in a new line). Right click an enemy: attack it\nH hold · A attack-move (then right click) · B fall back · R run · Shift+W withdraw · Q abilities\n1-9: recall a control group · Ctrl+1-9: make one · Shift+1-9: add to one\nF1-F4: go to a camera bookmark · Ctrl+F1-F4: set one"],
 	["Reaction window", "Marked squads can react to an enemy: click one, or use the Reactions list on the right. Moves are locked until the turn has played"],
+	["Playback", "While a turn plays out: Space or Esc skips to its end\nLeft click a squad (yours or a visible enemy): its card shows for the moment being shown\nClicks issue no orders — the turn has already resolved"],
 ]
 
 

@@ -46,3 +46,39 @@ used), no pool math in presentation, compose on the merged sw-1jy.3 meter. Showi
 both at verbose later is a one-line helper extension, not a redesign. Not a GDD
 decision change; the GDD does not fix a direction, so this is the reversible default
 that fits the pillar.
+
+**A confirmation** (lead-designer, bead author, ~13:35Z, mailed to orchestrator):
+**(a) downward confirmed.** Matches GDD 01 pillar 3's literal example; the bead was
+authored with that intent. Conditions unchanged: pure current-state arithmetic from
+the sim's fixed-point values (02 §2.1 displayed = used), compose on the merged
+sw-1jy.3 meter. (c) both-at-verbose is a fine later extension, not now.
+
+## 2026-11-21 ~13:35Z — lead-designer ratifies the self-review process answer
+
+**A** (lead-designer, process owner, mailed to games-researcher): ratifies
+ux-art-director's **yes-with-note** and tech-lead's guardrails. Self-review is the
+exception path (other lead unavailable after ~2 turns), never the norm: provenance
+marker in the summary Status, conservative claims, catch-up pass by the other lead
+when free, closer designer scrutiny at vote time. The 2-APPROVE/no-BLOCK designer
+gate is unchanged. Both stalled drafts (accessibility, agent-teams) ended up with
+real craft cross-review, so the exception was not needed. If self-review becomes the
+norm rather than the exception, that is a process signal for the orchestrator.
+
+## 2026-11-21 ~13:35Z — worker-sw-ll4.27.1: Angelfall escort screen after real-time timers
+
+**Q** (worker, 12:50Z): magazine-0 Angels now cool down while chasing, so the slice
+lost its civilians by turn 3 on every seed. Reversible default taken: (a) escorts
+intercept the nearest visible enemy (screen) instead of rushing hangars; slice wins
+again. Options: (a) keep screen + balance review later, (b) retune angel/civilian
+numbers, (c) another escort tactic.
+
+**A** (lead-designer; the worker mailbox no longer exists, so recorded here and in
+sw-f75): **(a) endorsed.** The timer fix is rules-correct (GDD 02 §2.6 "keeps
+standing while its weapons reload or cool down" + R6Q8 reload cycles modelled;
+rationale in sw-ll4.27.1). The escort screen is a scripted-slice tactic in
+`src/api/evacuation_controller.gd` — no sim, GDD or data change. Held-out
+verification: `angelfall_spaceport` baseline, 6 seeds, p1 wins 6/6, avg turn 4
+(batch b20261121-132807). No angel/civilian retune now; sw-f75 closed with this
+verdict. Re-check slice balance when the Angel roster (sw-136.2) or civilian
+content lands; consider a leash radius (screen near civilians rather than globally
+nearest enemy) only if future content breaks the slice.
