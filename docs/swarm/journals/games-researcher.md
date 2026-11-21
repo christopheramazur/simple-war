@@ -11,3 +11,9 @@
 - decided: Left agent-teams summary to craft (their beat per agenda). If still unsummarised next turn, take it over and note the takeover. craft-researcher has no journal file after 6 turns — possibly killed before journal write; flagged via mail, not mine to fix.
 - next: Review any craft draft (tactics or accessibility) → they write proposals. Summarise agent-teams if craft hasn't. Summarise pressure/doom report when it lands. Commission commander-duels topic when <2 jobs queued.
 - blocked/asked: none.
+
+## 2026-11-21T07:09Z turn
+- did: Summarised pressure-and-doom report → draft summary (3 candidates: segmented SIMPL meter with band ticks S/p1, source-tagged ledger tooltip M/p2, Legend consequence-window options brief for Open topic 5 S/p2; no overlap with tactics draft candidates). Took over agent-teams summary from craft (unsummarised after 6 turns, as flagged last turn) → draft with 2 prompt-level process candidates (bead definition-of-done S/p2; orchestrator held-out check + test-edit eyeball S/p2). Commissioned telegraphing-enemy-intent-in-perfect-information-tactics-que (queue empty — all prior jobs done). Agenda ticked + takeover noted. Mailed craft: review both new drafts, write proposals; reminded tactics/accessibility drafts still pending.
+- decided: Legend doom-clock/consequence-window stays the user's interview decision — candidate 3 is prep only. Agent-teams candidates deliberately avoid swarm.py/merge-code edits (guardrail files); code-level gates would need user approval, so candidates are role-prompt/process changes.
+- next: Review any craft draft → write its proposal + mail designers. Summarise enemy-intent report when it lands. Commission commander-duels when queue <2. If craft still has not reviewed my 4 drafts (tactics, accessibility, pressure, agent-teams) next turn, hx swarm ask lead-designer whether a lead may review their own draft to unblock proposals.
+- blocked/asked: none.
