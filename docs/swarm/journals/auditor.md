@@ -17,3 +17,10 @@
 - discovered: orchestrator journal frozen at 13:58, lead-designer has NO journal — turns die before journaling, so every orchestrator turn repeats selfcheck→salvage discovery. This is the root cause of the stall.
 - next: ~21:35 audit — if still no spawn/merge and the same selfcheck→salvage loop repeats, record FAIL (idle-loop clause now met). Recommended in WARN mail: journal FIRST after selfcheck; respawn sw-ll4.1.1 with salvage patch + sw-uyv now; one finished action per turn.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-20 23:55 UTC turn
+- did: audited 23:23-23:53 window + 90-min cross-check; recorded WARN FIRST via hx swarm verdict; wrote docs/swarm/audits/20261120-2353.md.
+- decided: WARN not FAIL — compliance clean (65 calls/30min, 142/90min, all nous/qwen4-max, $0, 12%/14% 429s, no delegate/Claude), but 5/5 turns timed out rc -9, merge_red x2 on sw-ll4.1.1 (22:45, 23:39), sw-uyv failed attempt 3, no merge since 13:49 (~10h). Not idle loop: sw-ll4.1.1 finished attempt 2 (22:08 rc 0) and orchestrator's live 23:37 turn root-caused the merge-gate failure.
+- discovered: stray bash.exe copied into harness/.venv/Scripts during sw-uyv turn intercepts subprocess bash → broken WSL → merge gate red. Orchestrator quarantined it, but its own post-quarantine repro still showed WSL resolution (rc 1) — fix possibly incomplete.
+- next: ~00:25 audit — check whether orchestrator verified hx godot test green and merged sw-ll4.1.1 (3rd merge_red = deepen WARN, recommend holding merge). If compliance breach or idle-loop evidence appears, FAIL. Watch that sw-uyv is not respawned before bash fix is confirmed.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order. Two prior auditor turns (21:53, 23:23) died before recording verdicts; timeouts remain the swarm's main health problem.
