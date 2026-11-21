@@ -146,6 +146,9 @@ var _target: Dictionary = {}
 ## The turn being played back ({} when not): {"t", "obs", "walks",
 ## "battles", "turn"}.
 var _play: Dictionary = {}
+## The playback frame the battle panel's card was last built for (-1 none):
+## the card rebuilds only when the shown moment changes (sw-ll4.27.3).
+var _play_card_frame: int = -1
 ## The screen's windows (sw-ijp.2): modals, the playback blocker, the hover card.
 var ui: UiRoot
 var _blocker: UiWindow
@@ -635,15 +638,39 @@ func _on_hex_hovered(p: int) -> void:
 		_show_main()
 
 
-## The battle panel: the scores, the zones, and the squad card.
+## The battle panel: the scores, the zones, and the squad card. During
+## playback the card follows the shown moment (SquadCard.moment), not the
+## end-of-turn state (sw-ll4.27.3).
 func _refresh_battle_panel() -> void:
 	var eid := contexts.focus
 	if eid == ViewContexts.OVERWORLD or not session.battles.has(eid):
 		return
 	var id := card_squad()
 	var r := _battle_rules(eid)
-	_battle_box.show_battle(battle_name(eid), session.observe_battle(player, eid), _squad_obs(eid, id) if id >= 0 else {},
-		session.inspect_battle(player, eid, id) if id >= 0 else {}, player, r.tps if r != null else 10)
+	var squad := _squad_obs(eid, id) if id >= 0 else {}
+	var insp := session.inspect_battle(player, eid, id) if id >= 0 else {}
+	if id >= 0 and not _play.is_empty():
+		var rec: Dictionary = (_play["battles"] as Dictionary).get(eid, {})
+		if not rec.is_empty():
+			var m := SquadCard.moment(rec, float(_play["t"]), id, player, squad, insp)
+			squad = m["squad"]
+			insp = m["insp"]
+			if r == null:
+				r = rec["rules"]
+	var ctx := {"rules": r, "weapon_names": _weapon_names(r)}
+	_battle_box.show_battle(battle_name(eid), session.observe_battle(player, eid), squad, insp, player,
+		r.tps if r != null else 10, false, ctx)
+
+
+## Weapon display names from the content packages (the rules carry only
+## IDs): weapon ID -> name, for the squad card's weapon block.
+func _weapon_names(r: BattleRules) -> Dictionary:
+	var out := {}
+	if r == null:
+		return out
+	for wid: String in r.weapon_index:
+		out[wid] = String(session.templates.values_of(wid).get("name", wid))
+	return out
 
 
 func _on_squad_hovered(id: int) -> void:
@@ -1675,6 +1702,7 @@ func _start_play(before: Dictionary, turn: int) -> void:
 		if walks["commanders"].has(int(cmd["id"])) and not still.has(int(cmd["id"])):
 			(walks["gone"] as Array).append({"player": int(cmd["player"]), "convoy": false, "walk": walks["commanders"][int(cmd["id"])]})
 	_play = {"t": 0.0, "obs": after, "before": before, "walks": walks, "battles": session.playback(player), "turn": turn}
+	_play_card_frame = -1
 	_radial.hide()
 	_refresh_hover_card()
 	_refresh_battle_panel()  # the card shows the turn being played, not the last planning
@@ -1705,6 +1733,15 @@ func _show_play() -> void:
 		_main.title = battle_name(eid)
 		_main.set_camera(contexts.zoom, contexts.battle_centre)
 		_main.show_playback(battles[eid], t, session.observe_battle(player, eid), _inspected)
+		# The squad card follows the shown moment: rebuild it when the frame
+		# changes, not on every draw (sw-ll4.27.3).
+		var frames: Array = (battles[eid] as Dictionary).get("frames", [])
+		var last := maxi(frames.size() - 1, 0)
+		var fi := mini(int(t * last), last)
+		if fi != _play_card_frame:
+			_play_card_frame = fi
+			if card_squad() >= 0:
+				_refresh_battle_panel()
 	for pip in _pip_layer.get_children():
 		if pip is PipPanel and battles.has((pip as PipPanel).engagement):
 			var e := (pip as PipPanel).engagement
@@ -1736,6 +1773,7 @@ func skip_playback() -> void:
 	if _play.is_empty():
 		return
 	_play = {}
+	_play_card_frame = -1
 	_refresh_hover_card()
 	set_process(false)
 	contexts.sync(session.observe(player))

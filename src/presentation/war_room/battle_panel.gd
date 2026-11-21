@@ -6,7 +6,10 @@ extends VBoxContainer
 
 ## `obs`: observe_battle's result. `squad`: the squad's entry in it ({} for
 ## none) and `insp` its inspect_battle result. `tps`: ticks per second.
-func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictionary, player: int, tps: int) -> void:
+## `verbose` and `card_ctx` pass through to SquadCard.build; the engaged
+## squad's display name is resolved here from the observation.
+func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictionary, player: int, tps: int,
+		verbose: bool = false, card_ctx: Dictionary = {}) -> void:
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
@@ -27,7 +30,14 @@ func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictio
 	if squad.is_empty():
 		add_child(_dim("Click a squad to see its strength, weapons and range. Hovering one shows how far its weapons reach."))
 		return
-	add_child(SquadCard.build(squad, insp, player, tps))
+	var ctx := card_ctx.duplicate()
+	var tid := int(squad.get("target", -1))
+	if tid >= 0:
+		for q: Dictionary in obs.get("squads", []):
+			if int(q["id"]) == tid:
+				ctx["target_name"] = String(q.get("name", q.get("template", "")))
+				break
+	add_child(SquadCard.build(squad, insp, player, tps, verbose, ctx))
 
 
 func _dim(text: String) -> Label:
