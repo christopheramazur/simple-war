@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# Force pytest to exercise THIS checkout's hx package, even when PYTHONPATH or
+# a copied venv's editable install points at another checkout (swarm worktrees).
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
 import subprocess
 
 import pytest
