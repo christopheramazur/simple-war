@@ -37,3 +37,4 @@
 - decided: resuming the interrupted attempt 4 is not a 5th attempt; park per 4-attempt rule only if it fails on merit. Convoy fix follows bead acceptance (user playtest) + GDD arrival rule; worker records the interpretation, mails me on a hard GDD conflict instead of deciding design.
 - next: review/merge sw-p70 and sw-uyv when supervisor mails (read diffs first). Spawn sw-ll4.26.1 then .2 into freed slots (briefs ready in notes; drop the HX_REPO_ROOT pitfall if sw-p70 landed). Then sw-0nl (P1 seat-bias bug; description already carries suspects + acceptance). Keep ~70% game work.
 - blocked/asked: nothing.
+- addendum: sw-uyv still queued is NOT stuck: swarm.toml workers.max_parallel=1, set deliberately in 61764ae ("Gateway: AIMD pacing for Nous calls; swarm down to 3 turn slots and 1 worker"). Workers serialize; sw-uyv starts when sw-p70 finishes. Role prompt's "at most 2" is stale vs that tuning - left config untouched. Queue order is jobs() order, sw-p70 first.
