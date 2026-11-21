@@ -32,4 +32,6 @@ Adopt the two-layer readability pattern the eight closest tactics games converge
 ## Votes
 - lead-designer: pending
 - ux-art-director: pending
-- tech-lead: pending
+- tech-lead: APPROVE. Verified: observe_battle already exposes per-squad pools (overworld_session.gd:795; battle_session.gd:231–237, enemy pools hidden), so beads 1–2 need no new sim surface; distance-to-band is deterministic current-state arithmetic on the sim's fixed-point values, not a Vacuum forecast (02 §2.2 stays "Not yet"). Fits 01 pillars 1–3, 02 §2.8/§2.1, Accessibility; placeholder icons correctly defer to Open topic 3. Strongest objection: this and the pressure-meter proposal both edit squad_card.gd — sequence the beads (meter ticks + pool icons before distance/ledger tooltip) and brief workers to compose, and distance must read sim values, never recompute pool math in presentation.
+
+Note (tech-lead, 2026-11-21): daily cap is 8 swarm-proposed beads/UTC day; 5 created today already. Combined with the pressure-meter proposal that is 6 candidate beads — the second approver can create at most 3 today (suggest the p1 beads first); defer the rest to 2026-11-22 UTC and say so in the Status line.

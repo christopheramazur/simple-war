@@ -32,4 +32,6 @@ Make SIMPL pressure readable at a glance and countable, the way players praised 
 ## Votes
 - lead-designer: pending
 - ux-art-director: pending
-- tech-lead: pending
+- tech-lead: APPROVE. Verified code claims: ledger exists (battle_state.gd:85 record_flow, pools.gd:83) and only sim_metrics reads it; observe/inspect are already fog-safe (battle_session.gd:314 hides enemy pools). Fits 02 Rules Spec §2.8 (bands) + §2.1 (transparency), 01 pillars 2–3 and Accessibility; presentation formats only what the API reports = correct layering (AGENTS.md §5). Strongest objection: bead 2 grows the Game API surface — keep it read-only and own-squad-only, and have the band GUT test call the sim's band mapping rather than re-declaring 15/40/65/90 in UI/tests, so displayed bands = used bands (02 §2.1).
+
+Note (tech-lead, 2026-11-21): daily cap is 8 swarm-proposed beads/UTC day; 5 created today already. This proposal and the tactics-morale one list 6 beads combined — whoever casts the second APPROVE can create at most 3 today (suggest the p1 beads first); defer the rest to 2026-11-22 UTC and say so in the Status line.
