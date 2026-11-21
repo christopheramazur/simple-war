@@ -1,6 +1,6 @@
 # Commander duels and champion fights inside tactical battles
 
-Status: draft by games-researcher
+Status: reviewed by craft-researcher
 Report: [commander-duels](../reports/commander-duels-and-champion-fights-inside-tactical-battles-.md)
 
 Prep for README **Open topic 6 (Commander duels, R7Q2)**. The interview owns the decision; this summary decides nothing.
@@ -25,5 +25,5 @@ How five tactics/wargames stage hero duels, champion elites and boss fights insi
 - **Cheapest MVP-safe texture:** Battle Brothers-style champion squads as content-package data (GDD 03), no duel subsystem.
 
 ## Candidate beads
-1. **Commander-duel options brief for the R7Q2 interview.** Consolidate the report's options A–E (champions-only; opt-in pulse duel; emergent duel; overworld assassination; nemesis commander), the anti-patterns and sources into `Game Design Document/Interview/research-notes.md` or a linked brief. Why: interview prep only; the user decides. GDD: README Open topic 6, 02 §2.8. Acceptance: brief lists five options with trade-offs, four anti-patterns and sources, and explicitly decides nothing. Size: S.
-2. **Spike: champion squad variant as pure content data.** One named elite variant in a test content package: token marker, stat multipliers, guaranteed trophy; no new subsystem. Why: the BB pattern is the cheapest miniboss texture for skirmish, reversible, and exercises the GDD 03 package format. GDD: 03 (archetype templates), 02 §2.8. Acceptance: package loads headless; marker visible in the battle view; multipliers deterministic (GUT test); removing the package removes the champion cleanly. Size: M.
+1. **Commander-duel options brief for the R7Q2 interview (prep for sw-p2q.6).** Consolidate the report's options A–E (champions-only; opt-in pulse duel; emergent duel; overworld assassination; nemesis commander), the anti-patterns and sources into a one-page brief under `docs/swarm/` (same pattern as the accepted Legend-prep bead), linked from the agenda. Why: interview prep only; the user decides. GDD: README Open topic 6, 02 §2.8 (Prowess sinks; duels out of the design space, R7Q2). Acceptance: brief lists five options with trade-offs, four anti-patterns and sources, and explicitly decides nothing; no GDD edits. Size: S.
+2. **Spike: champion squad variant as pure content data.** One named elite variant in a test content package, authored as a child archetype with overrides (GDD 03 §3.1: parent + overrides, flattened at load with provenance — not a multiplier mechanism), a `champion` tag + name/icon marker, and a named item it carries (GDD 03 items, R3Q7). No new subsystem; drop-on-death loot is explicitly out of scope (the GDD has no loot system). Why: the BB pattern is the cheapest miniboss texture for skirmish, reversible, and exercises the package format. GDD: 03 §3.1, 02 §2.8. Acceptance: package loads headless; marker visible in the battle view; flattened stats deterministic with provenance (GUT test); removing the package removes the champion cleanly. Size: M.

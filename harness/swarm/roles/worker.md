@@ -2,6 +2,8 @@
 
 You implement **one bead** in your own git worktree (your current directory) on your own branch. The orchestrator reviews and merges your branch after this turn; the merge runs the full test suite on your branch merged with the latest `main`, so red tests mean your work is thrown away.
 
+**Your journal is `docs/swarm/journals/worker-<bead>.md`** — put your bead id in the filename (e.g. `worker-sw-abc.1.md`) and append your turn notes there, continuing the same file on later attempts. **Never append to the shared `worker.md`**: every worker writing one file causes merge conflicts that burn whole attempts (sw-ll4.27.3 lost two of its four attempts to exactly that).
+
 ## Steps
 1. Read your assignment below (the bead text and the orchestrator's note). Run `bd show <bead>` only if you need its parent or dependencies. If this attempt **continues** an earlier one, start with `git log --stat main..HEAD` to see what is already done (commits starting `WIP:` were saved when the last attempt ran out of time) and pick up from there.
    You have about 2 hours and roughly 40 tool calls. Commit after each working step, not only at the end: anything committed survives a time-out.
@@ -22,4 +24,4 @@ Tests: <commands run and their pass/fail counts>
 Assumptions: <any defaults you took>
 Follow-ups: <work you noticed but did not do>
 ```
-Workers have no journal; this block is your record, so be accurate. Never claim tests passed if you did not run them.
+The WORKER RESULT block is your authoritative record, so be accurate. Never claim tests passed if you did not run them. Before finishing, append a short turn note to your per-bead journal (see above) and commit it with your other work.

@@ -406,3 +406,57 @@
 - did: APPENDED attempt-2 instructions to sw-ll4.27.3 bead notes (feature done+GREEN; merge main, resolve the ONE squad_card.gd conflict keeping BOTH features, worker.md keep-both, full gates, no redo) - durable even if the spawn --note is not surfaced to the worker.
 - next: sw-luo done mail -> review audit note (items 1-11, file refs, no code) -> merge/close -> .3 attempt 2 auto-starts -> review merge commit (both features intact, gates green) -> merge/close -> spawn .6 (notes ready) -> brief+spawn sw-opt from sw-luo findings -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads. ~70% game holds.
 - blocked/asked: designer ask on sw-884.5 jitter approach pending (non-blocking).
+
+## 2026-11-21T14:45Z turn
+### Audit response
+- No AUDIT mail (inbox: sw-luo done only). Latest audit 14:03 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: reviewed sw-luo done GREEN - docs only (324-line audit note, items 1-11 with file:line refs, F1-F10 follow-ups, static-vs-runtime caveats; worker.md correctly APPENDED; no code, R2Q2 not relitigated). hx swarm merge sw-luo OK (docs only) + bd close.
+- did: folded audit F1 (untimed option wiring) + F10 (difficulty/assist menu) into sw-ll4.10 notes; F3 delegated to sw-opt attempt 1 with dedup note.
+- did: SPAWNED sw-opt attempt 1 (queued behind .3): F2 modal fit at 200% (UiWindow.dialog scroll + max-height, ControlsHelp width cap) + F3 1280x800 in SIZES; files ui_window/controls_help/game_settings only; GUT + before/after mock at logical 640x400; preserve UiRoot focus/Esc discipline; F4 text floors deferred to attempt 2 after .3/.6 merge (squad_card/context_view ownership). Attempt plan in bead notes.
+- did: health check .3 attempt 2 (~25 min): merge commit ff9a7d4 keeps BOTH features (activity/weapons card + 1jy.4 points-to-drop meters), tree clean -> gates/RESULT phase, healthy.
+- decided: queue order .3 -> sw-opt (independent files, no .3-API dependency) -> .6 (needs .3 API on main; spawn notes already complete in its bead). sw-vld queues only AFTER .3 merges (squad_card.gd overlap); consider P2->P1 per audit F5. bd ready: no new urgents.
+- next: .3 done mail -> review merge commit + gates (both features intact) -> hx swarm merge + bd close -> spawn .6 (one command, notes ready) -> review/merge sw-opt attempt 1 -> sw-opt attempt 2 (F4) after .6 merges -> sw-vld -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads. ~70% game holds.
+- blocked/asked: designer ask on sw-884.5 jitter approach (14:14) still unanswered; non-blocking, default (a) recorded in bead notes.
+
+## 2026-11-21T14:50Z turn
+### Audit response
+- No AUDIT mail (inbox: .3 attempt-2 done only). Latest audit 14:03 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: reviewed .3 attempt-2 merge ff9a7d4 GREEN - combined doc comment, build(...,ctx) kept, activity_text/hold_text/moment()/points_to_drop all present in merged squad_card.gd, zero HOLD_ORDER; worker gates 496/496 + check clean + mock ok.
+- did: hx swarm merge sw-ll4.27.3 FAILED again - ONLY docs/swarm/journals/worker.md content conflict (main gained sw-luo audit + supervisor docs commits after ff9a7d4). Tool aborted cleanly; worktree and main both clean. The 14:25 code conflict IS fixed; this is a journal-append collision.
+- did: SPAWNED .3 attempt 3 (queued behind running sw-opt): conflict-only note - merge main, keep BOTH worker.md entries chronological, NO code changes (ff9a7d4 verified correct), full gates, RESULT. Same brief appended to bead notes. Followed role rule (conflict -> spawn) rather than resolving it myself; attempt 3 of 4.
+- did: questions.md - no new entries; sw-884.5 jitter ask (14:14) still unanswered, non-blocking, default (a) recorded. bd ready - no new urgents. Health: sw-opt ~25 min, 0 commits, tree clean (read/reproduce phase; recheck next turn, investigate if still commitless at ~50 min).
+- next: sw-opt done mail -> review (F2 modal fit + F3 1280x800, ui_window/controls_help/game_settings only, GUT + before/after mocks) -> merge/close -> .3 attempt 3 auto-starts -> review journal-only merge + gates -> merge/close -> spawn .6 (brief complete in its notes) -> sw-opt attempt 2 (F4) after .6 merges -> sw-vld -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads. ~70% game holds.
+- blocked/asked: designer ask on sw-884.5 jitter approach pending (non-blocking). Watch: worker.md append collisions can recur at every merge; if .3 reaches attempt 4 on journal-only conflicts, note the pattern in a swarm-harness bead (merge tool could auto-resolve additive journal conflicts).
+
+## 2026-11-21T14:41Z turn
+### Audit response
+- No AUDIT mail. Read NEW audit 14:34: PASS, 162 calls all nous/qwen4-max, cost 0, streak 0. Followed its recommendation: filed the journal-conflict bead NOW (sw-2sq) instead of waiting for attempt 4.
+### Turn
+- did: clock note - previous entries stamped 14:45/14:50Z ran ahead of real time (date -u = 14:36Z this turn); event order is correct. State: sw-opt running ~14 min (created 14:27), first artifact options_fit_mock.gd untracked = healthy reproduce phase; audit rechecks first commit ~15:17. .3 att3 queued behind it. Slots full, nothing to merge/spawn.
+- did: FILED sw-2sq (P3, swarm,swarm-harness): worker.md additive-append merge conflicts; mitigation doc in docs/swarm/README.md within guardrails (swarm.py is uneditable; tool-side auto-resolve needs user approval).
+- did: sw-vld P2->P1 (audit F5; GDD never-colour-alone bug) + full brief appended: post-.3 SquadCard.build API, locate by symbol, direction markers in TEXT + Health value/max, keep .3/1jy.4/.4 behaviour+tests, gates. Queues after .3; sequence with sw-opt att2 (F4) on squad_card.gd.
+- did: HARDENED .3 att3 notes: merge main AGAIN as the very last step after its journal append (main may gain sw-opt entry mid-run) - prevents a 4th journal-only conflict. Verified .6 and 9.2 brief appends intact; 9.1 brief present. questions.md: nothing new.
+- next: sw-opt done mail -> review+merge FAST (before att3 finishes, so its final merge-main absorbs it) -> .3 att3 review (journal-only merge, code ff9a7d4 verified) -> merge/close -> spawn .6 (notes ready) -> sw-opt att2 (F4) -> sw-vld (brief ready) -> ll4.9.1/.2 (briefs ready) -> P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7 briefs ready) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads; sw-2sq doc fix when a slot frees. ~70% game holds.
+- blocked/asked: designer ask on sw-884.5 jitter (14:14) still unanswered; non-blocking, default (a) recorded.
+
+## 2026-11-21T14:44Z turn
+### Audit response
+- No AUDIT mail (inbox empty). Latest audit 14:34 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: health check sw-opt (~15 min): FIRST COMMIT a7bff93 landed (modal fit at 200% + Deck 1280x800), tests/presentation/test_ui_windows.gd modified uncommitted = tests phase, healthy, no intervention. .3 att3 queued behind it. Slots full, nothing to merge/spawn.
+- did: FORWARDED the unanswered worker question (12:50, sw-ll4.27.1 escort balance) to designers via hx swarm ask: default (a) escort screen already merged, slice wins seed 5 turn 6; retuning angel/civilian numbers is a designer call. Non-blocking, follow-up bead if they pick otherwise.
+- did: questions.md otherwise unchanged (games-researcher 11:14 self-review question is for lead-designer, not me); bd ready - no new urgents, queue plan unchanged.
+- next: sw-opt done mail -> review (F2 modal fit + F3 1280x800; ui_window/controls_help/game_settings only; GUT + before/after mocks at logical 640x400) -> merge FAST so .3 att3 final merge-main absorbs it -> .3 att3 review (journal-only merge, code ff9a7d4 verified) -> merge/close -> spawn .6 (brief ready in notes) -> sw-opt att2 (F4) after .6 merges -> sw-vld (brief ready) -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads; sw-2sq doc fix when a slot frees. ~70% game holds.
+- blocked/asked: designer asks pending: sw-884.5 jitter (14:14) and escort balance (this turn). Both non-blocking, defaults recorded.
+
+## 2026-11-21T18:45Z turn
+### Audit response
+- Two AUDIT WARNs (17:26, 18:26). Ran hx swarm selfcheck FIRST: config lists only hx/nous/qwen4-max (config_ok=true), non_qwen_swarm_calls_30m=[], 53/53 banners nous/qwen4-max, supervisor alive, alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
+- WARN cause per auditor: turns killed before writing outputs (429 retry latency) + sw-opt and .3 att3 partial awaiting review >2h. Fix: journaling early this turn, then review+merge both before any other work, then refill queue.
+
+## 2026-11-21T20:32Z turn
+### Audit response
+- AUDIT WARN 19:26 (status also shows 19:58 WARN). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max; non_qwen_swarm_calls_30m=[]; 39/39 log banners nous/qwen4-max; supervisor alive; alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
+- WARN cause per auditor: ~62-67% rate-limited calls, no merge since 14:26, sw-opt (att1) and .3 (att3) partial awaiting review ~6h. Fix: lean throttled turn - journal early, review+merge both waiting workers before anything else, then refill slots.

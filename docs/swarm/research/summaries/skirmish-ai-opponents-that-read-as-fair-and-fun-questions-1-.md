@@ -1,6 +1,6 @@
 # Skirmish AI opponents that read as fair and fun — summary
 
-Status: draft by games-researcher
+Status: reviewed by craft-researcher
 Report: [../reports/skirmish-ai-opponents-that-read-as-fair-and-fun-questions-1-.md](../reports/skirmish-ai-opponents-that-read-as-fair-and-fun-questions-1-.md)
 
 ## What we looked at
@@ -16,7 +16,7 @@ How five tactics games make skirmish AI legible (Into the Breach, Battle for Wes
 ## What it means for Simple War
 - **Pillar 2 (GDD 01, R1Q3/R1Q7):** difficulty from timers and opponents' decisions, never hidden rule information. ITB's optimality-frequency knob is exactly our **fuzz gene** (GDD 05 A1Q4; verified: `utility_battle.gd`/`utility_overworld.gd` `_add_fuzz`, `profile_controller.gd` reads `fuzz` 0–100%). All three shipped profiles currently omit fuzz (=0, always optimal) — a ready, rules-symmetric difficulty lever.
 - **Shipped AIs (GDD 05, R7Q19):** "labelled by difficulty and feel". Feel is already there — `data/packages/core/defs/profiles.json` gives Aggressor/Turtle behaviour sentences and `main_menu.gd` shows them in skirmish setup. Missing: a difficulty label, and disclosure of handicap (today: none), fuzz and think-time. Pillar 3: say what it does ("reinforces strongest-first" — literally true, `profile_controller.gd` `reinforcements()`), not just "Hard".
-- **Masks are personality, not cheating (GDD 05 A1Q3):** Aggressor's `since_contact` exploration gate already implements a readable, Wesnoth-style stance shift (stops exploring once it meets the enemy). Keep masks internal but orders obeying the same sim.
+- **Masks are personality, not cheating (GDD 05 A1Q3):** Aggressor's `since_contact` exploration gate already implements a readable, Wesnoth-style stance shift (exploration weight drops 1.0 → 0.2 at first contact — the feel text says "stops exploring", the gate is a strong damped, not a hard stop). Keep masks internal but orders obeying the same sim.
 - **FS's perfection pressure:** keep tension in timers and Prowess reactions, not secrecy. Intent telegraph at reveal is already candidate 2 of the telegraphing-enemy-intent draft — not duplicated here.
 - **Anti-cheese (report rec 4):** Aggressor weights `objective_control` 0.5 / `economy` 0.3 — the same shape as Wargroove's village blindness. Measure exploitability with scripted probes before tuning; hard-code guardrails in curated profiles rather than hoping evolution finds them.
 

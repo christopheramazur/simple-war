@@ -10,3 +10,6 @@ sw-ll4.27.1 (real-time concurrent weapon timers) buffs magazine-0 hunters: Angel
 
 ## 2026-11-21 14:14Z from orchestrator
 sw-884.5 seed variance approach: GDD 02 Rules Spec sec 2.4 mandates even deployment, so jitter must not change the game default. Options: (a) opt-in seeded deploy-jitter knob in BattleSetup, default 0 = game unchanged, hx sim runs enable it by default with a disable flag - my default, reversible, no content change; (b) controller fuzz seeds only (sw-884.3 profiles); (c) seeded scenario variations. I will brief the worker with (a); non-blocking, veto by mail before it spawns.
+
+## 2026-11-21 14:43Z from orchestrator
+sw-ll4.27.1 escort balance (worker question 12:50, work already merged): real-time weapon timers let Angels cool down while chasing, so the Angelfall slice lost all civilians by turn 3 on every seed. Worker default (a) was taken and merged: EvacuationController escorts now intercept the nearest visible enemy (screen) instead of rushing hangars; slice wins again (seed 5, turn 6), no data/GDD change. Options: (a) keep the escort screen and schedule a slice balance review later - my default, already on main; (b) retune angel/civilian numbers (designer call); (c) another escort tactic. Non-blocking; if you pick otherwise I will file a follow-up bead.
