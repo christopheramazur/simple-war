@@ -127,3 +127,81 @@ func test_the_war_room_owns_its_windows() -> void:
 	assert_true(w.contexts.tab_in())
 	w._refresh()
 	assert_eq(w.ui.context, &"battle")
+
+
+## A modal whose body is taller than any small viewport, with a Close at the
+## bottom (the options-screen shape that clipped at 200%, sw-opt).
+func _tall_modal(window_id: StringName) -> UiWindow:
+	var w := UiWindow.new()
+	w.id = window_id
+	var col := w.dialog(300)
+	var title := Label.new()
+	title.text = "Tall"
+	col.add_child(title)
+	for i in 24:
+		var row := Label.new()
+		row.text = "Row %d" % i
+		row.custom_minimum_size = Vector2(0, 24)
+		col.add_child(row)
+	var close := Button.new()
+	close.name = "Close"
+	close.text = "Close"
+	col.add_child(close)
+	return w
+
+
+## The dialog body scrolls on one axis inside a viewport-bound region and the
+## Close button stays reachable at the bottom (XAG 101, sw-opt).
+func _assert_dialog_fits(size: Vector2) -> void:
+	var s := Control.new()
+	s.size = size
+	add_child_autofree(s)
+	var ui := UiRoot.of(s)
+	var w := ui.open(_tall_modal(&"tall"))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var scroll := w.find_child("Scroll", true, false) as ScrollContainer
+	assert_not_null(scroll, "the dialog body is wrapped in a scroll")
+	assert_eq(scroll.horizontal_scroll_mode, ScrollContainer.SCROLL_MODE_DISABLED, "no horizontal / two-axis scroll")
+	assert_eq(scroll.focus_mode, Control.FOCUS_NONE, "the scroll traps no focus")
+	assert_true(scroll.size.y <= size.y + 0.5, "the scroll region is bounded by the viewport height")
+	var v := scroll.get_v_scroll_bar()
+	assert_gt(v.max_value, 0.0, "the tall body overflows and can scroll")
+	scroll.scroll_vertical = int(v.max_value)
+	await get_tree().process_frame
+	var close := w.find_child("Close", true, false) as Button
+	var cr := close.get_global_rect()
+	var sr := s.get_global_rect()
+	assert_true(cr.position.y >= sr.position.y - 0.5 and cr.end.y <= sr.end.y + 0.5,
+		"Close is reachable on-screen at the bottom of the scroll")
+
+
+func test_dialog_scrolls_and_close_reachable_at_640x400() -> void:
+	await _assert_dialog_fits(Vector2(640, 400))
+
+
+func test_dialog_scrolls_and_close_reachable_at_640x360() -> void:
+	await _assert_dialog_fits(Vector2(640, 360))
+
+
+func test_controls_help_fits_a_small_viewport() -> void:
+	var s := Control.new()
+	s.size = Vector2(640, 400)
+	add_child_autofree(s)
+	var ui := UiRoot.of(s)
+	var w := ui.open(ControlsHelp.window())
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var scroll := w.find_child("Scroll", true, false) as ScrollContainer
+	assert_not_null(scroll, "the help list scrolls when it is taller than the window")
+	assert_eq(scroll.horizontal_scroll_mode, ScrollContainer.SCROLL_MODE_DISABLED, "help never scrolls two axes")
+	var centre := scroll.get_child(0) as CenterContainer
+	var panel := centre.get_child(0) as PanelContainer
+	assert_true(centre.size.x <= s.size.x + 0.5 and panel.size.x <= s.size.x + 0.5,
+		"the help body is capped to the viewport width and wraps, never clips")
+
+
+func test_sizes_include_the_deck_native_1280x800() -> void:
+	assert_true(GameSettings.SIZES.has(Vector2i(1280, 800)), "SIZES offers the Deck native size")
+	assert_true(GameSettings.sizes_for(Vector2i(1280, 800)).has(Vector2i(1280, 800)),
+		"windowed mode can pick 1280x800 on a Deck screen")
