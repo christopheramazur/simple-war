@@ -440,3 +440,13 @@
 - did: HARDENED .3 att3 notes: merge main AGAIN as the very last step after its journal append (main may gain sw-opt entry mid-run) - prevents a 4th journal-only conflict. Verified .6 and 9.2 brief appends intact; 9.1 brief present. questions.md: nothing new.
 - next: sw-opt done mail -> review+merge FAST (before att3 finishes, so its final merge-main absorbs it) -> .3 att3 review (journal-only merge, code ff9a7d4 verified) -> merge/close -> spawn .6 (notes ready) -> sw-opt att2 (F4) -> sw-vld (brief ready) -> ll4.9.1/.2 (briefs ready) -> P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7 briefs ready) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads; sw-2sq doc fix when a slot frees. ~70% game holds.
 - blocked/asked: designer ask on sw-884.5 jitter (14:14) still unanswered; non-blocking, default (a) recorded.
+
+## 2026-11-21T14:44Z turn
+### Audit response
+- No AUDIT mail (inbox empty). Latest audit 14:34 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: health check sw-opt (~15 min): FIRST COMMIT a7bff93 landed (modal fit at 200% + Deck 1280x800), tests/presentation/test_ui_windows.gd modified uncommitted = tests phase, healthy, no intervention. .3 att3 queued behind it. Slots full, nothing to merge/spawn.
+- did: FORWARDED the unanswered worker question (12:50, sw-ll4.27.1 escort balance) to designers via hx swarm ask: default (a) escort screen already merged, slice wins seed 5 turn 6; retuning angel/civilian numbers is a designer call. Non-blocking, follow-up bead if they pick otherwise.
+- did: questions.md otherwise unchanged (games-researcher 11:14 self-review question is for lead-designer, not me); bd ready - no new urgents, queue plan unchanged.
+- next: sw-opt done mail -> review (F2 modal fit + F3 1280x800; ui_window/controls_help/game_settings only; GUT + before/after mocks at logical 640x400) -> merge FAST so .3 att3 final merge-main absorbs it -> .3 att3 review (journal-only merge, code ff9a7d4 verified) -> merge/close -> spawn .6 (brief ready in notes) -> sw-opt att2 (F4) after .6 merges -> sw-vld (brief ready) -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads; sw-2sq doc fix when a slot frees. ~70% game holds.
+- blocked/asked: designer asks pending: sw-884.5 jitter (14:14) and escort balance (this turn). Both non-blocking, defaults recorded.
