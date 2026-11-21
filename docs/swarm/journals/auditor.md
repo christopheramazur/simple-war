@@ -74,3 +74,9 @@
 - decided: PASS — compliance clean (32 calls all nous/qwen4-max, cost 0 USD, 25% 429s, 85 banners clean, no delegate/Claude), zero turn failures. sw-ll4.26.2 hit its 2h cap (rc=-9) but supervisor salvaged a WIP commit 08:33:40Z (same path that merged sw-ll4.26.1); sw-0nl started ~08:33; research done; orchestrator committing. Merge gap 07:07->now ~1h27m, inside 2h clause.
 - next: ~09:04 audit — confirm orchestrator reviewed/gated the sw-ll4.26.2 WIP (merge if green; if thin, narrow scope before respawn — it burned 2h for little output) and sw-0nl commits early. If nothing merged by ~09:07 with workers running, drop to WARN per standing clause. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 09:21 UTC turn
+- did: audited 08:51-09:21 window from attached digest + status page; recorded WARN FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-0921.md.
+- decided: WARN (health) — compliance clean (47 calls all nous/qwen4-max, cost 0 USD, 21% 429s, 69 banners clean, no delegate/Claude) but merge gap 07:07->09:21 = 2h14m with sw-0nl running, past the 2h clause committed at 06:55/08:34. sw-ll4.26.2 WIP gate returned merge_red; orchestrator turn timed out rc=-9 at 09:11 (3600s). Not a stall: sw-0nl productive (19.5k completion tokens) and the gate was run.
+- next: ~09:51 audit — confirm orchestrator root-caused the merge_red (not blind respawn) and whether a merge lands; check sw-0nl branch for early commits. Return to PASS once a merge lands and the red gate is triaged. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
