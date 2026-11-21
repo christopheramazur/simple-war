@@ -22,3 +22,13 @@
 - noted, no bead: placeholder text dim@0.7 on field ~3.6:1 and disabled button text dim@0.6 (both WCAG-exempt categories); TooltipLabel = size-2 = 14px, acceptable for secondary text; glossary definition 13px SmallDim already covered by sw-wqc acceptance.
 - next: verify sw-hk0/sw-wqc/sw-dqj/sw-vld fixes when they land (git log src/presentation/war_room + glossary); then controller path audit (GUIDE mappings for focus nav/activation, reaction radial via stick) and sw-ijp.5 text-contrast guard review.
 - blocked/asked: none.
+
+## 2026-11-21T12:05Z turn
+- did: reviewed sw-ijp.5 merge (9e0ff8b + mocks c9fef02) against my four vote guards - PASS. AA text tones tested on dark+light panels and live switch; neutral-30 greyscale separation numerically asserted; P2 square tokens + P# labels/badges in all readers; presets settings-only, replay-safe. test_team_palette.gd 11/11, 65 asserts.
+- tooling note: subset test run failed with 'TeamPalette not declared' until hx godot check rebuilt the global class cache (new class_name merged). Not a code bug; run check first after merges that add class_names.
+- did: viewed both greyscale mocks - P1/P2/neutral read as three luminance levels plus badges/labels; Okabe-Ito squad dots are close in luminance but the squad label resolves it (the designed redundancy). No review bead needed; 'P30' neutral detachment label is odd but consistent, not a defect.
+- did: answered games-researcher self-review question (yes-with-note, marked self-review, designer vote stays the gate); created docs/swarm/design/answers.md; FYI mail to lead-designer who owns process.
+- good patterns: test asserts the four readers keep no local palette (single-source regression guard); deterministic 5%-step text_tone; mock footer documents the CVD simulation method.
+- next: sw-vld/sw-dqj/sw-wqc/sw-hk0 all still OPEN, no fixes landed - verify when they do; controller-path audit (GUIDE) still pending; on/after 2026-11-22 UTC create the deferred proposal beads (pressure-meter 2-3, tactics 3, all p2) per lead-designer sequencing note - meter ticks (sw-1jy.3) before distance/tooltip edits in squad_card.gd.
+- blocked/asked: none.
+- incident: bd update sw-rlg --notes replaced notes (warning says use --append-notes). Bead was created by me 05:25Z today with no recorded note additions and the passive export has no prior entry, so prior notes were almost certainly empty; description intact. Always use --append-notes from now on.

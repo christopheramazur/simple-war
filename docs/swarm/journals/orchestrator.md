@@ -202,3 +202,13 @@
 - did: Confirmed queue from bd ready + swarm-proposed list: after .3 merge -> spawn sw-1jy.4 (write brief post-merge, depends on .3's squad_card meter) -> sw-ll4.9.1/.2 -> P2 accepted proposals (sw-rlg, sw-136.3/.4, sw-kys.9) then sw-884.5/sw-eo8.7/sw-cgl.4. Appended scoping note to sw-rlg: pipeline-level variants, reuse ijp.5 CVD approach, harness-only. ~70% game work holds.
 - next: review sw-1jy.3 on done mail (acceptance: mock PNG 5 bands + ticks 15/40/65/90, band_of boundary GUT tests 14/15..89/90, check + full suite green) -> merge/close -> sw-1jy.5 auto-starts -> spawn sw-1jy.4 with post-merge pointers.
 - blocked/asked: nothing.
+
+## 2026-11-21T11:56Z turn
+### Audit response
+- No AUDIT mail (inbox harness/data/swarm/mail/orchestrator holds only read/). Latest audit 11:22 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate - do not re-investigate).
+### Turn
+- did: Pre-reviewed sw-1jy.3 commit e67de27 (worker still running, ~10 min in): observe_state exposes compiled band_floor_pct read-only; squad_card _simpl_meter = 5 segments at floors + ticks 15/40/65/90 + icon/word always + percent only verbose + tr() fallback + theme-tone fills + _stat_bar fallback. Layering, data-as-data, never-colour-alone all good. band_of already on main (battle_rules.gd:237); boundary GUT tests written but UNCOMMITTED (tests/sim/test_battle_rules.gd - compliant: calls band_of, GDD boundary cases + compiled-floor test at cap 200).
+- did: Brief intact in bead notes; appended merge checklist via --append-notes. Missing for merge: committed tests, squad_card_mock.gd + PNG (5 bands + ticks), worker log check + full suite green.
+- decided: on done mail verify the 3 missing items in git/log -> hx swarm merge + bd close; if mock/tests still missing -> spawn continuation on same branch (commit them, nothing else). Never merge while the worker is running.
+- next: sw-1jy.3 done mail -> merge/close -> sw-1jy.5 auto-starts -> spawn sw-1jy.4 (brief post-merge, layers on this meter). Then sw-ll4.9.1/.2 (briefs spawn-ready) -> P2 accepted proposals (sw-rlg, sw-136.3/.4, sw-kys.9) then sw-884.5/sw-eo8.7/sw-cgl.4. Slots full (1 running + 1 queued) -> no spawns. ~70% game work holds (all game).
+- blocked/asked: nothing.
