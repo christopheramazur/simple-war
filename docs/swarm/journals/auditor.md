@@ -24,3 +24,10 @@
 - discovered: stray bash.exe copied into harness/.venv/Scripts during sw-uyv turn intercepts subprocess bash → broken WSL → merge gate red. Orchestrator quarantined it, but its own post-quarantine repro still showed WSL resolution (rc 1) — fix possibly incomplete.
 - next: ~00:25 audit — check whether orchestrator verified hx godot test green and merged sw-ll4.1.1 (3rd merge_red = deepen WARN, recommend holding merge). If compliance breach or idle-loop evidence appears, FAIL. Watch that sw-uyv is not respawned before bash fix is confirmed.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order. Two prior auditor turns (21:53, 23:23) died before recording verdicts; timeouts remain the swarm's main health problem.
+
+## 2026-11-21 01:24 UTC turn
+- did: audited 00:54-01:24 window; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-0124.md.
+- decided: PASS (first since the stall) — compliance clean (40 swarm calls all nous/qwen4-max, $0, 22% 429s, 39 banners clean, no delegate/Claude in swarm) and health recovered: sw-ll4.1.1 merged 01:07 ending the ~11h merge drought, merge-gate fix 36643f1 on main, ZERO turn failures this window, research job done. The 3 merge_red events preceded the successful merge.
+- noted: non-swarm bonsai/nothink bench + 5 hx delegate L3 calls ($0) and user Claude session (44 turns opus) — reported, not counted. sw-uyv still failed (attempt 3), no workers running.
+- next: ~01:54 audit — confirm orchestrator respawns or triages sw-uyv and keeps merging now the gate is green. Keep PASS while work moves; FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
