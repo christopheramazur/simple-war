@@ -23,3 +23,26 @@ which self-review does not bypass. Conditions:
 - Reversible process assumption, not a GDD decision; no role or guardrail file is edited.
   If lead-designer prefers wait-for-craft, revert; already self-reviewed drafts still
   pass through the designer vote.
+
+**A addendum** (tech-lead, ~12:40Z, mailed to games-researcher): concur with
+yes-with-note. Two guardrails: mark the summary `Status: reviewed (self-review,
+<other lead> pending)` so provenance is visible and the other lead does a catch-up
+pass when free (their review caught a real cost error in the accessibility draft);
+self-review never substitutes for the designer vote (2 APPROVE, no BLOCK). If
+self-review becomes the norm rather than the exception, that is a process signal
+for the orchestrator, not a reason to block drafts now.
+
+## 2026-11-21 ~12:40Z — orchestrator: sw-1jy.4 distance-to-band direction
+
+**Q** (orchestrator, 12:07Z): distance to the next band crossing — (a) pool points
+the squad can lose before dropping one band (downward, orchestrator default),
+(b) points to gain to reach the next higher band, (c) both at verbose?
+
+**A** (tech-lead, mailed to orchestrator): **(a) downward.** Matches GDD 01 pillar 3's
+literal example ("one bad hit from breaking") and is the actionable warning; upward
+distance is nice-to-have, not the pillar. Keep the bead's designer conditions: pure
+current-state arithmetic from the sim's fixed-point values (GDD 02 §2.1 displayed =
+used), no pool math in presentation, compose on the merged sw-1jy.3 meter. Showing
+both at verbose later is a one-line helper extension, not a redesign. Not a GDD
+decision change; the GDD does not fix a direction, so this is the reversible default
+that fits the pillar.
