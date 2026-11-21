@@ -119,3 +119,14 @@
 - decided: Slots full (1 running + 1 queued) -> no spawns. Queue unchanged: sw-ijp.5 -> sw-ll4.9.1 -> sw-ll4.9.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5); briefs ready. ~70% game work holds. Per 10:02 audit recommendation: if attempt 2 gates red again, stop respawning and file a triage bead first (4-attempt cap still applies).
 - next: Review/merge sw-ll4.26.2 when supervisor mails (2h cap ~12:34 if started 10:34; may finish sooner); then sw-0nl attempt 2. Merge whichever passes - that ends the 3h+ merge drought the WARN names. If both branches implement overlapping isolation fixes, the second merge gate re-runs the full suite and catches any interaction.
 - blocked/asked: nothing.
+
+## 2026-11-21T11:03Z turn
+### Audit response
+- selfcheck 10:52: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 188 banners all Qwen, supervisor alive, streak 0. Latest audit 10:49 WARN = health/merge-gap continuation (compliance clean); events_30m merge_red was the sw-0nl attempt-1 gate already triaged. Gap now CLOSED: sw-ll4.26.2 merged green this turn (7th merge).
+### Turn
+- did: Reviewed sw-ll4.26.2 attempt 2 (partial, rc=0, cut off while full suite ran in background): branch clean, no scaffolding (forecast_stress_tmp.gd never committed). 44c58bc = BattleRules.forecast_copy() (copies all script vars, shares read-only compiled data, fresh private BattleRoute), _copy() uses it for run+job, run() warms Stats/Fixed on caller thread, regression test = 5 cold-cache concurrent rounds + battle-cache-untouched assert. Verified routes is the only mutable rules part (all other vars packed arrays/ints/compiled refs). Convoy fix 97012ec already reviewed complete in attempt 1. Merge gate GREEN (check + full suite incl threaded forecast). bd close sw-ll4.26.2. This fixes the latent main race for BOTH branches.
+- did: Spawned sw-ijp.5 attempt 1 (CVD-safe team colours, brief intact in bead notes; note says deliver all 5 acceptance criteria incl mock screenshots, no squad_card tones). Slots full: sw-0nl running (attempt 2 since 10:44) + sw-ijp.5 queued.
+- did: Appended sw-0nl bead note: forecast_copy is on main now - sync main first, skip own isolation work if threaded test passes after sync, keep mirror tie-break fix + tests only.
+- decided: no new triage bead needed (audit 10:02 contingency) - attempt 2 went green. Queue after current slots: sw-ll4.9.1 -> sw-ll4.9.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5); briefs ready. ~70% game work holds (all game).
+- next: Review sw-0nl attempt 2 when supervisor mails (~12:44 cap): acceptance = mirror-swap test + full suite green + no scaffolding; merge + bd close if green. Then sw-ijp.5 (acceptance = 5 criteria incl PNG paths in WORKER RESULT). If sw-0nl duplicated the isolation fix, the merge gate full suite catches interaction; prefer its mirror work either way.
+- blocked/asked: nothing.
