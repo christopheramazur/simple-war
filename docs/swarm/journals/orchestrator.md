@@ -374,3 +374,13 @@
 - decided: queue order unchanged: .3 -> merge/close -> spawn .6 (brief + HOLD_ORDER correction + worker.md warning already in its notes) -> sw-luo auto-starts -> brief sw-opt from sw-luo findings -> ll4.9.1/.2 -> P2 wave sw-rlg/sw-136.3/sw-136.4/sw-kys.9 (all briefs now ready).
 - next: .3 done mail -> review (activity line + per-weapon block, playback follows shown moment, Glossary.activity_text/hold_text verbatim, GUT card text, mock PNG, gates; no HOLD_ORDER) -> hx swarm merge sw-ll4.27.3 + bd close -> spawn .6 with worker.md warning -> review sw-luo audit note (items 1-11, file refs, no code) -> merge/close -> brief + spawn sw-opt -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave -> sw-884.5 (re-measure sw-0nl 45-55% over 20 runs when it lands)/sw-eo8.7/sw-cgl.4, sw-c9l, sw-iqv. ~70% game holds.
 - blocked/asked: nothing.
+
+## 2026-11-21T14:08Z turn
+### Audit response
+- No AUDIT mail (inbox empty). Latest audit 14:03 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: health check - .3 running ~27 min, 3 commits (497ba91 impl, 8fff77a GUT, 483e9a7 mocks), tree dirty again on squad_card_mock.gd + squad_card.png (worker refining mocks after committing; normal, not stuck). sw-luo queued behind it. Slots full, nothing to merge/spawn.
+- did: verified sw-ll4.27.6 brief complete in its notes (owns context_view.gd only, no sim/API edits, crosshair-only-when-fired fix, shape-distinct holding-fire/cooling-down marks, hover via glossary in planning+playback, pure-static hover lookup GUT + mock PNG, preserve .4 semantics; HOLD_ORDER correction present). At spawn: append final post-.3 API/glossary note + worker.md APPEND warning.
+- did: questions.md - no new entries (all 3 resolved by designer). bd ready - no new urgent bugs; sw-884.12 (P2 factory MAP-Elites descriptor rescale) now ready, added to P2 candidate list after game beads.
+- next: unchanged - .3 done mail -> review (activity line + per-weapon block, playback follows shown moment, Glossary.activity_text/hold_text verbatim, GUT card text, mock PNG, gates; no HOLD_ORDER) -> hx swarm merge sw-ll4.27.3 + bd close -> spawn .6 (brief ready; add worker.md warning + final API) -> sw-luo runs -> review audit note (items 1-11, file refs, no code) -> merge/close -> brief + spawn sw-opt -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9) -> sw-884.5/sw-eo8.7/sw-cgl.4/sw-884.12, sw-c9l, sw-iqv. ~70% game holds.
+- blocked/asked: nothing.
