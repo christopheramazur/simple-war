@@ -2,10 +2,10 @@
 .godot/
 Godot_v4.6-stable_win64.exe
 Godot_*.exe
-*.uid
 *.translation
 export_presets.cfg
-*.import
+# *.uid and *.import are committed on purpose (Godot 4 guidance): they hold the stable resource IDs that
+# scenes and scripts reference (Dialogic preloads by uid://), so a fresh checkout or worktree needs them.
 
 # Godot-specific (keep .gdignore files)
 *.import.bak

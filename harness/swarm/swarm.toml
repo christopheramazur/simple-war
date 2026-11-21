@@ -3,46 +3,50 @@
 
 [run]
 end_at = "2026-11-24T13:00:00+00:00"   # 4 days from the start (2026-11-20 ~13:30 UTC)
-max_concurrent_turns = 3                # shared by orchestrator, workers, designers, researchers (auditor is outside it). 4 agents got ~90% Nous 429s before gateway pacing
+# Nous gives the whole swarm ~50-95 Qwen calls an hour at 1-2 min each (2026-11-20), so turns are long and few.
+# core = orchestrator + workers (the code pipeline); support = designers, researchers, deep research, retro.
+# The auditor runs outside both. 4 agents at once got ~90% 429s before gateway pacing.
+core_slots = 2
+support_slots = 1
 commit_every_s = 900                    # housekeeping: STATUS.md + commit docs/swarm
 
 [orchestrator]
 pause_s = 90
-turn_timeout_s = 1800
+turn_timeout_s = 3600
 
 [workers]
 max_parallel = 1
 max_open = 4          # queued + running + finished-awaiting-merge
-timeout_s = 3600
+timeout_s = 7200
 
 [audit]
 every_s = 1800
 window_min = 30
-turn_timeout_s = 900
+turn_timeout_s = 1800
 fail_streak = 2       # consecutive FAIL verdicts that stop the orchestrator (WARN never counts)
 max_postmortems_per_day = 3
 
 [designers]
 base = "designer"
 roles = ["lead-designer", "ux-art-director", "tech-lead"]
-every_s = 2700        # each designer gets a turn about every 45 min
-turn_timeout_s = 1500
+every_s = 7200        # each designer gets a turn about every 2 h
+turn_timeout_s = 3600
 initial_delay_s = 120
 
 [researchers]
 base = "researcher"
 roles = ["games-researcher", "craft-researcher"]
-every_s = 3600
-turn_timeout_s = 1500
+every_s = 7200
+turn_timeout_s = 3600
 initial_delay_s = 300
 
 [research]
 max_queued = 3
-timeout_s = 2400
+timeout_s = 3600
 
 [retro]
 every_s = 43200       # twice a day
-turn_timeout_s = 1800
+turn_timeout_s = 3600
 
 [merge]
 test_timeout_s = 1500
