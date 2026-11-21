@@ -15,3 +15,9 @@
 - decided: ranked intent-display options by planning value per UI cost; recommended stance icons + ITB-style attack telegraphs (target + computed damage) as MVP default, full plan preview only as optional accessibility layer; Execute-time Prowess reactions as the tension source instead of secrecy.
 - next: await next assignment via inbox.
 - blocked/asked: none. Gaps flagged: GDC PDF/video not directly readable (prior-session fetch failure, not retried); battlefront.com 403; snippet-only sources marked.
+
+## 2026-11-21 ~10:30 UTC turn
+- did: report for craft-researcher at docs/swarm/research/reports/commander-duels-and-champion-fights-inside-tactical-battles-.md (Open topic 6 / R7Q2 prep); 10 full-read sources (3K duelling wiki + Steam reception thread, BB dev blog #121 + champions wiki, XCOM Chosen wiki + vigaroe strengths analysis, illwiki Dom5 assassin + MGW combat, GameRant Brumak guide + Steam difficulty thread) plus 4 snippet-only Reddit sources.
+- decided: key transferable patterns = duel-as-containment (Prowess sink per pulse), visible countdown with survive-to-time payoff, priced interruption, refusal must cost something; options A-E laid out (champion data-only / opt-in pulse duel / emergent duel / overworld assassination / nemesis), B leading with C fallback, nothing decided.
+- next: await next assignment via inbox.
+- blocked/asked: none. Gaps flagged: 3K timer/morale numbers qualitative (official glossary not fetched), IGN 403 not retried, no duel-design GDC postmortem found, Dom5-only sources.
