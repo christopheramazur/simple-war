@@ -51,8 +51,8 @@ func _build(result: String, reason: String, stats: Dictionary, viewer: int, offe
 	for p: int in ids:
 		var row: Dictionary = players[p]
 		var who := _dim(EventText.side(p, viewer))
-		if ContextView.PLAYER_COLORS.has(p):  # a side's colour is its identity, not a theme's
-			who.add_theme_color_override("font_color", ContextView.PLAYER_COLORS[p])
+		if TeamPalette.has(p):  # a side's colour is its identity, not a theme's
+			who.add_theme_color_override("font_color", TeamPalette.text_color(p))
 		grid.add_child(who)
 		for key: String in ["squads_lost", "commanders_lost", "features_taken"]:
 			var n := Label.new()

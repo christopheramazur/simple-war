@@ -15,8 +15,8 @@ extends Node2D
 
 const UNIT_W: float = 16.0
 const UNIT_H: float = 8.0
-const PLAYER_COLORS: Dictionary = {1: Color(0.25, 0.55, 1.0), 2: Color(1.0, 0.35, 0.3)}
-const NEUTRAL_COLOR: Color = Color(0.85, 0.85, 0.85)
+## Side colours come from TeamPalette at draw time (sw-ijp.5); unlisted ids
+## (an unheld zone's owner 0) get the preset's neutral.
 ## Desaturated terrain (R3Q21).
 const FEATURE_COLORS: Dictionary = {
 	"open": Color(0.50, 0.52, 0.47), "road": Color(0.60, 0.58, 0.54),
@@ -247,11 +247,11 @@ func _draw() -> void:
 		var rad := r.zn_radius[z] / float(Fixed.ONE)
 		var owner := recorder.zone_owner[frame][z]
 		var held := owner != 0 and recorder.zone_amount[frame][z] >= r.zn_threshold[z]
-		var col: Color = PLAYER_COLORS.get(owner, NEUTRAL_COLOR)
+		var col: Color = TeamPalette.color(owner)
 		draw_circle(c, rad, Color(col, 0.25 if held else 0.08))
 		draw_arc(c, rad, 0, TAU, 48, Color(col, 0.9), 0.4)
 	for s: Array in _shots:
-		var col: Color = PLAYER_COLORS.get(s[2], NEUTRAL_COLOR)
+		var col: Color = TeamPalette.color(s[2])
 		draw_line(s[0], s[1], Color(col.lightened(0.4), s[3] / SHOT_LIFETIME), 0.25)
 	var a := recorder.frames[frame]
 	var b := recorder.frames[mini(frame + 1, recorder.frames.size() - 1)]
@@ -263,9 +263,20 @@ func _draw() -> void:
 		var p := Vector2(a[o + ReplayRecorder.F_X], a[o + ReplayRecorder.F_Y])
 		if next_pos.has(a[o]):
 			p = p.lerp(next_pos[a[o]], t)
-		var col: Color = PLAYER_COLORS.get(a[o + ReplayRecorder.F_PLAYER], NEUTRAL_COLOR)
-		draw_circle(p / float(Fixed.ONE), 0.7, col)
+		var col: Color = TeamPalette.color(a[o + ReplayRecorder.F_PLAYER])
+		var at := p / float(Fixed.ONE)
+		if a[o + ReplayRecorder.F_PLAYER] == 2:  # square: side identity without colour (sw-ijp.5)
+			draw_rect(Rect2(at - Vector2(0.6, 0.6), Vector2(1.2, 1.2)), col)
+		else:
+			draw_circle(at, 0.7, col)
 	draw_set_transform_matrix(Transform2D.IDENTITY)
+	for z in r.zone_ids.size():  # who holds each zone, in words as well as colour
+		var owner := recorder.zone_owner[frame][z]
+		if owner == 0:
+			continue
+		var c := _iso * (Vector2(r.zn_x[z], r.zn_y[z]) / float(Fixed.ONE))
+		draw_string_outline(ThemeDB.fallback_font, c + Vector2(-9, 4), "P%d" % owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color(0, 0, 0, 0.8))
+		draw_string(ThemeDB.fallback_font, c + Vector2(-9, 4), "P%d" % owner, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.95))
 
 
 func _update_hud() -> void:

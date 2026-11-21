@@ -5,11 +5,14 @@ extends UiWindow
 ## screen can open over itself (`open_over`; Esc closes it). Each change applies at once
 ## and is saved (GameSettings). Runs standalone (F6).
 
+signal setting_changed(key: String)
+
 var _mode: OptionButton
 var _size: OptionButton
 var _vsync: CheckBox
 var _scale: OptionButton
 var _theme: OptionButton
+var _palette: OptionButton
 var _turn: OptionButton
 var _said: Label
 var _sizes: Array[Vector2i] = []
@@ -73,6 +76,15 @@ func _ready() -> void:
 			_theme.select(i)
 	_theme.item_selected.connect(func(i: int) -> void: _change("ui_theme", theme_ids[i]))
 	col.add_child(_row("Theme", _theme))
+	_palette = OptionButton.new()
+	_palette.name = "TeamPalette"
+	var palette_ids := TeamPalette.ids()
+	for i in palette_ids.size():
+		_palette.add_item(str(TeamPalette.preset(palette_ids[i])["name"]))
+		if palette_ids[i] == str(GameSettings.value("team_palette")):
+			_palette.select(i)
+	_palette.item_selected.connect(func(i: int) -> void: _change("team_palette", palette_ids[i]))
+	col.add_child(_row("Team colours", _palette))
 	col.add_child(_row("UI scale", _scale))
 	var where := UiTheme.label("Your own themes: put a .json file like the ones in data/ui/themes into %s" % ProjectSettings.globalize_path(UiTheme.USER_DIR), "CaptionDimLabel")
 	where.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
@@ -106,6 +118,7 @@ func _change(key: String, v: Variant) -> void:
 	_sync()
 	if not err.is_empty():
 		_said.text = err
+	setting_changed.emit(key)
 
 
 func _sync() -> void:
