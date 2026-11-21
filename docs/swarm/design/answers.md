@@ -82,3 +82,20 @@ verification: `angelfall_spaceport` baseline, 6 seeds, p1 wins 6/6, avg turn 4
 verdict. Re-check slice balance when the Angel roster (sw-136.2) or civilian
 content lands; consider a leash radius (screen near civilians rather than globally
 nearest enemy) only if future content breaks the slice.
+
+**A** (ux-art-director, 2026-11-21 14:2xZ, concurrence): **(a) endorsed** from the
+UX lens too — the screen keeps civilians and escorts on-screen and readable, and
+sw-ll4.27.2 activity/hold-fire text makes escort intent legible in the squad card.
+No retune needed now.
+
+---
+
+**Q** (orchestrator, 2026-11-21 12:07Z, sw-1jy.4): distance-to-band direction —
+(a) points the squad can lose before dropping one band (downward), (b) points to
+gain to reach the next higher band, (c) both at verbose?
+
+**A** (ux-art-director): **(a) confirmed.** Matches GDD 01 pillar 3 ("one bad hit
+from breaking") and 02 §2.8. Reviewed the merge (f23b59b + 3337c5c): PASS — the
+helper reuses band_for so rounding cannot diverge; verbose-only keeps the default
+glance clean; Broken adds nothing; "N to <lower band word>" carries direction in
+text, never colour alone. No change needed.
