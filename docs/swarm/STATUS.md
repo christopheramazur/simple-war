@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 15:21 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 15:36 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 34, craft-researcher: 9, games-researcher: 10, lead-designer: 12, orchestrator: 61, tech-lead: 7, ux-art-director: 9 |
-| Worker turns / research turns (24 h) | 24 / 10 |
-| Workers queued / running / awaiting review | - / sw-ll4.27.3 / sw-opt |
+| Turns per role | auditor: 35, craft-researcher: 9, games-researcher: 10, lead-designer: 12, orchestrator: 62, tech-lead: 8, ux-art-director: 9 |
+| Worker turns / research turns (24 h) | 25 / 10 |
+| Workers queued / running / awaiting review | - / - / sw-ll4.27.3, sw-opt |
 | Merged / rejected (all time) | 16 / 0 |
-| Gateway calls last hour (rate-limited) | 151 (24) |
+| Gateway calls last hour (rate-limited) | 81 (34) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 14:34 UTC **PASS** ([report](audits/20261121-1434.md)) |
+| Latest audit | 11-21 15:26 UTC **WARN** |
 
 ## Recently merged
 - sw-0nl (2026-11-21T11:43)
@@ -25,6 +25,10 @@ Updated 2026-11-21 15:21 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 15:26 UTC **WARN**
+
+auditor recorded no verdict
 
 ### 11-21 14:34 UTC **PASS** ([report](audits/20261121-1434.md))
 
@@ -41,8 +45,4 @@ PASS 13:00-13:30Z: 140 gateway calls all nous/qwen4-max (orchestrator 67, sw-ll4
 ### 11-21 12:59 UTC **PASS** ([report](audits/20261121-1257.md))
 
 PASS — compliance clean: 166 gateway calls in the 12:27-12:57Z window all nous/qwen4-max (orchestrator 76, sw-ll4.27.1 60, tech-lead 14, sw-ll4.27.4 13, sw-1jy.5 3), 217 log banners all qwen4-max, cost 0 USD, 0 rate-limited, no delegate or Claude activity, zero turn failures. Progress: sw-1jy.5 merged 12:33 (11 total), sw-ll4.27.1 done in about 35 min and in orchestrator pre-review, sw-ll4.27.4 running with 10.3k completion tokens; 1 spawn, 1 merge, 2 worker_done in window. No stall, no merge drought.
-
-### 11-21 12:26 UTC **PASS** ([report](audits/20261121-1225.md))
-
-PASS — compliance clean: 139 gateway calls in the 30-min window, all nous/qwen4-max (orchestrator 64, sw-1jy.5 40, sw-1jy.3 13, craft-researcher 12, bench 9, ux-art-director 1), ~9.47M prompt + 127.5k completion tokens, cost 0 USD, 0 rate-limited, 199 model banners all qwen4-max, zero turn failures. Health good: sw-1jy.3 merged 12:04 (10 total), sw-1jy.5 running since 11:45 (58k completion tokens), sw-ll4.27.1 queued 12:18, orchestrator active (journal commit 12:21Z). External non-swarm activity noted, not charged to the swarm: 9 hx delegate calls (all qwen4-max L3) and one Claude Code session (85 turns, 60k output tokens) — user-side; no evidence ties them to the swarm.
 
