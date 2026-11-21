@@ -9,7 +9,12 @@ extends RefCounted
 ##   strength: {alive, start}: living units and the template's starting count
 ##   stats:   squad stats, each a stat entry (below). Pool capacities only
 ##            for the owner.
-##   units:   [{id, template, name, hp, hp_max, stats: [stat entries]}]
+##   activity: BattleActivity.Squad code (behaviour-only for non-owners),
+##            target: the engaged squad id (owner only, -1 none)
+##   units:   [{id, template, name, hp, hp_max, stats: [stat entries]}];
+##            owner units also carry the weapon report
+##            (BattleActivity.unit_report: hold, weapon, ammo/magazine,
+##            reload/cooldown left, victim and its distance)
 ##   effects: bundle instances the squad or its units hold:
 ##            {id, bundle, name, tags, unit (-1 = whole squad), source (squad
 ##            ID, -1), stacks, remaining_ticks (-1 = lasts the battle),
@@ -51,18 +56,20 @@ static func squad(state: BattleState, squad_id: int, viewer: int = 0) -> Diction
 			stats.append(_entry(state, srow, -1, POOL_CAP_STATS[p], r.sq_pool_cap[st * 5 + p], hidden))
 	var units := []
 	for urow in Centroids.units_of(state, srow):
-		units.append(_unit(state, srow, urow, hidden))
+		units.append(_unit(state, srow, urow, hidden, owner))
 	var out := {
 		"id": squad_id, "player": sq.player[srow], "template": r.squad_ids[st], "name": r.sq_names[st],
 		"strength": {"alive": units.size(), "start": r.sq_members[st].size()},
 		"stats": stats, "units": units, "effects": _effects(state, squad_id, hidden),
+		"activity": BattleActivity.squad(state, srow) if owner else BattleActivity.squad_seen(state, srow),
 	}
 	if owner:
+		out["target"] = sq.engaged[srow]
 		out["abilities"] = _abilities(state, srow)
 	return out
 
 
-static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary) -> Dictionary:
+static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary, owner: bool) -> Dictionary:
 	var r := state.rules
 	var u := state.units
 	var ut := u.tmpl[urow]
@@ -84,8 +91,11 @@ static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary) 
 		for m in range(r.wp_mode_start[w], r.wp_mode_start[w] + r.wp_mode_count[w]):
 			stats.append(_entry(state, srow, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m], hidden, r.md_name[m]))
 			stats.append(_entry(state, srow, urow, &"weapon.modes.*.damage", r.md_damage[m], hidden, r.md_name[m]))
-	return {"id": u.id_at(urow), "template": r.unit_ids[ut], "name": _unit_name(state, ut),
+	var out := {"id": u.id_at(urow), "template": r.unit_ids[ut], "name": _unit_name(state, ut),
 		"hp": u.hp[urow], "hp_max": u.hp_max[urow], "stats": stats}
+	if owner:
+		out.merge(BattleActivity.unit_report(state, urow))
+	return out
 
 
 static func _entry(state: BattleState, srow: int, urow: int, stat: StringName, base: int, hidden: Dictionary, label: String = "") -> Dictionary:

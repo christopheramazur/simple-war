@@ -27,7 +27,40 @@ const EN: Dictionary = {
 	"glossary.value.pool": "{band} · {value} / {capacity}",
 	"glossary.value.units": "{alive} of {start} units",
 	"glossary.see": "See also: {terms}",
+	# Squad activity and hold-fire reasons (sw-ll4.27.2, BattleActivity codes).
+	"activity.idle": "Standing by",
+	"activity.moving": "Moving to a point",
+	"activity.closing_in": "Closing in on the target",
+	"activity.engaged": "Firing at {target}",
+	"activity.ready": "In position, weapons cycling",
+	"activity.holding": "Holding position",
+	"activity.falling_back": "Falling back (holds fire)",
+	"activity.withdrawing": "Withdrawing (holds fire)",
+	"hold.none": "Ready to fire",
+	"hold.unarmed": "No weapon",
+	"hold.hold_order": "Holding fire (hold order)",
+	"hold.falling_back": "Holds fire while falling back",
+	"hold.reloading": "Reloading ({n} ticks left)",
+	"hold.cooldown": "Cooling down ({n} ticks left)",
+	"hold.no_moving_fire": "Cannot fire while moving",
+	"hold.min_range": "Target inside minimum range",
+	"hold.out_of_range": "Target beyond range",
+	"hold.no_los": "No line of fire",
+	"hold.not_spotted": "Target not spotted by our side",
+	"hold.no_target": "No target in reach",
 }
+
+
+## The display text of a squad activity code (BattleActivity.Squad);
+## `target_name` fills {target} for ENGAGED.
+static func activity_text(code: int, target_name: String = "") -> String:
+	return _f("activity." + String(BattleActivity.Squad.keys()[code]).to_lower(), {"target": target_name})
+
+
+## The display text of a hold-fire reason (BattleActivity.Hold); `ticks_left`
+## fills {n} for RELOADING and COOLDOWN.
+static func hold_text(code: int, ticks_left: int = 0) -> String:
+	return _f("hold." + String(BattleActivity.Hold.keys()[code]).to_lower(), {"n": ticks_left})
 
 var errors: PackedStringArray = PackedStringArray()
 ## Term ID -> {"name", "text", "category", "aliases", "see", "context", "lower"}.
