@@ -1,0 +1,35 @@
+# Proposal: Readable SIMPL at a glance — distance-to-band, per-battle worst-band summary, distinct pool icons
+
+Status: open
+From: craft-researcher, based on [../research/summaries/tactics-morale-and-readability-retry-of-failed-job-questions.md](../research/summaries/tactics-morale-and-readability-retry-of-failed-job-questions.md)
+
+## The idea
+Adopt the two-layer readability pattern the eight closest tactics games converge on — named condition at a glance, exact math on demand — in three small UI beads: (1) show the deterministic distance to the next band crossing in the squad panel at chosen verbosity, (2) give every battle tab/tile a worst-band summary + trend so the overworld glance says which battle needs attention, (3) give each of the five SIMPL pools a distinct icon + glossary term so they never collapse into one generic "suppressed" state. No rule changes; composes with the pressure-meter proposal (segmented meter + ledger tooltip).
+
+## Why (evidence, with sources)
+- Battle Brothers' devs chose five named morale states over an abstract number explicitly for glanceability and acting before a break; Wargame RD's four states each name an effectiveness level. https://battlebrothersgame.com/dev-blog-20-bravery-morale/ · https://www.wargame-rd.com/en/rd-gameplay-morale.html
+- Total War's colour-only banner with a hidden pool is the criticised pattern (sudden rallies, hidden army-losses aggregate); HoMM3's manual even misstated its own morale probabilities — displayed rules must equal used rules. https://r2encv2.totalwar.com/en/manual/single-player/0087_enc_page_battle_play_phase_conflict_morale/index.html · https://steamcommunity.com/app/594570/discussions/0/2266943550302453936/ · https://heroes.thelazy.net/index.php/Morale
+- Combat Mission players confuse morale with suppression because both degrade units — the failure mode of five pools sharing one generic icon. https://combatmission.fandom.com/wiki/Morale · https://community.battlefront.com/topic/102770-morale-suppression-levels/
+- Phoenix Point players lose time across squads because arrivals don't alert or pause — per-battle worst-state summaries are the transferable attention fix; Combat Mission's WeGo-with-replay is the praised catch-up model. https://steamcommunity.com/app/839770/discussions/0/3463848715768131445/
+- Dominions 6 logs every roll yet players still report "units routed for no clear reason": triggers must be surfaced at the moment of decision, not just logged. Distance-to-band is that surface, and determinism makes it exact — none of the eight comparators can show a true accumulator. https://dom6.wiki/mechanics/morale/
+- Verified code state (checked this turn): `squad_card.gd` renders pools as continuous bar + value + band word — no ticks, icons or distance. All five pools have Glossary entries (07, lines 39–44). `observe_battle` already reports per-squad pools per player, so beads 1–2 need no new sim surface; bead 2 aggregates only the player's own squads (fog-safe).
+
+## Fits the GDD (doc and section) / Conflicts with
+- Fits 01 pillars 1 (parallel play, R2Q19 fast tabbing/tiling), 2 (transparent rules at chosen verbosity) and 3 ("one bad hit from breaking" — bead 1 is literally the pillar's example phrase), and Accessibility ("never colour alone to convey state": word + icon + colour together).
+- Fits 02 §2.8 (five bands are the named ladder; R6Q3 ledger already mandated) and §2.1 Transparency (tooltips expose the terms; displayed number = used number, fixed-point).
+- Conflicts with nothing. Explicitly out of scope: ticks-to-break from pending drains (a Vacuum forecast, §2.2 "Not yet"), break alerts (already in the accessibility summary's candidate 3), the ledger tooltip (already in the pressure-meter proposal), and overworld morale carryover (R5Q3 deferral). Morale stays a governor, not damage-driven (R4Q4) — no comparator's damage→morale loop is copied.
+
+## Candidate beads
+1. **Distance-to-next-band in the squad panel, at chosen verbosity.** Show the deterministic distance to the next band crossing in pool points, from the same fixed-point values the sim uses. Acceptance: expanding a squad's SIMPL pool shows the distance; a GUT test asserts displayed distance equals the sim-derived value; default verbosity still shows band word only; Vacuum forecasts stay out of scope. Size: S. Type: feature. Priority: 1.
+2. **Worst-band summary + trend on each battle tab/tile.** Acceptance: with ≥2 active battles, each battle tab/tile shows the worst SIMPL band across the player's own squads as word + icon (never colour alone) plus a trend direction; updates on any band crossing; no enemy pool data leaks; verifiable headless via the Game API and a UI mock. Size: M. Type: feature. Priority: 1.
+3. **Distinct icon + glossary term per SIMPL pool in the battle UI.** Acceptance: each of the five pools renders a unique icon and its glossary name in squad card and battle panel; hover shows the glossary definition; no two pools share an icon; mock PNG demonstrates all five at 800p. Placeholder glyphs, replaceable at the art-direction interview (README Open topic 3). Size: S. Type: feature. Priority: 2.
+
+## Rejected alternative
+- One generic state icon for all five pools (or a Total War-style colour-only banner): exactly the Combat Mission confusion and the accessibility failure the evidence warns against.
+- Copying the comparators' damage→morale loops to make pressure "readable": contradicts R4Q4 (Morale is the governor, no direct damage link) — the readability lessons transfer, the mechanics do not.
+- Full ticks-to-break forecasting now: it is a Vacuum forecast, which §2.2 marks "Not yet"; distance-to-band delivers the pillar-3 phrase with pure current-state arithmetic and stays reversible.
+
+## Votes
+- lead-designer: pending
+- ux-art-director: pending
+- tech-lead: pending
