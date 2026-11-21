@@ -212,7 +212,12 @@ func _move_units(state: BattleState) -> void:
 		if srow < 0 or not sq.is_active(srow):
 			continue
 		var st := sq.tmpl[srow]
-		var members := r.sq_members[st].size()
+		# Lay slots out for the units the squad spawned with, not its full
+		# template strength: survivors hold the first slots of that line
+		# (sw-uyv). 0 = a state without the column; fall back to full strength.
+		var members := sq.form_size[srow]
+		if members <= 0:
+			members = r.sq_members[st].size()
 		var off := Formation.offset(r.sq_shape[st], u.slot[row], members, r.sq_spacing[st], sq.facing[srow])
 		var gx := Fixed.clamp_fixed(sq.ax[srow] + off[0], 0, max_x)
 		var gy := Fixed.clamp_fixed(sq.ay[srow] + off[1], 0, max_y)

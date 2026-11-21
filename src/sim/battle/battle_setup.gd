@@ -50,7 +50,7 @@ static func spawn_squad(state: BattleState, player: int, st: int, ax: int, ay: i
 	var values := {
 		"player": player, "tmpl": st, "order": BattleSquads.Order.HOLD,
 		"tx": ax, "ty": ay, "facing": facing, "ax": ax, "ay": ay, "cx": ax, "cy": ay,
-		"alive": members.size(), "hp_max": hp_total,
+		"alive": members.size(), "form_size": members.size(), "hp_max": hp_total,
 		"seen_by": BattleSquads.bit(player),
 	}
 	for p in 5:
