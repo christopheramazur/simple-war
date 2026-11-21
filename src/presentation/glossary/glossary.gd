@@ -38,7 +38,6 @@ const EN: Dictionary = {
 	"activity.withdrawing": "Withdrawing (holds fire)",
 	"hold.none": "Ready to fire",
 	"hold.unarmed": "No weapon",
-	"hold.hold_order": "Holding fire (hold order)",
 	"hold.falling_back": "Holds fire while falling back",
 	"hold.reloading": "Reloading ({n} ticks left)",
 	"hold.cooldown": "Cooling down ({n} ticks left)",

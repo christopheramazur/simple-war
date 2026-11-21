@@ -13,12 +13,13 @@ extends RefCounted
 
 ## Squad activity. ENGAGED means it fired on the last completed tick; READY
 ## means it holds an engagement but did not fire (the units' hold reasons
-## say why). HOLDING / FALLING_BACK / WITHDRAWING come from the squad's order.
+## say why). HOLDING is the hold-position order (which still fires);
+## FALLING_BACK / WITHDRAWING hold fire.
 enum Squad { IDLE, MOVING, CLOSING_IN, ENGAGED, READY, HOLDING, FALLING_BACK, WITHDRAWING }
 
 ## Why an armed unit did not fire on the last completed tick. NONE = it
 ## fired, or nothing stops it (e.g. its squad has not engaged yet).
-enum Hold { NONE, UNARMED, HOLD_ORDER, FALLING_BACK, RELOADING, COOLDOWN,
+enum Hold { NONE, UNARMED, FALLING_BACK, RELOADING, COOLDOWN,
 	NO_MOVING_FIRE, MIN_RANGE, OUT_OF_RANGE, NO_LOS, NOT_SPOTTED, NO_TARGET }
 
 
@@ -27,17 +28,17 @@ static func squad(state: BattleState, row: int) -> int:
 	if not sq.is_active(row) or sq.alive[row] == 0:
 		return Squad.IDLE
 	match sq.order[row]:
-		BattleSquads.Order.HOLD:
-			return Squad.HOLDING
 		BattleSquads.Order.FALL_BACK:
 			return Squad.FALLING_BACK
 		BattleSquads.Order.WITHDRAW:
 			return Squad.WITHDRAWING
+	if sq.engaged[row] >= 0 and _fired_last_tick(sq.fired_tick[row], state.tick):
+		return Squad.ENGAGED
 	if sq.moving[row] == 1:
 		return Squad.MOVING if sq.order[row] == BattleSquads.Order.MOVE else Squad.CLOSING_IN
 	if sq.engaged[row] >= 0:
-		return Squad.ENGAGED if _fired_last_tick(sq.fired_tick[row], state.tick) else Squad.READY
-	return Squad.IDLE
+		return Squad.READY
+	return Squad.HOLDING if sq.order[row] == BattleSquads.Order.HOLD else Squad.IDLE
 
 
 ## What any viewer may infer from an enemy's behaviour alone: no orders or
@@ -62,8 +63,9 @@ static func squad_public(code: int, moving: bool) -> int:
 	return code
 
 
-## The unit's hold-fire reason, in the order the fire pass checks: the order
-## to hold, the weapon timers, the fire mode, then the target itself.
+## The unit's hold-fire reason, in the order the fire pass checks: the
+## hold-fire orders, the weapon timers, the fire mode, then the target
+## itself. The hold-position order does not hold fire, so it is no reason.
 static func hold(state: BattleState, urow: int) -> int:
 	var u := state.units
 	var sq := state.squads
@@ -78,11 +80,8 @@ static func hold(state: BattleState, urow: int) -> int:
 	var row := sq.row_of(u.squad[urow])
 	if row < 0 or not sq.is_active(row):
 		return Hold.NONE
-	match sq.order[row]:
-		BattleSquads.Order.HOLD:
-			return Hold.HOLD_ORDER
-		BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW:
-			return Hold.FALLING_BACK
+	if sq.order[row] in [BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW]:
+		return Hold.FALLING_BACK
 	if u.reload[urow] > 0:
 		return Hold.RELOADING
 	if u.cooldown[urow] > 0:
