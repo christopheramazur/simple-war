@@ -87,3 +87,9 @@
 - good: sw-0nl committed early (21d6e60 at 09:33, ~1h in) — early-commit recommendation worked; review/merge is now cheap.
 - next: ~10:32 audit — sw-0nl hits 2h cap ~10:33: confirm finish/salvage and prompt review/merge (a merge returns PASS). Verify orchestrator root-caused the sw-ll4.26.2 red gate before attempt 2 finishes (~12:04); if it goes red again recommend triage bead, not attempt 3. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 10:49 UTC turn
+- did: audited 10:19-10:49 window from attached digest + workers -v/branch logs/orchestrator journal; recorded WARN FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1049.md.
+- decided: WARN (3rd health WARN, compliance clean) — 126 calls all nous/qwen4-max, cost 0 USD, ~8% 429s, 176 banners clean, no delegate/Claude, zero turn failures. Merge gap 07:07->10:49 ~3h42m = 2h clause. BUT root-caused, not stalled: both red gates share one latent main race (shared lazy route caches, threaded forecast 440/441); orchestrator respawned with the cause (sw-0nl att2 queued 10:44, sw-ll4.26.2 att2 running forecast_copy fix).
+- next: ~11:19 audit — sw-ll4.26.2 att2 cap ~12:34; merge whichever gates green first returns PASS. If att2 red again, verify fix covers all shared lazy caches before att3; recommend triage bead not respawn (orchestrator already agreed at 10:50Z). Watch scaffolding (forecast_stress_tmp.gd) stays out of merges. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
