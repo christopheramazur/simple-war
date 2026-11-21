@@ -252,3 +252,13 @@
 - decided: on done mail verify full suite green + WORKER RESULT in log -> hx swarm merge sw-1jy.5 + bd close. Conflict-free expected (no overlap with 1jy.3: squad_card/battle_rules untouched; battle_session untouched).
 - next: merge/close 1jy.5 -> sw-ll4.27.1 auto-starts (P1 mortar) -> review on done (3 acceptance tests + determinism + sims) -> merge/close -> spawn sw-ll4.27.4 (brief ready, mind line drift) -> .2 -> .3 -> .6. After wave: re-spawn sw-1jy.4 fresh, ll4.9.1/.2, P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9). ~70% game work holds (all game).
 - blocked/asked: nothing new; designer direction answer pending (non-blocking, default (a) downward stands for sw-1jy.4).
+
+## 2026-11-21T12:35Z turn
+### Audit response
+- No AUDIT mail (inbox empty). Latest audit 11:54 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: MERGED sw-1jy.5 (gate green: check + full test on merged main) + CLOSED. Verified 4th commit a34bd4d (.uid tracking) + WORKER RESULT: battle_summary API fog-safe own-squads-only, backward trend from _band_history (saved, never feeds sim), word+icon via glossary keys, tile second-pass draw fix, 5 new tests, mock PNG 2 battles. Branch suite was 464/464 (base pre-1jy.3). 11 merged all-time, 1 rejected.
+- did: sw-ll4.27.1 (P1 mortar) auto-started ~12:30, healthy (log active in src/sim). Claimed + QUEUED sw-ll4.27.4 attempt 1: note points at pre-written bead brief, warns war_room.gd line refs below :502 drifted (+26 lines from 1jy.5 merge, locate by symbol), and do NOT touch combat_system.gd while .1 runs. Slots full (1 running + 1 queued).
+- decided: .3/.6 briefs NOT pre-written yet - they consume the new activity/hold-fire API that .2 creates; write their briefs once .2 lands (avoids stale pointers). No designer direction answer yet (questions.md 12:07 ask still open); default (a) downward stands for sw-1jy.4 re-spawn.
+- next: .1 done mail -> review (concurrent timer pass for all living armed units + readiness gate in _fire_squad, 3 acceptance GUT tests, determinism green, turn-hash change in commit msg, hx sim re-run) -> merge/close -> .4 auto-starts -> review on done (click-to-skip banner, space/GUIDE, right-click gate, presentation tests) -> merge/close -> spawn .2 (brief in bead notes, spawn only after .1 merged) -> write .3/.6 briefs when .2 lands -> spawn .3 then .6. After wave: re-spawn sw-1jy.4 fresh, ll4.9.1/.2, P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9). ~70% game work holds (all game).
+- blocked/asked: nothing new; designer direction answer pending (non-blocking).
