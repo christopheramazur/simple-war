@@ -7,7 +7,9 @@ extends RefCounted
 ## point, where does the anchor walk in a straight line next? The squad asks
 ## again when it gets there. The answer depends only on the rules, the route
 ## class and the two cells, so it is cached here and never saved or hashed:
-## a restored or forecast battle recomputes the same answers.
+## a restored or forecast battle recomputes the same answers. A forecast on
+## a worker thread shares these caches with the caller's battle, so the
+## caller fills them first (warm, IntentForecast.job) and the job only reads.
 ##
 ## Integers only. Entering a cell costs 10 (14 diagonally) times the cell's
 ## cost; a cost of 0 is impassable. Equal routes are broken by cell index in
@@ -95,6 +97,16 @@ static func _centre(cell: int, w: int, final: int) -> PackedInt64Array:
 	return PackedInt64Array([Fixed.from_int(cell % w) + Fixed.ONE / 2, Fixed.from_int(cell / w) + Fixed.ONE / 2, final])
 
 
+## Fills the cost and region caches for every route class in both planning
+## frames, so a forecast on a worker thread (IntentForecast.job) only ever
+## reads them. Call it on the caller's thread, before the job runs; building
+## them lazily from two threads at once races (sw-0nl).
+func warm(r: BattleRules) -> void:
+	for cls in r.rt_cost.size():
+		_costs_of(r, cls)
+		_costs_of(r, cls, true)
+
+
 func _costs_of(r: BattleRules, route_class: int, flip: bool = false) -> PackedInt32Array:
 	if flip:
 		if not _costs_flipped.has(route_class):
@@ -102,8 +114,10 @@ func _costs_of(r: BattleRules, route_class: int, flip: bool = false) -> PackedIn
 			costs.reverse()
 			var regions: PackedInt32Array = (_regions[route_class] as PackedInt32Array).duplicate()
 			regions.reverse()
-			_costs_flipped[route_class] = costs
+			# Regions before costs: next_waypoint reads both, so anyone who
+			# sees the costs must see the regions too. Threaded callers warm.
 			_regions_flipped[route_class] = regions
+			_costs_flipped[route_class] = costs
 		return _costs_flipped[route_class]
 	if _costs.has(route_class):
 		return _costs[route_class]

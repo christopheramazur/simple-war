@@ -16,6 +16,7 @@ const SAMPLES: int = 5
 ## "reactions" (names the own squad could react with)}] in canonical order
 ## (tick, squad, target), "errors": the drafted orders' errors}.
 static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) -> Dictionary:
+	state.rules.routes.warm(state.rules)
 	return _forecast(_copy(state), sim, player, orders)
 
 
@@ -27,6 +28,7 @@ static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) 
 static func job(state: BattleState, player: int, orders: Array) -> Callable:
 	Stats.warm(state.rules)
 	Fixed.warm()
+	state.rules.routes.warm(state.rules)
 	var scratch := _copy(state)
 	var o := orders.duplicate(true)
 	return func() -> Dictionary: return _forecast(scratch, BattleSim.new(), player, o)

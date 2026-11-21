@@ -230,3 +230,21 @@ func test_a_flipped_plan_mirrors_on_any_map() -> void:
 	var leg_a := a.routes.next_waypoint(a, 0, 20 * ONE + ONE / 2, 30 * ONE + ONE / 2, 40 * ONE + ONE / 2, 30 * ONE + ONE / 2)
 	var leg_b := b.routes.next_waypoint(b, 0, 39 * ONE + ONE / 2, 9 * ONE + ONE / 2, 19 * ONE + ONE / 2, 9 * ONE + ONE / 2, Fixed.ANGLE_HALF)
 	assert_eq(Array(leg_b), [60 * ONE - leg_a[0], 40 * ONE - leg_a[1], leg_a[2]])
+
+
+## sw-0nl: a forecast job shares the rules' route caches with the caller's
+## battle, so the caller thread fills both frames before the job runs.
+## Building them lazily from two threads at once races: a reader can see the
+## costs of a class before its regions exist, and walks off an empty array.
+func test_a_forecast_job_warms_the_route_caches_on_the_caller_thread() -> void:
+	var r := _rules(WALL)
+	var made := _squad(r, 20, 30)
+	var job := IntentForecast.job(made[0], 1, [])
+	assert_true(job.is_valid())
+	assert_eq(r.routes._costs.size(), r.rt_cost.size(), "costs for every class")
+	assert_eq(r.routes._regions.size(), r.rt_cost.size(), "regions for every class")
+	assert_eq(r.routes._costs_flipped.size(), r.rt_cost.size(), "flipped costs for every class")
+	assert_eq(r.routes._regions_flipped.size(), r.rt_cost.size(), "flipped regions too: never costs without regions")
+	var costs: PackedInt32Array = (r.routes._costs[0] as PackedInt32Array).duplicate()
+	costs.reverse()
+	assert_eq(r.routes._costs_flipped[0], costs, "the flipped frame is the rotated grid")
