@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 22:53 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 23:08 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
 | Turns per role | auditor: 42, craft-researcher: 10, games-researcher: 12, lead-designer: 13, orchestrator: 68, retro: 1, tech-lead: 9, ux-art-director: 10 |
-| Worker turns / research turns (24 h) | 24 / 7 |
+| Worker turns / research turns (24 h) | 23 / 7 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.3 |
 | Merged / rejected (all time) | 17 / 0 |
-| Gateway calls last hour (rate-limited) | 42 (24) |
+| Gateway calls last hour (rate-limited) | 41 (26) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 22:16 UTC **WARN** |
+| Latest audit | 11-21 22:58 UTC **WARN** |
 
 ## Recently merged
 - sw-1jy.3 (2026-11-21T12:04)
@@ -25,6 +25,10 @@ Updated 2026-11-21 22:53 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 22:58 UTC **WARN**
+
+Compliance clean: 21 gateway calls in window all nous/qwen4-max (craft-researcher 16, worker sw-ll4.27.3 2, auditor/orchestrator/tech-lead 1 each), 40 log banners all nous/qwen4-max, cost 0 USD, no hx delegate, no Claude activity. Health poor: 12/21 calls rate-limited (57 percent), both turns in window failed (orchestrator rc 1 at 1860s, tech-lead killed rc -9 at 3600s), zero merges in window (last merge sw-opt at 20:42, about 2h ago), worker sw-ll4.27.3 partial at attempt 4 since 21:08. Orchestrator is alive (successful call in window) and the worker is active, and a merge landed at 20:42 ending the long drought, so WARN not FAIL. Recommend throttling craft-researcher (10 of its 16 calls were 429s) and merging sw-ll4.27.3 review as the next orchestrator priority.
 
 ### 11-21 22:16 UTC **WARN**
 
@@ -41,8 +45,4 @@ WARN — compliance clean: all 21 gateway calls nous/qwen4-max (ux-art-director 
 ### 11-21 19:22 UTC **WARN**
 
 18:26-18:56 window: compliance clean - 21 gateway calls all nous/qwen4-max (swarm-retro 15, orchestrator 5, auditor 1), 21 log banners clean, cost 0 USD, no delegate or Claude activity, 0 turn failures. But health poor: 62% rate-limited (13/21 calls), zero swarm events, no merge since 14:26 (4.5 h) while both workers sit partial/awaiting-review far past their 2 h caps (sw-opt since 14:27, sw-ll4.27.3 since 14:33, 3 attempts). Orchestrator alive but barely productive (1 success call in window); a retro turn is running. Recommend orchestrator merge sw-opt and .3 att3 before anything else and journal early; WARN not FAIL because orchestrator turns exist and workers are awaiting review, not idle.
-
-### 11-21 18:26 UTC **WARN**
-
-auditor recorded no verdict
 
