@@ -51,12 +51,25 @@ func close() -> void:
 
 
 ## The usual modal body: the screen shaded, a centred panel `width` wide,
-## and the column to fill.
+## and the column to fill. The panel is centred while it fits and scrolls
+## vertically when the window is shorter than the body (a small window, or a
+## large UI scale) — the same fit as the main menu (sw-ll4.26.3). The scroll
+## region is the window's own area, so the visible body is bounded by the
+## viewport and the title (top) and Close (bottom) stay reachable by scrolling
+## one axis; horizontal scroll stays off so 200% never needs two axes
+## (sw-opt, XAG 101). The scroll takes no focus and passes Esc to the root.
 func dialog(width: float) -> VBoxContainer:
 	add_child(UiTheme.backdrop("ScreenShadePanel"))
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.focus_mode = Control.FOCUS_NONE
+	add_child(scroll)
 	var centre := CenterContainer.new()
-	centre.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	centre.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(centre)
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(width, 0)
 	panel.theme_type_variation = &"ModalPanel"

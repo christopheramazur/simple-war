@@ -12,29 +12,56 @@ const HELP: Array = [
 ]
 
 
+## Side margin kept clear of the viewport edge when capping the body width
+## (the HelpPanel style adds its own 18px inset on top of this).
+const SIDE_MARGIN := 24.0
+## The body's design width at 100%; it only ever shrinks to fit the viewport.
+const BODY_WIDTH := 640.0
+
+
 ## The list as a window: a centred panel that leaves the keys to the game,
-## so it can stay open while playing. Esc or Close shuts it.
+## so it can stay open while playing. Esc or Close shuts it. Like the modal
+## dialog it is centred while it fits and scrolls vertically when the window
+## is shorter than the list, and the body width is capped to the viewport
+## minus margins so a large UI scale wraps the text instead of clipping it
+## (sw-opt, XAG 101). Horizontal scroll stays off; the scroll takes no focus.
 static func window() -> UiWindow:
 	var w := UiWindow.new()
 	w.id = &"help"
 	w.captures_keys = false
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.focus_mode = Control.FOCUS_NONE
+	w.add_child(scroll)
+	var centre := CenterContainer.new()
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	centre.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(centre)
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	panel.theme_type_variation = &"HelpPanel"
+	centre.add_child(panel)
 	var col := VBoxContainer.new()
 	col.theme_type_variation = &"FormGap"
 	panel.add_child(col)
+	var bodies: Array[Label] = []
 	for part: Array in HELP:
 		col.add_child(UiTheme.label(part[0], "AccentLabel"))
 		var body := UiTheme.label(part[1], "SmallLabel", true)
-		body.custom_minimum_size = Vector2(640, 0)
+		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bodies.append(body)
 		col.add_child(body)
 	var close := Button.new()
 	close.text = "Close"
 	close.focus_mode = Control.FOCUS_NONE  # Space stays "end turn"
 	close.pressed.connect(w.close)
 	col.add_child(close)
-	w.add_child(panel)
+	# Cap the body to the viewport minus margins (never wider than the design
+	# width), re-capping whenever the window resizes or the UI scale changes.
+	var fit := func() -> void:
+		var avail := minf(w.size.x - SIDE_MARGIN * 2.0, BODY_WIDTH)
+		for b: Label in bodies:
+			b.custom_minimum_size.x = maxf(avail, 200.0)
+	w.resized.connect(fit)
 	return w

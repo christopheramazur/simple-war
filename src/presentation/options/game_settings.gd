@@ -8,7 +8,7 @@ extends RefCounted
 const SECTION := "settings"
 const MODES: Array[String] = ["windowed", "borderless", "fullscreen"]
 const MODE_NAMES: Dictionary = {"windowed": "Windowed", "borderless": "Borderless fullscreen", "fullscreen": "Exclusive fullscreen"}
-const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1366, 768), Vector2i(1600, 900), Vector2i(1920, 1080),
+const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1280, 800), Vector2i(1366, 768), Vector2i(1600, 900), Vector2i(1920, 1080),
 	Vector2i(2560, 1440), Vector2i(3840, 2160)]
 const UI_SCALES: Array[float] = [0.75, 1.0, 1.25, 1.5, 2.0]
 const TURN_SECONDS: Array[float] = [0.0, 2.0, 5.0, 10.0]
