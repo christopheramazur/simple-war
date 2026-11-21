@@ -126,3 +126,9 @@
 - noted: 1 failed gateway call on sw-ll4.27.2 recovered without turn failure (~61k tokens) — watch for recurrence only.
 - next: ~14:00 audit — confirm sw-ll4.27.2 merges near its ~15:01 cap and sw-1jy.4 spawns when a slot frees; orchestrator pre-writing .3/.6 briefs should keep pipeline full. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 14:02 UTC turn
+- did: audited 13:32-14:02 window from attached digest alone (it settled compliance and health, no extra commands); recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1402.md.
+- decided: PASS — compliance clean (125 calls all nous/qwen4-max, 182 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), zero turn failures. Two merges in window: sw-ll4.27.2 13:40 and sw-1jy.4 13:50 (15 total). sw-1jy.4 respawn delivered 2 commits; WIP auto-commit f70ffdd was harness end-of-turn capture, merged fine.
+- next: ~14:32 audit — confirm sw-ll4.27.3 early commits (running since 13:41, cap ~15:41) and sw-luo spawns when the slot frees; sw-rlg brief pre-written. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
