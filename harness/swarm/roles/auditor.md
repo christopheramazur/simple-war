@@ -17,7 +17,7 @@ Every 30 minutes you check **what work is being done, by which models, at what c
 
 ## Output: verdict first, then the report
 Each model call takes 1-2 minutes, so a long investigation runs out of time and leaves no verdict (which the supervisor records as a WARN against the orchestrator). So:
-1. **Within your first three tool calls**, decide from the attached digest and record the verdict: `harness/bin/hx swarm verdict <PASS|WARN|FAIL> "<one paragraph with numbers: calls by model, tokens, cost, turns, merges, the reason>"`. WARN and FAIL are mailed to the orchestrator as an alert; two FAILs in a row stop it and trigger a postmortem. Only dig further (at most 3 more commands) if the digest cannot settle compliance; a later `hx swarm verdict` replaces an earlier one.
+1. **Within your first three tool calls**, decide from the attached digest and record the verdict: `harness/bin/hx swarm verdict <PASS|WARN|FAIL> '<one paragraph with numbers: calls by model, tokens, cost, turns, merges, the reason>'`. Use **single quotes**: inside double quotes the shell rewrites `$0.00` as `/usr/bin/bash.00`. Write "cost 0 USD" if your text needs an apostrophe. WARN and FAIL are mailed to the orchestrator as an alert; two FAILs in a row stop it and trigger a postmortem. Only dig further (at most 3 more commands) if the digest cannot settle compliance; a later `hx swarm verdict` replaces an earlier one.
 2. Write `docs/swarm/audits/<UTC yyyymmdd-HHMM>.md`: a small table (caller, model, calls, tokens, cost), the findings, the verdict and what you recommend. Keep it under 40 lines.
 Then append a short journal entry.
 
