@@ -59,3 +59,12 @@
 - decided: Queue order when slots free: sw-0nl (P1 bug, brief ready) -> sw-ijp.5 (P1 designer-accepted CVD colours, APPROVE per 05:03 audit) -> P1 milestone tasks sw-ll4.26.3/.4, sw-ll4.9.1/.2. sw-gbf (P2 score_target unreachable) and sw-884.5 (seed variance) are the follow-on pair for the 45-55% acceptance; keep them after the P1 wave. ~70% game work holds (all queued/next are game).
 - next: review/merge sw-ll4.26.1 when supervisor mails (Play-this-map; brief in notes), then sw-ll4.26.2 (convoy). Spawn sw-0nl into the first freed slot (claim first; brief already in bead notes, spawn note can be short). Pre-brief sw-ijp.5 next turn if time.
 - blocked/asked: nothing.
+
+## 2026-11-21T06:20Z turn
+- Inbox empty, no new audit alerts (05:03 WARN resolved last turn). selfcheck clean: config_ok, only hx/nous/qwen4-max, 0 non-Qwen calls, 75 banners all Qwen, supervisor alive, streak 0.
+- did: No finished workers to review. sw-ll4.26.1 running and healthy (38 min in, new tests/presentation/test_play_map_selection.gd untracked, worktree touched 06:04); sw-ll4.26.2 queued. Slots full -> no spawn.
+- did: Pre-briefed sw-ijp.5 (CVD colours): verified all four readers on main (context_view.gd:36+uses, replay_viewer.gd:18, battle_panel.gd:19, results_screen.gd:54). Brief in bead notes: new static TeamPalette (ui_theme.gd pattern), GameSettings team_palette key, options dropdown beside ui_theme (options_screen.gd:72), AA text tones vs panel 1d2128, live queue_redraw, greyscale/protan/deutan mock PNGs, tests; sw-vld out of scope.
+- did: Found user checkpoint d2f28bb (Nov 17, pre-swarm) already satisfies sw-ll4.26.3/.4/.5. Verified acceptance against main (scrolling menu + small_screen mock at 853x480; 3 shipped profiles + options dropdown + test_ui_styles; HexCard/inspect_plot building info + tests test_war_room_ui.gd:210-229) and CLOSED all three with evidence in close reasons. .6 stays open: show_playback(rec,t) still stretches moves over the whole turn; verified-state note added to .6 and parent.
+- decided: closing already-landed children is honest pipeline hygiene (the work IS on main); it shortens the P1 queue. Queue now: sw-0nl -> sw-ijp.5 -> sw-ll4.9.1/.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5).
+- next: review/merge sw-ll4.26.1 when supervisor mails, then .2. Spawn sw-0nl into first freed slot (claim first; brief in notes), then sw-ijp.5 (brief ready). Keep ~70% game work.
+- blocked/asked: nothing.
