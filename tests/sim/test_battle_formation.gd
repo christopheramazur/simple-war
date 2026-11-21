@@ -80,3 +80,24 @@ func test_full_strength_squad_unchanged() -> void:
 	for cy: int in trail:
 		assert_true(absi(cy - 20 * ONE) <= ONE / 4, "centroid left the line to the destination: y=%d" % cy)
 	assert_gt(s.squads.cx[row], start_x + 10 * ONE, "advanced east")
+
+
+## A save written before form_size existed lacks the column: it restores as
+## the default 0 and movement falls back to the template's full strength.
+func test_old_save_without_form_size_falls_back() -> void:
+	var made: Array = _march(4)
+	var s: BattleState = made[0]
+	var sid: int = made[1]
+	var snap := s.snapshot()
+	snap["tables"]["squad"]["columns"].erase("form_size")
+	var copy := BattleState.new(1, s.rules, 1)
+	copy.restore(snap)
+	Centroids.update(copy)
+	var row := copy.squads.row_of(sid)
+	assert_eq(copy.squads.form_size[row], 0, "missing column restores as its default")
+	assert_eq(copy.squads.alive[row], 4)
+	var start_x := copy.squads.cx[row]
+	var sim := BattleSim.new()
+	for _t in 2:
+		sim.execute_turn(copy)
+	assert_gt(copy.squads.cx[row], start_x, "still advances with the full-strength fallback")
