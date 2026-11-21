@@ -6,7 +6,7 @@ static var _loader: PackageLoader
 
 func _l() -> PackageLoader:
 	if _loader == null:
-		_loader = PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	return _loader
 
 

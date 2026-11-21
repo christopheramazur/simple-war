@@ -10,7 +10,7 @@ static var _rules_cache: BattleRules
 
 func _rules() -> BattleRules:
 	if _rules_cache == null:
-		var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 		_rules_cache = BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
 	return _rules_cache
 

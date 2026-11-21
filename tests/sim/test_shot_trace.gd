@@ -9,7 +9,7 @@ static var _loader: PackageLoader
 
 func _battle(seed_value: int) -> BattleState:
 	if _loader == null:
-		_loader = PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	return BattleSetup.create(1, BattleRules.compile(_loader.templates, "duel_crossroads", _loader.data_hash), seed_value)
 
 

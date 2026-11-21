@@ -14,7 +14,7 @@ static var _rules_cache: OverworldRules
 
 func _rules() -> OverworldRules:
 	if _rules_cache == null:
-		_loader = PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 		_rules_cache = OverworldRules.compile(_loader.templates, "test_vale", _loader.data_hash)
 	return _rules_cache
 

@@ -12,7 +12,7 @@ static var _rules_cache: BattleRules
 
 func _l() -> PackageLoader:
 	if _loader == null:
-		_loader = PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	return _loader
 
 

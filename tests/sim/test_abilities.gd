@@ -11,7 +11,7 @@ static var _dig: BattleRules
 
 func _rules() -> BattleRules:
 	if _core == null:
-		var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 		_core = BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
 	return _core
 
@@ -20,7 +20,7 @@ func _rules() -> BattleRules:
 ## core roster doesn't use yet).
 func _dig_rules() -> BattleRules:
 	if _dig == null:
-		var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+		var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 		_dig = BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
 		var st := _dig.squad_index("rifle_squad")
 		var list := _dig.sq_abilities[st].duplicate()

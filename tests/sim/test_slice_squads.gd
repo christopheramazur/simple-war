@@ -7,7 +7,7 @@ const ONE := Fixed.ONE
 
 
 func _rules() -> BattleRules:
-	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	var r := BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
 	assert_true(r.is_valid(), "\n".join(r.errors))
 	return r
