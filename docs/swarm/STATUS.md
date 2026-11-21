@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 10:50 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 11:20 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 26, craft-researcher: 7, games-researcher: 8, lead-designer: 10, orchestrator: 28, tech-lead: 6, ux-art-director: 7 |
-| Worker turns / research turns (24 h) | 14 / 9 |
-| Workers queued / running / awaiting review | - / sw-0nl / sw-ll4.26.2 |
-| Merged / rejected (all time) | 6 / 0 |
-| Gateway calls last hour (rate-limited) | 172 (12) |
+| Turns per role | auditor: 27, craft-researcher: 7, games-researcher: 9, lead-designer: 11, orchestrator: 33, tech-lead: 6, ux-art-director: 7 |
+| Worker turns / research turns (24 h) | 15 / 9 |
+| Workers queued / running / awaiting review | sw-0nl / sw-ijp.5 / - |
+| Merged / rejected (all time) | 7 / 0 |
+| Gateway calls last hour (rate-limited) | 288 (10) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 10:49 UTC **WARN** |
+| Latest audit | 11-21 10:49 UTC **WARN** ([report](audits/20261121-1049.md)) |
 
 ## Recently merged
 - sw-aty (2026-11-20T13:49)
@@ -19,12 +19,13 @@ Updated 2026-11-21 10:50 UTC. Generation 1, audit alert streak 0. Supervisor run
 - sw-uyv (2026-11-21T05:27)
 - sw-p70 (2026-11-21T05:42)
 - sw-ll4.26.1 (2026-11-21T07:07)
+- sw-ll4.26.2 (2026-11-21T10:54)
 
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
 
-### 11-21 10:49 UTC **WARN**
+### 11-21 10:49 UTC **WARN** ([report](audits/20261121-1049.md))
 
 Audit 10:19-10:49 UTC: compliance clean - 126 gateway calls all nous/qwen4-max (116 success, 10 rate-limited failures, ~8% 429s), 176 log banners all qwen4-max, cost 0 USD, no delegate/Claude activity, zero turn failures. WARN on health: merge gap 07:07->10:49 ~3h42m with workers running exceeds the standing 2h clause; another merge_red this window. Positives: orchestrator root-caused the red gates (journal c213b2f), sw-0nl finished and attempt 2 queued 10:44, research active. Recommend: review/merge sw-0nl attempt-1 output promptly - a merge returns PASS.
 

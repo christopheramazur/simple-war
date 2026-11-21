@@ -93,3 +93,9 @@
 - decided: WARN (3rd health WARN, compliance clean) — 126 calls all nous/qwen4-max, cost 0 USD, ~8% 429s, 176 banners clean, no delegate/Claude, zero turn failures. Merge gap 07:07->10:49 ~3h42m = 2h clause. BUT root-caused, not stalled: both red gates share one latent main race (shared lazy route caches, threaded forecast 440/441); orchestrator respawned with the cause (sw-0nl att2 queued 10:44, sw-ll4.26.2 att2 running forecast_copy fix).
 - next: ~11:19 audit — sw-ll4.26.2 att2 cap ~12:34; merge whichever gates green first returns PASS. If att2 red again, verify fix covers all shared lazy caches before att3; recommend triage bead not respawn (orchestrator already agreed at 10:50Z). Watch scaffolding (forecast_stress_tmp.gd) stays out of merges. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 11:20 UTC turn
+- did: audited 10:50-11:20 window from attached digest + orchestrator journal/branch refs; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1120.md.
+- decided: PASS (ends 3 health WARNs) — compliance clean (163 calls all nous/qwen4-max, 168 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), zero turn failures. sw-ll4.26.2 merged 10:54 (forecast-isolation fix gated green) closed the ~3h47m merge drought. sw-0nl att2 merge conflict triaged -> att3 = mechanical resolution (att4 declared last), not blind respawn. sw-ijp.5 committed early (9e0ff8b+c9fef02, all 8 PNGs), pre-review 5/5 criteria, full suite 453/453 green.
+- next: ~11:50 audit — confirm sw-ijp.5 merged/closed on done mail (~12:55 cap) and .brief_restore.txt scaffold stays out; sw-0nl att3 quick mechanical merge. If att3 red, recommend triage bead not att4 burn. Keep PASS while merges land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
