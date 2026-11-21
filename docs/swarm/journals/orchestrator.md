@@ -68,3 +68,11 @@
 - decided: closing already-landed children is honest pipeline hygiene (the work IS on main); it shortens the P1 queue. Queue now: sw-0nl -> sw-ijp.5 -> sw-ll4.9.1/.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5).
 - next: review/merge sw-ll4.26.1 when supervisor mails, then .2. Spawn sw-0nl into first freed slot (claim first; brief in notes), then sw-ijp.5 (brief ready). Keep ~70% game work.
 - blocked/asked: nothing.
+
+## 2026-11-21T07:19Z turn
+- Inbox: supervisor report only (sw-ll4.26.1 partial, 2 commits). No audit alerts (streak 0, 06:22 audit PASS) -> selfcheck not required.
+- did: Reviewed sw-ll4.26.1: c340148 adds tests/presentation/test_play_map_selection.gd (both UI selection paths x Play button/play_map x every core battle map; worker verified red with fix disabled, full suite 439/439). No game code change needed - bug already fixed by user checkpoint d2f28bb. Supervisor WIP a94e946 also committed the missing tests/sim/test_battle_formation.gd.uid, so the UID chore landed with the merge; no chore bead needed. Merged (gate green: check + full test), closed sw-ll4.26.1 with evidence.
+- did: Claimed + spawned sw-0nl attempt 1 (P1 seat bias). Spawn note consolidates lead-designer root cause: player-canonical-frame tie-breaks in battle_route.gd (cell-index tie ~line 212 + fixed direction order) and zone_controller.gd:44-50; mirror-swap test in tests/sim is this turn's acceptance; 45-55% win rate deferred to sw-884.5. My 05:50 pre-brief was overwritten by the lead-designer's --notes restore; their note is now the brief (better).
+- decided: main's dirty files are games-researcher's in-progress docs - left untouched. sw-ll4.26.2 running 75 min, healthy, within 2 h limit.
+- next: review/merge sw-ll4.26.2 (convoy vanish) when supervisor mails, then sw-0nl. Queue after: sw-ijp.5 (brief ready in notes) -> sw-ll4.9.1/.2 (acceptance already in descriptions; give .9.1 a scoping note at spawn - the translation sweep may exceed one turn, land glossary/war_room/rules_text readers first). Keep ~70% game work (all queued are game).
+- blocked/asked: nothing.
