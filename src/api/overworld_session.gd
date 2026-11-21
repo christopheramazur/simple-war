@@ -75,6 +75,11 @@ var locked: bool = false
 var keep_playback: bool = false
 ## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
 var _playback: Dictionary = {}
+## Engagement ID -> player -> worst own SIMPL band index last recorded (at
+## the battle's start and after each of its turns): the glance summary's
+## backward-looking trend reference. Only the session records it; saved
+## with the game, it never feeds back into the simulation.
+var _band_history: Dictionary = {}
 ## Set while rebuilding: the hashes the replay must reproduce.
 var _expected: PackedStringArray = PackedStringArray()
 var _diverged: int = -1
@@ -607,6 +612,7 @@ func _run_battles() -> void:
 			_record_turn(eid, b)
 		else:
 			_battle_sim.execute_turn(b.state)
+		_record_bands(eid, b)
 		if b.state.is_over():
 			done.append(eid)
 	for eid: int in done:
@@ -614,6 +620,7 @@ func _run_battles() -> void:
 		OverworldBattles.finish(state, b)
 		bus.unregister_context(b.context_id)
 		battles.erase(eid)
+		_band_history.erase(eid)
 
 
 ## Runs one battle turn, keeping a frame per tick (and one before the
@@ -753,6 +760,7 @@ func _start_battles() -> void:
 		_next_context += 1
 		battles[eid] = b
 		bus.register_context(b.state)
+		_record_bands(eid, b)
 
 
 ## The overworld's hash combined with every battle's (desync checks).
@@ -806,6 +814,57 @@ func observe_battle(player: int, engagement_id: int) -> Dictionary:
 			mine[bid] = id
 	o["links"] = mine
 	return o
+
+
+## The glance summary of one battle for `player` ({} unless it fights in
+## it): the worst SIMPL band across its OWN squads still fighting, as
+## {"band" (name), "pool" (its SIMPL pool), "squad" (battle squad ID),
+## "trend", "prev_band" (the last recorded worst band, "" before any
+## record)}. The trend is backward-looking — the current worst band against
+## the one recorded after the battle's previous turn (or its start):
+## "worsening", "improving", "steady", or "new" with no record yet. Never a
+## forecast of pending orders (GDD 02 §2.2 Vacuum stays "Not yet").
+## Read-only, any phase; enemy pools are never read (fog-safe).
+func battle_summary(player: int, engagement_id: int) -> Dictionary:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if b == null or not b.state.players.has(player):
+		return {}
+	var worst := _worst_own_band(b, player)
+	if worst.is_empty():
+		return {}
+	var prev: int = (_band_history.get(engagement_id, {}) as Dictionary).get(player, -1)
+	var trend := "new"
+	if prev >= 0:
+		trend = "worsening" if worst["band"] < prev else ("improving" if worst["band"] > prev else "steady")
+	return {"band": DataSchema.BANDS[worst["band"]], "pool": DataSchema.SIMPL[worst["pool"]], "squad": worst["squad"],
+		"trend": trend, "prev_band": DataSchema.BANDS[prev] if prev >= 0 else ""}
+
+
+## The lowest band across the player's own active squads and all five SIMPL
+## pools, by the sim's own mapping (Pools.band): {"band", "pool", "squad"}
+## of the first worst entry (store order breaks ties), or {} with no own
+## squad fighting.
+static func _worst_own_band(b: OverworldBattle, player: int) -> Dictionary:
+	var out := {}
+	var sq := b.state.squads
+	for row in sq.count():
+		if sq.player[row] != player or not sq.is_active(row):
+			continue
+		for p in DataSchema.SIMPL.size():
+			var band := Pools.band(b.state, row, p)
+			if out.is_empty() or band < int(out["band"]):
+				out = {"band": band, "pool": p, "squad": sq.id_at(row)}
+	return out
+
+
+## Records every side's worst own band: the trend's reference point.
+func _record_bands(eid: int, b: OverworldBattle) -> void:
+	var h: Dictionary = _band_history.get(eid, {})
+	for p in b.state.players:
+		var w := _worst_own_band(b, p)
+		if not w.is_empty():
+			h[p] = w["band"]
+	_band_history[eid] = h
 
 
 ## The inspection window's data for one squad of a battle (Inspection), as
@@ -955,7 +1014,7 @@ func save() -> PackedByteArray:
 		"hashes": turn_hashes.duplicate(), "state": state.snapshot(), "clock": clock.snapshot(),
 		"last_events": events, "hash": state_hash_hex(),
 		"battles": _battles_dict(), "next_context": _next_context,
-		"opportunities": _opportunities.duplicate(true),
+		"opportunities": _opportunities.duplicate(true), "band_history": _band_history.duplicate(true),
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
 
@@ -990,6 +1049,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		s.bus.register_context(b.state)
 	s._next_context = data.get("next_context", 100)
 	s._opportunities = data.get("opportunities", {})
+	s._band_history = data.get("band_history", {})
 	if s.state_hash_hex() != data["hash"]:
 		last_error = "the saved state does not match its hash"
 		return null
