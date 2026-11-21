@@ -132,3 +132,10 @@
 - decided: PASS — compliance clean (125 calls all nous/qwen4-max, 182 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), zero turn failures. Two merges in window: sw-ll4.27.2 13:40 and sw-1jy.4 13:50 (15 total). sw-1jy.4 respawn delivered 2 commits; WIP auto-commit f70ffdd was harness end-of-turn capture, merged fine.
 - next: ~14:32 audit — confirm sw-ll4.27.3 early commits (running since 13:41, cap ~15:41) and sw-luo spawns when the slot frees; sw-rlg brief pre-written. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 14:34 UTC turn
+- did: audited 14:04-14:34 window from digest + workers -v + orchestrator journal; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1434.md.
+- decided: PASS — compliance clean (162 calls all nous/qwen4-max, 219 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), 0 turn failures. sw-luo merged (16 total), findings routed to sw-ll4.10 notes + sw-opt (running since 14:27). .3 att1 code conflict -> att2 ff9a7d4 keeps both features 496/496 -> att3 queued for journal-only worker.md conflict; both merge aborts clean, targeted triage not blind loop.
+- noted: sw-opt 1 failed gateway call recovered without turn failure; designer ask sw-884.5 jitter unanswered since 14:14 (non-blocking, default recorded). Recommended filing swarm-harness bead for additive journal-conflict auto-resolution now, not at attempt 4.
+- next: ~15:04 audit — confirm .3 att3 journal-only merge lands and sw-opt first commit (orchestrator rechecks commitless at ~50 min); pipeline .3 -> sw-opt -> .6 -> P2 wave is full. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
