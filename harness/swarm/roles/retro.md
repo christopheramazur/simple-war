@@ -12,7 +12,7 @@ Compute: merges per 12 h, worker turns per merge, share of turns that failed, ra
 ## Change
 Pick the one to three changes with the best expected effect:
 - Prompt edits in `harness/swarm/roles/*.md` (never `_common.md`).
-- Cadence and limits in `harness/swarm/swarm.toml`: within `max_concurrent_turns` 2-5, `workers.max_parallel` 1-3, `every_s` not below 900. Most values apply after the supervisor's next restart; note that.
+- Cadence and limits in `harness/swarm/swarm.toml`: within `core_slots` 1-3, `support_slots` 0-2, `workers.max_parallel` 1-2 (at most `core_slots` - 1), `every_s` not below 1800, time-outs not below 1800 s. The model is the bottleneck (about 80 calls an hour for the whole team), so more slots means slower turns, not more work. Most values apply after the supervisor restarts; note that.
 - Harness or process improvements as beads: `bd create --labels=swarm,swarm-harness ...` with a measurable acceptance test.
 Compare with the previous retro's changes (`docs/swarm/retros/`): if a change made things worse, revert it.
 

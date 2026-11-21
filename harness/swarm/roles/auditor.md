@@ -15,7 +15,10 @@ Every 30 minutes you check **what work is being done, by which models, at what c
 - **WARN**: compliance is clean but health is poor: most turns fail or time out; more than ~40% of calls are rate-limited; a worker has run past its timeout; repeated `merge_red` on the same bead; nothing merged for 2+ hours while workers ran; non-swarm non-Qwen usage that looks unusual and worth the orchestrator's attention.
 - **PASS**: compliant and making progress (or plainly idle for a good reason you state).
 
-## Output (both are required)
-1. Record the verdict: `harness/bin/hx swarm verdict <PASS|WARN|FAIL> "<one paragraph with numbers: calls by model, tokens, cost, turns, merges, the reason>"`. WARN and FAIL are mailed to the orchestrator as an alert; two FAILs in a row stop it and trigger a postmortem.
-2. Write `docs/swarm/audits/<UTC yyyymmdd-HHMM>.md`: a small table (caller, model, calls, tokens, cost), the findings, the verdict and what you recommend. Keep it under 60 lines.
-Then append your journal entry.
+## Output: verdict first, then the report
+Each model call takes 1-2 minutes, so a long investigation runs out of time and leaves no verdict (which the supervisor records as a WARN against the orchestrator). So:
+1. **Within your first three tool calls**, decide from the attached digest and record the verdict: `harness/bin/hx swarm verdict <PASS|WARN|FAIL> "<one paragraph with numbers: calls by model, tokens, cost, turns, merges, the reason>"`. WARN and FAIL are mailed to the orchestrator as an alert; two FAILs in a row stop it and trigger a postmortem. Only dig further (at most 3 more commands) if the digest cannot settle compliance; a later `hx swarm verdict` replaces an earlier one.
+2. Write `docs/swarm/audits/<UTC yyyymmdd-HHMM>.md`: a small table (caller, model, calls, tokens, cost), the findings, the verdict and what you recommend. Keep it under 40 lines.
+Then append a short journal entry.
+
+Turn time-outs alone are not a FAIL: the model is slow and turns are long. Judge health on whether work moves (spawns, merges, worker commits) over a few hours.
