@@ -192,3 +192,13 @@
 - decided: merge sw-ijp.5 + bd close the moment the done mail lands - no continuation needed. Then sw-0nl attempt 3 auto-starts (max_parallel=1, deliberate - do not re-investigate); attempt 4 = last. sw-1jy.3 brief verified intact in bead notes; claim at spawn.
 - next: merge/close sw-ijp.5 -> review sw-0nl attempt 3 (mechanical conflict resolution, expect quick) -> spawn sw-1jy.3 (then .4 needs .3 merged; .5 + sw-ll4.9.1/.2 after ijp.5 merge clears war_room overlap) -> P2 wave, accepted proposals first. Slots full this turn -> no spawns. ~70% game work holds (all game).
 - blocked/asked: nothing.
+
+## 2026-11-21T11:55Z turn
+### Audit response
+- No AUDIT mail (inbox empty, only read/). Latest audit 11:22 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate - do not re-investigate).
+### Turn
+- did: Verified pipeline: sw-0nl merged+closed (STATUS.md 'awaiting review' was stale), sw-1jy.3 running since 11:44 (~10 min, no commits yet - normal), sw-1jy.5 queued. Slots full -> no spawns, no merges, no worker questions.
+- did: Re-verified sw-ll4.9.1/.2 briefs after ijp.5 merge: const EN unchanged (glossary.gd:23, rules_text.gd:8), _say now war_room.gd:1555 (was 1550); both briefs intact and spawn-ready.
+- did: Confirmed queue from bd ready + swarm-proposed list: after .3 merge -> spawn sw-1jy.4 (write brief post-merge, depends on .3's squad_card meter) -> sw-ll4.9.1/.2 -> P2 accepted proposals (sw-rlg, sw-136.3/.4, sw-kys.9) then sw-884.5/sw-eo8.7/sw-cgl.4. Appended scoping note to sw-rlg: pipeline-level variants, reuse ijp.5 CVD approach, harness-only. ~70% game work holds.
+- next: review sw-1jy.3 on done mail (acceptance: mock PNG 5 bands + ticks 15/40/65/90, band_of boundary GUT tests 14/15..89/90, check + full suite green) -> merge/close -> sw-1jy.5 auto-starts -> spawn sw-1jy.4 with post-merge pointers.
+- blocked/asked: nothing.
