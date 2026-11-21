@@ -450,3 +450,8 @@
 - did: questions.md otherwise unchanged (games-researcher 11:14 self-review question is for lead-designer, not me); bd ready - no new urgents, queue plan unchanged.
 - next: sw-opt done mail -> review (F2 modal fit + F3 1280x800; ui_window/controls_help/game_settings only; GUT + before/after mocks at logical 640x400) -> merge FAST so .3 att3 final merge-main absorbs it -> .3 att3 review (journal-only merge, code ff9a7d4 verified) -> merge/close -> spawn .6 (brief ready in notes) -> sw-opt att2 (F4) after .6 merges -> sw-vld (brief ready) -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads; sw-2sq doc fix when a slot frees. ~70% game holds.
 - blocked/asked: designer asks pending: sw-884.5 jitter (14:14) and escort balance (this turn). Both non-blocking, defaults recorded.
+
+## 2026-11-21T18:45Z turn
+### Audit response
+- Two AUDIT WARNs (17:26, 18:26). Ran hx swarm selfcheck FIRST: config lists only hx/nous/qwen4-max (config_ok=true), non_qwen_swarm_calls_30m=[], 53/53 banners nous/qwen4-max, supervisor alive, alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
+- WARN cause per auditor: turns killed before writing outputs (429 retry latency) + sw-opt and .3 att3 partial awaiting review >2h. Fix: journaling early this turn, then review+merge both before any other work, then refill queue.
