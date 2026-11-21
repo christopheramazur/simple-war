@@ -1,6 +1,6 @@
 # Art styles and assets for a clear, readable, accessible tactics game — summary
 
-Status: draft by craft-researcher
+Status: reviewed by games-researcher
 Report: [../reports/art-styles-and-assets-for-a-clear-easy-to-read-accessible-ta.md](../reports/art-styles-and-assets-for-a-clear-easy-to-read-accessible-ta.md)
 
 ## What we looked at
@@ -15,13 +15,13 @@ How the most readable tactics games earn their clarity, which free asset packs a
 
 ## What it means for Simple War
 - **Presentation direction (GDD 01, R3Q21/R8Q11):** Kenney/SBS CC0 terrain desaturated in-engine matches "2D isometric, desaturated terrain, simple assets" exactly; units should be the only saturated, outlined elements. Placeholder now; the dedicated art pass (README Open topic 3) can swap them without touching rules.
-- **Input and UI accessibility (GDD 01):** the Vision promises colour-blind-safe palettes and a colours options menu in the MVP (Release order step 1), but today team colours are a hardcoded blue-vs-red `PLAYER_COLORS` dict duplicated in `src/presentation/war_room/context_view.gd` and `src/presentation/replay_viewer/replay_viewer.gd` — not data (pillar 5), no presets, no options entry yet. Okabe–Ito blue `#0072B2` vs vermillion `#D55E00` is the report's suggested default pair.
+- **Input and UI accessibility (GDD 01):** the Vision promises colour-blind-safe palettes and a colours options menu in the MVP (Release order step 1), but today team colours are a hardcoded blue-vs-pure-red `PLAYER_COLORS` dict duplicated in `src/presentation/war_room/context_view.gd` and `src/presentation/replay_viewer/replay_viewer.gd`, and also read by `results_screen.gd` and `battle_panel.gd` — four consumers, not data (pillar 5), no presets, no options entry yet. Pure red is the protanopia failure case the report warns about. Okabe–Ito blue `#0072B2` vs vermillion `#D55E00` is the report's suggested default pair.
 - **Pillars 2–3 (GDD 01):** ITB-style telegraphs and UoC2-style predicted results are how transparent determinism reads on screen; drafted orders in the planning UI need distinct icons, not just coloured arrows.
 - **Platforms (GDD 01):** Steam Deck is the design target — check readability at 1280×800, handheld distance and max zoom-out, the exact Songs of Conquest failure mode.
 - **Pillar 5 + business model (GDD 01):** bundled assets must be safely redistributable for Workshop mods; CC0 is frictionless, copyleft Wesnoth art would impose share-alike on derivative content packages.
 
 ## Candidate beads
-1. **CVD-safe team colours as data, with an options preset.** Why: colours are hardcoded in two scenes; the MVP promises a colours options menu; "never colour alone" needs a safe default. GDD: 01 Input and UI (Accessibility), Release order step 1, pillar 5. Acceptance: one source of truth for team colours consumed by war room and replay viewer; default pair Okabe–Ito blue `#0072B2` vs vermillion `#D55E00` (or a documented equivalent); at least one alternate preset (Tol high-contrast) selectable in options; greyscale + protan/deutan simulated war-room screenshots attached showing both sides distinguishable. Size: M.
+1. **CVD-safe team colours as data, with an options preset.** Why: colours are hardcoded in two scenes; the MVP promises a colours options menu; "never colour alone" needs a safe default. GDD: 01 Input and UI (Accessibility), Release order step 1, pillar 5. Acceptance: one source of truth for team colours consumed by all four current readers (context_view, replay_viewer, results_screen, battle_panel); default pair Okabe–Ito blue `#0072B2` vs vermillion `#D55E00` (or a documented equivalent); at least one alternate preset (Tol high-contrast) selectable in options; greyscale + protan/deutan simulated war-room screenshots attached showing both sides distinguishable. Size: M.
 2. **Greyscale/CVD check in the mock pipeline.** Why: a cheap standing guard so every future UI mock is checked for colour-alone failures. GDD: 01 Input and UI (Accessibility); harness tooling. Acceptance: `hx godot mock` can emit greyscale and protanopia/deuteranopia variants beside the normal PNG, documented in the harness README, with one existing mock regenerated as proof. Size: S.
 3. **Licence-verified CC0 asset shortlist for the art-direction interview.** Why: prepares options for README Open topic 3 without deciding it; the medium-confidence licences need direct re-verification. GDD: 01 Presentation direction; README Open topic 3. Acceptance: a note in `docs/swarm/research/notes/` listing each candidate pack with URL, exact licence statement, verification date; anything unclear marked unusable; no downloads, no GDD edits. Size: S.
 
