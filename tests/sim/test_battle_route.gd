@@ -203,3 +203,30 @@ func test_a_squad_never_deploys_inside_a_wall() -> void:
 	for sid in BattleSetup.deploy_side(s2, side):
 		var srow := s2.squads.row_of(sid)
 		assert_gt(costs[r.terrain[Fixed.to_int_floor(s2.squads.ay[srow]) * r.width + Fixed.to_int_floor(s2.squads.ax[srow])]], 0)
+
+
+## sw-0nl: a central block with equal detours north and south (rows 15..23,
+## five rows either way from row 19). Frame 0 breaks the tie towards the low
+## cell indices (north); the 180° frame breaks it the other way.
+func test_equal_detours_mirror_with_the_frame() -> void:
+	var r := _rules([{"feature": "wall", "x": 28, "y": 15, "w": 4, "h": 9}])
+	var fx := 10 * ONE + ONE / 2
+	var fy := 19 * ONE + ONE / 2
+	var tx := 50 * ONE + ONE / 2
+	var ty := 19 * ONE + ONE / 2
+	var north := r.routes.next_waypoint(r, 0, fx, fy, tx, ty)
+	assert_lt(north[1], fy, "frame 0 detours north")
+	# The same cells in the flipped frame: the cache must not hand back the
+	# north leg, and the tie goes south.
+	var south := r.routes.next_waypoint(r, 0, fx, fy, tx, ty, Fixed.ANGLE_HALF)
+	assert_gt(south[1], fy, "the 180° frame detours south")
+
+
+## sw-0nl: on an asymmetric map the flipped plan runs on the rotated grid, so
+## a mirrored start/goal pair on the mirrored map gets the mirrored waypoint.
+func test_a_flipped_plan_mirrors_on_any_map() -> void:
+	var a := _rules(WALL)
+	var b := _rules([{"feature": "wall", "x": 29, "y": 0, "h": 35}])
+	var leg_a := a.routes.next_waypoint(a, 0, 20 * ONE + ONE / 2, 30 * ONE + ONE / 2, 40 * ONE + ONE / 2, 30 * ONE + ONE / 2)
+	var leg_b := b.routes.next_waypoint(b, 0, 39 * ONE + ONE / 2, 9 * ONE + ONE / 2, 19 * ONE + ONE / 2, 9 * ONE + ONE / 2, Fixed.ANGLE_HALF)
+	assert_eq(Array(leg_b), [60 * ONE - leg_a[0], 40 * ONE - leg_a[1], leg_a[2]])
