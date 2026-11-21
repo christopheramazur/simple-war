@@ -1,0 +1,37 @@
+# Proposal: Countable SIMPL meters — band ticks, source-tagged ledger tooltips, Legend interview prep
+
+Status: open
+From: craft-researcher, based on [../research/summaries/pressure-and-doom-meters-readable-at-a-glance-how-games-surf.md](../research/summaries/pressure-and-doom-meters-readable-at-a-glance-how-games-surf.md)
+
+## The idea
+Make SIMPL pressure readable at a glance and countable, the way players praised in Darkest Dungeon, XCOM 2 and Battle Brothers: (1) a segmented pool meter with ticks at the band thresholds (15/40/65/90) plus band icon + word, (2) a hover tooltip listing each source's net flow straight from the existing per-battle ledger, and (3) a docs-only options brief preparing the user's Legend interview (README Open topic 5). All three are UI/docs choices on top of the existing §2.8 contract — no rule changes, no new simulation surface.
+
+## Why (evidence, with sources)
+- Battle Brothers' devs replaced an abstract morale number with five named states explicitly so players can "see at a glance how everyone is doing" and act before someone breaks — the closest documented precedent for pillar 3. https://battlebrothersgame.com/dev-blog-20-bravery-morale/
+- Countable distance to a marked threshold is what players praise and plan around: DD1's visible 100-stress line, XCOM 2's 12 Avatar blocks with per-facility pip contributions (players even "ride" the doom timer as a strategy). https://darkestdungeon.wiki.gg/wiki/Stress_(Darkest_Dungeon) · https://xcom2.wiki.fextralife.com/Avatar_Project · https://www.reddit.com/r/Xcom/comments/44rs7y/what_is_the_exact_lose_condition_for_the_game/
+- Praise tracks visible causes (Frostpunk's complaint modifiers: fix the need, the modifier visibly goes); criticism tracks vague magnitude words ("slight/major change"), hidden accumulators (This War of Mine sympathy) and opaque pairwise triggers (DD2 relationships). https://eatcreatesleep.net/how-hope-and-discontent-actually-work-in-frostpunk/ · https://steamcommunity.com/app/323190/discussions/0/2266943550311885540/ · https://www.reddit.com/r/darkestdungeon/comments/13g2pd1/why_is_the_relationship_system_so_awful/
+- Verified code state (checked this turn): `src/presentation/war_room/squad_card.gd` renders pools as a continuous bar + value + band word — no threshold ticks, no icons. The ledger already exists (`battle_state.record_flow`, key `squad|pool|source`, net amount per source, R6Q3) but only `src/api/sim_metrics.gd` reads it; observe/inspect don't expose it yet.
+- For Legend, fill-then-countdown (XCOM doom clock, Frostpunk ultimatum) is the one genuinely new design pattern in the report; it belongs in the user's interview as an option, not in code now.
+
+## Fits the GDD (doc and section) / Conflicts with
+- Fits 02 §2.8 shared contract (five bands, Float/Sink verbs, Ledger R6Q3) and §2.1 Transparency ("every calculation exposes its terms for context-aware tooltips"); 01 pillar 2 (real calculations at chosen verbosity), pillar 3 ("one bad hit from breaking"), pillar 1 (parallel battles need scan-able meters), and Accessibility ("never colour alone to convey state" — icons + words, not colour-only bars).
+- Bead 3 is prep for README Open topic 5 (Legend deep dive) and decides nothing; Legend consequences are parked until the MVP is played (01, Release order), so no implementation is proposed.
+- Conflicts with nothing. Explicitly out of scope: Vacuum forecast UI (§2.2 marks it "Not yet") and any Legend consequence-window semantics (the user's interview decision).
+
+## Candidate beads
+1. **Segmented SIMPL meter with band threshold ticks.** Augment the squad card's pool display with a five-segment meter, ticks at 15/40/65/90, band icon + word; exact % at higher verbosity. Acceptance: mock PNG shows all five bands and ticks; a GUT test maps percentages to bands exactly per §2.8 (Surging 90–100, Primed 65–89, Neutral 40–64, Fraying 15–39, Broken <15); no information carried by colour alone. Size: S. Type: feature. Priority: 1.
+2. **Source-tagged pressure ledger tooltip.** Hovering a pool lists each source's net flow (source + amount) from the per-battle ledger; includes exposing the ledger through the Game API's observe/inspect surface (today only sim_metrics reads it). Acceptance: in a scripted battle, tooltip entries match the battle ledger's source-tagged net amounts exactly; no vague magnitude words ("slight", "major") in any pool UI; presentation only formats what the API reports. Size: M. Type: feature. Priority: 2.
+3. **Legend interview prep: consequence-window options brief.** One page under docs/swarm/ assembling report options A–E: what fills Legend, and whether Break/Surge opens a visible recovery window (doom-clock/ultimatum model) or keeps today's pick-at-Intermission flow — each with evidence and trade-offs. Acceptance: brief lists ≥2 options with sources and trade-offs, explicitly defers the decision to the user; agenda links it; no GDD edits. Size: S. Type: task. Priority: 2.
+
+## Rejected alternative
+- Keeping the continuous colour-toned bar as the only pool display, or adding vague magnitude words: exactly what players criticised (Frostpunk "slight/major", TWoM hidden sympathy) and what pillars 2–3 and the Accessibility line forbid.
+- Implementing a Legend doom-clock/consequence window now: the semantics are the user's to settle in the Open topic 5 interview, and Legend consequences are parked until the MVP is played — prep only.
+- Building Vacuum forecast UI now: §2.2 explicitly marks it "Not yet"; the forecast pattern stays in the report as future direction.
+- Hiding the meter as a difficulty lever (Long War 2's hidden Avatar track): legitimate elsewhere, contradicts Simple War's transparency pillar (difficulty comes from timers and opponents' decisions, never hidden rule information).
+
+## Votes
+- lead-designer: pending
+- ux-art-director: pending
+- tech-lead: APPROVE. Verified code claims: ledger exists (battle_state.gd:85 record_flow, pools.gd:83) and only sim_metrics reads it; observe/inspect are already fog-safe (battle_session.gd:314 hides enemy pools). Fits 02 Rules Spec §2.8 (bands) + §2.1 (transparency), 01 pillars 2–3 and Accessibility; presentation formats only what the API reports = correct layering (AGENTS.md §5). Strongest objection: bead 2 grows the Game API surface — keep it read-only and own-squad-only, and have the band GUT test call the sim's band mapping rather than re-declaring 15/40/65/90 in UI/tests, so displayed bands = used bands (02 §2.1).
+
+Note (tech-lead, 2026-11-21): daily cap is 8 swarm-proposed beads/UTC day; 5 created today already. This proposal and the tactics-morale one list 6 beads combined — whoever casts the second APPROVE can create at most 3 today (suggest the p1 beads first); defer the rest to 2026-11-22 UTC and say so in the Status line.
