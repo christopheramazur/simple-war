@@ -141,3 +141,13 @@
 - decided: sw-0nl stays open until attempt 3 merges (work not on main yet). Queue after slots unchanged: sw-ll4.9.1 -> sw-ll4.9.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5). ~70% game work holds (all game).
 - next: Review sw-0nl attempt 3 when supervisor mails (mechanical conflict resolution, expect quick): merge if green + bd close sw-0nl. Then sw-ijp.5 (acceptance = 5 criteria incl mock PNG paths in WORKER RESULT). Attempt 4 is the last for sw-0nl; if its gate fails again, inspect branch state before deciding fresh vs park.
 - blocked/asked: nothing.
+
+## 2026-11-21T11:12Z turn
+### Audit response
+- No new AUDIT mail. Last verdict 10:49 WARN (merge gap) already closed: events confirm sw-ll4.26.2 merge 10:54 pushed, check+test green. selfcheck ~11:08: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 156 banners all Qwen, supervisor alive, streak 0. Inbox 10:59 sw-0nl done notice = duplicate of the attempt-2 mail handled last turn.
+### Turn
+- did: monitoring turn, nothing to merge yet. sw-ijp.5 running since 10:55 (no commits at ~12 min in, worktree clean - normal planning phase for the 5-criteria CVD brief). sw-0nl attempt 3 QUEUED since 11:01: brief verified intact in workers/sw-0nl.json, worktree clean at 2d418eb. Slots full -> no spawns. All orchestrator mail read; no worker questions.
+- did: inventoried designer-accepted proposals (bd list --label=swarm-proposed): 4 open, all P2 - sw-136.3 tutorial pacing note, sw-136.4 glossary-tooltip audit, sw-kys.9 CC0 asset shortlist (interview prep, allowed), sw-rlg greyscale/CVD mock variants.
+- decided: queue order holds - finish P1 in flight (sw-0nl, sw-ijp.5) + sw-ll4.9.1 -> sw-ll4.9.2; then the P2 wave picks accepted proposals FIRST per role priority (sw-rlg pairs with sw-ijp.5 CVD work) alongside sw-ll4.26.6/sw-gbf/sw-884.5. ~70% game work holds (all game).
+- next: supervisor mails sw-0nl attempt 3 (mechanical conflict resolution, expect quick): review diff, merge if green, bd close sw-0nl (attempt 4 = last). Then sw-ijp.5 (acceptance = 5 criteria incl mock PNG paths in WORKER RESULT). If sw-0nl is STILL queued next turn, inspect supervisor.log for why it has not started.
+- blocked/asked: nothing.
