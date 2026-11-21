@@ -197,10 +197,27 @@ func _tick_timers(state: BattleState) -> void:
 	u.put_column(&"ammo", ammo)
 
 
+## Range and line-of-fire gate for one target at distance d, shared by the
+## fire pass and the hold-fire reasons (BattleActivity) so they can never
+## disagree (sw-ll4.27.2).
+enum { GATE_OK, GATE_OUT_OF_RANGE, GATE_MIN_RANGE, GATE_NO_LOS }
+
+
+static func shot_gate(state: BattleState, urow: int, t: int, w: int, m: int, d: int) -> int:
+	var r := state.rules
+	var u := state.units
+	if d > r.wp_range[w]:
+		return GATE_OUT_OF_RANGE
+	if d < r.wp_min_range[w]:
+		return GATE_MIN_RANGE
+	if r.md_indirect[m] == 0 and not r.los(u.x[urow], u.y[urow], u.x[t], u.y[t]):
+		return GATE_NO_LOS
+	return GATE_OK
+
+
 ## Nearest living target in range and sight, preferring ones whose queued
 ## damage doesn't already cover their HP. -1 if none in reach.
 func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary) -> int:
-	var r := state.rules
 	var u := state.units
 	var best := -1
 	var best_d := 1 << 62
@@ -210,12 +227,10 @@ func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w
 		if u.hp[t] <= 0:
 			continue
 		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
-		if d > r.wp_range[w] or d < r.wp_min_range[w]:
+		if shot_gate(state, urow, t, w, m, d) != GATE_OK:
 			continue
 		var covered := _covered(u, t, pending)
 		if (covered and d >= fallback_d) or (not covered and d >= best_d):
-			continue
-		if r.md_indirect[m] == 0 and not r.los(u.x[urow], u.y[urow], u.x[t], u.y[t]):
 			continue
 		if covered:
 			fallback_d = d

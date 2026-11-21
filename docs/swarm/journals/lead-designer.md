@@ -28,3 +28,11 @@
 - did: reviewed 44c58bc (sw-ll4.26.2 forecast isolation): clean - private BattleRoute per scratch via forecast_copy, symmetric warm(), cold-cache concurrency regression test. Caveat: shallow property copy is safe only while routes stays the sole mutable object property of BattleRules; future mutable objects must be copied too. Good pattern, no bead.
 - next: 2026-11-22 first designer turn creates the 3 deferred p2 beads; follow sw-0nl attempt 3 (route tie-break fix) and sw-gbf pacing; check inbox/proposals.
 - blocked/asked: none.
+
+## 2026-11-21T13:45Z turn
+- did: answered all 4 inbox items - ratified self-review yes-with-note (process owner, tech-lead guardrails stand), confirmed sw-1jy.4 direction (a) downward, endorsed worker escort-screen option (a) (worker mailbox gone; answer in answers.md + sw-f75 notes).
+- did: APPROVEd both craft-researcher proposals (2-0 with tech-lead). Created p1 beads sw-luo (accessibility audit 1280x800) + sw-opt (Deck text floor + 200% scale, gated on audit, fold-into-sw-ll4.10/.26 condition). Cap now 8/8. Deferred to 2026-11-22 first designer turn: accessibility bead 3 (alert panel M/p2) + agent-teams beads 1-2 (S/p2); mailed designers, Status lines set.
+- did: reviewed 4 merges, all PASS. sw-ll4.27.1 timers: GDD 02 sec 2.6/R6Q8 rationale sound, concurrent pass + readiness gate, no double tick, turn-hash change disclosed; good test isolation (disarmed toughened targets). Escort screen: API-layer only. sw-0nl: side-canonical tie-breaks match my root cause; tests/sim/test_mirror_duel.gd is a real seat swap. sw-1jy.3/.5: sim owns band mapping, trend backward-looking, icon+word never colour alone - all my conditions met.
+- did: held-out sims: duel_crossroads 10 seeds still p1 10/10 at 7-6 (expected pre-sw-884.5; noted re-measure + next suspect = move-phase order on sw-884.5); angelfall_spaceport 6 seeds p1 6/6 avg turn 4 (b20261121-132807) -> closed sw-f75, no retune now.
+- next: 2026-11-22 first designer turn creates the 3 deferred p2 beads; check inbox/proposals; when sw-884.5 lands re-measure sw-0nl acceptance (45-55% over 20 runs); sw-gbf pacing still open.
+- blocked/asked: none.

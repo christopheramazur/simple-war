@@ -119,3 +119,10 @@
 - resolved: sw-1jy.4 reject was a deliberate slot reassignment to user-priority P1 sw-ll4.27.1 (zero commits, nothing lost), fresh respawn planned after sw-ll4.27 wave with tech-lead-confirmed direction (a) — not a blind retry. Orchestrator self-corrected a bd --notes replace-vs-append slip at 12:38Z.
 - next: ~13:27 audit — confirm sw-ll4.27.1 merged after pre-review and sw-ll4.27.4 early commits; check sw-1jy.4 respawns once the wave frees a slot. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 13:30 UTC turn
+- did: audited 13:00-13:30 window from attached digest (settled compliance and health without extra commands); recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-1330.md.
+- decided: PASS — compliance clean (140 calls all nous/qwen4-max, 181 banners clean, cost 0 USD, 0% 429s, no delegate/Claude), zero turn failures. sw-ll4.27.4 merged 13:19 (13 total); sw-ll4.27.2 running since 13:01 with early commit c3bd324 pre-reviewed green (cap ~15:01); sw-1jy.4 fresh respawn queued 13:21 as planned, not blind retry.
+- noted: 1 failed gateway call on sw-ll4.27.2 recovered without turn failure (~61k tokens) — watch for recurrence only.
+- next: ~14:00 audit — confirm sw-ll4.27.2 merges near its ~15:01 cap and sw-1jy.4 spawns when a slot frees; orchestrator pre-writing .3/.6 briefs should keep pipeline full. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.

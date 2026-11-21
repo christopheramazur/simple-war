@@ -190,6 +190,12 @@ func _pump() -> void:
 ## Own squads carry "fire" ({enemy id: "shot" | "blocked"}, enemies within
 ## reach: LineOfFire) and "sees" (enemy ids in its own sight; other visible
 ## enemies are spotted by allies).
+## Every squad carries "activity" (BattleActivity.Squad) and "target" (the
+## engaged squad id, -1 none); for enemies both are behaviour-only: no orders
+## leak, and the target shows only while it is seen and the squad is firing.
+## Own units also carry the weapon report (BattleActivity.unit_report):
+## "hold" reason, weapon, ammo/magazine, reload/cooldown left, current victim
+## and its distance. Enemy units never carry it (fog).
 func observe(player: int) -> Dictionary:
 	var d := observe_state(state, player)
 	d["phase"] = phase_name()
@@ -223,6 +229,8 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 		}
 		by_id[sid] = d
 		if own:
+			d["activity"] = BattleActivity.squad(state, row)
+			d["target"] = sq.engaged[row]
 			d["order"] = BattleOrders.TYPES.find_key(sq.order[row])
 			d["engaged"] = sq.engaged[row]
 			d["hp_lost"] = sq.hp_lost[row]
@@ -238,15 +246,25 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 			# The compiled band floors (read-only), so pool meters can place
 			# their threshold ticks without owning the thresholds (sw-1jy.3).
 			d["band_floor_pct"] = Array(rules.band_floor_pct)
+		else:
+			d["activity"] = BattleActivity.squad_seen(state, row)
+			var et := sq.engaged[row]
+			var trow := sq.row_of(et)
+			if d["activity"] == BattleActivity.Squad.ENGAGED and trow >= 0 \
+					and sq.is_active(trow) and sq.seen_by[trow] & me != 0:
+				d["target"] = et
 		squads.append(d)
 	var units := []
 	for row in u.count():
 		if not visible.has(u.squad[row]):
 			continue
 		var ut := u.tmpl[row]
-		units.append({"id": u.id_at(row), "squad": u.squad[row], "x": u.x[row], "y": u.y[row], "hp": u.hp[row],
+		var ud := {"id": u.id_at(row), "squad": u.squad[row], "x": u.x[row], "y": u.y[row], "hp": u.hp[row],
 			"hp_max": u.hp_max[row], "tmpl": rules.unit_ids[ut] if ut >= 0 and ut < rules.unit_ids.size() else "",
-			"acts": activity(state, row)})
+			"acts": activity(state, row)}
+		if by_id[u.squad[row]]["player"] == player:
+			ud.merge(BattleActivity.unit_report(state, row))
+		units.append(ud)
 		# A squad's range is its longest weapon's among living units.
 		var w := u.weapon[row]
 		if w >= 0 and rules.wp_range[w] > by_id[u.squad[row]]["range"]:

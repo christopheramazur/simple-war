@@ -665,8 +665,10 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 
 
 ## Ints per unit in a playback frame: ID, squad, player, x, y, squad facing,
-## seen_by, template, HP, max HP, activity (BattleSession.ACT_* bits).
-const PLAYBACK_STRIDE: int = 11
+## seen_by, template, HP, max HP, activity (BattleSession.ACT_* bits),
+## hold-fire reason (BattleActivity.Hold), squad activity (BattleActivity.
+## Squad, raw), reload left, cooldown left, ammo (sw-ll4.27.2).
+const PLAYBACK_STRIDE: int = 16
 static func _frame(st: BattleState) -> PackedInt64Array:
 	var u := st.units
 	var sq := st.squads
@@ -676,7 +678,8 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 		if srow < 0 or not sq.is_active(srow):
 			continue
 		f.append_array(PackedInt64Array([u.id_at(row), u.squad[row], sq.player[srow], u.x[row], u.y[row], sq.facing[srow], sq.seen_by[srow],
-			u.tmpl[row], u.hp[row], u.hp_max[row], BattleSession.activity(st, row)]))
+			u.tmpl[row], u.hp[row], u.hp_max[row], BattleSession.activity(st, row),
+			BattleActivity.hold(st, row), BattleActivity.squad(st, srow), u.reload[row], u.cooldown[row], u.ammo[row]]))
 	return f
 
 
@@ -685,7 +688,10 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 ## {"rules" (BattleRules), "width", "height", "frames": one Dictionary per
 ## tick (the first is the turn's start), squad ID -> {"player", "facing",
 ## "ids": unit IDs, "units": their points in metres, "tmpls": unit template
-## IDs, "hp": HP fractions (0..1), "acts": activity bits (ACT_*)}, "shots":
+## IDs, "hp": HP fractions (0..1), "acts": activity bits (ACT_*), "activity":
+## BattleActivity.Squad code (enemy squads: behaviour only)}, own squads
+## also per unit "holds" (BattleActivity.Hold), "reload", "cooldown", "ammo"
+## (sw-ll4.27.2), "shots":
 ## [[frame, squad, target]] where the player saw both ends, "volleys":
 ## [[frame, shooter unit, victim unit, hit]] every shot where the player saw
 ## both units, landing (or passing) at that frame, and "hits": [[frame,
@@ -709,8 +715,15 @@ func playback(player: int) -> Dictionary:
 			for o in range(0, f.size(), PLAYBACK_STRIDE):
 				if f[o + 2] != player and f[o + 6] & me == 0:
 					continue
+				var own_unit := f[o + 2] == player
 				if not squads.has(f[o + 1]):
-					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": []}
+					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": [],
+						"activity": f[o + 12] if own_unit else BattleActivity.squad_public(f[o + 12], f[o + 10] & BattleSession.ACT_MOVING != 0)}
+					if own_unit:
+						squads[f[o + 1]]["holds"] = []
+						squads[f[o + 1]]["reload"] = []
+						squads[f[o + 1]]["cooldown"] = []
+						squads[f[o + 1]]["ammo"] = []
 				var d: Dictionary = squads[f[o + 1]]
 				(d["ids"] as Array).append(f[o])
 				(d["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
@@ -718,6 +731,11 @@ func playback(player: int) -> Dictionary:
 				(d["tmpls"] as Array).append(r.unit_ids[t] if t >= 0 and t < r.unit_ids.size() else "")
 				(d["hp"] as Array).append(clampf(float(f[o + 8]) / maxf(float(f[o + 9]), 1.0), 0.0, 1.0))
 				(d["acts"] as Array).append(f[o + 10])
+				if own_unit:
+					(d["holds"] as Array).append(f[o + 11])
+					(d["reload"] as Array).append(f[o + 13])
+					(d["cooldown"] as Array).append(f[o + 14])
+					(d["ammo"] as Array).append(f[o + 15])
 				units[f[o]] = true
 			frames.append(squads)
 			seen.append(units)
