@@ -64,6 +64,8 @@ var sq_route_class: PackedInt64Array = PackedInt64Array()
 ## Fixed. How far an attack target may move before the route is planned again.
 var route_replan: int = 8 * Fixed.ONE
 ## Plans and caches routes for this battlefield. Not state: see BattleRoute.
+## The only mutable part of the rules: concurrent forecasts must not share
+## its writes, so they plan into a private copy (forecast_copy).
 var routes: BattleRoute = BattleRoute.new()
 
 # --- defense profiles ---
@@ -198,6 +200,20 @@ static func compile(t: TemplateTable, scenario: String, hash_hex: String = "") -
 
 func is_valid() -> bool:
 	return errors.is_empty()
+
+
+## A copy for scratch runs (IntentForecast): shares all compiled data, which
+## is read-only, but plans routes into its own cache. The route cache is the
+## only mutable part of the rules, and two forecasts running at once (a job
+## on a worker thread, a run on the caller's) must never share its writes
+## (sw-ll4.26.2).
+func forecast_copy() -> BattleRules:
+	var c := BattleRules.new()
+	for p in get_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			c.set(p.name, get(p.name))
+	c.routes = BattleRoute.new()
+	return c
 
 
 func feature_count() -> int:

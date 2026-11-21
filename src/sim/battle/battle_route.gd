@@ -7,7 +7,9 @@ extends RefCounted
 ## point, where does the anchor walk in a straight line next? The squad asks
 ## again when it gets there. The answer depends only on the rules, the route
 ## class and the two cells, so it is cached here and never saved or hashed:
-## a restored or forecast battle recomputes the same answers.
+## a restored or forecast battle recomputes the same answers. The cache is
+## not thread-safe: a forecast plans into its own copy of the rules
+## (BattleRules.forecast_copy), never into the battle's own cache.
 ##
 ## Integers only. Entering a cell costs 10 (14 diagonally) times the cell's
 ## cost; a cost of 0 is impassable. Equal routes are broken by cell index.

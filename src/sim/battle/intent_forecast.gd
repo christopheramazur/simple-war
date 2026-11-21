@@ -16,14 +16,17 @@ const SAMPLES: int = 5
 ## "reactions" (names the own squad could react with)}] in canonical order
 ## (tick, squad, target), "errors": the drafted orders' errors}.
 static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) -> Dictionary:
+	Stats.warm(state.rules)
+	Fixed.warm()
 	return _forecast(_copy(state), sim, player, orders)
 
 
 ## The same forecast as a job for a worker thread (sw-j4u): the copy is
 ## taken now, on the caller's thread, and shared caches are filled; the
 ## returned Callable runs the turn on the copy with its own BattleSim and
-## only reads what is shared (the rules), so it may run while the caller
-## carries on. The caller must not run the real battle until it is done.
+## only reads what is shared (the compiled rules data), so it may run while
+## the caller carries on. The caller must not run the real battle until it
+## is done.
 static func job(state: BattleState, player: int, orders: Array) -> Callable:
 	Stats.warm(state.rules)
 	Fixed.warm()
@@ -33,7 +36,9 @@ static func job(state: BattleState, player: int, orders: Array) -> Callable:
 
 
 static func _copy(state: BattleState) -> BattleState:
-	var scratch := BattleState.new(state.id, state.rules)
+	# Private route cache: the real battle's rules (and any other forecast
+	# running at once) must never see this run's cache writes (sw-ll4.26.2).
+	var scratch := BattleState.new(state.id, state.rules.forecast_copy())
 	scratch.restore(state.snapshot())
 	return scratch
 
