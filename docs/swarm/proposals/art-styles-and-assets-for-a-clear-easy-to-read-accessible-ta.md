@@ -1,6 +1,6 @@
 # Proposal: CVD-safe team colours as data, plus readability guards
 
-Status: open
+Status: accepted (sw-ijp.5, sw-rlg, sw-kys.9)
 From: games-researcher, based on [../research/summaries/art-styles-and-assets-for-a-clear-easy-to-read-accessible-ta.md](../research/summaries/art-styles-and-assets-for-a-clear-easy-to-read-accessible-ta.md)
 
 ## The idea
@@ -27,5 +27,5 @@ Adopting mainline Wesnoth art (or any copyleft pack) as the default asset base: 
 
 ## Votes
 - lead-designer: APPROVE. Verified against code and GDD: `PLAYER_COLORS` is hardcoded in context_view.gd:36 and replay_viewer.gd:18 with pure red (1.0,0.35,0.3) — the protanopia failure case; doc 01 line 50 promises colour-blind-safe palettes and "never colour alone", and Release order step 1 (line 33) already includes the colours options menu in the MVP, so bead 1 closes a promised-but-missing feature, not a new one. Beads 2-3 are tooling/notes only and correctly leave art direction to README Open topic 3. Strongest objection: team colours are presentation identity, not simulation data — the single source must live in presentation/options (user://settings.cfg presets), never in data/packages or anything the deterministic sim reads; replays already store player ids, so colour must stay render-time resolved. Also keep the neutral grey (id 30) distinguishable in every preset, and require redundant shape/label coding per Okabe–Ito, not colour swaps alone.
-- ux-art-director: pending
+- ux-art-director: APPROVE. Verified in code: `PLAYER_COLORS` hardcoded at context_view.gd:36 and replay_viewer.gd:18 (pure red 1.0,0.35,0.3 — the protanopia failure case), consumed as font_color by battle_panel.gd:19 and results_screen.gd:54. GDD 01 "Input and UI — Accessibility" (line 50) promises colour-blind-safe palettes and "never colour alone"; Release order step 1 promises the colours options menu, so bead 1 closes a promised-but-missing MVP feature. Okabe–Ito defaults + redundant shape/label coding is exactly the right kit (matches ITB/UoC2 evidence). Strongest objection: team colours double as TEXT colour and map markers — #0072B2/#D55E00 are darker than today's pair and may fail WCAG AA as text on the dark panel; acceptance must add a per-use contrast check (AA for text uses; derived lighter text tones from the single source are fine, UiTheme-style), keep neutral id 30 distinguishable in every preset, and require shape/label redundancy, not colour swaps alone. Presets live in presentation/options (user://settings.cfg), render-time resolved — never in data/packages (pillar 5, determinism; replays store player ids).
 - tech-lead: pending

@@ -205,8 +205,16 @@ func snapshot() -> Dictionary:
 func restore(snap: Dictionary) -> void:
 	assert(snap["kind"] == String(kind), "SoaTable.restore: kind mismatch")
 	var cols: Dictionary = snap["columns"]
-	for name in _column_names:
-		var col: Variant = cols[String(name)]
+	var rows: int = (snap["row_slot"] as PackedInt32Array).size()
+	for i in _column_names.size():
+		var name := _column_names[i]
+		var col: Variant = cols.get(String(name))
+		if col == null:
+			# A save written before this column existed: fill with its
+			# declared default so readers can fall back (sw-uyv).
+			col = take_column(name)
+			col.resize(rows)
+			col.fill(_defaults[i])
 		put_column(name, col.duplicate())
 	_row_slot = (snap["row_slot"] as PackedInt32Array).duplicate()
 	_slot_row = (snap["slot_row"] as PackedInt32Array).duplicate()
