@@ -43,8 +43,9 @@ def add_args(p) -> None:
 
 def bd(*args: str) -> tuple[int, str]:
     from hx import paths
+    # bd's database lives in the main checkout; worktrees must not fragment task tracking.
     p = subprocess.run(["bd", *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       cwd=paths.repo_root())
+                       cwd=paths.main_root())
     return p.returncode, (p.stdout if p.returncode == 0 else (p.stderr or p.stdout)).strip()
 
 
