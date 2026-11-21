@@ -532,7 +532,7 @@ def compose(role: str, role_files: str | list[str], extra: str = "", inbox: str 
            f"- Repo (main checkout): `{ROOT.as_posix()}`. Your journal: `docs/swarm/journals/{role}.md`.\n\n"
            f"## Your inbox (new since your last turn)\n{mail or '(empty)'}\n\n"
            f"## Your journal (last 40 lines)\n{_tail(DOCS / 'journals' / f'{role}.md', 40)}\n\n"
-           f"## Swarm status\n{status[-3000:]}\n")
+           f"## Swarm status\n{status.split(STATUS_DETAILS)[0].strip()[:3000]}\n")
     return f"{common}\n\n{body}\n\n{ctx}\n{extra}".strip() + "\n"
 
 
@@ -865,11 +865,39 @@ def write_status() -> None:
         f"| Workers queued / running / awaiting review | {', '.join(by('queued')) or '-'} / {', '.join(by('running')) or '-'} / {', '.join(by('done') + by('partial')) or '-'} |",
         f"| Merged / rejected (all time) | {len(by('merged'))} / {len(by('rejected'))} |",
         f"| Gateway calls last hour (rate-limited) | {len(gw)} ({rl}) |",
-        f"| Incidents | {len(s['postmortems'])} postmortem(s) |", "",
-        "## Last audits", *[f"- {e['ts']} **{e['verdict']}** {e.get('reason', '')[:240]}" for e in verdicts], "",
+        f"| Incidents | {len(s['postmortems'])} postmortem(s) |",
+        f"| Latest audit | {_audit_line(verdicts[-1]) if verdicts else '-'} |", "",
         "## Recently merged", *[f"- {j['bead']} ({j.get('merged', '')[:16]})" for j in sorted(js, key=lambda j: j.get('merged', ''))[-8:] if j['status'] == 'merged'],
+        "", STATUS_DETAILS, "",
+        "## Last audits (newest first)", "",
     ]
+    for e in reversed(verdicts):  # the full reason: the auditor's report holds the table and recommendations
+        lines += [f"### {_audit_line(e)}", "", e.get("reason", "").strip() or "(no reason given)", ""]
     _write(DOCS / "STATUS.md", "\n".join(lines) + "\n")
+
+
+# compose() gives agents only the status above this marker, so long audit text never crowds out the summary
+STATUS_DETAILS = "<!-- details: agents see only the summary above -->"
+
+
+def _audit_line(e: dict) -> str:
+    t = datetime.fromisoformat(e["ts"])
+    f = _audit_report(t)
+    link = f" ([report](audits/{f.name}))" if f else ""
+    return f"{t:%m-%d %H:%M} UTC **{e['verdict']}**{link}"
+
+
+def _audit_report(t: datetime) -> Path | None:
+    """The auditor names its report after the end of the window it read: a few minutes before the verdict."""
+    best = None
+    for f in (DOCS / "audits").glob("*.md") if (DOCS / "audits").exists() else []:
+        try:
+            ft = datetime.strptime(f.stem, "%Y%m%d-%H%M").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if timedelta(minutes=-10) <= t - ft <= timedelta(minutes=45) and (best is None or ft > best[0]):
+            best = (ft, f)
+    return best[1] if best else None
 
 
 def start() -> int:
