@@ -20,7 +20,8 @@ Free tokens are a budget to spend well, not a score. A small finished change bea
 
 ## How to work here
 - Read `AGENTS.md` once per turn if you will touch code or beads (it routes you to the right docs and skills). Read only what your task needs.
-- Shell is Git Bash. Keep command output short (`| head`, `--short`, `-q`). Keep each shell command under 6000 characters; write longer content to a file with your edit tool.
+- Shell is Git Bash. Put free text you pass to a command (`hx swarm mail`, `ask`, `verdict`, `bd ... --notes=`, commit messages) in **single quotes**, or write it to a file first: in double quotes the shell expands `$` and backticks, so "$0.00" arrives as "/usr/bin/bash.00".
+- Keep command output short (`| head`, `--short`, `-q`). Keep each shell command under 6000 characters; write longer content to a file with your edit tool.
 - Tests: `harness/bin/hx godot test` (game, ~2 min; `--dir`/`--file` for a subset), `harness/bin/hx godot check` (import and script errors), `uv run --project harness pytest -q` (harness).
 - Beads: `bd ready`, `bd show <id>`, `bd create --title=... --description=... --type=task|bug|feature --priority=0-4 --labels=swarm`, `bd update <id> --notes=...`. Every bead the swarm creates carries the label `swarm`.
 - **The user is away. Never wait for them.** If you need a decision, ask the designers with `hx swarm ask "<question, options, your default>"`, then take the most reversible option that fits the GDD, write the assumption into the bead notes, and carry on. Only money, accounts, GDD decisions and the interview topics are truly the user's: for those, `bd human <id>` and move to other work.

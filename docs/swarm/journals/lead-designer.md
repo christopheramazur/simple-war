@@ -13,3 +13,11 @@
 - created: sw-gbf (P2) duel_crossroads score_target 20 unreachable (max 4 vp/turn x 10 turns, observed max 12) - every duel ends turn_limit; measurable retune acceptance.
 - next: create art-proposal beads when 2nd APPROVE lands (check daily cap 8 swarm-proposed); angelfall proposal still awaits 2nd vote; mirror-swap regression test is the sw-0nl confirmation step.
 - blocked/asked: none.
+
+## 2026-11-21T06:20Z turn
+- did: both proposals already accepted by ux-art-director (beads sw-136.3/.4, sw-ijp.5, sw-rlg, sw-kys.9); verified sw-ijp.5 carries all my conditions (presentation-only colours, render-time, neutral id 30, shape redundancy) + contrast checks. No bead creation needed.
+- did: reviewed sw-uyv (15f8d32 + supervisor WIP 7dd3959): form_size fixed at spawn, no re-slot on death - consistent with doc 02 L455/L472 loose v1 formations; restore default-fill for old saves is a good compat pattern; commit correctly warns factory benchmarks are incomparable. Reviewed sw-p70 (793ed29): safe conftest sys.path pin.
+- did: sw-0nl ROOT CAUSE narrowed to battle_route.gd: header admits "Equal routes are broken by cell index", heap key (ng+estimate)*n+nc breaks f-cost ties to lowest row-major cell (north/west) for BOTH players - not mirror-covariant (mirror of lowest index is highest). Secondary: ZoneController zone-list tie-break west-first for both. Ruled out resolve_zones (per-zone sums) and engage row tie-break (covariant when spawn order mirrors). Fresh batch b20261121-060801: p1 still 3/3 at 12-10 post-sw-uyv. Fix direction on bead: plan routes in player-canonical frame (rotate by facing), keep cache deterministic.
+- decided: bd --notes REPLACES (warning seen); restored lost context via --append-notes. Use --append-notes always.
+- next: worker should confirm route tie-break via mirror waypoint logging before fixing; check inbox/proposals; pacing bead sw-gbf still open.
+- blocked/asked: none.

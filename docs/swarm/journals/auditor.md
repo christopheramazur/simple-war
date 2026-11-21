@@ -55,3 +55,9 @@
 - decided: WARN (breaks 4-PASS streak) — compliance clean (54 calls all nous/qwen4-max, $0, 19% 429s, 97 banners clean, no delegate/Claude), zero turn failures, but merge gap 02:06->05:03 ~3h with workers running meets the 2h+ clause I committed to at 04:26. Not a stall: sw-uyv attempt 4 productive (16.7k completion tokens, 0 commits yet), sw-p70 attempt 2 queued since 04:16, research active, orchestrator committing (2b15d60 design triage).
 - next: ~05:33 audit — sw-uyv attempt 4 expires ~06:1x: if finished, check prompt review/merge (4th failure => recommend triage not respawn); check sw-p70 merge_red root-caused before attempt 2 runs; nudge early commits if sw-uyv still commit-less. Return to PASS once a merge lands. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 06:18 UTC turn
+- did: audited 05:48-06:18 window from attached digest + status page; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-0618.md.
+- decided: PASS (ends the WARN) — compliance clean (60 calls all nous/qwen4-max, 15% 429s, cost 0 USD, 58 banners clean, no delegate/swarm Claude) and health recovered: sw-uyv merged 05:27 + sw-p70 merged 05:42 ended the ~3h merge drought; zero turn failures; sw-ll4.26.1 running attempt 1 (11.4k completion tokens, ~49 min in), sw-ll4.26.2 queued; orchestrator active. User Claude session (2 turns opus) reported, not counted.
+- next: ~06:48 audit — confirm sw-ll4.26.1 commits early (prior workers were commit-less until late) and sw-ll4.26.2 starts; review/merge sw-ll4.26.1 promptly when it finishes (~07:29 cap). Keep PASS while merges land within 2h of worker completion. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
