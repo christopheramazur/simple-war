@@ -403,12 +403,12 @@ func _draw_battle_summary(c: Vector2, s: float, font: Font, fs: int, eid: int) -
 	if sum.is_empty():
 		return
 	var text := EventText.battle_summary(sum)
-	var size := maxi(fs - 2, 9)
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var px := maxi(fs - 2, 9)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var at := c + Vector2(-w * 0.5 - 3.0, s * 0.95)
 	at.x = clampf(at.x, 2.0, maxf(size.x - w - 8.0, 2.0))
-	draw_rect(Rect2(at, Vector2(w + 6.0, size + 4.0)), Color(BG, 0.85))
-	draw_string(font, at + Vector2(3.0, size), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, TEXT)
+	draw_rect(Rect2(at, Vector2(w + 6.0, px + 4.0)), Color(BG, 0.85))
+	draw_string(font, at + Vector2(3.0, px), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, TEXT)
 
 
 ## The route the selected commander would take to the hovered hex, and what
