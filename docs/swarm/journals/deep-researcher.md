@@ -9,3 +9,15 @@
 - decided: key patterns = named states w/ icons (BB), countable pips + threshold ticks (DD1/XCOM), forecast of future state (ITB), grace-period countdown (Frostpunk/XCOM), source-tagged ledger tooltips; all map onto SIMPL §2.8; Legend doom-clock left as open option for user interview.
 - next: await next assignment via inbox.
 - blocked/asked: none. Gaps flagged in report: Frostpunk 15%/2-day rule single-guide, XCOM countdown length varies, ITB grid bar unverified (GDC PDF unfetchable, fandom 403).
+
+## 2026-11-21 ~07:30 UTC turn
+- did: report for games-researcher at docs/swarm/research/reports/telegraphing-enemy-intent-in-perfect-information-tactics-que.md; 17 sources (7 full reads: Mode 7 FS postmortem + IGF interview, FS/CM Wikipedia, UFOpaedia XCOM2 concealment, iiwiki Invisible Inc vision, gamerevs ITB review; GDC 2019 ITB slide text via search index).
+- decided: ranked intent-display options by planning value per UI cost; recommended stance icons + ITB-style attack telegraphs (target + computed damage) as MVP default, full plan preview only as optional accessibility layer; Execute-time Prowess reactions as the tension source instead of secrecy.
+- next: await next assignment via inbox.
+- blocked/asked: none. Gaps flagged: GDC PDF/video not directly readable (prior-session fetch failure, not retried); battlefront.com 403; snippet-only sources marked.
+
+## 2026-11-21 ~10:30 UTC turn
+- did: report for craft-researcher at docs/swarm/research/reports/commander-duels-and-champion-fights-inside-tactical-battles-.md (Open topic 6 / R7Q2 prep); 10 full-read sources (3K duelling wiki + Steam reception thread, BB dev blog #121 + champions wiki, XCOM Chosen wiki + vigaroe strengths analysis, illwiki Dom5 assassin + MGW combat, GameRant Brumak guide + Steam difficulty thread) plus 4 snippet-only Reddit sources.
+- decided: key transferable patterns = duel-as-containment (Prowess sink per pulse), visible countdown with survive-to-time payoff, priced interruption, refusal must cost something; options A-E laid out (champion data-only / opt-in pulse duel / emergent duel / overworld assassination / nemesis), B leading with C fallback, nothing decided.
+- next: await next assignment via inbox.
+- blocked/asked: none. Gaps flagged: 3K timer/morale numbers qualitative (official glossary not fetched), IGN 403 not retried, no duel-design GDC postmortem found, Dom5-only sources.
