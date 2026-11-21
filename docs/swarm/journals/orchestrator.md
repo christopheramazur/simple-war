@@ -25,3 +25,9 @@
 - decided: did not file a harness bug for repo_root resolution yet — user's gate fix may cover it; sw-uyv note carries the workaround; file it if attempt 4 still hits it. sw-ll4.1 parent stays open until .1.2 lands.
 - next: review/merge sw-uyv (attempt 4 = last; if it fails again, park per 4-attempt rule) and sw-ll4.1.2 when supervisor mails. Then split sw-ll4.26 into children (bugs first: Play-this-map, convoy vanish; then theme profiles, menu fit/scroll, hover inspection, playback timing) and scope sw-ll4.9 remainder (translation files + GUIDE keys). Keep ~70% game work.
 - blocked/asked: nothing.
+
+## 2026-11-21T01:55Z turn
+- did: selfcheck clean (config_ok, only hx/nous/qwen4-max, 0 non-Qwen calls, streak 0). Reviewed+merged sw-ll4.1.2 (partial, rc=0): 26 rule tests onto frozen fixture, 432/432 green, WIP commit was .import churn only; closed it and parent sw-ll4.1. Split sw-ll4.26 into .1-.6 (P1 bugs: Play-this-map .1, convoy vanish .2; menu fit .3, theme profiles .4 P1; hover .5, playback .6 P2) with code pointers. Split sw-ll4.9 remainder into .1 (translation files) + .2 (GUIDE keys, 4 files with raw KEY_ bindings); restored parent notes clobbered by --notes. Spawned sw-p70 attempt 1 (repo_root CWD-first; verified still unfixed on main) with guardrail-aware brief + editable-install pitfall.
+- decided: sw-p70 jumped the queue over game bugs because it silently breaks every worker's test verification (sw-uyv burned 3 attempts on it). Queue after current jobs: sw-ll4.26.1 then .2. sw-uyv attempt 4 is FINAL — park per 4-attempt rule if it fails.
+- next: review/merge sw-uyv and sw-p70 when supervisor mails; spawn sw-ll4.26.1/.2 into freed slots; keep ~70% game work (3 of last 4 merges were game).
+- blocked/asked: nothing.
