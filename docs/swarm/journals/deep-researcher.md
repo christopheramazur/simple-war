@@ -21,3 +21,9 @@
 - decided: key transferable patterns = duel-as-containment (Prowess sink per pulse), visible countdown with survive-to-time payoff, priced interruption, refusal must cost something; options A-E laid out (champion data-only / opt-in pulse duel / emergent duel / overworld assassination / nemesis), B leading with C fallback, nothing decided.
 - next: await next assignment via inbox.
 - blocked/asked: none. Gaps flagged: 3K timer/morale numbers qualitative (official glossary not fetched), IGN 403 not retried, no duel-design GDC postmortem found, Dom5-only sources.
+
+## 2026-11-21 ~11:40 UTC turn
+- did: report for games-researcher at docs/swarm/research/reports/skirmish-ai-opponents-that-read-as-fair-and-fun-questions-1-.md; 19 sources, 8 full reads (ITB AI doc via archive.org full text, Wesnoth AiWML wiki, FS postmortem + FS Prime, Wargroove Steam FoW thread, AW:DoR GameFAQs CO thread, GamersDecide WH3 difficulty guide, Wesnoth Steam difficulties thread).
+- decided: ranked recs = profile card with disclosed dials (aggression/caution/expansion mirroring MAP-Elites axes), ITB-style intent telegraph at reveal, difficulty via optimality/fuzz + timers + composition not stat buffs, anti-cheese guardrails (objective awareness, don't-repeat weighting), optional fully disclosed handicap slider kept off by default.
+- next: await next assignment via inbox.
+- blocked/asked: none. Gaps flagged: Reddit fetches blocked (6 snippet-only sources), TW difficulty numbers conflict across patches, AW CO-coded-AI claim single-forum unverified, ITB GDC PDF only snippet-readable.
