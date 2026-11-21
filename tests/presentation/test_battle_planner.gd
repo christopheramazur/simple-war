@@ -151,6 +151,30 @@ func test_a_forecast_on_a_worker_thread_matches_the_main_thread_one() -> void:
 	assert_false(s.forecast_job(2, eid, []).is_valid(), "not player 2's battle")
 
 
+func test_concurrent_forecasts_keep_their_route_plans_private() -> void:
+	var w: WarRoom = load("res://src/presentation/war_room/war_room.tscn").instantiate()
+	add_child_autofree(w)
+	var s := w.session
+	var eid: int = w.contexts.battles()[0]
+	var mine: Array = (s.observe_battle(1, eid)["squads"] as Array).filter(func(q: Dictionary) -> bool: return q["player"] == 1)
+	var o := [{"squad": mine[0]["id"], "type": "move", "x": mine[0]["x"] + 30 * ONE, "y": mine[0]["y"]}]
+	var rt: BattleRoute = (s.battles[eid] as OverworldBattle).state.rules.routes
+	var plans := rt.plans
+	# Cold shared cache: both threads must plan at once, each into its own
+	# cache, never into the battle's (sw-ll4.26.2).
+	for i in 5:
+		rt._cache.clear()
+		rt._costs.clear()
+		rt._regions.clear()
+		var job := s.forecast_job(1, eid, o)
+		var out := {}
+		var task := WorkerThreadPool.add_task(func() -> void: out["r"] = job.call())
+		var here := s.forecast_battle(1, eid, o)
+		WorkerThreadPool.wait_for_task_completion(task)
+		assert_eq(out["r"], here, "round %d: same ghosts either way" % i)
+	assert_eq(rt.plans, plans, "the battle's own route cache was never written")
+
+
 func test_drafting_an_order_does_not_wait_for_its_forecast() -> void:
 	var w: WarRoom = load("res://src/presentation/war_room/war_room.tscn").instantiate()
 	w.demo_view = "battle"

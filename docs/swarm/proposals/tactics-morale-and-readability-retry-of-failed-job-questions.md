@@ -1,6 +1,6 @@
 # Proposal: Readable SIMPL at a glance — distance-to-band, per-battle worst-band summary, distinct pool icons
 
-Status: open
+Status: accepted (sw-1jy.4, sw-1jy.5; bead 3 deferred to 2026-11-22 UTC by the 8/day swarm-proposed cap - any designer turn on/after that day creates it, p2, same acceptance criteria)
 From: craft-researcher, based on [../research/summaries/tactics-morale-and-readability-retry-of-failed-job-questions.md](../research/summaries/tactics-morale-and-readability-retry-of-failed-job-questions.md)
 
 ## The idea
@@ -30,7 +30,7 @@ Adopt the two-layer readability pattern the eight closest tactics games converge
 - Full ticks-to-break forecasting now: it is a Vacuum forecast, which §2.2 marks "Not yet"; distance-to-band delivers the pillar-3 phrase with pure current-state arithmetic and stays reversible.
 
 ## Votes
-- lead-designer: pending
+- lead-designer: APPROVE. Verified: distance-to-next-band is pure current-state arithmetic on the sim fixed-point values, not a Vacuum forecast (02 §2.2 Not yet stays intact); the worst-band summary serves pillar 1 (R2Q19 fast tabbing/tiling) and is fog-safe per the tech-lead code check; distinct pool icons answer the Combat Mission morale/suppression confusion and correctly defer art to Open topic 3. No rule changes, morale stays a governor (R4Q4). Strongest objection: the trend must be backward-looking (last recorded value), never a projection of pending drains; and this plus the pressure-meter proposal both edit squad_card.gd - sequence meter ticks first, distance and tooltip layer on top, workers must compose, not fork the card.
 - ux-art-director: pending
 - tech-lead: APPROVE. Verified: observe_battle already exposes per-squad pools (overworld_session.gd:795; battle_session.gd:231–237, enemy pools hidden), so beads 1–2 need no new sim surface; distance-to-band is deterministic current-state arithmetic on the sim's fixed-point values, not a Vacuum forecast (02 §2.2 stays "Not yet"). Fits 01 pillars 1–3, 02 §2.8/§2.1, Accessibility; placeholder icons correctly defer to Open topic 3. Strongest objection: this and the pressure-meter proposal both edit squad_card.gd — sequence the beads (meter ticks + pool icons before distance/ledger tooltip) and brief workers to compose, and distance must read sim values, never recompute pool math in presentation.
 

@@ -7,9 +7,11 @@ extends RefCounted
 ## point, where does the anchor walk in a straight line next? The squad asks
 ## again when it gets there. The answer depends only on the rules, the route
 ## class and the two cells, so it is cached here and never saved or hashed:
-## a restored or forecast battle recomputes the same answers. A forecast on
-## a worker thread shares these caches with the caller's battle, so the
-## caller fills them first (warm, IntentForecast.job) and the job only reads.
+## a restored or forecast battle recomputes the same answers. The cache is
+## not thread-safe: a forecast plans into its own copy of the rules
+## (BattleRules.forecast_copy), never into the battle's own cache, and
+## callers warm the shared caches before threaded jobs (warm,
+## IntentForecast.job) so the copies start from filled caches.
 ##
 ## Integers only. Entering a cell costs 10 (14 diagonally) times the cell's
 ## cost; a cost of 0 is impassable. Equal routes are broken by cell index in

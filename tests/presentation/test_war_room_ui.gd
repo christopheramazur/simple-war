@@ -183,12 +183,14 @@ func test_a_convoy_that_delivers_is_still_seen_walking() -> void:
 	s.squads.spawn({&"holder": -1, &"detachment": did, &"tmpl": s.rules.squad_index("rifle_squad"), &"alive": 8, &"size": 8})
 	w.end_turn_requested.emit()
 	assert_true(w.playing())
-	assert_false(s.detachments.is_alive(did), "it reached its commander and joined the army")
-	var gone: Array = w._play["walks"]["gone"]
-	assert_eq(gone.size(), 1)
-	assert_eq([gone[0]["player"], gone[0]["convoy"]], [1, true])
-	assert_eq(gone[0]["walk"]["plots"][0], from)
-	assert_eq(gone[0]["walk"]["plots"].back(), me["plot"])
+	assert_true(s.detachments.is_alive(did), "the shell stays after delivery (sw-ll4.26.2)")
+	assert_eq(s.detachments.get_value(did, &"plot"), me["plot"])
+	assert_false(Convoys.is_convoy(s, s.detachments.row_of(did)), "it halts there")
+	var walks: Dictionary = w._play["walks"]["detachments"]
+	assert_true(walks.has(did), "it is still seen walking there")
+	assert_eq(walks[did]["plots"][0], from)
+	assert_eq(walks[did]["plots"].back(), me["plot"])
+	assert_eq((w._play["walks"]["gone"] as Array).size(), 0, "nothing vanished")
 
 
 func test_hovering_a_hex_says_what_is_there() -> void:

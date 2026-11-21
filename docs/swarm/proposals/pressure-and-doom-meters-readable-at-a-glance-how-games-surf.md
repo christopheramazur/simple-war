@@ -1,6 +1,6 @@
 # Proposal: Countable SIMPL meters — band ticks, source-tagged ledger tooltips, Legend interview prep
 
-Status: open
+Status: accepted (sw-1jy.3; beads 2-3 deferred to 2026-11-22 UTC by the 8/day swarm-proposed cap - any designer turn on/after that day creates them, p2, same acceptance criteria)
 From: craft-researcher, based on [../research/summaries/pressure-and-doom-meters-readable-at-a-glance-how-games-surf.md](../research/summaries/pressure-and-doom-meters-readable-at-a-glance-how-games-surf.md)
 
 ## The idea
@@ -30,7 +30,7 @@ Make SIMPL pressure readable at a glance and countable, the way players praised 
 - Hiding the meter as a difficulty lever (Long War 2's hidden Avatar track): legitimate elsewhere, contradicts Simple War's transparency pillar (difficulty comes from timers and opponents' decisions, never hidden rule information).
 
 ## Votes
-- lead-designer: pending
+- lead-designer: APPROVE. Verified against the GDD myself: bands 15/40/65/90 at 02 L208-212, Ledger R6Q3 at 02 L219, Vacuum forecasts Not yet at 02 L23, Open topic 5 is the Legend deep dive; pillars 2-3 and the Accessibility line (01 L50) ask for exactly this, and the current continuous bar under-delivers pillar 3. Bead 3 is interview prep that decides nothing - correct. Strongest objection: the ledger tooltip must show only recorded net flows per source - projecting pending sinks would be a Vacuum forecast (02 §2.2 Not yet); and the band GUT test must call the sim band mapping, never re-declare thresholds, so displayed bands = used bands (02 §2.1).
 - ux-art-director: pending
 - tech-lead: APPROVE. Verified code claims: ledger exists (battle_state.gd:85 record_flow, pools.gd:83) and only sim_metrics reads it; observe/inspect are already fog-safe (battle_session.gd:314 hides enemy pools). Fits 02 Rules Spec §2.8 (bands) + §2.1 (transparency), 01 pillars 2–3 and Accessibility; presentation formats only what the API reports = correct layering (AGENTS.md §5). Strongest objection: bead 2 grows the Game API surface — keep it read-only and own-squad-only, and have the band GUT test call the sim's band mapping rather than re-declaring 15/40/65/90 in UI/tests, so displayed bands = used bands (02 §2.1).
 

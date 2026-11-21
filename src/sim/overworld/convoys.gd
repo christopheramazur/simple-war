@@ -28,8 +28,9 @@ extends RefCounted
 ##     commanders (OverworldMovement.arrive, OverworldActivities).
 ##   - Arrival: at a plot, it becomes a detachment holding it (joining the
 ##     player's one there). At its commander's hex, its squads join the army
-##     up to the cap; the rest halt there. A convoy whose commander is gone
-##     halts where it is.
+##     up to the cap; the rest halt there. The shell stays (sw-ll4.26.2):
+##     any steered route left it keeps walking, otherwise it halts on the
+##     hex. A convoy whose commander is gone halts where it is.
 
 
 static func is_convoy(s: OverworldState, row: int) -> bool:
@@ -316,7 +317,9 @@ static func plan(s: OverworldState, did: int, masks: Dictionary) -> Array:
 
 
 ## A convoy on its commander's hex hands over its squads, up to the army
-## cap; the rest halt there. Returns whether it reached its commander.
+## cap, and its chest. The shell stays (sw-ll4.26.2): squads that did not
+## fit halt it there; otherwise it keeps walking any steered route left,
+## or halts on the hex. Returns whether it reached its commander.
 static func deliver(s: OverworldState, did: int) -> bool:
 	var d := s.detachments
 	var row := d.row_of(did)
@@ -335,10 +338,16 @@ static func deliver(s: OverworldState, did: int) -> bool:
 	var items := WarChest.hand_over(s, did, cid)
 	s.events.push(&"convoy_delivered", {"detachment": did, "commander": cid, "player": player,
 		"plot": d.plot[row], "squads": moved, "items": items}, s.tick)
-	if Detachments.squads_of(s, did).is_empty():
-		d.despawn(did)
-	else:
+	if not Detachments.squads_of(s, did).is_empty():
 		_halt(s, did, "army_full")
+	elif not (s.convoy_routes.get(did, PackedInt64Array()) as PackedInt64Array).is_empty():
+		# Delivery done; the steered route is its own order: walk the rest.
+		var route: PackedInt64Array = s.convoy_routes[did]
+		d.set_value(did, &"dest_plot", route[route.size() - 1])
+		d.set_value(did, &"dest_commander", -1)
+		d.set_value(did, &"line", -1)
+	else:
+		_halt(s, did, "delivered")
 	return true
 
 
