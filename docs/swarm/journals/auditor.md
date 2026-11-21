@@ -139,3 +139,10 @@
 - noted: sw-opt 1 failed gateway call recovered without turn failure; designer ask sw-884.5 jitter unanswered since 14:14 (non-blocking, default recorded). Recommended filing swarm-harness bead for additive journal-conflict auto-resolution now, not at attempt 4.
 - next: ~15:04 audit — confirm .3 att3 journal-only merge lands and sw-opt first commit (orchestrator rechecks commitless at ~50 min); pipeline .3 -> sw-opt -> .6 -> P2 wave is full. Keep PASS while merges/commits land. FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 16:56 UTC turn
+- did: audited 16:26-16:56 window from digest + orchestrator journal tail + audits dir; recorded WARN FIRST via hx swarm verdict (replaced once to add killed-turn evidence); wrote docs/swarm/audits/20261121-1656.md.
+- decided: WARN — compliance clean (20 calls all nous/qwen4-max, 23 banners, cost 0 USD, no delegate/Claude, 0 turn failures) but 65% 429s (33/40 last hour), zero events, no merge since 14:26 (2.5 h). sw-opt (a7bff93) and .3 att3 both partial/awaiting-review past 2 h cap. Orchestrator alive (5 ok calls), workers not idle -> not FAIL.
+- noted: orchestrator journal ends 14:44Z and no audit file after 14:34 despite 16:26 WARN recorded -> recent turns killed before writing outputs (429 latency). Recommended orchestrator merge sw-opt + .3 att3 before anything else and journal early; sw-2sq (journal-conflict harness bead) already filed 14:41.
+- next: ~17:26 audit — check sw-opt/.3 merges landed and orchestrator journal resumed. If still zero events + stale journal + workers stuck, consider FAIL for loop-without-effect (edge: workers awaiting review, not idle). Keep verdict-first order.
+- blocked/asked: none.
