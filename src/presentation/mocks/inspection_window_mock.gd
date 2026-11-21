@@ -172,6 +172,10 @@ static func _header(d: Dictionary, narrow: bool) -> Control:
 	var who := _lbl(("P%d" if narrow else "Player %d") % v["player"], 13, DIM)
 	top.add_child(who)
 	b.add_child(top)
+	# What the squad is doing, in the glossary's words (sw-ll4.27.3).
+	var act := int(v.get("activity", -1))
+	if act >= 0:
+		b.add_child(_lbl(Glossary.activity_text(act, "the enemy"), 13, ACCENT))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	for pool: String in DataSchema.SIMPL:
@@ -247,6 +251,12 @@ static func _card(v: Dictionary, units: Array, i: int) -> Control:
 		l.custom_minimum_size = Vector2(30, 0)
 		stats.add_child(l)
 	b.add_child(stats)
+	# Why this unit's gun is silent, and its ammo (sw-ll4.27.3): the
+	# inspection's unit report, in the glossary's words.
+	if u.has("hold"):
+		var hold := int(u["hold"])
+		var ticks := int(u["reload"]) if hold == BattleActivity.Hold.RELOADING else int(u["cooldown"])
+		b.add_child(_lbl("%s  ·  ammo %d / %d" % [Glossary.hold_text(hold, ticks), int(u["ammo"]), int(u["magazine"])], 11, DIM))
 	var badges := HFlowContainer.new()
 	badges.add_theme_constant_override("h_separation", 4)
 	for e: Dictionary in v["effects"]:
