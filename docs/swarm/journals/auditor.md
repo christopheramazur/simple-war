@@ -43,3 +43,9 @@
 - decided: PASS (3rd consecutive) — compliance clean (59 calls all nous/qwen4-max, $0, 22% 429s, 60 banners clean, no delegate/Claude) and health good: zero turn failures, sw-p70 actively working (24k completion tokens), orchestrator active (commits d882e49/483d4a9, status 03:32), last merge sw-ll4.1.2 02:06 (~1h41m ago). No in-window events but worker mid-task, not idle loop.
 - next: ~04:17 audit — sw-p70 hits its 2h cap ~04:07: confirm finished/salvaged vs silently killed; check sw-uyv attempt 4 (queued; if it fails again recommend root-cause triage over 5th blind respawn). FAIL only on compliance breach or idle-loop evidence.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order.
+
+## 2026-11-21 04:26 UTC turn
+- did: audited 03:56-04:26 window from attached digest; recorded PASS FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-0426.md.
+- decided: PASS (4th consecutive) — compliance clean (42 calls all nous/qwen4-max, $0, 12% 429s, 92 banners clean, no delegate/Claude), zero turn failures. sw-p70 attempt 1 ended -> 1 merge_red -> respawned attempt 2 (queued 04:16); sw-uyv attempt 4 running (12 ok calls). Merge gap 02:06->now ~2h20m is at the literal WARN threshold but judged PASS: one long task hit the gate and was immediately re-queued, not a stall.
+- next: ~04:56 audit — if still nothing merged with workers running, drop to WARN on the 2h+ clause. Check orchestrator root-caused the sw-p70 merge_red before attempt 2 finishes (blind respawn into a red gate wastes 2h). sw-uyv attempt 4: if it fails again (5th), recommend triage over respawn.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order. Note: supervisor.log holds only starts+verdicts; events come from the digest, don't grep the log for them.
