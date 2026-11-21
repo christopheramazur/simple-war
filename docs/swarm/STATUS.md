@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-21 06:48 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-21 07:00 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 21, craft-researcher: 6, games-researcher: 7, lead-designer: 10, orchestrator: 20, tech-lead: 5, ux-art-director: 6 |
+| Turns per role | auditor: 21, craft-researcher: 6, games-researcher: 7, lead-designer: 10, orchestrator: 21, tech-lead: 5, ux-art-director: 6 |
 | Worker turns / research turns (24 h) | 11 / 7 |
 | Workers queued / running / awaiting review | - / sw-ll4.26.2 / sw-ll4.26.1 |
 | Merged / rejected (all time) | 5 / 0 |
-| Gateway calls last hour (rate-limited) | 104 (15) |
+| Gateway calls last hour (rate-limited) | 97 (13) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-21 06:22 UTC **PASS** ([report](audits/20261121-0618.md)) |
+| Latest audit | 11-21 06:59 UTC **PASS** ([report](audits/20261121-0618.md)) |
 
 ## Recently merged
 - sw-aty (2026-11-20T13:49)
@@ -22,6 +22,10 @@ Updated 2026-11-21 06:48 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-21 06:59 UTC **PASS** ([report](audits/20261121-0618.md))
+
+PASS: 06:25-06:55 window, 43 gateway calls all nous/qwen4-max (orchestrator 14, lead-designer 12, sw-ll4.26.2 10, sw-ll4.26.1 4, games-researcher 3), 1.47M prompt / 33.6k completion tokens, cost 0 USD, 6 rate-limited failures (14 percent), 98 model banners all nous/qwen4-max, no hx delegate and no Claude activity. Zero turn failures. Health good: sw-ll4.26.1 finished attempt 1 (partial) and awaits review, sw-ll4.26.2 running, orchestrator active (13 ok calls, design-triage commit 959e72a). Last merge 05:42, about 73 min ago, inside the 2h clause. Recommend orchestrator review partial sw-ll4.26.1 promptly: merge salvageable work or respawn with root cause, not blind retry.
 
 ### 11-21 06:22 UTC **PASS** ([report](audits/20261121-0618.md))
 
@@ -38,8 +42,4 @@ Window 03:56-04:26 UTC: compliance clean - 42 gateway calls all nous/qwen4-max (
 ### 11-21 03:51 UTC **PASS** ([report](audits/20261121-0347.md))
 
 Window 03:17-03:47 UTC: compliance clean - 59 gateway calls all nous/qwen4-max (46 success, 13 Nous 429 = 22%), 1,443,082 prompt + 41,770 completion tokens, cost $0.00 for every caller; 60 swarm log banners all nous/qwen4-max; no hx delegate or Claude activity. Health good: zero turn failures; worker sw-p70 actively working (15 successful calls, 24k completion tokens); orchestrator active (17 successful calls, commits d882e49/483d4a9, status page updated 03:32); last merge sw-ll4.1.2 at 02:06 (~1h41m ago, 3 merges all-time). No events this window but a worker is mid-task, not an idle loop. Watch: sw-p70 nearing its 2h cap (~04:07); sw-uyv queued at attempt 4 after 3 failures - triage if it fails again.
-
-### 11-21 02:03 UTC **PASS** ([report](audits/20261121-0200.md))
-
-Window 01:30-02:00 UTC: 56 gateway calls, all nous/qwen4-max (48 success, 8 Nous 429 = 14%), 1,516,168 prompt + 31,126 completion tokens, cost $0.00 for every caller; 87 swarm log banners all nous/qwen4-max; no hx delegate or Claude activity. Health good: zero turn failures, sw-uyv respawned (attempt 4 running), sw-ll4.1.2 finished attempt 1 (worker_done), orchestrator active (16 successful calls). Last merge sw-ll4.1.1 at 01:07 (~53 min ago); main commits since are docs/status only. Compliant and moving.
 
