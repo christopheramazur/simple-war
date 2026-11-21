@@ -40,6 +40,7 @@ def add_args(p) -> None:
             sp.add_argument("bead")
         if name == "spawn":
             sp.add_argument("--note", default="", help="guidance for the worker")
+            sp.add_argument("--fresh", action="store_true", help="start over from main instead of continuing the branch")
         if name == "reject":
             sp.add_argument("--reason", required=True)
         if name in ("research", "ask"):
@@ -78,7 +79,7 @@ def run(args) -> Result:
             swarm.write_status()
             r.raw = (swarm.DOCS / "STATUS.md").read_text(encoding="utf-8")
         elif a == "spawn":
-            j = swarm.spawn_worker(args.bead, args.note)
+            j = swarm.spawn_worker(args.bead, args.note, args.fresh)
             r.data.update(bead=j["bead"], worktree=j["worktree"], branch=j["branch"], attempt=j["attempts"])
         elif a == "workers":
             r.tables["workers"] = [{"bead": j["bead"], "status": j["status"], "attempts": j["attempts"],

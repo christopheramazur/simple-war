@@ -223,43 +223,70 @@ def fill_gitlinks(wt: Path) -> list[str]:
     return done
 
 
-def spawn_worker(bead: str, note: str = "") -> dict:
+RESPAWNABLE = DONE | {"failed", "partial", "done"}
+
+
+def save_wip(wt: Path, why: str) -> bool:
+    """Commit whatever a worker left uncommitted, so a timed-out turn's work survives for the next attempt."""
+    if not wt.exists() or not git("status", "--porcelain", cwd=wt).stdout.strip():
+        return False
+    git("add", "-A", cwd=wt)
+    r = git("commit", "-q", "--no-verify", "-m", f"WIP: {why}", "-m",
+            "Saved by the swarm supervisor; the next attempt continues from here.", cwd=wt)
+    return not r.returncode
+
+
+def spawn_worker(bead: str, note: str = "", fresh: bool = False) -> dict:
+    """Queue a worker. A bead with an earlier branch continues from it (its commits and WIP survive) unless fresh."""
     if not re.fullmatch(r"[A-Za-z0-9._-]+", bead):
         raise ValueError("bad bead id")
     c = cfg()
     j = load_job(bead)
-    if j and j["status"] not in DONE | {"failed"}:
+    if j and j["status"] not in RESPAWNABLE:
         raise ValueError(f"{bead} already has a {j['status']} worker")
-    active = [x for x in jobs() if x["status"] in ("queued", "running", "done")]
+    active = [x for x in jobs() if x["status"] in ("queued", "running", "done", "partial") and x["bead"] != bead]
     if len(active) >= c["workers"]["max_open"]:
-        raise ValueError(f"{len(active)} worker jobs are open (queued/running/done awaiting merge); merge or reject some first")
+        raise ValueError(f"{len(active)} worker jobs are open (queued/running/awaiting review); merge or reject some first")
     show = subprocess.run(["bd", "show", bead], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
                           errors="replace", stdin=subprocess.DEVNULL, timeout=60)
     if show.returncode:
         raise ValueError(f"bd show {bead} failed: {show.stderr.strip()[-200:]}")
     wt, branch = WT_ROOT / bead, f"swarm/{bead}"
     with file_lock("git"):
-        if wt.exists():
-            git("worktree", "remove", "--force", str(wt))
-        git("branch", "-D", branch)
-        r = git("worktree", "add", "-q", "-b", branch, str(wt), "HEAD")
+        has_branch = not git("rev-parse", "--verify", "-q", branch).returncode
+        if fresh or not has_branch:
+            if wt.exists():
+                git("worktree", "remove", "--force", str(wt))
+            git("branch", "-D", branch)
+            r = git("worktree", "add", "-q", "-b", branch, str(wt), "HEAD")
+            continued = False
+        else:
+            save_wip(wt, "uncommitted work from the previous attempt")
+            r = subprocess.CompletedProcess([], 0, "", "")
+            if not wt.exists():
+                git("worktree", "prune")
+                r = git("worktree", "add", "-q", str(wt), branch)
+            continued = True
         if r.returncode:
             raise ValueError("worktree add failed: " + r.stderr[-300:])
-        base = git("rev-parse", "HEAD").stdout.strip()
+        base = git("merge-base", "HEAD", branch).stdout.strip() or git("rev-parse", "HEAD").stdout.strip()
     fill_gitlinks(wt)
     attempts = (j or {}).get("attempts", 0) + 1
     j = {"bead": bead, "status": "queued", "worktree": str(wt), "branch": branch, "base": base,
          "created": now().isoformat(timespec="seconds"), "attempts": attempts, "note": note,
-         "bead_text": show.stdout[-6000:], "summary": ""}
+         "continued": continued, "bead_text": show.stdout[-6000:], "summary": ""}
     save_job(j)
-    event("spawn", bead=bead, attempts=attempts)
+    event("spawn", bead=bead, attempts=attempts, continued=continued)
     return j
 
 
 def _checks_for(changed: list[str]) -> list[list[str]]:
     checks = []
     if any(not f.startswith(("harness/", "docs/", ".beads/")) for f in changed):
-        checks.append(["bash", "harness/bin/hx", "godot", "test"])
+        # not ["bash", "harness/bin/hx", ...]: Windows resolves a bare "bash" in System32 (WSL) before PATH
+        # a fresh worktree has no .godot import cache: GUT cannot see class_names until an import runs
+        checks.append(["uv", "run", "--project", "harness", "--quiet", "hx", "godot", "check"])
+        checks.append(["uv", "run", "--project", "harness", "--quiet", "hx", "godot", "test"])
     if any(f.startswith("harness/") for f in changed):
         checks.append(["uv", "run", "--project", "harness", "pytest", "-q", "-x"])
     return checks
@@ -268,7 +295,7 @@ def _checks_for(changed: list[str]) -> list[list[str]]:
 def merge_worker(bead: str) -> str:
     """Bring main into the worker branch, run the tests there, then fast-forward main. Main never goes red."""
     j = load_job(bead)
-    if not j or j["status"] != "done":
+    if not j or j["status"] not in ("done", "partial"):
         raise ValueError(f"{bead}: no finished worker to merge (status {j and j['status']})")
     wt = Path(j["worktree"])
     timeout = cfg()["merge"]["test_timeout_s"]
@@ -281,8 +308,8 @@ def merge_worker(bead: str) -> str:
             r = git("merge", "--no-edit", "-m", f"Merge main into {j['branch']}", "main", cwd=wt)
             if r.returncode:
                 git("merge", "--abort", cwd=wt)
-                raise ValueError("main does not merge cleanly into the worker branch; reject and re-spawn the bead on "
-                                 "the new main: " + (r.stdout + r.stderr)[-400:])
+                raise ValueError("main does not merge cleanly into the worker branch. Re-spawn with --fresh to redo it "
+                                 "on the new main, or with a note asking the worker to resolve it: " + (r.stdout + r.stderr)[-400:])
         changed = git("diff", "--name-only", "main...HEAD", cwd=wt).stdout.split()
         if bad := [f for f in changed if f in PROTECTED]:
             raise ValueError(f"the branch changes protected swarm guardrail files {bad}; reject it (only the user changes these)")
@@ -560,7 +587,7 @@ class Supervisor:
         self.c = cfg()
         self.stop = threading.Event()
         self.orch_paused = threading.Event()   # set while a postmortem runs
-        self.slots = threading.BoundedSemaphore(self.c["run"]["max_concurrent_turns"])
+        self.pools = {p: threading.BoundedSemaphore(self.c["run"][f"{p}_slots"]) for p in ("core", "support")}
         self.end = datetime.fromisoformat(self.c["run"]["end_at"])
 
     def alive(self) -> bool:
@@ -583,8 +610,10 @@ class Supervisor:
         share = sum("RateLimit" in (r.get("error") or "") for r in rows) / len(rows)
         return 0 if share < 0.2 else min(900, 60 + 1200 * share)
 
-    def turn(self, role: str, prompt: str, **kw) -> tuple[int, str]:
-        with self.slots:
+    def turn(self, role: str, prompt: str, pool: str = "core", **kw) -> tuple[int, str]:
+        """core = orchestrator and workers (the code pipeline); support = designers, researchers, research, retro.
+        Separate pools so support roles can never take the pipeline's share of the rate-limited model."""
+        with self.pools[pool]:
             if not self.alive():
                 return -1, ""
             return run_turn(role, prompt, **kw)
@@ -620,19 +649,22 @@ class Supervisor:
                      f"```\n{j['bead_text']}\n```\n")
             rc, text = self.turn(f"worker-{j['bead']}", compose("worker", "worker", extra, inbox=""),
                                  cwd=Path(j["worktree"]), timeout=self.c["workers"]["timeout_s"], kind="worker")
-            ahead = git("rev-list", "--count", f"{j['base']}..{j['branch']}").stdout.strip()
-            summary = text[-3500:]
+            wip = save_wip(Path(j["worktree"]), f"worker turn ended (rc={rc}) with uncommitted changes")
+            ahead = int(git("rev-list", "--count", f"main..{j['branch']}").stdout.strip() or 0)
             m = re.search(r"WORKER RESULT.*", text, re.S)
-            if m:
-                summary = m.group(0)[:3500]
-            j.update(status="done" if ahead not in ("", "0") else "failed", finished=now().isoformat(timespec="seconds"),
-                     rc=rc, commits=int(ahead or 0), summary=summary)
+            summary = m.group(0)[:3500] if m else text[-3500:]
+            status = "failed" if not ahead else ("done" if rc == 0 and m and not wip else "partial")
+            j.update(status=status, finished=now().isoformat(timespec="seconds"), rc=rc, commits=ahead, summary=summary)
             save_job(j)
-            event("worker_done", bead=j["bead"], status=j["status"], commits=j["commits"], rc=rc)
+            event("worker_done", bead=j["bead"], status=status, commits=ahead, rc=rc, wip=wip)
+            why = {"done": "finished", "partial": "was cut off (timeout or error) after committing work; its branch is kept",
+                   "failed": "produced no commits"}[status]
             send_mail("orchestrator", "supervisor",
-                      f"Worker for {j['bead']} finished: status **{j['status']}**, {j['commits']} commit(s), rc={rc}.\n"
-                      f"Review with `git -C {j['worktree']} log -p {j['base'][:9]}..HEAD` then `hx swarm merge {j['bead']}` "
-                      f"or `hx swarm reject {j['bead']} --reason ...`.\n\nWorker's report:\n{summary[-1500:]}")
+                      f"Worker for {j['bead']} {why}: status **{status}**, {ahead} commit(s) ahead of main, rc={rc}"
+                      f"{', unfinished changes saved as a WIP commit' if wip else ''}.\n"
+                      f"Review: `git -C {j['worktree']} log --stat main..HEAD`. Then `hx swarm merge {j['bead']}` if it is "
+                      f"complete, or `hx swarm spawn {j['bead']} --note \"<what is left>\"` to continue on the same branch, "
+                      f"or `hx swarm reject {j['bead']} --reason ...` to discard it.\n\nWorker's report:\n{summary[-1500:]}")
             self.wait(5)
 
     def periodic_loop(self, group: str) -> None:
@@ -642,7 +674,7 @@ class Supervisor:
         self.wait(sec.get("initial_delay_s", 60))
         while self.alive():
             role = roles[i % len(roles)]
-            self.turn(role, compose(role, [sec["base"], role]), timeout=sec["turn_timeout_s"])
+            self.turn(role, compose(role, [sec["base"], role]), pool="support", timeout=sec["turn_timeout_s"])
             i += 1
             self.wait(max(60, sec["every_s"] / len(roles)) + self.backoff())
 
@@ -664,7 +696,7 @@ class Supervisor:
             p, j = job
             out = DOCS / "research" / "reports" / f"{j['slug']}.md"
             extra = f"# Your assignment\nTopic: {j['topic']}\nRequested by: {j['requester']}\nWrite the report to `{out.relative_to(ROOT).as_posix()}`.\n"
-            rc, _ = self.turn(f"research-{j['slug'][:30]}", compose("deep-researcher", "deep-researcher", extra, inbox=""),
+            rc, _ = self.turn(f"research-{j['slug'][:30]}", compose("deep-researcher", "deep-researcher", extra, inbox=""), pool="support",
                               timeout=self.c["research"]["timeout_s"], kind="research")
             j.update(status="done" if out.exists() else "failed", finished=now().isoformat(timespec="seconds"))
             _write(p, json.dumps(j))
@@ -739,7 +771,7 @@ class Supervisor:
         r = self.c["retro"]
         self.wait(r["every_s"])
         while self.alive():
-            self.turn("retro", compose("retro", "retro"), timeout=r["turn_timeout_s"])
+            self.turn("retro", compose("retro", "retro"), pool="support", timeout=r["turn_timeout_s"])
             commit_docs("swarm: retro")
             self.wait(r["every_s"])
 
@@ -830,7 +862,7 @@ def write_status() -> None:
         "| | |", "|---|---|",
         f"| Turns per role | {', '.join(f'{k}: {v}' for k, v in sorted(s['turns'].items()) if not k.startswith(('worker-', 'research-'))) or '-'} |",
         f"| Worker turns / research turns (24 h) | {sum(e['kind'] == 'worker' for e in ev)} / {sum(e['kind'] == 'research' for e in ev)} |",
-        f"| Workers queued / running / awaiting review | {', '.join(by('queued')) or '-'} / {', '.join(by('running')) or '-'} / {', '.join(by('done')) or '-'} |",
+        f"| Workers queued / running / awaiting review | {', '.join(by('queued')) or '-'} / {', '.join(by('running')) or '-'} / {', '.join(by('done') + by('partial')) or '-'} |",
         f"| Merged / rejected (all time) | {len(by('merged'))} / {len(by('rejected'))} |",
         f"| Gateway calls last hour (rate-limited) | {len(gw)} ({rl}) |",
         f"| Incidents | {len(s['postmortems'])} postmortem(s) |", "",
