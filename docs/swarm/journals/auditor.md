@@ -49,3 +49,9 @@
 - decided: PASS (4th consecutive) — compliance clean (42 calls all nous/qwen4-max, $0, 12% 429s, 92 banners clean, no delegate/Claude), zero turn failures. sw-p70 attempt 1 ended -> 1 merge_red -> respawned attempt 2 (queued 04:16); sw-uyv attempt 4 running (12 ok calls). Merge gap 02:06->now ~2h20m is at the literal WARN threshold but judged PASS: one long task hit the gate and was immediately re-queued, not a stall.
 - next: ~04:56 audit — if still nothing merged with workers running, drop to WARN on the 2h+ clause. Check orchestrator root-caused the sw-p70 merge_red before attempt 2 finishes (blind respawn into a red gate wastes 2h). sw-uyv attempt 4: if it fails again (5th), recommend triage over respawn.
 - blocked/asked: none. Verdict recorded before audit file again — keep this order. Note: supervisor.log holds only starts+verdicts; events come from the digest, don't grep the log for them.
+
+## 2026-11-21 05:03 UTC turn
+- did: audited 04:33-05:03 window from attached digest + workers -v/git log; recorded WARN FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-0503.md.
+- decided: WARN (breaks 4-PASS streak) — compliance clean (54 calls all nous/qwen4-max, $0, 19% 429s, 97 banners clean, no delegate/Claude), zero turn failures, but merge gap 02:06->05:03 ~3h with workers running meets the 2h+ clause I committed to at 04:26. Not a stall: sw-uyv attempt 4 productive (16.7k completion tokens, 0 commits yet), sw-p70 attempt 2 queued since 04:16, research active, orchestrator committing (2b15d60 design triage).
+- next: ~05:33 audit — sw-uyv attempt 4 expires ~06:1x: if finished, check prompt review/merge (4th failure => recommend triage not respawn); check sw-p70 merge_red root-caused before attempt 2 runs; nudge early commits if sw-uyv still commit-less. Return to PASS once a merge lands. FAIL only on compliance breach or idle-loop evidence.
+- blocked/asked: none. Verdict recorded before audit file again — keep this order.
