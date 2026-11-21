@@ -375,7 +375,12 @@ func _build_ui() -> void:
 	var options := Button.new()
 	options.text = "Options"
 	options.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	options.pressed.connect(func() -> void: if ui.find(&"options") == null: OptionsScreen.open_over(self))
+	options.pressed.connect(func() -> void:
+		if ui.find(&"options") == null:
+			var o := OptionsScreen.open_over(self)
+			# Palette and theme changes redraw the views and panels (sw-ijp.5).
+			o.setting_changed.connect(func(_key: String) -> void: _queue_refresh())
+			o.closed.connect(_queue_refresh))
 	tools.add_child(options)
 	var save := Button.new()
 	save.text = "Save"

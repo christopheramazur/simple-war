@@ -33,7 +33,8 @@ const GHOST: Color = Color(0.85, 0.9, 1.0, 0.55)
 const REACH: Color = Color(1.0, 1.0, 1.0, 0.16)
 ## A full turn of a squad's facing (binary angle).
 const TURN: float = 65536.0
-const PLAYER_COLORS: Dictionary = {1: Color(0.25, 0.55, 1.0), 2: Color(1.0, 0.35, 0.3), 30: Color(0.85, 0.85, 0.85)}
+## Side colours come from TeamPalette at draw time (sw-ijp.5): the chosen
+## preset is a setting, so a palette switch redraws without new state here.
 ## Plot colour: the first listed feature present wins; else plains.
 const FEATURE_COLORS: Array = [
 	["hex_spaceport", Color("9fb3c8")], ["hex_angel_blockade", Color("d9d2f2")], ["hex_cliffs", Color("4a4440")],
@@ -282,8 +283,15 @@ func _draw_overworld() -> void:
 		if plots.has(p) and (icon != null or whole):
 			var owner := _plot_owner(plots[p])
 			if owner > 0:
-				draw_circle(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.14, 3.0), PLAYER_COLORS.get(owner, TEXT))
-				draw_arc(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.14, 3.0), 0, TAU, 12, BG, 1.0)
+				var dot := c + Vector2(s * 0.48, -s * 0.42)
+				var rr := maxf(s * 0.14, 3.0)
+				var oc: Color = TeamPalette.color(owner, TEXT)
+				if owner == 2:  # square: side identity without colour (sw-ijp.5)
+					draw_rect(Rect2(dot - Vector2(rr, rr), Vector2(rr, rr) * 2.0), oc)
+					draw_rect(Rect2(dot - Vector2(rr, rr), Vector2(rr, rr) * 2.0), BG, false, 1.0)
+				else:
+					draw_circle(dot, rr, oc)
+					draw_arc(dot, rr, 0, TAU, 12, BG, 1.0)
 		if reach.has(p):
 			draw_colored_polygon(_hex_points(c, s * 0.97), REACH)
 			if s >= 20.0:
@@ -316,7 +324,7 @@ func _draw_overworld() -> void:
 		var walking: bool = det_play.has(det["id"])
 		var at := o + (_along(det_play[det["id"]], t) if walking else _centre(det["plot"]))
 		var c := at + Vector2(s * 0.42, s * 0.38)
-		var col: Color = PLAYER_COLORS.get(det["player"], TEXT)
+		var col: Color = TeamPalette.color(det["player"], TEXT)
 		var h := s * 0.22
 		if det.get("convoy", false) or walking:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h * 1.3), c + Vector2(h * 1.3, 0), c + Vector2(0, h * 1.3), c + Vector2(-h * 1.3, 0)]), col)
@@ -342,12 +350,12 @@ func _draw_overworld() -> void:
 			draw_arc(c, h * 1.9, 0, TAU, 20, SELECT, 2.5)
 		var n := (det.get("squads", []) as Array).size()
 		if n > 0:
-			draw_string(font, c + Vector2(h + 2, h), str(n), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+			draw_string(font, c + Vector2(h + 2, h), "P%d %d" % [int(det["player"]), n], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
 	# Walkers that are gone when the turn ends (a convoy that reached its
 	# commander) are still seen walking there.
 	for g: Dictionary in play.get("gone", []):
 		var at := o + _along(g["walk"], t)
-		var col: Color = PLAYER_COLORS.get(g["player"], TEXT)
+		var col: Color = TeamPalette.color(g["player"], TEXT)
 		if g.get("convoy", true):
 			var c := at + Vector2(s * 0.42, s * 0.38)
 			var h := s * 0.22
@@ -358,12 +366,15 @@ func _draw_overworld() -> void:
 	for cmd: Dictionary in _obs.get("commanders", []):
 		var c := o + (_along(cmd_play[cmd["id"]], t) if cmd_play.has(cmd["id"]) else _centre(cmd["plot"]))
 		var r := s * 0.36
-		var pc: Color = PLAYER_COLORS.get(cmd["player"], TEXT)
+		var pc: Color = TeamPalette.color(cmd["player"], TEXT)
 		draw_circle(c, r, pc)
 		var face := _commander_icon(cmd)
 		if face != null:
 			draw_circle(c, r * 0.86, BG)
 			draw_texture_rect(face, Rect2(c - Vector2(r, r) * 0.95, Vector2(r, r) * 1.9), false)
+		var pb := c + Vector2(r * 0.9, -r * 0.8)  # side number: identity without colour (sw-ijp.5)
+		draw_circle(pb, maxf(fs * 0.5, 5.0), pc)
+		draw_string(font, pb + Vector2(-fs * 0.5, fs * 0.35), str(cmd["player"]), HORIZONTAL_ALIGNMENT_CENTER, fs, maxi(fs - 2, 8), BG)
 		if cmd["id"] == _selected:
 			draw_arc(c, r + 3.0, 0, TAU, 20, SELECT, 2.5)
 		if cmd.has("army"):  # own and allied: squads besides the commander's own
@@ -708,7 +719,7 @@ func _eye(c: Vector2, col: Color) -> void:
 ## Selected, hovered or inspected squads also show their weapon range, and
 ## own selected ones their sight. Returns the footprint's radius in pixels.
 func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: bool, marked: bool) -> float:
-	var col: Color = PLAYER_COLORS.get(d["player"], TEXT)
+	var col: Color = TeamPalette.color(d["player"], TEXT)
 	var c: Vector2 = area.position + (d["c"] as Vector2) * k
 	var spread := 0.0
 	for p: Vector2 in d["pts"]:
@@ -781,7 +792,7 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 	if compact or not d.has("name"):
 		return r
 	top -= halo + (5.0 if is_selected or marked else 0.0)
-	var text := "%s %d/%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0))]
+	var text := "%s %d/%d · P%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0)), int(d["player"])]
 	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, TEXT if is_selected or marked else Color(TEXT, 0.75))
 	if sprite != null and not per_unit:  # no unit art: one badge by the label
 		var tw := minf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, 140.0)
@@ -907,7 +918,7 @@ func _draw_fx(area: Rect2, k: float, font: Font) -> void:
 			else:
 				draw_circle(at, 3.0, Color(BATTLE, fade))
 	for p: Dictionary in _fx.projectiles(f):
-		var col: Color = PLAYER_COLORS.get(p["player"], TEXT)
+		var col: Color = TeamPalette.color(p["player"], TEXT)
 		var head := area.position + (p["at"] as Vector2) * k
 		var tail := area.position + (p["tail"] as Vector2) * k
 		if not area.has_point(head):  # a miss leaving the field
@@ -939,7 +950,7 @@ func _draw_zones(font: Font, area: Rect2, k: float) -> void:
 		var c := area.position + Vector2(z["x"], z["y"]) / ONE * k
 		var rad := float(z["radius"]) / ONE * k
 		var owner := int(z["owner"])
-		var col: Color = PLAYER_COLORS.get(owner, TEXT) if owner != 0 else Color(0.85, 0.85, 0.85)
+		var col: Color = TeamPalette.color(owner, TEXT) if owner != 0 else TeamPalette.color(TeamPalette.NEUTRAL_ID)
 		var held := owner != 0 and int(z["amount"]) >= int(z["threshold"])
 		draw_circle(c, rad, Color(col, 0.2 if held else 0.07))
 		draw_arc(c, rad, 0, TAU, 48, Color(col, 0.8), 1.5 if held else 1.0)
@@ -957,7 +968,7 @@ func _draw_shots(pos: Dictionary) -> void:
 		var age := f - float(sh[0])
 		if age < 0.0 or age > 3.0 or not pos.has(sh[1]) or not pos.has(sh[2]):
 			continue
-		var col: Color = PLAYER_COLORS.get(frames[sh[0]][sh[1]]["player"], TEXT)
+		var col: Color = TeamPalette.color(frames[sh[0]][sh[1]]["player"], TEXT)
 		draw_line(pos[sh[1]], pos[sh[2]], Color(col.lightened(0.45), 0.8 * (1.0 - age / 3.0)), 1.0)
 
 
@@ -1113,6 +1124,8 @@ func squad_at(m: Vector2, radius: float = 4.0) -> int:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_EXIT and is_inside_tree():
 		_clear_hover()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED and visible:
+		queue_redraw()  # a shown view resolves the current palette (sw-ijp.5)
 
 
 ## No hex is under the cursor any more: it left the view, or the view stopped

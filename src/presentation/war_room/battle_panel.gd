@@ -16,8 +16,8 @@ func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictio
 	who.sort()
 	for p: int in who:
 		var l := _dim("%s:  influence %d  ·  value %d" % [EventText.side(p, player), int(scores[p]["influence"]), int(scores[p]["value"])])
-		if ContextView.PLAYER_COLORS.has(p):  # a side's colour is its identity, not a theme's
-			l.add_theme_color_override("font_color", ContextView.PLAYER_COLORS[p])
+		if TeamPalette.has(p):  # a side's colour is its identity, not a theme's
+			l.add_theme_color_override("font_color", TeamPalette.text_color(p))
 		add_child(l)
 	for z: Dictionary in obs.get("zones", []):
 		var owner := int(z["owner"])

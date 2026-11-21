@@ -1074,7 +1074,7 @@ class MapView:
 		var live := painter.tool == MapPainter.Tool.OBJECT
 		for i in s.sides.size():
 			var side: Dictionary = s.sides[i]
-			var col: Color = ContextView.PLAYER_COLORS.get(int(side["player"]), Color(0.85, 0.85, 0.85))
+			var col: Color = TeamPalette.color(int(side["player"]))
 			var r := s.area_rect(i)
 			var box := Rect2(origin + Vector2(r.position) * zoom, Vector2(r.size) * zoom)
 			var chosen: bool = live and sel.get("kind", "") == "side" and sel["index"] == i
