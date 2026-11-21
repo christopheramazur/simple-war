@@ -32,6 +32,11 @@ func run(ctx: SimContext) -> void:
 func _plan_routes(state: BattleState) -> void:
 	var r := state.rules
 	var sq := state.squads
+	# Tie-breaks run in each side's canonical frame (sw-0nl): a side facing
+	# 180° plans on the rotated grid, so mirror seats detour mirrored ways.
+	var frames := {}
+	for side: Dictionary in r.sides:
+		frames[int(side["player"])] = Fixed.ANGLE_HALF if int(side["facing"]) == Fixed.ANGLE_HALF else 0
 	var route: PackedByteArray = sq.take_column(&"route")
 	var wx: PackedInt64Array = sq.take_column(&"wx")
 	var wy: PackedInt64Array = sq.take_column(&"wy")
@@ -52,7 +57,7 @@ func _plan_routes(state: BattleState) -> void:
 				plan = route[row] == 1 or drift > ARRIVE
 		if not plan:
 			continue
-		var leg := r.routes.next_waypoint(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1])
+		var leg := r.routes.next_waypoint(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1], frames.get(sq.player[row], 0))
 		wx[row] = leg[0]
 		wy[row] = leg[1]
 		route[row] = 2 if leg[2] == 1 else 1

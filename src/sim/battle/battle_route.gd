@@ -10,7 +10,10 @@ extends RefCounted
 ## a restored or forecast battle recomputes the same answers.
 ##
 ## Integers only. Entering a cell costs 10 (14 diagonally) times the cell's
-## cost; a cost of 0 is impassable. Equal routes are broken by cell index.
+## cost; a cost of 0 is impassable. Equal routes are broken by cell index in
+## the planning frame: a side facing 180° plans on the rotated grid, so its
+## tie-breaks mirror its rival's instead of favouring one compass corner
+## (sw-0nl).
 ##
 ## A route class is a set of terrain costs shared by squad templates
 ## (BattleRules.rt_cost): each feature costs what the slowest member pays, and
@@ -26,37 +29,50 @@ const CACHE_MAX: int = 8192
 const _DX: Array[int] = [1, -1, 0, 0, 1, 1, -1, -1]
 const _DY: Array[int] = [0, 0, 1, -1, 1, -1, 1, -1]
 
-## (class * n + start) * n + goal -> waypoint cell * 2 + (1 if it is the goal).
+## ((frame * classes + class) * n + start) * n + goal -> waypoint cell * 2
+## + (1 if it is the goal). Cells are in the planning frame, so a flipped
+## plan never reuses an unflipped one.
 var _cache: Dictionary = {}
 ## Per route class: cost per cell (0 impassable), and connected region per cell.
 var _costs: Dictionary = {}
 var _regions: Dictionary = {}
+## The same, reversed: cell c of the 180° frame is cell n-1-c of the map.
+var _costs_flipped: Dictionary = {}
+var _regions_flipped: Dictionary = {}
 ## Plans made (cache misses), for tests and profiling.
 var plans: int = 0
 
 
 ## [x, y, final] in fixed point. `final` is 1 when x, y is where the squad
 ## stops: the destination itself, or the nearest cell it can reach.
-func next_waypoint(r: BattleRules, route_class: int, from_x: int, from_y: int, to_x: int, to_y: int) -> PackedInt64Array:
+## `frame` is the side's facing: at ANGLE_HALF the whole plan (costs, start,
+## goal, tie-breaks) runs in the 180°-rotated player-canonical frame and the
+## answer rotates back, so mirrored seats take mirrored detours (sw-0nl).
+## Other facings plan unrotated.
+func next_waypoint(r: BattleRules, route_class: int, from_x: int, from_y: int, to_x: int, to_y: int, frame: int = 0) -> PackedInt64Array:
 	var w := r.width
 	var n := w * r.height
-	var costs := _costs_of(r, route_class)
+	var flip := frame == Fixed.ANGLE_HALF
+	var costs := _costs_of(r, route_class, flip)
+	var regions: PackedInt32Array = (_regions_flipped if flip else _regions)[route_class]
 	var start := _cell(r, from_x, from_y)
 	var goal := _cell(r, to_x, to_y)
+	if flip:
+		start = n - 1 - start
+		goal = n - 1 - goal
 	if costs[start] == 0:
 		# Standing where it can't be (a map change, a spawn): step out first.
 		var out := _nearest(r, costs, PackedInt32Array(), start, -1)
 		if out < 0:
 			return PackedInt64Array([to_x, to_y, 1])
-		return _centre(out, w, 0)
-	var regions: PackedInt32Array = _regions[route_class]
+		return _centre((n - 1 - out) if flip else out, w, 0)
 	var exact := true
 	if costs[goal] == 0 or regions[goal] != regions[start]:
 		goal = _nearest(r, costs, regions, goal, regions[start])
 		exact = false
 	if goal == start:
-		return PackedInt64Array([to_x, to_y, 1]) if exact else _centre(goal, w, 1)
-	var key := (route_class * n + start) * n + goal
+		return PackedInt64Array([to_x, to_y, 1]) if exact else _centre((n - 1 - goal) if flip else goal, w, 1)
+	var key := (((1 if flip else 0) * r.rt_cost.size() + route_class) * n + start) * n + goal
 	var hit: int = _cache.get(key, -1)
 	if hit < 0:
 		if _cache.size() >= CACHE_MAX:
@@ -66,7 +82,8 @@ func next_waypoint(r: BattleRules, route_class: int, from_x: int, from_y: int, t
 		plans += 1
 	if hit & 1 == 1 and exact:
 		return PackedInt64Array([to_x, to_y, 1])
-	return _centre(hit >> 1, w, hit & 1)
+	var cell := hit >> 1
+	return _centre((n - 1 - cell) if flip else cell, w, hit & 1)
 
 
 static func _cell(r: BattleRules, x: int, y: int) -> int:
@@ -78,7 +95,16 @@ static func _centre(cell: int, w: int, final: int) -> PackedInt64Array:
 	return PackedInt64Array([Fixed.from_int(cell % w) + Fixed.ONE / 2, Fixed.from_int(cell / w) + Fixed.ONE / 2, final])
 
 
-func _costs_of(r: BattleRules, route_class: int) -> PackedInt32Array:
+func _costs_of(r: BattleRules, route_class: int, flip: bool = false) -> PackedInt32Array:
+	if flip:
+		if not _costs_flipped.has(route_class):
+			var costs := _costs_of(r, route_class).duplicate()
+			costs.reverse()
+			var regions: PackedInt32Array = (_regions[route_class] as PackedInt32Array).duplicate()
+			regions.reverse()
+			_costs_flipped[route_class] = costs
+			_regions_flipped[route_class] = regions
+		return _costs_flipped[route_class]
 	if _costs.has(route_class):
 		return _costs[route_class]
 	var by_feature: PackedInt32Array = r.rt_cost[route_class]

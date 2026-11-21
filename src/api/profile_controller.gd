@@ -106,9 +106,16 @@ static func default_mask() -> Dictionary:
 	return _default_mask
 
 
-## Battle rules are public data; utility battles value squads with them.
+## Battle rules are public data; utility battles value squads with them, and
+## the battle process reads its side's facing for mirror-neutral tie-breaks
+## (sw-0nl).
 func set_battle_rules(rules: BattleRules) -> void:
 	_rules = rules
+	var proc := _battle(0)
+	while proc is ScriptedProcess:
+		proc = (proc as ScriptedProcess).then
+	if proc.has_method("set_battle_rules"):
+		proc.set_battle_rules(rules)
 
 
 ## The battle process of a standalone battle (engagement 0); for tests.
