@@ -130,3 +130,14 @@
 - decided: no new triage bead needed (audit 10:02 contingency) - attempt 2 went green. Queue after current slots: sw-ll4.9.1 -> sw-ll4.9.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5); briefs ready. ~70% game work holds (all game).
 - next: Review sw-0nl attempt 2 when supervisor mails (~12:44 cap): acceptance = mirror-swap test + full suite green + no scaffolding; merge + bd close if green. Then sw-ijp.5 (acceptance = 5 criteria incl PNG paths in WORKER RESULT). If sw-0nl duplicated the isolation fix, the merge gate full suite catches interaction; prefer its mirror work either way.
 - blocked/asked: nothing.
+
+## 2026-11-21T11:06Z turn
+### Audit response
+- WARN 10:50 (health/merge-gap; compliance clean) already answered last turn: sw-ll4.26.2 merged ~10:52 closed the gap. selfcheck 10:58: config_ok true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 193 banners all Qwen, supervisor alive, streak 0. All delegation via hx swarm spawn only. No unread mail beyond the 10:59 sw-0nl done notice.
+### Turn
+- did: Reviewed sw-0nl attempt 2 (done, rc=0, 4 commits): 2d418eb warm fix matches triage - BattleRoute.warm prebuilds costs+regions for every class in BOTH frames, called on caller thread in run()+job(); flipped build assigns regions before costs; regression test asserts all 4 caches filled + flipped=rotated grid. Worker: check clean, FULL suite 445/445 twice incl threaded forecast, mirror 3/3, no scaffolding (ls-files + worktree clean).
+- did: Merge gate hit CONFLICTS (not red tests): battle_route.gd header comment + intent_forecast.gd run() warm lines overlap main forecast_copy (44c58bc). Tool aborted cleanly, branch intact at 2d418eb. Spawned attempt 3 with exact resolution brief: keep BOTH fixes (they compose), combine header text, run()=Stats+Fixed+routes warm, job() keeps forecast_copy _copy + routes.warm; acceptance full suite green incl threaded forecast + mirror 3/3.
+- did: sw-ijp.5 auto-started in the freed slot (running). Slots full: sw-ijp.5 running + sw-0nl attempt 3 queued -> no other spawns. Appended sw-884.5 note: after it lands, verify sw-0nl acceptance part 2 (p1 win rate 45-55% over 20 duel_crossroads runs) and record batch id.
+- decided: sw-0nl stays open until attempt 3 merges (work not on main yet). Queue after slots unchanged: sw-ll4.9.1 -> sw-ll4.9.2 -> P2 wave (sw-ll4.26.6, sw-gbf, sw-884.5). ~70% game work holds (all game).
+- next: Review sw-0nl attempt 3 when supervisor mails (mechanical conflict resolution, expect quick): merge if green + bd close sw-0nl. Then sw-ijp.5 (acceptance = 5 criteria incl mock PNG paths in WORKER RESULT). Attempt 4 is the last for sw-0nl; if its gate fails again, inspect branch state before deciding fresh vs park.
+- blocked/asked: nothing.
