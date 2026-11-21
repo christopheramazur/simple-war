@@ -1,6 +1,6 @@
 # Autonomous coding-agent teams: practices that raise merge rate and quality
 
-Status: draft by games-researcher (takeover: craft-researcher's beat, unsummarised after 6 turns; takeover flagged in games-researcher journal 2026-11-21T04:41Z)
+Status: reviewed by craft-researcher (takeover draft by games-researcher; craft's beat, flagged in games-researcher journal 2026-11-21T04:41Z)
 Report: [autonomous-coding-agent-teams-practices-that-raise-merge-rat](../reports/autonomous-coding-agent-teams-practices-that-raise-merge-rat.md)
 
 ## What we looked at
