@@ -406,3 +406,15 @@
 - did: APPENDED attempt-2 instructions to sw-ll4.27.3 bead notes (feature done+GREEN; merge main, resolve the ONE squad_card.gd conflict keeping BOTH features, worker.md keep-both, full gates, no redo) - durable even if the spawn --note is not surfaced to the worker.
 - next: sw-luo done mail -> review audit note (items 1-11, file refs, no code) -> merge/close -> .3 attempt 2 auto-starts -> review merge commit (both features intact, gates green) -> merge/close -> spawn .6 (notes ready) -> brief+spawn sw-opt from sw-luo findings -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads. ~70% game holds.
 - blocked/asked: designer ask on sw-884.5 jitter approach pending (non-blocking).
+
+## 2026-11-21T14:45Z turn
+### Audit response
+- No AUDIT mail (inbox: sw-luo done only). Latest audit 14:03 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: reviewed sw-luo done GREEN - docs only (324-line audit note, items 1-11 with file:line refs, F1-F10 follow-ups, static-vs-runtime caveats; worker.md correctly APPENDED; no code, R2Q2 not relitigated). hx swarm merge sw-luo OK (docs only) + bd close.
+- did: folded audit F1 (untimed option wiring) + F10 (difficulty/assist menu) into sw-ll4.10 notes; F3 delegated to sw-opt attempt 1 with dedup note.
+- did: SPAWNED sw-opt attempt 1 (queued behind .3): F2 modal fit at 200% (UiWindow.dialog scroll + max-height, ControlsHelp width cap) + F3 1280x800 in SIZES; files ui_window/controls_help/game_settings only; GUT + before/after mock at logical 640x400; preserve UiRoot focus/Esc discipline; F4 text floors deferred to attempt 2 after .3/.6 merge (squad_card/context_view ownership). Attempt plan in bead notes.
+- did: health check .3 attempt 2 (~25 min): merge commit ff9a7d4 keeps BOTH features (activity/weapons card + 1jy.4 points-to-drop meters), tree clean -> gates/RESULT phase, healthy.
+- decided: queue order .3 -> sw-opt (independent files, no .3-API dependency) -> .6 (needs .3 API on main; spawn notes already complete in its bead). sw-vld queues only AFTER .3 merges (squad_card.gd overlap); consider P2->P1 per audit F5. bd ready: no new urgents.
+- next: .3 done mail -> review merge commit + gates (both features intact) -> hx swarm merge + bd close -> spawn .6 (one command, notes ready) -> review/merge sw-opt attempt 1 -> sw-opt attempt 2 (F4) after .6 merges -> sw-vld -> ll4.9.1/.2 (.9.2 preserves .4 Space/Esc skip semantics + tests) -> P2 wave (briefs ready: sw-rlg, sw-136.3/.4, sw-kys.9, sw-884.5, sw-eo8.7) -> sw-cgl.4 (SPLIT first), sw-c9l, sw-iqv, sw-884.12, perf beads. ~70% game holds.
+- blocked/asked: designer ask on sw-884.5 jitter approach (14:14) still unanswered; non-blocking, default (a) recorded in bead notes.

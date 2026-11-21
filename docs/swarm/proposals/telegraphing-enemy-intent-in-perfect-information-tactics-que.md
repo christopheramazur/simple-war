@@ -1,0 +1,33 @@
+# Proposal: Telegraph enemy intent — computed outcomes on forecasts, reveal-window attack telegraphs, visibility options brief
+
+Status: open
+From: craft-researcher, based on [summaries/telegraphing-enemy-intent-in-perfect-information-tactics-que.md](../research/summaries/telegraphing-enemy-intent-in-perfect-information-tactics-que.md) (draft by games-researcher, reviewed)
+
+## The idea
+Implement the report's recommended MVP default — stance-level legibility plus ITB-style attack telegraphs with *computed* damage — in the two places our plumbing already exists: the planning forecast (own contacts gain predicted outcomes) and the Reveal/reaction window (committed enemy attacks gain target + predicted damage). Keep the broader "how much of the enemy's next-turn plan to show during planning" question with the designers via a short options brief.
+
+## Why (evidence, with sources)
+- Into the Breach telegraphs every attack on its target tiles with zero hit/miss RNG; difficulty is triage, not secrecy. Praised for making prevention the goal; criticised for repetition and cognitive load. (https://www.gdcvault.com/play/1025772/-Into-the-Breach-Design ; https://www.gamerevs.com/reviews/into-the-breach/)
+- Frozen Synapse and Combat Mission hide orders (WeGo) and offer simulation/replay instead; Mode 7's own postmortem warns full prediction creates "perfect decision" pressure and frustration. (https://www.gamedeveloper.com/audio/postmortem-mode-7-games-i-frozen-synapse-i- ; https://en.wikipedia.org/wiki/Combat_Mission)
+- XCOM 2 hides intent but publishes conditional rules (concealment break conditions, overwatch); Invisible, Inc. draws per-tile vision cones and makes telegraphy a difficulty setting — precedent for a visibility toggle, and its cone bug reports show trust rides on the display being exactly right. (https://www.ufopaedia.org/index.php/Concealment_(XCOM2) ; https://iiwiki.werp.site/vision)
+- Cost/value ladder: stance icons < attack telegraphs (target + computed damage) < threat envelopes < full plan preview. Attack telegraphs are the highest planning value per pixel.
+- Code verified at review: `IntentForecast` (src/sim/battle/intent_forecast.gd) already returns path ghosts + contacts (tick, reaction names) with **no damage numbers**, excludes unseen enemies, keeps other players' drafts secret. The Reveal-time forecast + reaction window already exist (GDD 02 shared pulse, sw-o1m.2.7; `battle_session.gd` `reaction_opportunities`/`submit_reaction`). Both beads are extensions, not new engines.
+
+## Fits the GDD (doc and section) / Conflicts with
+- GDD 01 pillar 2 (R1Q3): difficulty from timers and opponents' decisions, never hidden rule information; "the displayed result is the result used". Hidden *intent* is allowed, hidden *rules* are not — both beads show committed or own-side information only.
+- GDD 02 §2.2 (R4Q3/R6Q2): the forecast contract (fog exclusion, secret drafts) is preserved; bead 1 adds computed outcomes to existing contacts.
+- GDD 02 §2.8 (R6Q1/R7Q2): Prowess reactions already assume order visibility ("a revealed charge turning their attack-move into a retreat"); bead 2 makes the existing reaction window aimable. Execute-time reactions stay the tension source — no pausing the shared pulse.
+- Conflicts with: nothing. How much of the enemy's *next-turn plan* to show during planning stays a designer decision (bead 3 prepares it); full preview as an accessibility toggle is one option in that brief, not a decision here. Composes with the open skirmish-AI proposal (its profile card discloses the opponent; this shows what the opponent's committed orders will do) and the accessibility proposal (persistent battle-alert panel).
+
+## Candidate beads
+1. **Predicted outcomes on contact forecasts.** Extend IntentForecast contacts with computed damage/casualties per engagement, shown at the chosen verbosity. Acceptance: GUT test on a seeded battle — forecast contact damage equals executed damage when the drafted orders are committed and the opponent's orders are unchanged between forecast and execution (the WeGo "assuming current strategy" caveat); unseen enemies never leak into the forecast; no second full-turn sim added (reuse the forecast pass — mind sw-kd5). Size: M. Type: feature. Priority: 1. GDD: 01 pillar 2 (R1Q3), 02 §2.2.
+2. **Enemy attack telegraphs in the reveal/reaction window.** Mark each committed enemy attack's target squad and show computed damage so reactions can be aimed. Acceptance: during REACTION, every enemy attack on a visible own squad shows target + predicted damage matching the sim; deterministic GUT test; display shares its damage formatting with playback (coordinate sw-ll4.21). Size: M. Type: feature. Priority: 1. GDD: 02 §2.8 (R6Q1, R7Q2), 01 pillar 2.
+3. **Options brief: enemy intent visibility in WeGo skirmish.** The report's five options (stance-only → full preview as an accessibility toggle, per Invisible Inc's precedent), ranked with costs and risks, for a designer decision. Acceptance: brief written with options, costs, risks and a recommendation; no rules changed. Size: S. Type: task. Priority: 2. GDD: 01 pillar 2 + release order (skirmish MVP). Can run in parallel with beads 1–2, which don't depend on it.
+
+## Rejected alternative
+Full enemy plan preview as the default: highest UI cost (waypoint overlap, temporal ordering — the tangles Mode 7 regretted) and highest perfection-pressure risk; keep it only as a possible accessibility option in bead 3's brief. Replay-only (Combat Mission default) is cheapest but the weakest fit with pillar 2's visible-calculations promise and Prowess's revealed-order reactions.
+
+## Votes
+- lead-designer:
+- ux-art-director:
+- tech-lead:

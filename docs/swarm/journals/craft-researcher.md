@@ -11,3 +11,10 @@
 - decided: Skipped commissioning this turn (step-1 review backlog had 4 drafts; did the two oldest, both my beat). Map-editors topic still unticked on agenda — games-researcher's game-design beat, fine for them to commission.
 - next: Review telegraphing-enemy-intent draft, then commander-duels draft (games-researcher may take one); summarise skirmish-ai report if still unsummarised. Proposals may need vote follow-up.
 - blocked/asked: none.
+
+## 2026-11-21T14:29Z turn
+- did: Reviewed skirmish-ai draft vs report; re-verified all code claims (profiles.json omits fuzz on all 3 profiles, main_menu shows name+text only, reinforcements strongest-first, since_contact gate). Fixed one precision error: gate damps exploration 1.0→0.2, not a hard stop. Proposal written (profile card S/p1, cheese-probe lab S/p2, fuzz presets M/p2), designers mailed.
+- did: Reviewed telegraphing-enemy-intent draft vs report; verified IntentForecast (ghosts+contacts, no damage, fog exclusion) and REACTION window (battle_session.gd, GDD 02 shared pulse sw-o1m.2.7). Tightened bead 1 acceptance: forecast=executed damage only if opponent orders unchanged (WeGo caveat); noted reveal forecast already exists so bead 2 is display work. Proposal written (contact damage M/p1, reveal telegraphs M/p1, visibility brief S/p2), designers mailed. Both proposals compose; dedup notes vs sw-ll4.21/.26, sw-kd5 included.
+- decided: Two step-1 reviews this turn; skipped commissioning (agenda's one unticked topic, scenario-design, is games-researcher's beat — they may take it; queue was empty at last check).
+- next: Review commander-duels draft (2 candidates: interview-prep brief S, champion-variant spike M — check it decides nothing re Open topic 6). Map-editors report still unsummarised (games-researcher's commission; summarise only if they haven't next turn). Then commission scenario-design if still unticked and queue <2. Watch designer votes on the 4 open proposals.
+- blocked/asked: none.

@@ -1,6 +1,6 @@
 # Telegraphing enemy intent in perfect-information tactics
 
-Status: draft by games-researcher
+Status: reviewed by craft-researcher
 Report: [telegraphing-enemy-intent](../reports/telegraphing-enemy-intent-in-perfect-information-tactics-que.md)
 
 ## What we looked at
@@ -15,11 +15,11 @@ How Into the Breach, Frozen Synapse, Combat Mission (WeGo), XCOM 2 and Invisible
 
 ## What it means for Simple War
 - **Pillar 2 (GDD 01, R1Q3):** difficulty from timers and opponents' decisions, never hidden rule information. Telegraphs + stance icons implement this directly; hidden *intent* is allowed, hidden *rules* are not.
-- **Code check:** `IntentForecast` (src/sim/battle/intent_forecast.gd; GDD 02 §2.2, R4Q3/R6Q2) already forecasts the player's own drafts: path ghosts + contacts (engagement tick + reaction names). It shows **no predicted damage numbers**, and enemy drafts stay secret during planning. The gap is computed outcomes and enemy-side telegraphs — not a new forecast engine.
+- **Code check:** `IntentForecast` (src/sim/battle/intent_forecast.gd; GDD 02 §2.2, R4Q3/R6Q2) already forecasts the player's own drafts: path ghosts + contacts (engagement tick + reaction names). It shows **no predicted damage numbers**, and enemy drafts stay secret during planning. The gap is computed outcomes and enemy-side telegraphs — not a new forecast engine. The Reveal-time forecast and reaction window already exist (GDD 02 shared pulse, sw-o1m.2.7; `battle_session.gd` `reaction_opportunities`/`submit_reaction`), so enemy telegraphs at reveal are display work on existing plumbing.
 - **Prowess reactions (GDD 02 §2.8, R6Q1/R7Q2)** already assume order visibility ("a revealed charge turning their attack-move into a retreat"). In WeGo, a telegraph is committed intent at reveal time, with Execute-time reactions as the tension source (report analysis, not a GDD decision).
 - **How much of the enemy's next-turn plan to show during planning stays a designer decision**; the report only ranks cost/value.
 
 ## Candidate beads
-1. **Predicted outcomes on contact forecasts.** Extend IntentForecast contacts with computed damage/casualties per engagement, shown at the chosen verbosity. Why: pillar 2's "the displayed result is the result used"; highest planning value per pixel, builds on the existing forecast. GDD: 01 pillar 2 (R1Q3), 02 §2.2. Acceptance: GUT test on a seeded battle — forecast contact damage equals executed damage when the drafted orders are committed; unseen enemies never leak into the forecast. Size: M.
+1. **Predicted outcomes on contact forecasts.** Extend IntentForecast contacts with computed damage/casualties per engagement, shown at the chosen verbosity. Why: pillar 2's "the displayed result is the result used"; highest planning value per pixel, builds on the existing forecast. GDD: 01 pillar 2 (R1Q3), 02 §2.2. Acceptance: GUT test on a seeded battle — forecast contact damage equals executed damage when the drafted orders are committed **and the opponent's orders are unchanged between forecast and execution** (the WeGo "assuming current strategy" caveat; a changed enemy plan legitimately changes the outcome); unseen enemies never leak into the forecast. Size: M.
 2. **Enemy attack telegraphs in the reveal/reaction window.** Mark each committed enemy attack's target squad and show computed damage so reactions can be aimed. Why: makes the existing reaction window (battle_session.gd) readable; mirrors FS/CM reveal without pausing the pulse. GDD: 02 §2.8 (R6Q1, R7Q2), 01 pillar 2. Acceptance: during REACTION, every enemy attack on a visible own squad shows target + predicted damage matching the sim; deterministic test. Size: M.
 3. **Options brief: enemy intent visibility in WeGo skirmish.** The report's five options (stance-only → full preview as an accessibility toggle, per Invisible Inc's precedent), ranked with costs and risks, for a designer decision. Why: keeps "how much to show" with the designers. GDD: 01 pillar 2 + release order (skirmish MVP). Acceptance: brief written with options, costs, risks and a recommendation; no rules changed. Size: S.
