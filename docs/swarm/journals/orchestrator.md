@@ -242,3 +242,13 @@
 - did: sw-1jy.5 still running, healthy (commit c296519 worst-band glance+trend; log active on context_view battle summaries). Never merge while running. No designer direction answer yet; default (a) downward stands for sw-1jy.4.
 - next: sw-1jy.5 done mail -> review (fog-safe own-squad worst band, backward trend, word+icon, mock PNG 2+ battles, GUT via Game API) -> merge/close -> sw-ll4.27.1 auto-starts -> review on done (3 acceptance tests + determinism + sims) -> merge/close -> spawn sw-ll4.27.4 (brief ready) -> then .2 -> .3 -> .6. After wave: re-spawn sw-1jy.4 fresh, then ll4.9.1/.2, then P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9) + sw-ll4.27.5. ~70% game work holds (all game).
 - blocked/asked: nothing new; designer direction answer pending (non-blocking).
+
+## 2026-11-21T12:26Z turn
+### Audit response
+- No AUDIT mail (inbox only read/). Latest audit 11:54 PASS, streak 0. No selfcheck needed; config untouched (max_parallel=1 deliberate).
+### Turn
+- did: Full PRE-REVIEW of sw-1jy.5 (3 commits c296519/e119e3a/813044d) while worker runs final gates. Sim battle_summary (overworld_session.gd) fog-safe own-squads-only via Pools.band, player-gated; backward-looking trend from _band_history recorded at battle start + each turn, saved with game but never fed to sim (determinism safe, erased on battle end). Presentation pure projection (context_view _draw_battle_summary from extra["summaries"], war_room tabs/PiPs/menu). Word+icon never colour alone. Tests: fog (enemy drain no-op), gating, forecast-never-moves-trend, save persistence, UI tab/tile test. Mock PNG verified: 2 battles, Broken·worsening + Surging·improving on tabs AND tiles. Check gate clean 154/0. Worker still running full suite -> NOT merged yet.
+- did: Appended note to sw-ll4.27.4: this merge adds ~26 lines to war_room.gd; brief line refs below :502 drift, locate by symbol (_blocker :405-413 unchanged).
+- decided: on done mail verify full suite green + WORKER RESULT in log -> hx swarm merge sw-1jy.5 + bd close. Conflict-free expected (no overlap with 1jy.3: squad_card/battle_rules untouched; battle_session untouched).
+- next: merge/close 1jy.5 -> sw-ll4.27.1 auto-starts (P1 mortar) -> review on done (3 acceptance tests + determinism + sims) -> merge/close -> spawn sw-ll4.27.4 (brief ready, mind line drift) -> .2 -> .3 -> .6. After wave: re-spawn sw-1jy.4 fresh, ll4.9.1/.2, P2 wave (sw-rlg, sw-136.3/.4, sw-kys.9). ~70% game work holds (all game).
+- blocked/asked: nothing new; designer direction answer pending (non-blocking, default (a) downward stands for sw-1jy.4).
