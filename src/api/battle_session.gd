@@ -27,6 +27,8 @@ var sim: BattleSim
 var clock: PulseClock
 var bus: PulseBus
 ## [{"turn", "phase", "player", "kind", "payload"}]
+## Seeded deployment jitter in cells (0 = the standard deployment); harness runs only.
+var deploy_jitter: int = 0
 var input_log: Array = []
 var initial_snapshot: Dictionary = {}
 
@@ -38,25 +40,26 @@ var _replaying: bool = false
 
 
 ## Creates a session at turn 1, Planning. Returns null if the data is invalid.
-static func create(templates: TemplateTable, hash_hex: String, scenario: String, seed_in: int, clock_config: ClockConfig = null) -> BattleSession:
+static func create(templates: TemplateTable, hash_hex: String, scenario: String, seed_in: int, clock_config: ClockConfig = null, jitter: int = 0) -> BattleSession:
 	var r := BattleRules.compile(templates, scenario, hash_hex)
 	if not r.is_valid():
 		push_error("BattleSession: %s" % "; ".join(r.errors))
 		return null
 	var s := BattleSession.new()
-	s._setup(r, scenario, seed_in, hash_hex, clock_config)
+	s._setup(r, scenario, seed_in, hash_hex, clock_config, jitter)
 	s.clock.start()
 	s._pump()
 	return s
 
 
-func _setup(r: BattleRules, scenario: String, seed_in: int, hash_hex: String, clock_config: ClockConfig) -> void:
+func _setup(r: BattleRules, scenario: String, seed_in: int, hash_hex: String, clock_config: ClockConfig, jitter: int = 0) -> void:
+	deploy_jitter = jitter
 	rules = r
 	scenario_id = scenario
 	seed_value = seed_in
 	data_hash = hash_hex
 	sim = BattleSim.new()
-	state = BattleSetup.create(1, rules, seed_in)
+	state = BattleSetup.create(1, rules, seed_in, jitter)
 	bus = PulseBus.new()
 	bus.register_context(state)
 	TransferSystem.new().attach(bus)
@@ -390,7 +393,7 @@ static func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> boo
 func save() -> PackedByteArray:
 	assert(clock.phase != PulseClock.Phase.EXECUTE, "BattleSession.save: not during execute")
 	var data := {
-		"version": SAVE_VERSION, "scenario": scenario_id, "seed": seed_value, "data_hash": data_hash,
+		"version": SAVE_VERSION, "scenario": scenario_id, "seed": seed_value, "jitter": deploy_jitter, "data_hash": data_hash,
 		"clock_config": _config_dict(clock.config), "initial": initial_snapshot, "inputs": input_log.duplicate(true),
 		"state": state.snapshot(), "clock": clock.snapshot(), "orders": _orders.duplicate(true),
 		"opportunities": _opportunities.duplicate(true), "telegraphs": _telegraphs.duplicate(true), "hash": state.state_hash().hex_encode(),
@@ -410,7 +413,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		return null
 	var r := BattleRules.compile(templates, data["scenario"], hash_hex)
 	var s := BattleSession.new()
-	s._setup(r, data["scenario"], data["seed"], hash_hex, _config_from(data["clock_config"]))
+	s._setup(r, data["scenario"], data["seed"], hash_hex, _config_from(data["clock_config"]), int(data.get("jitter", 0)))
 	s.initial_snapshot = data["initial"]
 	s.state.restore(data["state"])
 	Centroids.update(s.state)
@@ -431,7 +434,7 @@ static func rebuild(bytes: PackedByteArray, templates: TemplateTable, hash_hex: 
 	if typeof(data) != TYPE_DICTIONARY or data.get("data_hash") != hash_hex:
 		last_error = "unreadable save or different content"
 		return null
-	var s := create(templates, hash_hex, data["scenario"], data["seed"], _config_from(data["clock_config"]))
+	var s := create(templates, hash_hex, data["scenario"], data["seed"], _config_from(data["clock_config"]), int(data.get("jitter", 0)))
 	s.replay_inputs(data["inputs"])
 	if s.state.state_hash().hex_encode() != data["hash"]:
 		last_error = "inputs did not reproduce the saved state"

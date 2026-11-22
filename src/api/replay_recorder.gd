@@ -38,7 +38,7 @@ static func from_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 	var data: Variant = bytes_to_var(raw) if not raw.is_empty() else null
 	if typeof(data) != TYPE_DICTIONARY or data.get("data_hash") != hash_hex:
 		return null
-	var session := BattleSession.create(templates, hash_hex, data["scenario"], data["seed"], BattleSession._config_from(data["clock_config"]))
+	var session := BattleSession.create(templates, hash_hex, data["scenario"], data["seed"], BattleSession._config_from(data["clock_config"]), int(data.get("jitter", 0)))
 	var rec := ReplayRecorder.new()
 	rec._attach(session)
 	session.replay_inputs(data["inputs"])

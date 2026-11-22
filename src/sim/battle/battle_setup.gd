@@ -6,10 +6,13 @@ extends RefCounted
 ## each unit, moves to the nearest cell the squad's slowest member can.
 
 
-static func create(context_id: int, rules: BattleRules, seed_value: int) -> BattleState:
+## `jitter` (whole cells, default 0 = the even GDD 02 §2.4 deployment) offsets
+## each squad's anchor within its deploy rectangle, seeded from the state's
+## seed, so harness seeds vary a battle. Games leave it 0.
+static func create(context_id: int, rules: BattleRules, seed_value: int, jitter: int = 0) -> BattleState:
 	var state := BattleState.new(context_id, rules, seed_value)
 	for side in rules.sides:
-		deploy_side(state, side)
+		deploy_side(state, side, jitter, seed_value)
 	Centroids.update(state)
 	return state
 
@@ -17,16 +20,24 @@ static func create(context_id: int, rules: BattleRules, seed_value: int) -> Batt
 ## Deploys a side's squads; returns their IDs in order. A side may carry
 ## "alive" (units per squad, e.g. overworld losses; default full strength)
 ## and "gear" (per squad, as spawn_squad takes it).
-static func deploy_side(state: BattleState, side: Dictionary) -> PackedInt64Array:
+static func deploy_side(state: BattleState, side: Dictionary, jitter: int = 0, jitter_seed: int = 0) -> PackedInt64Array:
 	var d: PackedInt64Array = side["deploy"]
 	var list: PackedInt64Array = side["squads"]
 	var alive: PackedInt64Array = side.get("alive", PackedInt64Array())
 	var gear: Array = side.get("gear", [])
 	var n := list.size()
 	var ids := PackedInt64Array()
+	var rng: SimRng = null
+	if jitter > 0:
+		rng = SimRng.new(jitter_seed * 1000003 + int(side["player"]) * 7919 + 12345)
 	for i in n:
 		var ax := d[0] + d[2] / 2
 		var ay := d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * n)
+		if rng != null:
+			var jx := mini(jitter * Fixed.ONE, d[2] / 2)
+			var jy := mini(jitter * Fixed.ONE, d[3] / 2)
+			ax = clampi(ax + rng.next_range(-jx, jx), d[0], d[0] + d[2])
+			ay = clampi(ay + rng.next_range(-jy, jy), d[1], d[1] + d[3])
 		ids.append(spawn_squad(state, side["player"], list[i], ax, ay, side["facing"], alive[i] if i < alive.size() else -1,
 			gear[i] if i < gear.size() else []))
 	return ids
