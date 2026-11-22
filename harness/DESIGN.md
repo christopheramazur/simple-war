@@ -106,6 +106,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - Thresholds: at least 3 sessions and 5 uses. Filing: at most 3 per run, at most every 6 h, deduplicated by shape.
   - Savings: each filed shape keeps its tokens per use as a baseline, to compare with the verb's tokens per use in `hx mine --report`.
   - First run (2026-11-01): no shape yet meets the 3-session bar. Only 2 sessions have real shell activity, and the top shape is `uv run pytest` with 17 uses in 1 session.
+  - Built (sw-xs1): `hx find <regex> [path] [-C N] [--max N]` for the `sed && grep` / `grep && sed` pairs (94 uses). Output is capped, so no hand-written sed ranges. Check next week's mining counts.
   - Declined candidates (sw-0l2): `hx ls` (Get-ChildItem, 34 uses). It lists directories mostly outside the repo; the Glob tool and `ls` already give short output, so a verb would not cut tokens.
   - Declined candidates (sw-sy8): `hx read` (Get-Content, 12 uses). The Read tool already reads files with line ranges, and the example target was a config outside the repo; a verb would only duplicate it.
   - Declined candidates (sw-wv7): `hx status` (git status, 9 uses). `hx status` already exists and is a superset (branch, dirty counts, last commit, Godot, autoloads, tasks); the mined calls were raw `git status`, so use the existing verb.
