@@ -143,7 +143,7 @@ func _meter_text(pool: String, verbose: bool) -> String:
 	for seg: Panel in _with_meta(_card(verbose), &"band"):
 		var row: Node = seg.get_parent().get_parent()
 		var first := row.get_child(0) as Label
-		if first != null and first.text == pool.capitalize():
+		if first != null and first.text.ends_with(pool.capitalize()):
 			return (row.get_child(row.get_child_count() - 1) as Label).text
 	return ""
 
@@ -173,3 +173,21 @@ func test_a_broken_pool_has_no_distance_even_verbose() -> void:
 	assert_eq(BattleRules.points_to_drop(Pools.value(st, _row, BattleSquads.MORALE),
 		Pools.capacity(st, _row, BattleSquads.MORALE), st.rules.band_floor_pct), -1, "no lower band")
 	assert_false(_meter_text("morale", true).contains(" to "), "nothing below Broken")
+
+
+func test_each_simpl_pool_has_a_unique_icon_and_glossary_name_with_hover() -> void:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var g := Glossary.from_templates(l.templates)
+	var seen := {}
+	for p: String in DataSchema.SIMPL:
+		var icon := SquadCard.pool_icon(p)
+		assert_false(seen.has(icon), "icon for %s is shared" % p)
+		seen[icon] = true
+		assert_false(SquadCard.BAND_ICONS.values().has(icon), "%s clashes with a band icon" % p)
+		assert_eq(SquadCard.pool_word(p, g), g.name_of("term_" + p))
+	var card := SquadCard.build(_squad(), {}, 1, 10, false, {"glossary": g})
+	autofree(card)
+	var labels := _with_meta(card, &"pool")
+	assert_eq(labels.size(), 5)
+	for lab: Label in labels:
+		assert_true(lab.tooltip_text.contains(g.text_of("term_" + String(lab.get_meta(&"pool")))))

@@ -21,6 +21,12 @@ const ORDER_NAMES: Dictionary = {
 
 ## Band glyphs, a ladder from empty/low to filled/high so the state reads
 ## without colour. Presentation only: the bands themselves come from the API.
+## Placeholder glyph per SIMPL pool (sw-1jy.7), distinct in shape from each
+## other and from the band icons so greyscale still tells them apart; the
+## art-direction interview replaces them. Overridable by "pool_icon.<id>".
+const POOL_ICONS: Dictionary = {
+	"stamina": "■", "instinct": "◉", "morale": "♥", "prowess": "✚", "legend": "★",
+}
 const BAND_ICONS: Dictionary = {
 	"broken": "×", "fraying": "▽", "neutral": "◇", "primed": "△", "surging": "▲",
 }
@@ -64,7 +70,7 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 			var cap := float(pd["capacity"])
 			var frac := float(pd["value"]) / cap if cap > 0.0 else 0.0
 			if DataSchema.SIMPL.has(p) and floors.size() == DataSchema.BANDS.size():
-				col.add_child(_simpl_meter(p, pd, floors, verbose))
+				col.add_child(_simpl_meter(p, pd, floors, verbose, ctx.get("glossary") as Glossary))
 			else:
 				col.add_child(_stat_bar(p.capitalize(), frac, _pool_tone(p),
 					"%s  %s" % [Fixed.to_display(pd["value"]), String(pd["band"]).capitalize()]))
@@ -372,11 +378,17 @@ static func _pool_tone(pool: String) -> String:
 ## and the ticks sit at the band floors the observation carries, the fill is
 ## the pool's theme tone, and the band reads as icon + word, never colour
 ## alone. `floors` is the compiled band_floor_pct; the sim owns the mapping.
-static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: bool) -> Control:
+static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: bool, glossary: Glossary = null) -> Control:
 	var tone := _pool_tone(pool)
 	var row := HBoxContainer.new()
-	var l := _lbl(pool.capitalize(), "Caption%sLabel" % tone)
-	l.custom_minimum_size = Vector2(62, 0)
+	var l := _lbl("%s %s" % [pool_icon(pool), pool_word(pool, glossary)], "Caption%sLabel" % tone)
+	l.custom_minimum_size = Vector2(80, 0)
+	l.set_meta(&"pool", pool)
+	if glossary != null and glossary.has("term_" + pool):
+		# Hover shows the glossary definition (GDD 01 pillar 3).
+		l.mouse_filter = Control.MOUSE_FILTER_STOP
+		var tip := glossary.tooltip("term_" + pool)
+		l.tooltip_text = "%s: %s" % [tip["title"], tip["text"]]
 	row.add_child(l)
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(120, 8)
@@ -431,6 +443,23 @@ static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: b
 			text += "  · %s to %s" % [Fixed.to_display(drop), _band_word(DataSchema.BANDS[bi - 1])]
 	row.add_child(_lbl(text, "CaptionDimLabel"))
 	return row
+
+
+## The pool's glyph through the translation table, with the placeholder
+## fallback until the art pass.
+static func pool_icon(pool: String) -> String:
+	var key := "pool_icon." + pool
+	var s := String(TranslationServer.translate(key))
+	return s if s != key else String(POOL_ICONS.get(pool, "·"))
+
+
+## The pool's name: the glossary term's name, else the "pool.<id>" key.
+static func pool_word(pool: String, glossary: Glossary = null) -> String:
+	if glossary != null and glossary.has("term_" + pool):
+		return glossary.name_of("term_" + pool)
+	var key := "pool." + pool
+	var s := String(TranslationServer.translate(key))
+	return s if s != key else pool.capitalize()
 
 
 ## The band word through the translation table (the glossary's "band.<id>"
