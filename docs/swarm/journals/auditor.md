@@ -153,3 +153,10 @@
 - root cause: 429 latency makes each orchestrator turn time out mid-review before it can merge. Killed 18:43 turn was actively reviewing (still calling model at buzzer), not looping. Orchestrator self-correcting (selfcheck config_ok, merge-first plan, retro 18:57 throttle playbook) but nothing merged yet.
 - next: ~20:26 audit — did ONE merge land (sw-opt or .3 att3)? Recommended one-merge-per-turn + journal-immediately + throttle ux-art-director (14 calls/10 RL this window). If still zero merges + another killed turn, escalate toward FAIL for loop-without-effect. Keep verdict-first order.
 - blocked/asked: none. fail_streak=0 (WARNs do not increment). Several recent auditor turns recorded no verdict (same 429 latency) — write verdict+file early.
+
+## 2026-11-21 23:46 UTC turn
+- did: audited 23:16-23:46 window from digest + orchestrator journal tail + git log; recorded WARN FIRST via hx swarm verdict; wrote docs/swarm/audits/20261121-2346.md.
+- decided: WARN — compliance clean (21 calls all nous/qwen4-max, 48/48 banners, cost 0 USD, no delegate/Claude) but 62% 429s (13/21; last hour 26/41), craft-researcher killed rc -9 @3601s, no merge since sw-opt 20:42 (~3 h). sw-ll4.27.3 partial attempt 4 since 21:08, past 2 h cap.
+- noted: orchestrator 23:15Z turn alive, selfcheck clean, merge-first, declares attempt 4 the LAST (merge if complete else park per 4-attempt rule) — self-correcting; worker awaiting review not idle -> WARN not FAIL. Main commits since 20:42 are docs/status only.
+- next: ~00:16 audit — did .3 merge or park? If still zero merges and .3 neither merged nor parked -> FAIL for loop-without-effect. Recommended hand-resolving the worker.md conflict (no attempt 5) and pausing research roles to free gateway capacity. Keep verdict-first order.
+- blocked/asked: none. fail_streak=0.
