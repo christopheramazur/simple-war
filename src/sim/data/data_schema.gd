@@ -296,6 +296,8 @@ const KINDS: Dictionary = {
 	"controller_profile": {
 		"name": {"type": "string"},
 		"text": {"type": "string"},
+		## Shown on the skirmish profile card (sw-kif); display only.
+		"difficulty": {"type": "string"},
 		"overworld": {"type": "obj:profile_process"},
 		"battle": {"type": "obj:profile_process"},
 		"mask": {"type": "dict"},

@@ -189,7 +189,7 @@ func _selected(ids: PackedStringArray, pick: OptionButton) -> String:
 
 func _describe() -> void:
 	var id := _selected(profiles, _profile_pick)
-	_profile_text.text = String(_templates.values_of(id).get("text", "")) if not id.is_empty() else ""
+	_profile_text.text = ProfileCard.text(_templates.values_of(id)) if not id.is_empty() else ""
 
 
 func start_story() -> void:

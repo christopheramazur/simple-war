@@ -39,6 +39,9 @@ var _battle_section: Dictionary = {}
 var _battles: Dictionary = {}  # engagement (0 = a standalone battle) -> process
 var _rules: BattleRules
 var _fuzz := 0.0
+## The fuzz as the whole percent the profile actually plays with (the
+## skirmish profile card shows this, so it shows what is used).
+var fuzz_pct := 0
 var _rng: SimRng
 var _mask_spec: Dictionary = {}
 var _hold := 3
@@ -53,6 +56,7 @@ func _init(player_id: int, profile_in: Dictionary = {}, seed_value: int = 0) -> 
 	profile = profile_in
 	think_ms = int(profile.get("think_ms", DEFAULT_THINK_MS))
 	_fuzz = clampf(float(profile.get("fuzz", 0)) / 100.0, 0.0, 1.0)
+	fuzz_pct = int(roundf(_fuzz * 100.0))
 	_rng = SimRng.new(hash([int(profile.get("fuzz_seed", 0)), seed_value, player_id]))
 	_mask_spec = profile.get("mask", default_mask())
 	_hold = int(profile.get("hold_turns", 3))
