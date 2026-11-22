@@ -502,3 +502,14 @@
 - woke: supervisor mail - sw-ll4.27.6 partial (rc=-9, commits kept, WIP saved). No AUDIT FAIL mail; latest audit WARN 06:29. 28/37 (~76%) rate-limited -> lean turn: review/merge .6 first, then refill slots. Journal early.
 - did: reviewed sw-ll4.27.6 WIP 00ba3e5 (only commit): _battle_squads() plumbing for holds/reload/cooldown/own/activity in playback+live paths. No marks, no tooltips, no crosshair fix -> INCOMPLETE. Spawned attempt 2 on same branch with detailed note (what is done, 3 remaining pieces, glossary.gd:61 pointer, commit-early warning).
 - concern: sw-vld 'running' since 02:41 (~5h), 0 commits, clean worktree, worker journal untouched since creation, bd lease heartbeat 4h old. Possibly orphaned by the 03:10-05:00 supervisor stop. Auditor 07:29 WARN does not flag it. Checking worker logs before acting; will NOT reject a running worker on suspicion.
+
+## 2026-11-22T08:17Z turn killed at its time limit after 78 min (supervisor note)
+- last actions:
+  - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
+  - `$ git -C ../simple-war-worktrees/sw-ll4.27.6 diff main...HEAD | head -60 && tail -25 ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/worker.md && git -C`
+  - `$ grep -n "hold_text\|Glossary\|tooltip" src/presentation/war_room/context_view.gd | head -12 && grep -rn "func hold_text" src/ | head -3 && harness/bin/hx swar`
+  - `$ bd update sw-ll4.27.6 --claim && harness/bin/hx swarm spawn sw-ll4.27.6 --note='Attempt 2, same branch. DONE in WIP commit 00ba3e5: _battle_squads() in contex`
+  - `$ bd show sw-vld | head -30 && harness/bin/hx swarm status 2>&1 | head -35`
+  - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
+- commits this turn: 353dcf3 swarm: docs and status; 37c0537 swarm: docs and status; 5d55ffe swarm: docs and status; 8735f7a swarm: docs and status; 9059e72 swarm: docs and status; 5f7ac22 swarm: docs and status
+- next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
