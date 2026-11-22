@@ -83,6 +83,9 @@ GENES: dict[tuple[str, str], tuple[float, float, str]] = {
     ("profile", "fuzz"): (0, 30, "int"),
 }
 MASK_RANGE = (0.0, 2.0)
+# Descriptor ranges mapped onto the archive grid, calibrated on run f20261114-120625
+# (aggression 0.05-0.21, expansion 0.15-0.55); values outside clamp to the edge cells.
+DESC_RANGES = {"aggression": (0.03, 0.23), "expansion": (0.12, 0.58)}
 
 DEFAULTS = {
     "scenario": "skirmish_seeded", "population": 10, "pairings": 20, "seeds": 3, "turns": 30,
@@ -316,13 +319,22 @@ def evaluate(con: duckdb.DuckDBPyConnection, batch_id: str, made: dict, spec: di
     return acc, hof_rate, lam
 
 
+def _bin(value: float, lo_hi: tuple[float, float], grid: int) -> int:
+    lo, hi = lo_hi
+    return max(0, min(int((value - lo) / (hi - lo) * grid), grid - 1))
+
+
 def archive_update(archive: dict[tuple[int, int], tuple[str, float, int]], scores: dict[str, dict],
-                   grid: int, generation: int) -> dict[tuple[int, int], tuple[str, float, int]]:
+                   grid: int, generation: int,
+                   ranges: dict[str, tuple[float, float]] | None = None) -> dict[tuple[int, int], tuple[str, float, int]]:
     """MAP-Elites (B1Q8): the best profile per aggression x expansion cell, as
-    (profile, fitness, generation it was set)."""
+    (profile, fitness, generation it was set). Descriptors are normalised
+    against `ranges` (default DESC_RANGES) before binning, so the observed
+    spread of play styles covers the whole grid."""
+    r = ranges or DESC_RANGES
     out = dict(archive)
     for pid, s in sorted(scores.items()):
-        cell = (min(int(s["aggression"] * grid), grid - 1), min(int(s["expansion"] * grid), grid - 1))
+        cell = (_bin(s["aggression"], r["aggression"], grid), _bin(s["expansion"], r["expansion"], grid))
         if cell not in out or s["fitness"] > out[cell][1]:
             out[cell] = (pid, s["fitness"], generation)
     return out

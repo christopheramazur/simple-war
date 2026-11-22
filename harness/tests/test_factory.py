@@ -152,12 +152,22 @@ def test_hall_of_fame_rate_turns_lambda_off(tmp_path: Path):
     assert scores["h"]["matches"] == 2
 
 
+UNIT = {"aggression": (0.0, 1.0), "expansion": (0.0, 1.0)}
+
+
+def test_archive_calibrated_ranges_spread_cells():
+    scores = {f"p{i}": {"aggression": 0.05 + 0.04 * i, "expansion": 0.15 + 0.10 * i, "fitness": 1.0}
+              for i in range(5)}
+    arc = factory.archive_update({}, scores, 5, 0)
+    assert sorted(arc) == [(i, i) for i in range(5)]
+
+
 def test_archive_and_gain_rate(tmp_path: Path):
     arc = factory.archive_update({}, {"a": {"aggression": 0.1, "expansion": 0.9, "fitness": 1.0},
                                       "b": {"aggression": 0.15, "expansion": 0.95, "fitness": 1.2},
-                                      "c": {"aggression": 1.0, "expansion": 0.0, "fitness": 0.1}}, 5, 3)
+                                      "c": {"aggression": 1.0, "expansion": 0.0, "fitness": 0.1}}, 5, 3, UNIT)
     assert arc[(0, 4)] == ("b", 1.2, 3) and arc[(4, 0)] == ("c", 0.1, 3)
-    assert factory.archive_update(arc, {"d": {"aggression": 0.1, "expansion": 0.9, "fitness": 0.5}}, 5, 4)[(0, 4)][0] == "b"
+    assert factory.archive_update(arc, {"d": {"aggression": 0.1, "expansion": 0.9, "fitness": 0.5}}, 5, 4, UNIT)[(0, 4)][0] == "b"
     con = factory.connect(tmp_path / "s.duckdb")
     for g, bench in ((0, None), (1, 0.2), (2, 0.5)):
         con.execute("INSERT INTO factory_gen VALUES ('r', ?, 'b', 0.3, NULL, 1, 1, 1800, 4, 0, ?)", [g, bench])
