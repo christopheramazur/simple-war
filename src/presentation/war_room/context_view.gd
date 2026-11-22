@@ -170,7 +170,9 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 ## optional): "selected" (squad IDs), "ghosts" and "contacts"
 ## (IntentForecast), "drafts" (squad ID -> order), "reactable" (squad ID
 ## -> queued reaction name or ""), "triggers" (reactable squad ID -> the
-## enemy squad IDs it would react to; drawn while it is selected), "terrain" (the battle's BattleRules, for
+## enemy squad IDs it would react to; drawn while it is selected),
+## "telegraphs" (BattleSession.telegraphs: each committed enemy attack on an
+## own squad, drawn as an arrow and a "▶ n" damage label), "terrain" (the battle's BattleRules, for
 ## its terrain), "pending" (drafts are queued until Planning).
 func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 	mode = "battle"
@@ -608,6 +610,7 @@ func _draw_battle() -> void:
 				draw_dashed_line(pos[id], pos[t], SELECT, 1.5, 6.0)
 				draw_arc(pos[t], 12.0, 0, TAU, 24, SELECT, 2.0)
 				draw_string(font, pos[t] + Vector2(13, -10), "trigger", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SELECT)
+	_draw_telegraphs(font, pos)
 	for ct: Dictionary in _overlay.get("contacts", []):
 		var id: int = ct["squad"]
 		if ghosts.has(id) and pos.has(id) and not compact:
@@ -623,6 +626,34 @@ func _draw_battle() -> void:
 		var w_text := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 		var x := pad if compact else size.x - pad - w_text
 		draw_string(font, Vector2(x, pad + fs), title, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+
+
+## Enemy attack telegraphs (sw-7o7): a solid arrow from the attacker to the
+## target squad and a boxed label with the predicted damage (Telegraph.label,
+## the same formatting as the playback floats). The marker is arrow + box +
+## text, so colour is never the only cue (sw-ijp.5); no pulse is paused.
+func _draw_telegraphs(font: Font, pos: Dictionary) -> void:
+	if compact:
+		return
+	var slot := {}
+	for t: Dictionary in _overlay.get("telegraphs", []):
+		var a: int = t["attacker"]
+		var b: int = t["target"]
+		if not pos.has(a) or not pos.has(b):
+			continue
+		var dir: Vector2 = (pos[b] - pos[a])
+		dir = dir.normalized() if dir.length() > 1.0 else Vector2.RIGHT
+		var tip: Vector2 = pos[b] - dir * 14.0
+		draw_line(pos[a] + dir * 14.0, tip, Telegraph.COLOR, 2.0)
+		draw_colored_polygon(PackedVector2Array([tip + dir * 7.0, tip + dir.orthogonal() * 4.5, tip - dir.orthogonal() * 4.5]), Telegraph.COLOR)
+		var n: int = slot.get(b, 0)
+		slot[b] = n + 1
+		var text := Telegraph.label(t)
+		var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+		var at: Vector2 = pos[b] + Vector2(14, 8 + 16 * n)
+		draw_rect(Rect2(at + Vector2(-3, -12), Vector2(w + 6, 16)), Color(0.08, 0.05, 0.05, 0.85))
+		draw_rect(Rect2(at + Vector2(-3, -12), Vector2(w + 6, 16)), Telegraph.COLOR, false, 1.0)
+		draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 
 
 ## The squads to draw, each with its units' points ("pts", metres) and

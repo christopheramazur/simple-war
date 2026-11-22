@@ -32,6 +32,7 @@ var initial_snapshot: Dictionary = {}
 
 var _orders: Dictionary = {}
 var _opportunities: Array = []
+var _telegraphs: Array = []
 var _execute_pending: bool = false
 var _replaying: bool = false
 
@@ -140,6 +141,16 @@ func reaction_opportunities(player: int) -> Array:
 	return _opportunities.filter(func(o: Dictionary) -> bool: return o["player"] == player)
 
 
+## Enemy attack telegraphs for the reaction window (sw-7o7): each committed
+## enemy attack on one of the player's squads, with the damage the sim
+## predicts if orders stand: [{"attacker", "target", "damage" (fixed),
+## "kills", "tick"}]. Only attackers the player sees; [] outside REACTION.
+func telegraphs(player: int) -> Array:
+	if clock.phase != PulseClock.Phase.REACTION:
+		return []
+	return _telegraphs.filter(func(t: Dictionary) -> bool: return t["player"] == player)
+
+
 func submit_reaction(player: int, squad: int, reaction: String, trigger: int) -> String:
 	if clock.phase != PulseClock.Phase.REACTION:
 		return "reactions are only accepted in the reaction window"
@@ -165,7 +176,9 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 				BattleOrders.apply(state, p, _orders.get(p, []))
 			_orders.clear()
 		PulseClock.Phase.REACTION:
-			_opportunities = Reactions.forecast(state, sim)
+			var fc := Reactions.forecast_all(state, sim)
+			_opportunities = fc["opportunities"]
+			_telegraphs = fc["telegraphs"]
 		PulseClock.Phase.EXECUTE:
 			_execute_pending = true
 
@@ -179,6 +192,7 @@ func _pump() -> void:
 	while _execute_pending:
 		_execute_pending = false
 		_opportunities = []
+		_telegraphs = []
 		sim.execute_turn(state)
 		clock.execute_finished()
 
@@ -367,7 +381,7 @@ func save() -> PackedByteArray:
 		"version": SAVE_VERSION, "scenario": scenario_id, "seed": seed_value, "data_hash": data_hash,
 		"clock_config": _config_dict(clock.config), "initial": initial_snapshot, "inputs": input_log.duplicate(true),
 		"state": state.snapshot(), "clock": clock.snapshot(), "orders": _orders.duplicate(true),
-		"opportunities": _opportunities.duplicate(true), "hash": state.state_hash().hex_encode(),
+		"opportunities": _opportunities.duplicate(true), "telegraphs": _telegraphs.duplicate(true), "hash": state.state_hash().hex_encode(),
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
 
@@ -391,6 +405,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 	s.clock.restore(data["clock"])
 	s._orders = data["orders"]
 	s._opportunities = data["opportunities"]
+	s._telegraphs = data.get("telegraphs", [])
 	s.input_log = data["inputs"]
 	return s
 

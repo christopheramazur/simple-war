@@ -64,6 +64,8 @@ var _execute_pending: bool = false
 var _reactions_allowed: bool = true
 ## Reaction window: engagement ID -> Reactions.forecast opportunities.
 var _opportunities: Dictionary = {}
+## Reaction window: engagement ID -> Reactions.forecast_all telegraphs (sw-7o7).
+var _telegraphs: Dictionary = {}
 ## Set on entering the reaction window: ready the players with nothing to
 ## react to (done in _pump, outside the clock's call stack).
 var _auto_ready: bool = false
@@ -401,6 +403,16 @@ func reaction_opportunities(player: int) -> Array:
 	return out
 
 
+## Enemy attack telegraphs in one battle during the reaction window
+## (BattleSession.telegraphs): [{"attacker", "target", "damage" (fixed),
+## "kills", "tick"}] on the player's squads; [] outside REACTION.
+func telegraphs(player: int, engagement_id: int) -> Array:
+	if clock.phase != PulseClock.Phase.REACTION:
+		return []
+	return (_telegraphs.get(engagement_id, []) as Array).filter(
+		func(t: Dictionary) -> bool: return t["player"] == player)
+
+
 ## Queues a reaction for one of the player's squads in a battle (Reaction
 ## phase only). "" or why not.
 func submit_reaction(player: int, engagement_id: int, squad: int, reaction: String, trigger: int) -> String:
@@ -534,10 +546,13 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 			clock.config.reaction_enabled = _reactions_allowed and not battles.is_empty()
 		PulseClock.Phase.REACTION:
 			_opportunities = {}
+			_telegraphs = {}
 			var ids: Array = battles.keys()
 			ids.sort()
 			for eid: int in ids:
-				_opportunities[eid] = Reactions.forecast((battles[eid] as OverworldBattle).state, _battle_sim)
+				var fc := Reactions.forecast_all((battles[eid] as OverworldBattle).state, _battle_sim)
+				_opportunities[eid] = fc["opportunities"]
+				_telegraphs[eid] = fc["telegraphs"]
 			_auto_ready = true
 		PulseClock.Phase.EXECUTE:
 			_execute_pending = true
@@ -554,6 +569,7 @@ func _pump() -> void:
 			continue
 		_execute_pending = false
 		_opportunities = {}
+		_telegraphs = {}
 		PerfRecorder.begin(&"sim_battles")
 		_run_battles()
 		PerfRecorder.end(&"sim_battles")
@@ -1032,7 +1048,7 @@ func save() -> PackedByteArray:
 		"hashes": turn_hashes.duplicate(), "state": state.snapshot(), "clock": clock.snapshot(),
 		"last_events": events, "hash": state_hash_hex(),
 		"battles": _battles_dict(), "next_context": _next_context,
-		"opportunities": _opportunities.duplicate(true), "band_history": _band_history.duplicate(true),
+		"opportunities": _opportunities.duplicate(true), "telegraphs": _telegraphs.duplicate(true), "band_history": _band_history.duplicate(true),
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
 
@@ -1067,6 +1083,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		s.bus.register_context(b.state)
 	s._next_context = data.get("next_context", 100)
 	s._opportunities = data.get("opportunities", {})
+	s._telegraphs = data.get("telegraphs", {})
 	s._band_history = data.get("band_history", {})
 	if s.state_hash_hex() != data["hash"]:
 		last_error = "the saved state does not match its hash"

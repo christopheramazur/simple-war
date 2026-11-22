@@ -516,7 +516,7 @@ func _show_main() -> void:
 	var fc: Dictionary = _forecasts.get(contexts.focus, {})
 	_main.show_battle(obs, {"selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
 		"contacts": fc.get("contacts", []), "reactable": _reactable(contexts.focus), "inspected": _inspected,
-		"triggers": _triggers(contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
+		"triggers": _triggers(contexts.focus), "telegraphs": session.telegraphs(player, contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
 
 
 ## The status line and what the mouse and keys do right now.
