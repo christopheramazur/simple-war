@@ -500,3 +500,5 @@
 
 ## 2026-11-22T07:00Z turn
 - woke: supervisor mail - sw-ll4.27.6 partial (rc=-9, commits kept, WIP saved). No AUDIT FAIL mail; latest audit WARN 06:29. 28/37 (~76%) rate-limited -> lean turn: review/merge .6 first, then refill slots. Journal early.
+- did: reviewed sw-ll4.27.6 WIP 00ba3e5 (only commit): _battle_squads() plumbing for holds/reload/cooldown/own/activity in playback+live paths. No marks, no tooltips, no crosshair fix -> INCOMPLETE. Spawned attempt 2 on same branch with detailed note (what is done, 3 remaining pieces, glossary.gd:61 pointer, commit-early warning).
+- concern: sw-vld 'running' since 02:41 (~5h), 0 commits, clean worktree, worker journal untouched since creation, bd lease heartbeat 4h old. Possibly orphaned by the 03:10-05:00 supervisor stop. Auditor 07:29 WARN does not flag it. Checking worker logs before acting; will NOT reject a running worker on suspicion.
