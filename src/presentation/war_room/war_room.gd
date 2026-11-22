@@ -1196,13 +1196,16 @@ func _refresh_orders() -> void:
 			["Withdraw (⇧W)", &"withdraw"], ["Run (R)", &"run"]]:
 		var b := Button.new()
 		b.text = c[0]
+		b.tooltip_text = OrderTips.tip(String(c[1]))
 		b.pressed.connect(_on_command.bind(c[1], 0))
 		row.add_child(b)
 	_orders_box.add_child(row)
 	var menu := pl.ability_menu()
 	if menu.is_empty():
 		return
-	_orders_box.add_child(_title("Abilities (Q)"))
+	var abt := _title("Abilities (Q)")
+	abt.tooltip_text = OrderTips.tip("abilities")
+	_orders_box.add_child(abt)
 	var abl := HFlowContainer.new()
 	for m: Dictionary in menu:
 		var b := Button.new()
