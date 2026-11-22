@@ -114,6 +114,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - Declined candidates (sw-k5a): `hx extract` (`sed -n A,Bp file; grep -n pat file`, 119 uses). `hx find <regex> <path> -C N --max N` already gives bounded `file:line: text` with context, and the Read tool takes offset/limit; a verb would duplicate both.
   - Declined candidates (sw-8v9): `hx show -n A,B file` (`grep && sed`, 43 uses). Same shape as sw-k5a: the Read tool takes offset/limit for a line range and `hx find <regex> <path> -C N` gives the match with context, so a verb would duplicate both.
   - Declined candidates (sw-8o1): `hx cat-sed` (`cat && sed`, 8 uses). Same shape as sw-k5a/sw-8v9: it reads two files with a line range, which the Read tool (offset/limit, parallel calls) already does; a verb would only duplicate it.
+  - Declined candidates (sw-hw2): `hx find WarRoom tests` (`ls && grep`, 12 uses). The verb already exists: `hx find <regex> <path>` searches recursively with bounded output, and the Glob tool covers the `ls` half; the miner just never saw it used.
 
 ## 6. Encoding (Q27)
 - **rtk** command-line tool only (Apache-2.0; not the BUSL proxy). Hook for Claude Code and OpenCode.
