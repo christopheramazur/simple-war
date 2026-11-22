@@ -13,7 +13,7 @@ import duckdb
 
 from hx.paths import data_dir
 
-SCHEMA_VERSION = 3  # bump on any table change; a mismatch triggers a full rebuild from raw
+SCHEMA_VERSION = 4  # bump on any table change; a mismatch triggers a full rebuild from raw
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS tool_use (
 CREATE TABLE IF NOT EXISTS tool_result (
     tool_use_id TEXT PRIMARY KEY,
     session_id TEXT, ts TIMESTAMP,
-    result_chars BIGINT, is_error BOOLEAN, denied TEXT
+    result_chars BIGINT, is_error BOOLEAN, denied TEXT, error_line TEXT
 );
 
 -- Point events: prompt, interrupt, api_error, turn (value = ms), compaction, ...

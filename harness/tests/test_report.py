@@ -124,3 +124,18 @@ def test_report_cli(tmp_path, monkeypatch, capsys):
     d = json.loads(capsys.readouterr().out)
     assert d["data"]["totals"]["calls"] == 1 and "by_task" in d["tables"]
     assert (tmp_path / "reports" / "report.html").exists()
+
+
+def test_shell_signatures_and_long_commands(con):
+    ledger.upsert(con, "tool_use", [{"tool_use_id": "t3", "call_id": "d", "session_id": "s1", "agent_id": None,
+                                     "ts": T0 + timedelta(minutes=32), "tool": "Bash", "input_chars": 7000,
+                                     "command": "x" * 7000}])
+    ledger.upsert(con, "tool_result", [
+        {"tool_use_id": "t3", "session_id": "s1", "ts": T0 + timedelta(minutes=33), "result_chars": 50,
+         "is_error": True, "denied": None, "error_line": "bash: -c: line 12: unexpected EOF while looking for matching quote"},
+        {"tool_use_id": "t2", "session_id": "s1", "ts": T0 + timedelta(minutes=31), "result_chars": 40,
+         "is_error": True, "denied": None, "error_line": "bash: -c: line 3: unexpected EOF while looking for matching quote"}])
+    sh = report.build(con, datetime(2000, 1, 1), timedelta(hours=10))["shell"]
+    assert sh["long_commands"] == 1
+    assert sh["by_client"][0]["client"] == "claude-code" and sh["by_client"][0]["errors"] == 2
+    assert sh["signatures"][0]["count"] == 2 and "line N" in sh["signatures"][0]["signature"]
