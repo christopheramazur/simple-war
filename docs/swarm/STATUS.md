@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-22 06:14 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-22 06:29 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-22 06:14 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 19 / 4 |
 | Workers queued / running / awaiting review | sw-vld / sw-ll4.27.6 / - |
 | Merged / rejected (all time) | 18 / 0 |
-| Gateway calls last hour (rate-limited) | 40 (28) |
+| Gateway calls last hour (rate-limited) | 40 (29) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-22 05:59 UTC **WARN** (rules) |
+| Latest audit | 11-22 06:29 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-22 06:14 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-22 06:29 UTC **WARN** (rules)
+
+20 swarm calls (16 rate-limited), all nous/qwen4-max, cost 0 USD | health: 16/20 calls rate-limited (80%)
 
 ### 11-22 05:59 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Compliance clean: 21 gateway calls all nous/qwen4-max (orchestrator 10, craft-re
 ### 11-22 01:49 UTC **WARN** (auditor)
 
 WARN - compliance clean: 21 gateway calls in the 01:13-01:43 window all nous/qwen4-max (ux-art-director 14, games-researcher 4, orchestrator 2, auditor 1), 48/48 log banners clean, cost 0 USD, no hx delegate, no Claude Code. Progress: sw-ll4.27.3 merged 01:18 (18 total), ending the 4.5 h merge drought since 20:42. Health poor: 57% rate-limited (12/21; last hour 24/40 = 60%), both turns that ended in the window were killed rc -9 at 3600s (games-researcher 01:18, orchestrator 01:20 two minutes after its merge), and the worker pipeline is now empty (none queued/running/awaiting review). Orchestrator is alive (2 calls after the kill, status page fresh 01:39). Not FAIL: a merge landed and the orchestrator is running. Recommend: spawn the next worker immediately, pause or throttle research roles (ux-art-director burned 9 of 14 calls on 429s) to free gateway capacity, and journal early each turn.
-
-### 11-22 01:13 UTC **WARN** (auditor)
-
-auditor recorded no verdict
 
