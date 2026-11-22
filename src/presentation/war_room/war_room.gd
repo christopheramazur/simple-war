@@ -502,6 +502,9 @@ func _queue_refresh() -> void:
 		_refresh.call_deferred()
 
 
+var _log_key := 0  ## hash of the events shown, so the log rebuilds only when it changes
+
+
 func _refresh() -> void:
 	PerfRecorder.begin(&"ui_refresh")
 	_obs_cache = {}
@@ -1745,13 +1748,16 @@ func _refresh_log() -> void:
 				if not line.is_empty():
 					messages.append("T%d · %s" % [_log_turn, line])
 					_alert_from(e, d, line)
-	_clear(_log_box)
-	if not messages.is_empty():
-		_log_box.add_child(_title("Events"))
-		for i in range(messages.size() - 1, maxi(messages.size() - 14, 0) - 1, -1):
-			var l := _title(messages[i])
-			l.theme_type_variation = &""
-			_log_box.add_child(l)
+	var log_key := hash(messages)
+	if log_key != _log_key or _log_box.get_child_count() == 0 and not messages.is_empty():
+		_log_key = log_key
+		_clear(_log_box)
+		if not messages.is_empty():
+			_log_box.add_child(_title("Events"))
+			for i in range(messages.size() - 1, maxi(messages.size() - 14, 0) - 1, -1):
+				var l := _title(messages[i])
+				l.theme_type_variation = &""
+				_log_box.add_child(l)
 	var outcome: Dictionary = _obs().get("outcome", {})
 	_banner.visible = not outcome.is_empty()
 	if _banner.visible:
