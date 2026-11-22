@@ -33,3 +33,8 @@
 - did: wrote docs/swarm/research/notes/cc0-asset-shortlist.md. Kenney (carried forward) and SBS Town Pack (CC0 verified verbatim on the page) are usable. Other SBS iso packs (not linked from the page) and the Blarumyrran OGA sprites (403 on the page, search excerpt only) are marked unverified/unusable.
 - decided: a search excerpt is not page verification, so Blarumyrran stays unusable until a person reads the page.
 - tests: docs-only, none.
+
+## 2026-11-22 turn (autopilot, sw-136.3)
+- did: wrote docs/swarm/research/notes/angelfall-tutorial-pacing-gaps.md: 4 gaps (stakes escalation, objective ordering, first lift-off vs taught mechanics, first battle is the finale), each with options and GDD refs.
+- decided: options only, no chosen fix, no GDD/code/data edits.
+- tests: docs-only, none.
