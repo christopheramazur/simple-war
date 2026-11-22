@@ -1152,25 +1152,37 @@ func reserves_ready(eid: int) -> int:
 ## The reserves of each of the player's commanders in the battle: a button to
 ## send each in, or what stops it (sw-dek).
 func _add_reserves(eid: int) -> void:
+	var panel := UiPanel.build("reserves", reserves_model(eid))
+	panel.action_invoked.connect(_on_panel_action)
+	_orders_box.add_child(panel)
+
+
+## The reserves panel's view model (read-only): per commander a title and a
+## row per squad with its text, whether it is disabled and the ids to send.
+func reserves_model(eid: int) -> Dictionary:
+	var groups := []
 	for g: Dictionary in session.reserves(player, eid):
 		var cid: int = g["commander"]
 		var open: int = g["open"]
-		_orders_box.add_child(_title("%s: reserves (%s)" % [EventText.commander(cid),
-			"battleforce full" if open == 0 else "room for %d more" % open]))
+		var squads := []
 		for q: Dictionary in g["squads"]:
 			var what := "%s  %d/%d" % [EventText.squad_name(session.rules.squad_ids[int(q["tmpl"])]), int(q["alive"]), int(q["size"])]
 			var why := String(q["why"])
-			var b := Button.new()
-			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			b.disabled = q["sent"] or not why.is_empty()
+			var text := "%s: %s" % [what, why]
 			if q["sent"]:
-				b.text = "✓ %s: joins next battle turn" % what
+				text = "✓ %s: joins next battle turn" % what
 			elif why.is_empty():
-				b.text = "Send in %s" % what
-				b.pressed.connect(send_reserve.bind(cid, int(q["squad"])))
-			else:
-				b.text = "%s: %s" % [what, why]
-			_orders_box.add_child(b)
+				text = "Send in %s" % what
+			squads.append({"text": text, "disabled": q["sent"] or not why.is_empty(), "commander": cid, "squad": int(q["squad"])})
+		groups.append({"title": "%s: reserves (%s)" % [EventText.commander(cid),
+			"battleforce full" if open == 0 else "room for %d more" % open], "squads": squads})
+	return {"groups": groups}
+
+
+## Actions by id from data-driven panels.
+func _on_panel_action(action: String, args: Array) -> void:
+	if action == "send_reserve":
+		send_reserve(int(args[0]), int(args[1]))
 
 
 ## Sends a squad from the commander's army into its battle.
