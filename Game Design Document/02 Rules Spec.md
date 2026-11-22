@@ -17,7 +17,7 @@ The simulation's rules. This document is authoritative over the code: if they di
 ### Turn sequence
 1. **Planning** (R3Q1, R4Q3): about 60 s by default, with a reserve top-up system. Players issue orders in every context they're in.
    - The server forecasts interactions continuously as orders are drafted and keeps a reaction dictionary. Forecasts show *Vacuum* (pending sinks) and intent ghosts (R4Q3, R6Q2).
-   - **In play (sw-ip8.3):** `IntentForecast` runs the coming turn on a scratch copy with the player's drafted orders.
+   - **Forecast:** `IntentForecast` runs the coming turn on a scratch copy with the player's drafted orders.
      - **Output:** each own squad's path as ghosts, plus the contacts it would make, with the reactions it could use.
      - **Fog:** enemies the player can't see yet are taken out of the copy, so the forecast never reveals them. Other players' drafts stay secret, so their squads keep their current orders.
      - **Not yet:** *Vacuum* forecasts.
@@ -27,9 +27,9 @@ The simulation's rules. This document is authoritative over the code: if they di
 3. **Reveal and reaction window** (R2Q4, R3Q4): the sim pauses after reveal, and players scan all battles and issue reactions.
    - **What a reaction is:** a restricted order, triggered by interactions that the revealed orders create (for example, A and B come into range). It costs the squad and/or the commander.
    - **Limits:** there is one reaction timing and no counter-reactions, except niche abilities.
-   - **Only visible triggers (sw-tz1, playtest decision 2026-11-15):** a squad can react only to an enemy squad its player already sees when orders are revealed. A contact with an enemy still hidden at Reveal is no opportunity, so the window never hints at unseen enemies.
+   - **Only visible triggers:** a squad can react only to an enemy squad its player already sees when orders are revealed. A contact with an enemy still hidden at Reveal is no opportunity, so the window never hints at unseen enemies.
    - **UI:** a radial popup on reactable squads, plus a scrollable reaction queue.
-   - **In play (sw-ip8.3):** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad. A selected reactable squad (clicked, or picked from the queue) shows what it would react to: a dashed line to each triggering enemy, ringed and labelled "trigger".
+   - **Marks and queue:** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad. A selected reactable squad (clicked, or picked from the queue) shows what it would react to: a dashed line to each triggering enemy, ringed and labelled "trigger".
    - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
    - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions are intended to exist only as upgrades or unit abilities (R2Q4).
 4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed, and while watching, the overworld is locked. Ranked may skip straight to results (R3Q2).
@@ -49,13 +49,13 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Garrisons:** drop-off covers every case where forces are needed but oversight isn't, including neutral garrisons that cause battles (R5Q9).
 - **Story-essential commanders** (R2Q13): they revive only on easy; otherwise their death fails the mission.
 - **Friendly commanders** sharing a hex trade squads and items freely during planning (R7Q9).
-- **Armies in play (sw-o1m.2.1):**
+- **Armies:**
   - **Composition:** an army is the commander's own squad plus the squads it holds, up to its template's `army_cap`. The own squad doesn't count toward the cap and is never traded.
   - **Losses persist:** squads keep their losses between battles until refitted.
   - **Starting armies** come from the commander template's `army`.
   - **Trading:** two of a player's commanders on one hex, neither in a battle, trade squads during planning. A trade takes effect at once, within the receiver's cap. Trading with allies waits for campaigns.
   - **Hidden from enemies:** what a hostile army holds is never shown, even when its commander is in sight (R5Q9). Allies see each other's armies.
-- **Battleforces in play (sw-o1m.2.2):**
+- **Battleforces:**
   - **Caps:** the map's `battleforce` sets the most squads and the most total **strength**. Strength is a squad's Value scaled by its units alive.
   - **Lead:** the commander's own squad leads the battleforce and counts toward the caps, unless the plan keeps it out (the drop-off case).
   - **Auto-fill:** strongest first, adding every squad that still fits, so a weakened squad can still fill the last gap. A wiped-out squad never fights.
@@ -64,11 +64,11 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Hand-picking:** a plan may list squads instead of using auto-fill, as long as they fit the caps.
   - **Plans persist** across turns. When a commander is pulled into an engagement, its battleforce is picked from the plan and marked deployed there. Ending the engagement releases it.
   - **Fog:** only the owner (and allies) learn what was deployed.
-- **Drop-offs and detachments in play (sw-o1m.2.4):**
+- **Drop-offs and detachments:**
   - **Planning:** a commander plans one drop-off a turn: after a route step (or before moving), on that hex or 1 hex off the route. Off the route, it costs that hex's movement cost, and the route's later steps must still fit the budget. Shortening the route past the drop-off cancels it. A battle tile takes no drop-offs.
   - **What drops:** the battleforce as planned, with the commander's own squad kept out. A commander with nothing else to drop can't plan one.
   - **Timing:** the drop-off happens on the movement timeline, and later steps come that much later. A commander pulled into an engagement before then drops nothing.
-  - **Detachment:** the dropped squads leave the army and hold the hex without a commander. A second drop-off by the same player there joins the same detachment. A detachment stays put unless rallied or steered as a convoy (§2.9, sw-o1m.2.5, sw-kys.8).
+  - **Detachment:** the dropped squads leave the army and hold the hex without a commander. A second drop-off by the same player there joins the same detachment. A detachment stays put unless rallied or steered as a convoy (§2.9).
   - **Garrison:** a detachment never takes features (only commanders flip control, R7Q8). A hostile commander entering its hex stops and engages it first.
   - **Fighting:** a detachment dropped onto guards, or meeting hostile forces, is pulled into the engagement. Its strongest squads fight, within the battleforce caps. The commander that dropped it stays free.
   - **Results:** survivors stay on the hex. A detachment on the losing side of a decided battle scatters, and one with no squads left is gone. Draws leave it.
@@ -78,9 +78,9 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
 ## 2.4 Battles
 ### Start and duration
 - Battles begin at the start of a turn (R2Q1).
-- **Battles from engagements (sw-o1m.2.3):**
+- **Battles from engagements:**
   - **Start:** an engagement made during a turn becomes a battle at the start of the next one. Its players plan their battle orders in the same planning phase as the overworld.
-  - **Shared pulse:** each turn's Execute runs one battle turn in every battle, applies the battles that ended, then resolves the overworld turn. On turns with battles, the reaction window opens after Reveal (sw-o1m.2.7): reinforcements and every battle's orders apply at Reveal, each battle's coming turn is forecast, and players react across all their battles. A player with nothing to react to is ready at once, and turns without battles skip the window. Each player's battle count sets its bonus planning and reaction time.
+  - **Shared pulse:** each turn's Execute runs one battle turn in every battle, applies the battles that ended, then resolves the overworld turn. On turns with battles, the reaction window opens after Reveal: reinforcements and every battle's orders apply at Reveal, each battle's coming turn is forecast, and players react across all their battles. A player with nothing to react to is ready at once, and turns without battles skip the window. Each player's battle count sets its bonus planning and reaction time.
   - **Battlefield:** the first feature on the hex with a `battlefield`, else the map's `battle_scenario`. Sides take the scenario's two deployment areas in order: players ascending, then neutral guards.
   - **Sides:** every player with squads deployed in the engagement. A hex's neutral guards fight at full strength as a neutral side.
   - **Losses carry:** a squad fights with only the units it has left.
@@ -95,7 +95,7 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
     - **Where:** it arrives at whichever of these is farthest from every squad already fighting, the first on a tie: the scenario's deployment areas, then a strip of the same size along the middle of the top edge, then the bottom edge. Its squads spread along the area and face the middle of the field.
     - **The clock doesn't restart:** the battle's turn limit and scores carry on, so a side that joins late has fewer turns.
     - **Everyone is hostile:** a battle has no teams yet, so allies who join the same battle would fight each other.
-  - **Leaving:** a commander whose own squad isn't deployed may leave during planning and move that turn. Its battleforce fights on, and survivors return to its army when the battle ends. If its commander left, they form a convoy rallied to it instead (R8Q3, sw-o1m.2.5).
+  - **Leaving:** a commander whose own squad isn't deployed may leave during planning and move that turn. Its battleforce fights on, and survivors return to its army when the battle ends. If its commander left, they form a convoy rallied to it instead (R8Q3).
 - A typical battle is about 8 turns:
   - T1: scouting and positioning.
   - T2: first casualties.
@@ -171,11 +171,11 @@ Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
 
 ### Other combat rules
 - **Terrain, line of sight, cover** (R3Q8): these apply. Movement types use feature cost tables (R6Q8).
-- **Range and vision** (sw-kys.6, 2026-11-17): a squad engages enemies its *side* can see (shared spotting), within its weapon range.
+- **Range and vision** (2026-11-17): a squad engages enemies its *side* can see (shared spotting), within its weapon range.
   - **Direct fire:** each shooter also needs its own line of sight to the unit it hits.
   - **Indirect fire:** a fire mode flagged `indirect` (the mortar) needs no line of sight. A spotted target in range is enough, so spotters matter to artillery.
   - **Attack orders:** an attacking squad stops to fight once it has a shot (target in reach, and an indirect weapon or a unit with a clear line). It keeps standing while its weapons reload or cool down. It closes in only when no unit has a shot, so slow weapons that can't fire on the move don't walk into the enemy.
-  - **Shown (sw-kys.7):** with one squad selected, each visible enemy is marked "in range" (it has a shot), "no line of fire" (in reach, but no unit has a line), and "spotted" when only allies see it. The marks come from the same rule (LineOfFire) the attack orders use.
+  - **Shown:** with one squad selected, each visible enemy is marked "in range" (it has a shot), "no line of fire" (in reach, but no unit has a line), and "spotted" when only allies see it. The marks come from the same rule (LineOfFire) the attack orders use.
 - **Readying** (R7Q3): a data-driven behaviour in which a squad needs some time before a separate behaviour becomes available, like a siege-mode transformation or building ammunition. While readying, a squad can create Prowess Vacuum, as data. Interrupting a readying squad floats the interrupter's Prowess.
 - **Scavenging** (R3Q7): free for now. Survivors pick up squad upgrades, and limited upgrades are re-equipped up to the maximum on the turn after casualties (R4Q10).
 
@@ -270,7 +270,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Uncertain outcomes** (negotiation, battle, interactive events) are presented at the start of a turn in which the player has a commander uncontested on the hex.
   - **Stable outcomes** (production, pickups, setting up supply lines) are handled during planning, when routing through.
 - **Control** (R6Q14, R7Q8): only Commanders flip a controllable feature, by passing through it. A garrisoned feature needs an engagement first.
-- **In play (sw-o1m.1.3):** a turn resolves as movement, then activities, then production; then uncertain features are offered for the next turn.
+- **Turn order:** a turn resolves as movement, then activities, then production; then uncertain features are offered for the next turn.
   - **Caches** are picked up automatically by any commander passing through or ending on an unguarded hex. Stable outcomes are configured while drafting the route and happen as the commander moves.
   - **Activities** are planned per commander. A commander performs one only if it ends the turn on the planned hex and isn't in a battle; the feature's `activity_cost` in Value is paid then.
     - **Convert** replaces the feature with its `converts_to` feature, owned by the player.
@@ -278,14 +278,14 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
     - **Recruit** names one of the feature's `recruits`. The squad joins at full strength if the army has room, for `activity_cost` plus the option's cost.
     - **Refit** restores every squad of the army to full strength, for `activity_cost` plus `refit_cost` per unit restored. Planning checks the cost against the army's losses at the time; resolving charges for the losses then.
   - **Production:** every controlled feature pays its owner its `value_per_turn`, including one taken this turn.
-  - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. The player answers during planning with one of the feature's `choices`, once per offer; the map's triggers decide what the answer does (sw-cgl.2).
+  - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. The player answers during planning with one of the feature's `choices`, once per offer; the map's triggers decide what the answer does.
 
 ### Guards and movement
 - **Guards** (R4Q14, R5Q9, R6Q11, R6Q12): entering a guarded hex triggers an engagement. What overworld forces will do is never revealed before engagement.
 - **Banking movement:** commanders whose plan was cut short bank 50% of their unused movement points, capped at one turn, and it expires after the next turn.
 - **Neutrals only:** guard and garrison rules apply only to neutral garrisons and features.
 - **Chase and intercept** (R3Q22): commander-vs-commander pursuit needs a chase/intercept handler. This is to be specified.
-- **Movement in play (sw-o1m.1.2):**
+- **Movement:**
   - **Simultaneous routes:** every route resolves at once, in movement-point time. A commander enters each hex when it has spent that hex's cumulative cost, so whoever gets there first arrives first. Ties go to the lower commander ID.
   - **Stopping:** a commander stops on entering a battle tile (joining it), a guarded hex (starting a guard engagement), or a hex holding a hostile commander at that moment, including one about to leave it. So two hostile commanders can't swap hexes or pass each other. Everyone on a hex where an engagement starts or is joined stops there.
   - **Banking:** only a commander stopped with route steps left banks. Arriving on the planned last hex, or being found there by an enemy, is not a cut plan.
@@ -296,8 +296,8 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Allies:** vision is shared with allies.
   - **Memory:** explored hexes keep their last-seen state.
   - **Battle hexes:** their contents are hidden without sight.
-  - **In play (sw-o1m.1.4):**
-    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't. Detachments are sources too (sw-o1m.2.4).
+  - **Sight:**
+    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't. Detachments are sources too.
     - **Memory** records each explored hex's features (and owners) and the turn they were last seen. It's recorded at the start and end of every turn and around every hex a commander enters, so hexes glimpsed on the way are explored too. Commanders are never remembered, only seen.
     - **Battle tiles are public:** every player knows where battles are, because a route onto one ends there. What's in a battle (who and why) needs sight.
     - **Orders use what the player knows.** Pathfinding, route costs and planned activities see unexplored hexes as open ground and explored ones as last seen. Movement uses the truth, so a route into an unseen lake stops at its shore without banking.
@@ -310,15 +310,15 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Convoy merging:** convoys on the same hex along the same supply line merge for interaction, with squads configurable together and items forming one war chest, until they split.
 - **Intent:** this design encourages multiple commanders, consolidating battleforces and protecting supply lines.
 - **For now:** simple squad, item and resource tiles. Faction or allegiance variants come later.
-- **In play (sw-o1m.2.5):**
+- **Production and convoys:**
   - **Production:** a feature's `produces` lists squads it can make. Its owner selects one (the first by default). Each turn it advances one step; on reaching the option's `turns`, the squad is made for the option's `cost` in Value. While the owner can't pay, it waits, ready to go.
   - **No supply line:** produced squads join the owner's detachment holding the feature's hex, which garrisons it until a commander picks them up.
   - **Supply lines:** the owner sends a feature's output to a plot or to one of its commanders. Each squad leaves as a convoy on that line, and changing the line redirects convoys already on it. Capturing the feature resets its output and progress, and its line lapses.
   - **Rallies:** a player sends any of its detachments to a plot or a commander, which makes it a convoy; rallying it nowhere halts it. Survivors of a commander that left its battle rally to it (R8Q3).
-  - **Steering (sw-kys.8, 2026-11-17):** a player selects any of its garrisons or convoys and moves it like a commander. It follows a route of hexes, through waypoints, at the map's `convoy_movement` points a turn. A route may take several turns, and it is used up as the convoy walks. A steered convoy takes the player's way, guards and all. Right-clicking one of the player's commanders sends the convoy to join its army.
+  - **Steering:** a player selects any of its garrisons or convoys and moves it like a commander. It follows a route of hexes, through waypoints, at the map's `convoy_movement` points a turn. A route may take several turns, and it is used up as the convoy walks. A steered convoy takes the player's way, guards and all. Right-clicking one of the player's commanders sends the convoy to join its army.
   - **What convoys can't do:** convoys and garrisons never take controllable features, pick up caches or perform hex activities (recruit, hire, refit, convert, battle). Only commanders do. A convoy still fights what it meets.
   - **Convoy movement:** a convoy is a detachment with a destination. Each turn it walks the cheapest path it knows, around hexes it knows are guarded, for the map's `convoy_movement` points. It moves on the commanders' timeline, after commanders at equal times.
-  - **Meeting a commander (in play, sw-ll4.19):** a convoy sent to a commander walks to where that commander's planned route ends this turn, not to where it stood. A commander that enters the hex of a convoy sent to it picks the convoy up there and carries on.
+  - **Meeting a commander:** a convoy sent to a commander walks to where that commander's planned route ends this turn, not to where it stood. A commander that enters the hex of a convoy sent to it picks the convoy up there and carries on.
   - **Interception:** like any detachment, a convoy entering a hex with hostile forces or guards, or entered by a hostile commander, is pulled into an engagement and stops. Survivors of a battle it wins carry on.
   - **Arrival:** at its plot, a convoy holds the hex, joining the player's detachment there. At its commander's hex, its squads join the army up to the cap, and the rest halt there. A convoy whose commander is gone halts where it is.
   - **Merging:** after movement, convoys of one player on the same hex and line merge into one.
@@ -337,7 +337,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Availability:** usable anywhere on the overworld outside battle.
 - **Refitting** vehicles, monsters and unique units needs special plots.
 - **Later:** auto-equip rules.
-- **In play (sw-o1m.2.6):**
+- **Items and chests:**
   - **Items are per-unit gear** (R3Q7): one item equips one unit and fills one of its three slots. A weapon item replaces the unit's weapon, a defense item its defense, and a kit adds its bundles. An item's `fits` limits which units may carry it (by unit ID, unit tag or squad faction).
   - **Chests:** every commander, detachment and convoy has a War Chest. Identical items in one place stack. Equipped items belong to their squad and travel with it, through trades, drop-offs and convoys.
   - **Equipping:** a commander outside battle equips items from its chest to squads of its army that aren't in a battle, and unequips them back. A squad takes as many as it has units that fit with the slot free, at full strength. The army view lists each squad's items (the equipped tab), and the chest view lists, per stack, the squads with room for it (the detail view).
@@ -356,13 +356,13 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 
 ## 2.11 Angels in play (R3Q17, R5Q6, R6Q17)
 - **Driven by behaviour data:** Angels are an undirected narrative force (not a player faction), driven by behaviour data through the trigger system.
-  - **In play (sw-cgl.2):** triggers place and remove features, so Angels can appear as guarded `hex_angel_host` features in front of resources. Its guard is a placeholder until the Angel roster (sw-136.2). Stealing items and the inverted auto-resolve still need their own actions.
+  - **Angels in the overworld:** triggers place and remove features, so Angels can appear as guarded `hex_angel_host` features in front of resources. Its guard is a placeholder until the Angel roster. Stealing items and the inverted auto-resolve still need their own actions.
 - **Interference:** they act as filler interference. They give battle in front of resources, eat turn timers with nonsense dialogue, and steal or move overworld items.
 - **Inverted auto-resolve:** a commander with no battleforce can temporarily disperse Angels by engaging them. This is required to clear movement-blocking Angels in the Angelfall mission, but it doesn't work in the final key battles.
-  - **In play (sw-136.2):** a commander engages with no battleforce by planning the built-in `none` preset without its own squad (`lead` off).
+  - **Engaging with no battleforce:** a commander engages with no battleforce by planning the built-in `none` preset without its own squad (`lead` off).
     - **Dispersible guards:** if every guard on the hex has `dispersal_turns`, they are dispersed (`guard_dispersed`, for triggers to count) and come back after that many full turns (`guard_returned`). The commander takes the hex.
     - **Any other guard holds:** the engagement ends with no battle. Before this rule, a commander with no squads cleared any guard.
-- **Guards in battle (sw-cf6):** the neutral side's squads take orders from `GuardController` at each Reveal, deterministically from their own observation.
+- **Guards in battle:** the neutral side's squads take orders from `GuardController` at each Reveal, deterministically from their own observation.
   - **Every guard** attacks the nearest enemy squad it sees.
   - **Hunters** (keyword `hunter`, the Angels) go for squads with the `civilian` keyword first, and when they see nobody they sweep to the nearest zone they don't hold.
 - **Accumulation:** every Angel not fought becomes one to face later. In the preventable-Angelfall campaign, Angel forces are added or replaced with squads built from the player's unchosen Legend consequences.
@@ -378,7 +378,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Host drop:** host migration runs first, then the flow above, authoritative from the new host.
 - **Ranked:** a vote-ended match is a forfeit for the disconnected side, and void if everyone dropped. There are no penalties until usage data exists.
 
-## 2.13 The effect language (sw-p2q.1, E1–E4)
+## 2.13 The effect language (E1–E4)
 One language describes every simulation-side effect: abilities, statuses, equipment, traits and keywords, terrain features, zone conditions (including Ruin), Legend consequences, commander abilities and overworld feature effects. Items, weapons and abilities share effects the way they do in Brotato (E1Q1). The campaign trigger layer (§3.5) stays separate and *invokes* effects.
 
 ### Effects and bundles (E1Q2, E2Q13)
@@ -419,7 +419,7 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - An ability is a bundle plus an **activation**: costs, cooldown, charges, ready time, range, targeting, toggle.
 - Abilities are planning orders validated against their activation. Toggles (Detection, Concealment) and reactions are abilities.
 - **Readied states:** what the state does, how long it lasts and which conditions lose it are all data.
-- **Activation in play (sw-ps1.5):**
+- **Activation:**
   - **Using an ability:** an order's ability entry is checked against cooldown, charges, costs, targeting and range, then applied at execute start. A squad-targeted bundle is held by the target and sourced from the user.
   - **Toggles:** a toggle pays upkeep every tick while on. It switches off when a pool it sinks reaches its auto-off band.
   - **Reactions:** a reaction pays its costs (Instinct, default from the ruleset) when it fires on contact. Its bundle sees the trigger as "other". Reaction bundles use the `order` operation: hold, fall back, or attack the selected squad.
@@ -433,7 +433,7 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - Anything visible is inspectable, except deception-tagged effects, which show their disguise.
 - An **inspection window**, available in planning and playback, gives per-unit breakdowns behind tabs or unit cards. Comparison tooltips show how unit and squad stats would change.
 - The UI only formats values it receives from the Game API; it never computes them.
-- **The inspection call (sw-ps1.6):** `BattleSession.inspect(player, squad)` returns, for one squad:
+- **The inspection call:** `BattleSession.inspect(player, squad)` returns, for one squad:
   - **Strength:** living units against the template's starting count, e.g. "7 / 8 units".
   - **Squad and per-unit stats:** each with base, effective value and the step trace. Trace terms name the bundle each modifier came from, and every fire mode is listed.
   - **Effects held:** stacks, remaining ticks, rules text and accumulator progress, e.g. "Next in 2 hits".
@@ -441,7 +441,7 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
   - **Visibility:** own squads are always inspectable; enemy squads only while seen. For anyone but the owner, deception-tagged bundles appear as their disguise, in the effects list and in the traces.
 
 ## 2.14 Battle space (O1Q8, O1Q9)
-**Status:** the grid, passability and routing are in play (sw-ll4.2, sw-ll4.4); the owner said to build them on 2026-11-16. Deployment is in play too (sw-ll4.15): a squad's anchor and each of its units start on the nearest cell the squad can enter, so a deployment area painted over a wall or water still fields the side. Charges are not built. It fills the gap behind §2.6's "terrain, line of sight and cover apply".
+**Status:** the grid, passability and routing are specified here; the owner said to build them on 2026-11-16. Deployment: a squad's anchor and each of its units start on the nearest cell the squad can enter, so a deployment area painted over a wall or water still fields the side. Charges are not built. It fills the gap behind §2.6's "terrain, line of sight and cover apply".
 
 ### The grid
 - **Cells:** a battlefield is a grid of 1-metre cells. Each cell holds one terrain feature. Positions stay continuous fixed-point; the grid is what terrain, cover, line of sight and routing read.
@@ -457,7 +457,7 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - **Moving targets:** a squad attacking another squad re-plans when its target has moved more than a set distance (data; default 8 m) from where the route was planned to.
 - **Forecasts:** the planning forecast runs the same movement, so its ghosts show the route the squad will take.
 - **Fog:** a route is planned on the true terrain. Battle terrain is never hidden, only squads are.
-- **In play (sw-ll4.4):** `BattleRoute` plans on the 1-metre cells, one straight leg at a time.
+- **Routing:** `BattleRoute` plans on the 1-metre cells, one straight leg at a time.
   - **Legs:** the squad walks straight to a waypoint and plans the next leg when it gets there. A leg is the farthest point on the cheapest cell path that it can walk straight to at no more cost. On open ground that is the destination itself, so squads move as they did before.
   - **Costs:** entering a cell costs 10, or 14 diagonally, times the cell's cost for the squad. A squad pays what its slowest member pays, and can't enter what any member can't. Diagonal steps never cut a corner.
   - **Unreachable points:** the squad goes to the nearest cell it can reach: the closest ring of cells around the point that has one, then the least straight distance, then the lowest cell index.
