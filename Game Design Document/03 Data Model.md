@@ -94,12 +94,12 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Attached to:** an `overworld_map` and a `scenario` each list their `triggers`. They run at the end of each overworld turn and each battle turn, in ID order per event.
   - **Checks:**
     - **Any context:** `var`, `turn`, `fired`, `any` (one of `of`). Comparisons use `op` (==, !=, <, <=, >, >=) against `value`.
-    - **Overworld:** `value`, `owns`, `feature_at`.
+    - **Overworld:** `value`, `owns`, `feature_at`, `commander_at` (commanders on col,row, optionally of a `player` / `commander` template).
     - **Battle:** `zone_owner`, `zone_locked`.
   - **Actions:**
     - **Any context:** `set_var`, `add_var`, `message` (a translation `key` with `text` fallback, to a `player` or 0 = all).
-    - **Overworld:** `add_value`, `add_feature`, `remove_feature`.
-    - **Battle:** `unlock_zone`, `lock_zone`, `end_battle`.
+    - **Overworld:** `add_value`, `add_feature`, `remove_feature`, `spawn_commander`, `give_squad`, `give_item` (to a `target` commander ID, or the `player`'s commander on col,row; `give_squad` respects the army cap), `start_engagement` (col,row).
+    - **Battle:** `unlock_zone`, `lock_zone`, `end_battle`, `apply_bundle` (`bundle`; every squad, or of a `player` and/or `squad` template), `reveal_area` (`player`, `x`, `y`, `radius` in cells, `turns`; 0 = permanent; squads inside count as seen).
   - **Using the event:** a `"$field"` value reads the triggering event's data, e.g. `"player": "$player"`.
   - **Vocabulary to add for the editor** (O1Q7, proposed; not yet built). The vocabulary stays closed and engine-provided; it grows to what a custom-map author needs:
     - **Battle actions:** `spawn_squad` (side, squad, at a point or deployment area), `remove_squad`, `order_squad` (an ordinary order, validated like a player's), `apply_bundle` (to a squad or a side), `add_score`, `reveal_area`.
