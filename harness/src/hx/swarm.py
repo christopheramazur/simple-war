@@ -168,6 +168,11 @@ def send_mail(to: str, sender: str, body: str) -> list[str]:
     return names
 
 
+def inbox_count(role: str) -> int:
+    d = STATE / "mail" / role
+    return sum(1 for _ in d.glob("*.md")) if d.exists() else 0
+
+
 def take_mail(role: str) -> str:
     d = STATE / "mail" / role
     if not d.exists():
@@ -354,6 +359,8 @@ def merge_worker(bead: str) -> str:
         j.update(status="merged", merged=now().isoformat(timespec="seconds"), checks=names)
         save_job(j)
         event("merge", bead=bead, pushed=not p.returncode, checks=names)
+        # the work is on main: close the bead here, so a turn killed right after a merge leaves nothing open (sw-0zi.3)
+        _bd("close", bead, f"--reason=merged to main by hx swarm merge ({', '.join(names) or 'docs only'} green)")
         return (f"merged ({', '.join(names) or 'docs only, no tests'} green)"
                 + ("" if not p.returncode else "; push failed: " + p.stderr[-200:]))
     raise ValueError("main kept moving during the tests; run the merge again")
@@ -375,6 +382,61 @@ def reject_worker(bead: str, reason: str) -> str:
     save_job(j)
     event("reject", bead=bead, reason=reason[:300])
     return "rejected"
+
+
+# ---------------------------------------------------------------- the supervisor's own pipeline steps (sw-0zi.3)
+
+_PATH = re.compile(r"\b((?:src|harness|data|tests|addons|docs)/[\w./-]*\w)")
+
+
+def bead_paths(text: str) -> set[str]:
+    """Repo paths a bead's text names (files or folders), to keep two workers off the same files."""
+    return {p.rstrip("/.") for p in _PATH.findall(text or "")}
+
+
+def _overlaps(a: set[str], b: set[str]) -> bool:
+    return any(x == y or x.startswith(y + "/") or y.startswith(x + "/") for x in a for y in b)
+
+
+def pick_ready(ready: list[dict], open_beads: list[dict], busy_texts: list[str], c: dict, skip: set[str] = frozenset()) -> dict | None:
+    """The next bead the supervisor may spawn on its own, or None. `ready`: `bd ready --json`.
+    `open_beads`: every non-closed bead (to find parents with open children). `busy_texts`: bead texts of
+    queued and running workers (their named paths must not overlap). `skip`: beads with a worker job.
+
+    Skips epics, parents with open children, beads flagged for a human, the excluded labels (by default
+    `swarm-harness`: guardrail work the swarm may not do) and parents (the design-interview epic), and
+    design interviews. Order: priority, bugs first, designer-accepted proposals, then oldest."""
+    w = c.get("workers", {})
+    bad_labels = set(w.get("refill_exclude_labels", ["needs-human", "swarm-harness"]))
+    bad_parents = set(w.get("refill_exclude_parents", ["sw-p2q"]))
+    parents = {b.get("parent") for b in open_beads if b.get("parent")}
+    busy = set().union(*(bead_paths(t) for t in busy_texts)) if busy_texts else set()
+
+    def ok(b: dict) -> bool:
+        labels = set(b.get("labels") or [])
+        return (b.get("issue_type") != "epic" and b["id"] not in parents and b["id"] not in skip
+                and not labels & bad_labels and b.get("parent") not in bad_parents
+                and not b.get("title", "").lower().startswith("design interview")
+                and not _overlaps(bead_paths(f"{b.get('title', '')}\n{b.get('description', '')}"), busy))
+
+    def key(b: dict) -> tuple:
+        return (b.get("priority", 4), b.get("issue_type") != "bug", "swarm-proposed" not in (b.get("labels") or []),
+                b.get("created_at", ""))
+    cands = sorted((b for b in ready if ok(b)), key=key)
+    return cands[0] if cands else None
+
+
+def _bd_json(*args: str) -> list[dict]:
+    r = subprocess.run(["bd", *args, "--json"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", stdin=subprocess.DEVNULL, timeout=120)
+    if r.returncode:
+        raise RuntimeError(f"bd {' '.join(args)}: {r.stderr.strip()[-200:]}")
+    return json.loads(r.stdout or "[]")
+
+
+def _bd(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["bd", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", stdin=subprocess.DEVNULL, timeout=120)
 
 
 # ---------------------------------------------------------------- research jobs
@@ -658,7 +720,9 @@ def rule_verdict(c: dict, u: dict, ev: list[dict], js: list[dict], t: datetime, 
         fail.append(f"swarm calls cost {cost:.4f} USD (must be 0)")
     # The orchestrator is alive and doing something.
     o = c.get("orchestrator", {})
-    silent = a.get("orchestrator_silent_min", (o.get("turn_timeout_s", 3600) + o.get("pause_s", 240)) / 60 + 60)
+    # a turn, its gap with backoff, then up to a heartbeat of waiting for mail (sw-0zi.3)
+    silent = a.get("orchestrator_silent_min",
+                   (o.get("turn_timeout_s", 3600) + o.get("pause_s", 240) + o.get("heartbeat_s", 3600)) / 60 + 45)
     if not paused and orch_last is not None and (t - orch_last).total_seconds() / 60 > silent:
         fail.append(f"no orchestrator turn for {(t - orch_last).total_seconds() / 60:.0f} min (limit {silent:.0f})")
     loop_min = a.get("loop_window_min", 120)
@@ -777,6 +841,7 @@ class Supervisor:
         self.cfg_mtime = cfg_mtime()
         self.stop = threading.Event()
         self.orch_paused = threading.Event()   # set while a postmortem runs
+        self.orch_running = threading.Event()  # set while an orchestrator turn runs
         self.pools = {p: Slots(self.c["run"][f"{p}_slots"]) for p in ("core", "support")}
         self.end = datetime.fromisoformat(self.c["run"]["end_at"])
         self.workers_started = 0
@@ -885,15 +950,107 @@ class Supervisor:
 
     # -- loops
     def orchestrator_loop(self) -> None:
+        """Event-driven (sw-0zi.3): after a turn and its minimum gap (pause_s, plus backoff), the next turn
+        starts only when the orchestrator has mail (a worker finished, an audit alert, a designer's answer)
+        or the heartbeat comes due. Polling turns took 38% of all calls on 2026-11-21."""
         fails = 0
+        why = "the swarm started"
         while self.alive():
             if self.orch_paused.is_set():
                 self.wait(30)
                 continue
-            rc, _ = self.turn("orchestrator", compose("orchestrator", "orchestrator"),
-                              timeout=self.c["orchestrator"]["turn_timeout_s"])
-            fails = fails + 1 if rc else 0
+            extra = f"# Why you were woken\n{why}.\n"
+            self.orch_running.set()
+            try:
+                rc, _ = self.turn("orchestrator", compose("orchestrator", "orchestrator", extra),
+                                  timeout=self.c["orchestrator"]["turn_timeout_s"])
+            finally:
+                self.orch_running.clear()
+            fails = fails + 1 if rc not in (0, STOPPED) else 0
             self.wait(self.c["orchestrator"]["pause_s"] + self.backoff() + min(1800, 60 * 2 ** fails if fails else 0))
+            why = self.wait_for_orchestrator_work()
+
+    def wait_for_orchestrator_work(self) -> str:
+        """Blocks until the orchestrator's inbox has mail or the heartbeat is due; returns why."""
+        t0 = time.time()
+        while self.alive():
+            n = inbox_count("orchestrator")
+            if n:
+                return f"{n} new message(s) in your inbox"
+            if time.time() - t0 >= self.c["orchestrator"].get("heartbeat_s", 3600):
+                return "the hourly heartbeat (no new mail): check the workers and fill empty slots"
+            self.wait(15)
+        return "the swarm is stopping"
+
+    def pipeline_loop(self) -> None:
+        """The supervisor's own pipeline steps, once a minute: merge finished workers nobody reviewed in
+        time, and keep worker slots filled when the orchestrator has not (sw-0zi.3)."""
+        self.wait(60)
+        while self.alive():
+            for step in (self.auto_merge, self.refill):
+                try:
+                    step()
+                except Exception as e:  # noqa: BLE001 - one bad step must not stop the other
+                    log(f"pipeline {step.__name__}: {e!r}")
+            self.wait(60)
+
+    def refill(self) -> str | None:
+        """Spawns the next ready bead when a worker slot has been free for workers.refill_idle_min minutes (so
+        the orchestrator gets the first pick after a worker finishes). Returns the bead spawned, or None."""
+        w = self.c["workers"]
+        if not w.get("auto_refill", True):
+            return None
+        js = jobs()
+        busy = [j for j in js if j["status"] in ("queued", "running")]
+        open_jobs = [j for j in js if j["status"] in ("queued", "running", "done", "partial")]
+        if len(busy) >= int(w["max_parallel"]) or len(open_jobs) >= int(w["max_open"]):
+            return None
+        idle_s = w.get("refill_idle_min", 10) * 60
+        last = max((datetime.fromisoformat(e["ts"]) for e in events(now() - timedelta(seconds=idle_s))
+                    if e["kind"] in ("spawn", "worker_done", "merge", "reject")), default=None)
+        if last is not None:
+            return None
+        b = pick_ready(_bd_json("ready"), _bd_json("list", "--status=open,in_progress,blocked", "--limit", "0"),
+                       [j.get("bead_text", "") for j in busy], self.c, skip={j["bead"] for j in js if j["status"] not in DONE})
+        if not b:
+            return None
+        _bd("update", b["id"], "--claim")
+        spawn_worker(b["id"], note="Spawned by the supervisor (auto-refill: a worker slot was idle). Read the bead's "
+                                   "acceptance criteria; keep to the files it names.")
+        event("auto_spawn", bead=b["id"])
+        send_mail("orchestrator", "supervisor", f"Auto-refill: a worker slot was idle for {idle_s // 60} min, so I spawned "
+                                                f"{b['id']} ({b.get('title', '')[:80]}), the top ready bead. Re-brief it with "
+                                                f"`hx swarm spawn {b['id']} --note ...` after it finishes if needed.")
+        return b["id"]
+
+    def auto_merge(self) -> list[str]:
+        """Merges `done` workers (a WORKER RESULT, rc 0, no WIP) that waited longer than
+        workers.review_timeout_min for the orchestrator. The merge gate still runs the tests and refuses
+        guardrail files; a merged bead is labelled swarm-unreviewed for a later look. Each job is tried once."""
+        limit = self.c["workers"].get("review_timeout_min", 90)
+        merged = []
+        if self.orch_running.is_set():  # it may be merging the same bead right now
+            return merged
+        for j in jobs():
+            if (j["status"] != "done" or j.get("auto_merge_tried") or not j.get("finished") or not j.get("commits")
+                    or (now() - datetime.fromisoformat(j["finished"])).total_seconds() < limit * 60):
+                continue
+            j["auto_merge_tried"] = now().isoformat(timespec="seconds")
+            save_job(j)
+            try:
+                out = merge_worker(j["bead"])
+            except Exception as e:  # noqa: BLE001 - red tests, conflicts, protected files: leave it to the orchestrator
+                event("auto_merge_failed", bead=j["bead"], error=str(e)[:300])
+                send_mail("orchestrator", "supervisor", f"Auto-merge of {j['bead']} (unreviewed for {limit} min) failed; "
+                                                        f"it is yours to fix, re-spawn or reject:\n{str(e)[:1500]}")
+                continue
+            _bd("update", j["bead"], "--add-label=swarm-unreviewed",
+                f"--append-notes=swarm: auto-merged by the supervisor after {limit} min without review ({out})")
+            event("auto_merge", bead=j["bead"])
+            send_mail("orchestrator", "supervisor", f"Auto-merged {j['bead']} after {limit} min without review: {out}. "
+                                                    "It is labelled swarm-unreviewed; review the diff on main when you can.")
+            merged.append(j["bead"])
+        return merged
 
     def worker_loop(self, n: int) -> None:
         while self.alive():
@@ -1130,6 +1287,7 @@ class Supervisor:
                    threading.Thread(target=self._guard, args=(self.research_loop,), name="research"),
                    threading.Thread(target=self._guard, args=(self.retro_loop,), name="retro"),
                    threading.Thread(target=self._guard, args=(self.housekeeping_loop,), name="housekeeping"),
+                   threading.Thread(target=self._guard, args=(self.pipeline_loop,), name="pipeline"),
                    threading.Thread(target=self._guard, args=(lambda: self.periodic_loop("designers"),), name="designers"),
                    threading.Thread(target=self._guard, args=(lambda: self.periodic_loop("researchers"),), name="researchers")]
         for t in threads:
