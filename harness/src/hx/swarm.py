@@ -555,6 +555,24 @@ def compose(role: str, role_files: str | list[str], extra: str = "", inbox: str 
     return f"{common}\n\n{body}\n\n{ctx}\n{extra}".strip() + "\n"
 
 
+# Turns in flight (pid -> Popen), so stopping the supervisor can end them instead of orphaning them (sw-0zi.11).
+_running: dict[int, subprocess.Popen] = {}
+_running_lock = threading.Lock()
+_stopping = threading.Event()
+STOPPED = -15  # rc of a turn ended because the swarm stopped
+
+
+def stop_turns() -> list[int]:
+    """Ends every running turn (each waiting run_turn returns STOPPED). Returns the pids it killed."""
+    _stopping.set()
+    with _running_lock:
+        procs = list(_running.values())
+    for p in procs:
+        if p.poll() is None:
+            background.kill_tree(p.pid)
+    return [p.pid for p in procs]
+
+
 def run_turn(role: str, prompt: str, cwd: Path = ROOT, timeout: int = 1800, kind: str = "turn") -> tuple[int, str]:
     ensure_gateway()
     from hx import keystore
@@ -571,15 +589,33 @@ def run_turn(role: str, prompt: str, cwd: Path = ROOT, timeout: int = 1800, kind
                               "--file", str(logf.with_suffix(".prompt.md")),
                               f"Follow the attached instructions as the {role}. Start now."],
                              cwd=cwd, env=env, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **kw)
+        with _running_lock:
+            _running[p.pid] = p
         try:
-            rc = p.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            background.kill_tree(p.pid)
-            rc = -9
+            deadline = t0 + timeout
+            rc = None
+            while rc is None:
+                if _stopping.is_set():
+                    background.kill_tree(p.pid)
+                    p.wait(30)
+                    rc = STOPPED
+                    break
+                try:
+                    rc = p.wait(timeout=max(0.1, min(2.0, deadline - time.time())))
+                except subprocess.TimeoutExpired:
+                    if time.time() >= deadline:
+                        background.kill_tree(p.pid)
+                        rc = -9
+            if rc not in (0, -9) and _stopping.is_set():  # killed by stop_turns() while we waited
+                rc = STOPPED
+        finally:
+            with _running_lock:
+                _running.pop(p.pid, None)
     dur = round(time.time() - t0)
     text = logf.read_text(encoding="utf-8", errors="replace")
     rate_limited = text.count("rate limit") + text.count("RateLimit")
-    event(kind, role=role, rc=rc, seconds=dur, rate_limited=rate_limited, log=str(logf.relative_to(STATE)))
+    extra = {"stopped": True} if rc == STOPPED else {}
+    event(kind, role=role, rc=rc, seconds=dur, rate_limited=rate_limited, log=str(logf.relative_to(STATE)), **extra)
     update_state(lambda s: s["turns"].__setitem__(role, s["turns"].get(role, 0) + 1))
     return rc, text
 
@@ -744,6 +780,7 @@ class Supervisor:
         self.pools = {p: Slots(self.c["run"][f"{p}_slots"]) for p in ("core", "support")}
         self.end = datetime.fromisoformat(self.c["run"]["end_at"])
         self.workers_started = 0
+        self.worker_threads: list[threading.Thread] = []
 
     def maybe_reload(self) -> list[str] | None:
         """Re-reads swarm.toml when its mtime changed (sw-0zi.1). Loops read `self.c` on every use, so a
@@ -781,6 +818,7 @@ class Supervisor:
             n = self.workers_started
             t = threading.Thread(target=self._guard, args=(lambda n=n: self.worker_loop(n),), name=f"worker{n}", daemon=True)
             self.workers_started += 1
+            self.worker_threads.append(t)
             t.start()
 
     def alive(self) -> bool:
@@ -808,7 +846,7 @@ class Supervisor:
         Separate pools so support roles can never take the pipeline's share of the rate-limited model."""
         with self.pools[pool]:
             if not self.alive():
-                return -1, ""
+                return STOPPED, ""
             return run_turn(role, prompt, **kw)
 
     # -- loops
@@ -847,6 +885,11 @@ class Supervisor:
                                  cwd=Path(j["worktree"]), timeout=self.c["workers"]["timeout_s"], kind="worker")
             wip = save_wip(Path(j["worktree"]), f"worker turn ended (rc={rc}) with uncommitted changes")
             ahead = int(git("rev-list", "--count", f"main..{j['branch']}").stdout.strip() or 0)
+            if rc == STOPPED:  # the swarm is stopping: back in the queue, so the next start resumes it on its branch
+                j.update(status="queued", rc=rc, commits=ahead)
+                save_job(j)
+                event("worker_done", bead=j["bead"], status="stopped", commits=ahead, rc=rc, wip=wip)
+                continue
             m = re.search(r"WORKER RESULT.*", text, re.S)
             summary = m.group(0)[:3500] if m else text[-3500:]
             status = "failed" if not ahead else ("done" if rc == 0 and m and not wip else "partial")
@@ -894,6 +937,10 @@ class Supervisor:
             extra = f"# Your assignment\nTopic: {j['topic']}\nRequested by: {j['requester']}\nWrite the report to `{out.relative_to(ROOT).as_posix()}`.\n"
             rc, _ = self.turn(f"research-{j['slug'][:30]}", compose("deep-researcher", "deep-researcher", extra, inbox=""), pool="support",
                               timeout=self.c["research"]["timeout_s"], kind="research")
+            if rc == STOPPED and not out.exists():  # the swarm is stopping: run it again on the next start
+                j["status"] = "queued"
+                _write(p, json.dumps(j))
+                continue
             j.update(status="done" if out.exists() else "failed", finished=now().isoformat(timespec="seconds"))
             _write(p, json.dumps(j))
             send_mail("researchers", "supervisor", f"Deep research `{j['slug']}` finished: {j['status']}. Report: `{out.relative_to(ROOT).as_posix()}`.")
@@ -1048,19 +1095,31 @@ class Supervisor:
             t.daemon = True
             t.start()
         self.start_workers()
-        while self.alive():
-            time.sleep(5)
-            try:
-                self.maybe_reload()
-            except Exception as e:  # noqa: BLE001 - a reload problem must never stop the swarm
-                log(f"config reload: {e!r}")
-        log("supervisor stopping")
-        for t in threads:
-            t.join(timeout=5)
+        try:
+            while self.alive():
+                time.sleep(5)
+                try:
+                    self.maybe_reload()
+                except Exception as e:  # noqa: BLE001 - a reload problem must never stop the swarm
+                    log(f"config reload: {e!r}")
+        finally:
+            self.stop.set()
+            self.shutdown(threads + self.worker_threads)
         write_status()
         commit_docs("swarm: final status")
         event("supervisor_stop")
         (STATE / "supervisor.pid").unlink(missing_ok=True)
+
+    def shutdown(self, threads: list[threading.Thread], grace_s: float = 120) -> list[int]:
+        """Ends the running turns instead of orphaning them (sw-0zi.11), then gives the loops time to wrap
+        up (a stopped worker saves its WIP and goes back in the queue). Returns the pids it killed."""
+        killed = stop_turns()
+        log(f"supervisor stopping: ended {len(killed)} running turn(s)")
+        deadline = time.time() + grace_s
+        for t in threads:
+            t.join(timeout=max(0.1, deadline - time.time()))
+        late = stop_turns()  # a turn that started while we were stopping
+        return killed + [p for p in late if p not in killed]
 
     def _guard(self, fn) -> None:
         """A crashing loop restarts after a pause instead of silently dying."""
@@ -1148,6 +1207,36 @@ def start() -> int:
     return proc.pid
 
 
-def stop() -> bool:
+def children(pid: int) -> list[int]:
+    """Live processes whose parent is `pid` (the supervisor's turns, also after it exited)."""
+    try:
+        if sys.platform == "win32":
+            r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                                f"Get-CimInstance Win32_Process -Filter 'ParentProcessId={int(pid)}' | "
+                                "ForEach-Object { $_.ProcessId }"], capture_output=True, text=True, timeout=60)
+        else:
+            r = subprocess.run(["ps", "-o", "pid=", "--ppid", str(int(pid))], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return [int(x) for x in r.stdout.split() if x.strip().isdigit()]
+
+
+def stop(wait_s: float = 180) -> dict:
+    """Writes STOP, waits for the supervisor to end its turns and exit, then kills any process it left
+    behind (sw-0zi.11: on 2026-11-22 three turns ran on for 30 min after a stop)."""
+    pid = supervisor_pid()
     _write(STATE / "STOP", now().isoformat())
-    return supervisor_pid() is not None
+    out = {"was_running": pid is not None, "exited": True, "orphans_killed": []}
+    if pid is None:
+        return out
+    deadline = time.time() + wait_s
+    while supervisor_pid() == pid and time.time() < deadline:
+        time.sleep(2)
+    out["exited"] = supervisor_pid() != pid
+    if out["exited"]:
+        for c in children(pid):
+            background.kill_tree(c)
+            out["orphans_killed"].append(c)
+        if out["orphans_killed"]:
+            log(f"hx swarm stop: killed {len(out['orphans_killed'])} process(es) left by supervisor {pid}")
+    return out
