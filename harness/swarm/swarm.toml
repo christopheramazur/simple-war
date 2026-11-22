@@ -9,6 +9,9 @@ end_at = "2026-11-24T13:00:00+00:00"   # 4 days from the start (2026-11-20 ~13:3
 core_slots = 2
 support_slots = 1
 commit_every_s = 900                    # housekeeping: STATUS.md + commit docs/swarm
+throttle_share_on = 0.4       # sw-0zi.2: pause support turns above this rate-limited share (last hour, swarm calls)
+throttle_share_off = 0.25     # resume below this share...
+throttle_min_ok_per_h = 30    # ...and with at least this many successful calls an hour (fewer also pauses)
 
 [orchestrator]
 pause_s = 240          # retro 2026-11-21: was 90; orchestrator took 40% of all calls polling; worker turns are 30-120 min so merge latency is unaffected

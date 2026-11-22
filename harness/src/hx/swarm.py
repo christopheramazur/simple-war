@@ -34,7 +34,7 @@ OC_CONFIG = SWARM / "opencode.json"
 DONE = {"merged", "rejected"}
 PROTECTED = {"harness/src/hx/swarm.py", "harness/src/hx/commands/swarm.py", "harness/swarm/opencode.json",
              "harness/swarm/roles/_common.md", "harness/src/hx/gateway/litellm_hooks.py", "harness/config/providers.toml",
-             "harness/src/hx/commands/delegate.py", "opencode.json", ".mcp.json"}
+             "harness/src/hx/commands/delegate.py", "harness/src/hx/gateway/pacer.py", "opencode.json", ".mcp.json"}
 
 
 def now() -> datetime:
@@ -833,6 +833,40 @@ class Supervisor:
         while time.time() < end and self.alive():
             time.sleep(min(5, max(0.1, end - time.time())))
 
+    def support_paused(self) -> bool:
+        """True while the gateway is throttling (sw-0zi.2): support turns (designers, researchers, research,
+        retro) wait so the few calls that start go to workers and the orchestrator. On when, over the last
+        hour of swarm calls (at least 10), the rate-limited share exceeds run.throttle_share_on or successful
+        calls fall below run.throttle_min_ok_per_h; off once the share is under run.throttle_share_off and
+        successes are back above the minimum. Evaluated at most once a minute; logs throttle_on/off events."""
+        t = time.time()
+        if t - getattr(self, "_throttle_checked", 0.0) < 60:
+            return getattr(self, "throttled", False)
+        self._throttle_checked = t
+        r = self.c.get("run", {})
+        rows = [x for x in _gateway_rows(now() - timedelta(hours=1)) if str(x.get("caller") or "").startswith("swarm")]
+        limited = sum("RateLimit" in (x.get("error") or "") for x in rows)
+        ok = sum(x.get("status") == "success" for x in rows)
+        share = limited / len(rows) if rows else 0.0
+        was = getattr(self, "throttled", False)
+        if len(rows) < 10:  # too little traffic to call it throttling
+            on = False
+        elif was:
+            on = not (share < r.get("throttle_share_off", 0.25) and ok >= r.get("throttle_min_ok_per_h", 30))
+        else:
+            on = share > r.get("throttle_share_on", 0.4) or ok < r.get("throttle_min_ok_per_h", 30)
+        if on != was:
+            self.throttled = on
+            event("throttle_on" if on else "throttle_off", calls=len(rows), ok=ok, rate_limited=limited)
+            log(f"gateway {'throttled: support turns paused' if on else 'recovered: support turns resume'} "
+                f"({ok} ok, {limited} rate-limited of {len(rows)} swarm calls in the last hour)")
+        return on
+
+    def hold_support(self) -> None:
+        """Waits (in 5 min steps) while support turns are paused for throttling."""
+        while self.alive() and self.support_paused():
+            self.wait(300)
+
     def backoff(self) -> float:
         """Seconds to add between turns when Nous is rate-limiting (share of 429s in the last 10 min)."""
         rows = _gateway_rows(now() - timedelta(minutes=10))
@@ -910,6 +944,9 @@ class Supervisor:
         i = 0
         self.wait(self.c[group].get("initial_delay_s", 60))
         while self.alive():
+            self.hold_support()
+            if not self.alive():
+                break
             sec = self.c[group]  # read each round so a config reload applies
             roles = list(sec["roles"])
             role = roles[i % len(roles)]
@@ -919,6 +956,7 @@ class Supervisor:
 
     def research_loop(self) -> None:
         while self.alive():
+            self.hold_support()
             d = STATE / "research"
             job = None
             with file_lock("jobs"):
@@ -1051,6 +1089,9 @@ class Supervisor:
     def retro_loop(self) -> None:
         self.wait(self.c["retro"]["every_s"])
         while self.alive():
+            self.hold_support()
+            if not self.alive():
+                break
             self.turn("retro", compose("retro", "retro"), pool="support", timeout=self.c["retro"]["turn_timeout_s"])
             commit_docs("swarm: retro")
             self.wait(self.c["retro"]["every_s"])

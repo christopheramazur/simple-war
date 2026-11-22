@@ -15,38 +15,12 @@ from litellm.integrations.custom_logger import CustomLogger
 
 from hx import providers
 from hx.gateway import budget, config
+from hx.gateway.pacer import PriorityPacer
 
 
 SWARM_MODEL = "nous/qwen4-max"
 
-
-class Pacer:
-    """AIMD pacing of call starts for a provider with an adaptive fair-share limit (Nous, 2026-11-20):
-    four agents calling at once got ~90% 429s, so calls wait here instead of bouncing.
-    The gap between starts grows x1.6 on each 429 and shrinks x0.93 on each success."""
-
-    def __init__(self, gap: float = 4.0, lo: float = 2.0, hi: float = 90.0):
-        import asyncio
-        self.gap, self.lo, self.hi = gap, lo, hi
-        self.next_at = 0.0
-        self.lock = asyncio.Lock()
-
-    async def wait(self) -> None:
-        import asyncio
-        async with self.lock:
-            delay = self.next_at - time.monotonic()
-            if delay > 0:
-                await asyncio.sleep(delay)
-            self.next_at = time.monotonic() + self.gap
-
-    def ok(self) -> None:
-        self.gap = max(self.lo, self.gap * 0.93)
-
-    def limited(self) -> None:
-        self.gap = min(self.hi, self.gap * 1.6)
-        self.next_at = max(self.next_at, time.monotonic() + self.gap)
-
-
+# Providers whose call starts are paced, with priority lanes by caller (hx/gateway/pacer.py, sw-0zi.2).
 PACED = {"nous"}
 
 
@@ -80,7 +54,7 @@ class HxHooks(CustomLogger):
         self.aliases = config.alias_map(self.roster)  # "groq/llama70b" -> "groq"
         self.tracker = budget.Tracker(self.roster)
         self.tracker.seed(budget.read_log())
-        self.pacers = {p: Pacer() for p in PACED}
+        self.pacers = {p: PriorityPacer() for p in PACED}
 
     def _provider(self, model: str | None) -> str | None:
         return self.aliases.get(model or "")
@@ -103,7 +77,7 @@ class HxHooks(CustomLogger):
                                "error": d.reason})
             raise HTTPException(status_code=429, detail=d.reason)
         if pid in self.pacers:
-            await self.pacers[pid].wait()
+            await self.pacers[pid].wait(caller)
         return data
 
     def _row(self, kwargs, status: str) -> dict:
