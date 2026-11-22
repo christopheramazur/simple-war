@@ -192,6 +192,7 @@ func _ready() -> void:
 	driver.match_log = match_log
 	glossary =Glossary.from_templates(session.templates)
 	_build_ui()
+	_bind_keys()
 	_turn_seen = session.turns_resolved()
 	contexts = ViewContexts.new(player)
 	contexts.changed.connect(_queue_refresh)
@@ -232,6 +233,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if keys != null:
+		keys.disable(self)
 	wait_forecasts()
 	if contexts != null and contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
@@ -590,7 +593,7 @@ func _overworld_extra() -> Dictionary:
 		var dx := {"reach": cr.get("reach", {}), "budget": cr.get("budget", 0), "spent": 0}
 		var at: int = session.state.detachments.get_value(did, &"plot")
 		if _hover_plot >= 0 and _hover_plot != at and not cr.is_empty():
-			var via := _convoy_route_of(did) if Input.is_key_pressed(KEY_SHIFT) else PackedInt64Array()
+			var via := _convoy_route_of(did) if _route_via_held() else PackedInt64Array()
 			var path := session.convoy_path(player, did, _hover_plot, via)
 			var spent := 0
 			for p in path:
@@ -607,7 +610,7 @@ func _overworld_extra() -> Dictionary:
 	var out := {"reach": reach.get("reach", {}), "budget": reach.get("budget", 0), "spent": reach.get("spent", 0)}
 	var here: int = session.state.commanders.get_value(cid, &"plot")
 	if _hover_plot >= 0 and _hover_plot != here and (reach["reach"] as Dictionary).size() > 0:
-		var via := _route_of(cid) if Input.is_key_pressed(KEY_SHIFT) else PackedInt64Array()
+		var via := _route_of(cid) if _route_via_held() else PackedInt64Array()
 		var path := session.path(player, cid, _hover_plot, via)
 		var costs := 0
 		var known: Dictionary = reach["reach"]
@@ -1323,46 +1326,67 @@ func _input(event: InputEvent) -> void:
 
 ## Arrow keys: how far one press (or key repeat) pans the battle camera.
 const PAN_STEP: float = 60.0
-const _PAN_KEYS: Dictionary = {KEY_LEFT: Vector2.LEFT, KEY_RIGHT: Vector2.RIGHT, KEY_UP: Vector2.UP, KEY_DOWN: Vector2.DOWN}
+
+## The war room's GUIDE actions (DefaultKeys.war_room), enabled while it is
+## in the tree. Name -> GUIDEAction is `keys.actions`.
+var keys: GuideKeys
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	var k := event as InputEventKey
-	if k == null or not k.pressed:
-		return
-	if _PAN_KEYS.has(k.keycode) and contexts.focus != ViewContexts.OVERWORLD:
-		_main.pan_camera(_PAN_KEYS[k.keycode] * PAN_STEP)
-		get_viewport().set_input_as_handled()
-		return
-	if k.echo:
-		return
-	match k.keycode:
-		KEY_TAB:
-			contexts.cycle(-1 if k.shift_pressed else 1)
-		KEY_ESCAPE:
-			if not _target.is_empty():
-				_target = {}
-				_queue_refresh()
-			elif not _play.is_empty():
-				skip_playback()
-			else:
-				contexts.exit()
-		KEY_F:
-			contexts.follow()
-		KEY_V:
-			if replay == null:
-				return
-			view_next_player()
-		KEY_BACKSPACE:
-			contexts.deselect_all()
-		KEY_SPACE:
-			if not _play.is_empty():
-				skip_playback()
-			else:
-				end_turn_requested.emit()
-		_:
-			return
-	get_viewport().set_input_as_handled()
+func _bind_keys() -> void:
+	keys = DefaultKeys.war_room()
+	for dir: Array in [[&"pan_left", Vector2.LEFT], [&"pan_right", Vector2.RIGHT], [&"pan_up", Vector2.UP], [&"pan_down", Vector2.DOWN]]:
+		keys.on(dir[0], _on_pan.bind(dir[1]))
+	keys.on(&"next_battle", func() -> void: _key_command(func() -> void: contexts.cycle(1)))
+	keys.on(&"previous_battle", func() -> void: _key_command(func() -> void: contexts.cycle(-1)))
+	keys.on(&"cancel", func() -> void: _key_command(_on_cancel_key))
+	keys.on(&"follow", func() -> void: _key_command(contexts.follow))
+	keys.on(&"next_player", func() -> void: _key_command(_on_next_player_key))
+	keys.on(&"deselect_all", func() -> void: _key_command(contexts.deselect_all))
+	keys.on(&"end_turn", func() -> void: _key_command(_on_end_turn_key))
+	keys.enable(self)
+
+
+## A window that keeps the keys (options, dialogs) keeps them from the war room.
+func _keys_free() -> bool:
+	var w := ui.top() if ui != null else null
+	return w == null or not w.captures_keys
+
+
+func _key_command(fn: Callable) -> void:
+	if contexts != null and _keys_free():
+		fn.call()
+
+
+func _on_pan(dir: Vector2) -> void:
+	if contexts != null and _keys_free() and contexts.focus != ViewContexts.OVERWORLD:
+		_main.pan_camera(dir * PAN_STEP)
+
+
+func _on_cancel_key() -> void:
+	if not _target.is_empty():
+		_target = {}
+		_queue_refresh()
+	elif not _play.is_empty():
+		skip_playback()
+	else:
+		contexts.exit()
+
+
+func _on_next_player_key() -> void:
+	if replay != null:
+		view_next_player()
+
+
+func _on_end_turn_key() -> void:
+	if not _play.is_empty():
+		skip_playback()
+	else:
+		end_turn_requested.emit()
+
+
+## Whether the "route via" modifier (Shift by default) is held.
+func _route_via_held() -> bool:
+	return keys != null and (keys.actions[&"route_via"] as GUIDEAction).value_bool
 
 
 # --- overworld orders ----------------------------------------------------------

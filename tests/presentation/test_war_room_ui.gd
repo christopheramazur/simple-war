@@ -202,18 +202,12 @@ func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
 func test_space_and_esc_skip_the_playback() -> void:
 	var w := _demo()
 	_play_a_moving_turn(w)
-	var k := InputEventKey.new()
-	k.keycode = KEY_SPACE
-	k.pressed = true
-	w._unhandled_input(k)
+	w.keys.actions[&"end_turn"].triggered.emit()
 	assert_false(w.playing(), "Space skips to the end")
 	await get_tree().process_frame
 	assert_true(w._main._play.is_empty(), "the view shows the present again")
 	_play_a_moving_turn(w)
-	k = InputEventKey.new()
-	k.keycode = KEY_ESCAPE
-	k.pressed = true
-	w._unhandled_input(k)
+	w.keys.actions[&"cancel"].triggered.emit()
 	assert_false(w.playing(), "Esc skips too")
 
 

@@ -52,10 +52,7 @@ func test_panning_moves_a_zoomed_battle_and_stops_at_its_edge() -> void:
 	v.zoom_camera(3.0, v.size / 2.0)
 	w._show_main()
 	var before := v.battle_area().position
-	var key := InputEventKey.new()
-	key.keycode = KEY_RIGHT
-	key.pressed = true
-	w._unhandled_input(key)
+	w.keys.actions[&"pan_right"].triggered.emit()
 	assert_almost_eq(v.battle_area().position.x, before.x - WarRoom.PAN_STEP, 0.5, "the right arrow shows more to the right")
 	for _i in 200:
 		v.pan_camera(Vector2(100, 0))
@@ -80,8 +77,11 @@ func test_space_ends_the_turn_after_a_button_was_clicked() -> void:
 	assert_eq(get_viewport().gui_get_focus_owner(), other)
 	var space := InputEventKey.new()
 	space.keycode = KEY_SPACE
+	space.physical_keycode = KEY_SPACE
 	space.pressed = true
 	Input.parse_input_event(space)
+	await get_tree().process_frame  # GUIDE reads the key state once a frame
+	await get_tree().process_frame
 	var up := space.duplicate()
 	up.pressed = false
 	Input.parse_input_event(up)

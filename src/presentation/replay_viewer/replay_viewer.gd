@@ -53,7 +53,7 @@ func _ready() -> void:
 		return
 	_build_terrain()
 	_build_camera()
-	_register_actions()
+	_bind_keys()
 
 
 func _load_replay() -> void:
@@ -116,40 +116,31 @@ func _build_hud() -> void:
 	layer.add_child(_hud)
 
 
-## Rebindable actions (registered at runtime until the GUIDE input layer
-## lands in M4's planning UI).
-func _register_actions() -> void:
-	var binds := {
-		&"replay_toggle": [KEY_SPACE], &"replay_faster": [KEY_EQUAL, KEY_KP_ADD],
-		&"replay_slower": [KEY_MINUS, KEY_KP_SUBTRACT], &"replay_next_turn": [KEY_RIGHT],
-		&"replay_prev_turn": [KEY_LEFT], &"replay_restart": [KEY_HOME],
-	}
-	for action: StringName in binds:
-		if InputMap.has_action(action):
-			continue
-		InputMap.add_action(action)
-		for key: int in binds[action]:
-			var ev := InputEventKey.new()
-			ev.physical_keycode = key
-			InputMap.action_add_event(action, ev)
+## The viewer's GUIDE actions (DefaultKeys.replay), enabled while it is in
+## the tree so the war room and this scene never both own Space.
+var keys: GuideKeys
+
+
+func _bind_keys() -> void:
+	keys = DefaultKeys.replay()
+	keys.on(&"replay_toggle", func() -> void: playing = not playing)
+	keys.on(&"replay_faster", func() -> void: speed_index = mini(speed_index + 1, SPEEDS.size() - 1))
+	keys.on(&"replay_slower", func() -> void: speed_index = maxi(speed_index - 1, 0))
+	keys.on(&"replay_next_turn", func() -> void: seek_turn(current_turn() + 1))
+	keys.on(&"replay_prev_turn", func() -> void: seek_turn(current_turn() - 1))
+	keys.on(&"replay_restart", func() -> void: seek_frame(0))
+	keys.enable(self)
+
+
+func _exit_tree() -> void:
+	if keys != null:
+		keys.disable(self)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if recorder == null:
 		return
-	if event.is_action_pressed(&"replay_toggle"):
-		playing = not playing
-	elif event.is_action_pressed(&"replay_faster"):
-		speed_index = mini(speed_index + 1, SPEEDS.size() - 1)
-	elif event.is_action_pressed(&"replay_slower"):
-		speed_index = maxi(speed_index - 1, 0)
-	elif event.is_action_pressed(&"replay_next_turn"):
-		seek_turn(current_turn() + 1)
-	elif event.is_action_pressed(&"replay_prev_turn"):
-		seek_turn(current_turn() - 1)
-	elif event.is_action_pressed(&"replay_restart"):
-		seek_frame(0)
-	elif event is InputEventMouseButton:
+	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			# Exponential (non-linear) zoom.
@@ -165,7 +156,7 @@ func _process(delta: float) -> void:
 	if recorder == null:
 		return
 	var pan := Vector2(Input.get_axis(&"ui_left", &"ui_right"), Input.get_axis(&"ui_up", &"ui_down"))
-	if pan != Vector2.ZERO and not Input.is_action_pressed(&"replay_next_turn") and not Input.is_action_pressed(&"replay_prev_turn"):
+	if pan != Vector2.ZERO and not (keys.actions[&"replay_next_turn"] as GUIDEAction).value_bool and not (keys.actions[&"replay_prev_turn"] as GUIDEAction).value_bool:
 		_camera.position += pan * 600.0 * delta / _camera.zoom.x
 	if playing:
 		advance(delta)
