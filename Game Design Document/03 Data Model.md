@@ -101,11 +101,11 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
     - **Overworld:** `add_value`, `add_feature`, `remove_feature`, `spawn_commander`, `give_squad`, `give_item` (to a `target` commander ID, or the `player`'s commander on col,row; `give_squad` respects the army cap), `start_engagement` (col,row).
     - **Battle:** `unlock_zone`, `lock_zone`, `end_battle`, `apply_bundle` (`bundle`; every squad, or of a `player` and/or `squad` template), `reveal_area` (`player`, `x`, `y`, `radius` in cells, `turns`; 0 = permanent; squads inside count as seen).
   - **Using the event:** a `"$field"` value reads the triggering event's data, e.g. `"player": "$player"`.
-  - **Vocabulary to add for the editor** (O1Q7, proposed; not yet built). The vocabulary stays closed and engine-provided; it grows to what a custom-map author needs:
-    - **Battle actions:** `spawn_squad` (side, squad, at a point or deployment area), `remove_squad`, `order_squad` (an ordinary order, validated like a player's), `apply_bundle` (to a squad or a side), `add_score`, `reveal_area`.
-    - **Overworld actions:** `spawn_commander`, `give_squad`, `give_item`, `set_owner` (a feature), `start_engagement`.
-    - **Checks:** `squads_in_zone`, `squad_alive`, `strength` (a side's remaining strength), `commander_at`.
-    - **Timers:** `after_turns` on a trigger delays its actions by whole turns, counted in the state.
+  - **Editor vocabulary** (O1Q7, sw-ll4.5). The vocabulary stays closed and engine-provided; it grows to what a custom-map author needs:
+    - **Built (battle actions):** `spawn_squad` (squad, player, optional x/y in cells, else the middle of the player's deployment area), `remove_squad` (every living squad of a template for a player), `order_squad` (hold, move, attack_move, fall_back or withdraw, validated like a player's order), `add_score` (value or influence). **Built (overworld action):** `set_owner` (a feature at a plot).
+    - **Built (battle checks):** `squad_alive`, `strength` (a side's living units), `squads_in_zone`.
+    - **Built (timers):** `after_turns` on a trigger delays its actions by whole turns, as a `~due.<trigger>.<n>` state variable (so it is saved and hashed). `"$field"` values read as their defaults when the delayed actions run.
+    - **Still to build:** `apply_bundle`, `reveal_area`, and the overworld `spawn_commander`, `give_squad`, `give_item`, `start_engagement`, plus the `commander_at` check.
   - **No chains:** triggers see only their own step's events, not the ones their actions make.
   - **State:** variables and fire counts live in the state, so they're saved, hashed and replayed.
   - **Locked zones:** a scenario zone can start `locked`. A locked zone neither accrues influence nor scores until a trigger unlocks it.

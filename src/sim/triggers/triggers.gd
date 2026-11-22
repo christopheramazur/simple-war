@@ -23,8 +23,34 @@ static func fire(state: SimContext, triggers: Array[Dictionary], by_event: Dicti
 			if not _where(state, trg["where"], e.data) or not _all(state, trg["if"], e.data):
 				continue
 			fired[trg["id"]] = n + 1
+			if trg["after"] > 0:
+				var vars: Dictionary = state.get("vars")
+				vars["%s%s.%d" % [DUE, trg["id"], n]] = int(state.get("turn")) + trg["after"]
+				continue
 			for a: Dictionary in trg["do"]:
 				_act(state, a, trg["id"], e.data)
+	if turn_end:
+		_run_due(state, triggers)
+
+
+## Variable prefix of a delayed run: "~due.<trigger>.<fire number>" = the turn
+## it runs on (at that turn's end).
+const DUE := "~due."
+
+
+static func _run_due(state: SimContext, triggers: Array[Dictionary]) -> void:
+	var vars: Dictionary = state.get("vars")
+	var keys: Array = vars.keys().filter(func(k: String) -> bool: return k.begins_with(DUE))
+	keys.sort()
+	for k: String in keys:
+		if int(vars[k]) > int(state.get("turn")):
+			continue
+		vars.erase(k)
+		var tid := k.substr(DUE.length()).rsplit(".", true, 1)[0]
+		for trg: Dictionary in triggers:
+			if trg["id"] == tid:
+				for a: Dictionary in trg["do"]:
+					_act(state, a, tid, {})
 
 
 static func _where(state: SimContext, where: Dictionary, data: Dictionary) -> bool:
@@ -145,6 +171,35 @@ static func _check(state: SimContext, c: Dictionary, data: Dictionary) -> bool:
 		"zone_locked":
 			var b := state as BattleState
 			return b.zone_locked[b.rules.zone_ids.find(String(c["zone"]))] == 1
+		"squad_alive":
+			var b := state as BattleState
+			return _cmp(_squad_rows(b, String(c["squad"]), int(_v(c, "player", 0, data))).size(), c, data)
+		"strength":
+			var b := state as BattleState
+			var n := 0
+			for row in b.squads.count():
+				if b.squads.is_active(row) and b.squads.player[row] == int(_v(c, "player", 1, data)):
+					n += b.squads.alive[row]
+			return _cmp(n, c, data)
+		"squads_in_zone":
+			var b := state as BattleState
+			var z := b.rules.zone_ids.find(String(c["zone"]))
+			var r2 := b.rules.zn_radius[z]
+			var want := String(c.get("squad", ""))
+			var n := 0
+			for row in b.squads.count():
+				if not b.squads.is_active(row) or b.squads.alive[row] == 0:
+					continue
+				if c.has("player") and b.squads.player[row] != int(_v(c, "player", 0, data)):
+					continue
+				if not want.is_empty() and b.rules.squad_ids[b.squads.tmpl[row]] != want:
+					continue
+				var dx := (b.squads.cx[row] - b.rules.zn_x[z]) / Fixed.ONE
+				var dy := (b.squads.cy[row] - b.rules.zn_y[z]) / Fixed.ONE
+				var r := r2 / Fixed.ONE
+				if dx * dx + dy * dy <= r * r:
+					n += 1
+			return _cmp(n, c, data)
 	return false
 
 
@@ -243,10 +298,71 @@ static func _act(state: SimContext, a: Dictionary, tid: String, data: Dictionary
 			b.zone_locked[z] = 1 if a["do"] == "lock_zone" else 0
 			b.events.push(&"zone_unlocked" if a["do"] == "unlock_zone" else &"zone_locked",
 				{"zone": String(a["zone"]), "player": 0, "rule": tid}, b.tick)
+		"spawn_squad":
+			var b := state as BattleState
+			var st := b.rules.squad_index(String(a["squad"]))
+			var p := int(_v(a, "player", 1, data))
+			var ax := 0
+			var ay := 0
+			var facing := 0
+			for side in b.rules.sides:
+				if side["player"] == p:
+					var d: PackedInt64Array = side["deploy"]
+					ax = d[0] + d[2] / 2
+					ay = d[1] + d[3] / 2
+					facing = side["facing"]
+			if a.has("x") and a.has("y"):
+				ax = Fixed.from_int(int(_v(a, "x", 0, data)))
+				ay = Fixed.from_int(int(_v(a, "y", 0, data)))
+			var sid := BattleSetup.spawn_squad(b, p, st, ax, ay, facing)
+			Centroids.update(b)
+			b.events.push(&"squad_spawned", {"squad": sid, "tmpl": st, "player": p, "rule": tid}, b.tick)
+		"remove_squad":
+			var b := state as BattleState
+			for row in _squad_rows(b, String(a["squad"]), int(_v(a, "player", 0, data))):
+				var sid := b.squads.id_at(row)
+				var col: PackedByteArray = b.squads.take_column(&"withdrawn")
+				col[row] = 1
+				b.squads.put_column(&"withdrawn", col)
+				b.events.push(&"squad_removed", {"squad": sid, "player": b.squads.player[row], "rule": tid}, b.tick)
+		"order_squad":
+			var b := state as BattleState
+			for row in _squad_rows(b, String(a["squad"]), int(_v(a, "player", 0, data))):
+				var o := {"squad": b.squads.id_at(row), "type": String(a.get("type", "hold")), "run": bool(a.get("run", false))}
+				if a.has("x"):
+					o["x"] = Fixed.from_int(int(_v(a, "x", 0, data)))
+					o["y"] = Fixed.from_int(int(_v(a, "y", 0, data)))
+				if BattleOrders.validate(b, b.squads.player[row], o).is_empty():
+					BattleOrders._apply_one(b, o)
+		"add_score":
+			var b := state as BattleState
+			var p := int(_v(a, "player", 1, data))
+			var amount := int(_v(a, "amount", 0, data))
+			if b.players.has(p):
+				if String(a.get("score", "value")) == "influence":
+					b.influence[p] = int(b.influence[p]) + amount
+				else:
+					b.value_score[p] = int(b.value_score[p]) + amount
+		"set_owner":
+			var s := state as OverworldState
+			var p := _plot(s, a, data)
+			var row := s.feature_row(p, s.rules.feature_index(String(a["feature"])))
+			if row >= 0:
+				s.features.set_value(s.features.id_at(row), &"owner", int(_v(a, "owner", 0, data)))
 		"end_battle":
 			var b := state as BattleState
 			if not b.is_over():
 				TurnResolution._finish(b, int(_v(a, "winner", 0, data)), String(a.get("reason", "scripted")))
+
+
+## Rows of living squads of template `tid` (a player of 0 = any side).
+static func _squad_rows(b: BattleState, tid: String, player: int) -> Array[int]:
+	var st := b.rules.squad_index(tid)
+	var rows: Array[int] = []
+	for row in b.squads.count():
+		if b.squads.tmpl[row] == st and b.squads.is_active(row) and (player == 0 or b.squads.player[row] == player):
+			rows.append(row)
+	return rows
 
 
 ## A message for one player, or every player (0). Overworld messages carry
