@@ -1,6 +1,6 @@
 # Proposal: Skirmish AI that reads as fair — disclosed profile card, cheese probes, fuzz difficulty presets
 
-Status: open
+Status: accepted (sw-kif; beads 2-3 deferred to 2026-11-23 UTC — cap 8/8 on 11-22, p1 first; bead 3 depends on bead 1; same acceptance criteria)
 From: craft-researcher, based on [summaries/skirmish-ai-opponents-that-read-as-fair-and-fun-questions-1-.md](../research/summaries/skirmish-ai-opponents-that-read-as-fair-and-fun-questions-1-.md) (draft by games-researcher, reviewed)
 
 ## The idea

@@ -1,6 +1,6 @@
 # Proposal: Accessibility baseline to XAG/Deck numbers, and persistent battle alerts
 
-Status: accepted (sw-luo, sw-opt; bead 3 deferred to 2026-11-22 UTC — daily cap 8/8 reached, p1 beads first)
+Status: accepted (sw-luo, sw-opt, sw-9un)
 From: craft-researcher, based on [../research/summaries/accessibility-guidelines-for-turn-based-tactics-games-questi.md](../research/summaries/accessibility-guidelines-for-turn-based-tactics-games-questi.md)
 
 ## The idea

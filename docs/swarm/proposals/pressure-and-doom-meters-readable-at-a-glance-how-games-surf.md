@@ -1,6 +1,6 @@
 # Proposal: Countable SIMPL meters — band ticks, source-tagged ledger tooltips, Legend interview prep
 
-Status: accepted (sw-1jy.3; beads 2-3 deferred to 2026-11-22 UTC by the 8/day swarm-proposed cap - any designer turn on/after that day creates them, p2, same acceptance criteria)
+Status: accepted (sw-1jy.3, sw-1jy.6; bead 3 Legend-prep brief deferred to 2026-11-23 UTC — cap 8/8 on 11-22, p1 beads first; same acceptance criteria)
 From: craft-researcher, based on [../research/summaries/pressure-and-doom-meters-readable-at-a-glance-how-games-surf.md](../research/summaries/pressure-and-doom-meters-readable-at-a-glance-how-games-surf.md)
 
 ## The idea

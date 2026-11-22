@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-22 01:39 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-22 01:54 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
 | Turns per role | auditor: 45, craft-researcher: 11, games-researcher: 13, lead-designer: 14, orchestrator: 70, retro: 1, tech-lead: 9, ux-art-director: 10 |
-| Worker turns / research turns (24 h) | 23 / 5 |
+| Worker turns / research turns (24 h) | 22 / 5 |
 | Workers queued / running / awaiting review | - / - / - |
 | Merged / rejected (all time) | 18 / 0 |
-| Gateway calls last hour (rate-limited) | 40 (24) |
+| Gateway calls last hour (rate-limited) | 41 (27) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-22 01:13 UTC **WARN** |
+| Latest audit | 11-22 01:49 UTC **WARN** |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-22 01:39 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-22 01:49 UTC **WARN**
+
+WARN - compliance clean: 21 gateway calls in the 01:13-01:43 window all nous/qwen4-max (ux-art-director 14, games-researcher 4, orchestrator 2, auditor 1), 48/48 log banners clean, cost 0 USD, no hx delegate, no Claude Code. Progress: sw-ll4.27.3 merged 01:18 (18 total), ending the 4.5 h merge drought since 20:42. Health poor: 57% rate-limited (12/21; last hour 24/40 = 60%), both turns that ended in the window were killed rc -9 at 3600s (games-researcher 01:18, orchestrator 01:20 two minutes after its merge), and the worker pipeline is now empty (none queued/running/awaiting review). Orchestrator is alive (2 calls after the kill, status page fresh 01:39). Not FAIL: a merge landed and the orchestrator is running. Recommend: spawn the next worker immediately, pause or throttle research roles (ux-art-director burned 9 of 14 calls on 429s) to free gateway capacity, and journal early each turn.
 
 ### 11-22 01:13 UTC **WARN**
 
@@ -41,8 +45,4 @@ Compliance clean: 21 gateway calls in window all nous/qwen4-max (craft-researche
 ### 11-21 22:16 UTC **WARN**
 
 auditor recorded no verdict
-
-### 11-21 21:01 UTC **WARN**
-
-WARN (throttle only, recovery underway) 20:26-20:56Z: 21 gateway calls all nous/qwen4-max (orchestrator 10, games-researcher 10, auditor 1), 23 log banners all nous/qwen4-max, cost 0 USD, no delegate or Claude activity, 0 turn failures. 12/21 calls rate-limited = 57% (25/41 = 61% last hour), above the ~40% WARN line; games-researcher took 7 of 10 as 429s. Progress resumed: sw-opt merged 20:42, first merge since 14:26 (17 total); orchestrator alive with 6 successful calls and no killed turn this window. Backlog: sw-ll4.27.3 att3 partial since 14:33, 6+ h awaiting review; no workers running or queued. Recommend: merge .3 att3 next turn, then spawn from ready beads; space out games-researcher calls.
 

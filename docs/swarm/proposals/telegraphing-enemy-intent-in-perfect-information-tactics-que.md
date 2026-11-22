@@ -1,6 +1,6 @@
 # Proposal: Telegraph enemy intent — computed outcomes on forecasts, reveal-window attack telegraphs, visibility options brief
 
-Status: open
+Status: accepted (sw-abk, sw-7o7; bead 3 options brief deferred to 2026-11-23 UTC — cap 8/8 on 11-22, p1 first; same acceptance criteria)
 From: craft-researcher, based on [summaries/telegraphing-enemy-intent-in-perfect-information-tactics-que.md](../research/summaries/telegraphing-enemy-intent-in-perfect-information-tactics-que.md) (draft by games-researcher, reviewed)
 
 ## The idea

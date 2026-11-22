@@ -1,6 +1,6 @@
 # Proposal: Readable SIMPL at a glance — distance-to-band, per-battle worst-band summary, distinct pool icons
 
-Status: accepted (sw-1jy.4, sw-1jy.5; bead 3 deferred to 2026-11-22 UTC by the 8/day swarm-proposed cap - any designer turn on/after that day creates it, p2, same acceptance criteria)
+Status: accepted (sw-1jy.4, sw-1jy.5, sw-1jy.7)
 From: craft-researcher, based on [../research/summaries/tactics-morale-and-readability-retry-of-failed-job-questions.md](../research/summaries/tactics-morale-and-readability-retry-of-failed-job-questions.md)
 
 ## The idea

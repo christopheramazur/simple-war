@@ -1,6 +1,6 @@
 # Proposal: Definition-of-done for worker beads + held-out check at merge
 
-Status: accepted (beads deferred to 2026-11-22 UTC — daily cap 8/8 reached today and both beads are p2; first designer turn that day creates them)
+Status: accepted (sw-1ji, sw-68b)
 From: craft-researcher, based on [../research/summaries/autonomous-coding-agent-teams-practices-that-raise-merge-rat.md](../research/summaries/autonomous-coding-agent-teams-practices-that-raise-merge-rat.md)
 
 ## The idea
