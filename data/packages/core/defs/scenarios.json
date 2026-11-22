@@ -15,7 +15,7 @@
 				{"player": 2, "facing": 32768, "deploy": {"x": 170, "y": 15, "w": 25, "h": 70},
 					"squads": ["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"]}
 			],
-			"victory": {"turn_limit": 10, "primary": "influence", "score_target": 20, "annihilation": true, "withdrawal": true},
+			"victory": {"turn_limit": 10, "primary": "influence", "score_target": 10, "annihilation": true, "withdrawal": true},
 			"end_hooks": {"loser": "scatter"}}},
 		{"id": "ow_field", "kind": "scenario", "values": {
 			"name": "Overworld field",
