@@ -67,3 +67,19 @@ turn_timeout_s = 3600
 
 [merge]
 test_timeout_s = 1500
+
+[budgets]
+# sw-0zi.5: model calls a turn of each kind may plan for. The time limit is calls x the current cost of a call
+# (median latency of the last hour's successful swarm calls, scaled up by the rate-limited share) x slack,
+# never below the role's configured time-out and never above cap_factor times it.
+orchestrator = 20
+worker = 40
+designer = 20
+researcher = 20
+research = 25
+retro = 20
+auditor = 10
+postmortem = 25
+default = 20
+slack = 1.3
+cap_factor = 2.0

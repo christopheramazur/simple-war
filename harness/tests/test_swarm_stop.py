@@ -16,6 +16,7 @@ from hx import keystore, swarm
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     monkeypatch.setattr(swarm, "STATE", tmp_path / "state")
+    monkeypatch.setattr(swarm, "DOCS", tmp_path / "docs")  # killed turns write journal notes (sw-0zi.5)
     monkeypatch.setattr(swarm, "ensure_gateway", lambda: None)
     monkeypatch.setattr(swarm, "opencode_exe", lambda: sys.executable)
     monkeypatch.setattr(keystore, "get", lambda name: "test-key")

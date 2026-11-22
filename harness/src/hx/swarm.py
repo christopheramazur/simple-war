@@ -617,6 +617,52 @@ def compose(role: str, role_files: str | list[str], extra: str = "", inbox: str 
     return f"{common}\n\n{body}\n\n{ctx}\n{extra}".strip() + "\n"
 
 
+# ---------------------------------------------------------------- turn budgets and kill stubs (sw-0zi.5)
+
+def seconds_per_call(rows: list[dict]) -> float | None:
+    """What one successful model call costs an agent right now: the median latency of the last hour's
+    successful swarm calls, scaled up by the share of rate-limited attempts (each is retried). None
+    with fewer than 5 successful calls (no evidence: keep the configured limits)."""
+    swarm_rows = [r for r in rows if str(r.get("caller") or "").startswith("swarm")]
+    ok = sorted(r["latency_s"] for r in swarm_rows if r.get("status") == "success" and isinstance(r.get("latency_s"), (int, float)))
+    if len(ok) < 5:
+        return None
+    limited = sum("RateLimit" in (r.get("error") or "") for r in swarm_rows)
+    return ok[len(ok) // 2] * (1 + limited / len(swarm_rows))
+
+
+def turn_budget(c: dict, group: str, base_timeout: int, per_call: float | None) -> tuple[int, int]:
+    """(time limit in seconds, call budget) for a turn. The limit covers the role's call budget at the
+    current cost per call with some slack, never below the configured limit (a fast gateway changes
+    nothing) and never above budgets.cap_factor times it. On 2026-11-21 a 60 min turn at ~4 min a call
+    got ~12 calls and died before it journaled."""
+    b = c.get("budgets", {})
+    calls = int(b.get(group, b.get("default", 20)))
+    if per_call is None:
+        return base_timeout, calls
+    want = calls * per_call * float(b.get("slack", 1.3))
+    return int(min(max(want, base_timeout), base_timeout * float(b.get("cap_factor", 2.0)))), calls
+
+
+_ACTION = re.compile(r"^(?:\$|→|←|✱|⚙|%) .+")
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def turn_stub(text: str, commits: list[str], rc: int, seconds: int, now_: datetime | None = None) -> str:
+    """The journal entry the supervisor writes for a turn it had to end, so the next turn knows where it
+    stopped: the last actions from the turn log and the commits it made."""
+    lines = [_ANSI.sub("", ln).strip() for ln in text.splitlines()]
+    actions = [ln[:160] for ln in lines if _ACTION.match(ln)][-8:]
+    what = "killed at its time limit" if rc == -9 else "ended because the swarm stopped"
+    out = [f"## {(now_ or now()):%Y-%m-%dT%H:%MZ} turn {what} after {seconds // 60} min (supervisor note)",
+           "- last actions:" if actions else "- last actions: none recorded"]
+    out += [f"  - `{a}`" for a in actions]
+    out.append("- commits this turn: " + ("; ".join(commits[:8]) if commits else "none"))
+    out.append("- next: check what the last actions finished (files, beads, merges) before repeating them; "
+               "journal and commit earlier this time.")
+    return "\n".join(out) + "\n"
+
+
 # Turns in flight (pid -> Popen), so stopping the supervisor can end them instead of orphaning them (sw-0zi.11).
 _running: dict[int, subprocess.Popen] = {}
 _running_lock = threading.Lock()
@@ -678,6 +724,13 @@ def run_turn(role: str, prompt: str, cwd: Path = ROOT, timeout: int = 1800, kind
     rate_limited = text.count("rate limit") + text.count("RateLimit")
     extra = {"stopped": True} if rc == STOPPED else {}
     event(kind, role=role, rc=rc, seconds=dur, rate_limited=rate_limited, log=str(logf.relative_to(STATE)), **extra)
+    if rc in (-9, STOPPED):  # the turn could not journal: leave the next one a trace (sw-0zi.5)
+        try:
+            since = datetime.fromtimestamp(t0, timezone.utc).isoformat(timespec="seconds")
+            commits = git("log", f"--since={since}", "--format=%h %s", "-n", "8", cwd=cwd).stdout.splitlines()
+            _append(DOCS / "journals" / f"{role}.md", "\n" + turn_stub(text, commits, rc, dur))
+        except Exception as e:  # noqa: BLE001 - a missing stub must never break the loop
+            log(f"turn stub for {role}: {e!r}")
     update_state(lambda s: s["turns"].__setitem__(role, s["turns"].get(role, 0) + 1))
     return rc, text
 
@@ -940,12 +993,30 @@ class Supervisor:
         share = sum("RateLimit" in (r.get("error") or "") for r in rows) / len(rows)
         return 0 if share < 0.2 else min(900, 60 + 1200 * share)
 
-    def turn(self, role: str, prompt: str, pool: str = "core", **kw) -> tuple[int, str]:
+    def budgeted(self, group: str, prompt: str, base_timeout: int) -> tuple[str, int]:
+        """The turn's time limit from the current cost of a call (turn_budget), and the prompt with its
+        budget stated, so the agent can pace itself (sw-0zi.5). Cost per call is re-measured once a minute."""
+        t = time.time()
+        if t - getattr(self, "_per_call_at", 0.0) >= 60:
+            self._per_call_at = t
+            self._per_call = seconds_per_call(_gateway_rows(now() - timedelta(hours=1)))
+        per_call = getattr(self, "_per_call", None)
+        timeout, calls = turn_budget(self.c, group, base_timeout, per_call)
+        pace = f" (calls take about {per_call:.0f} s each right now)" if per_call else ""
+        note = (f"\n# Your budget this turn\nAbout {calls} model calls; the time limit is {timeout // 60} min{pace}. "
+                "Commit and journal after each finished step, and stop starting new work once most of it is used: a "
+                "turn killed at the limit loses whatever it had not written down.\n")
+        return prompt + note, timeout
+
+    def turn(self, role: str, prompt: str, pool: str = "core", group: str | None = None, **kw) -> tuple[int, str]:
         """core = orchestrator and workers (the code pipeline); support = designers, researchers, research, retro.
-        Separate pools so support roles can never take the pipeline's share of the rate-limited model."""
+        Separate pools so support roles can never take the pipeline's share of the rate-limited model.
+        `group` names the call budget (swarm.toml [budgets]) that sets the time limit."""
         with self.pools[pool]:
             if not self.alive():
                 return STOPPED, ""
+            if group:
+                prompt, kw["timeout"] = self.budgeted(group, prompt, kw.get("timeout", 1800))
             return run_turn(role, prompt, **kw)
 
     # -- loops
@@ -962,7 +1033,7 @@ class Supervisor:
             extra = f"# Why you were woken\n{why}.\n"
             self.orch_running.set()
             try:
-                rc, _ = self.turn("orchestrator", compose("orchestrator", "orchestrator", extra),
+                rc, _ = self.turn("orchestrator", compose("orchestrator", "orchestrator", extra), group="orchestrator",
                                   timeout=self.c["orchestrator"]["turn_timeout_s"])
             finally:
                 self.orch_running.clear()
@@ -1073,7 +1144,7 @@ class Supervisor:
                      f"`{j['branch']}` (based on `{j['base'][:9]}`). Orchestrator's note: {j.get('note') or '-'}\n\n"
                      f"```\n{j['bead_text']}\n```\n")
             rc, text = self.turn(f"worker-{j['bead']}", compose("worker", "worker", extra, inbox=""),
-                                 cwd=Path(j["worktree"]), timeout=self.c["workers"]["timeout_s"], kind="worker")
+                                 cwd=Path(j["worktree"]), timeout=self.c["workers"]["timeout_s"], kind="worker", group="worker")
             wip = save_wip(Path(j["worktree"]), f"worker turn ended (rc={rc}) with uncommitted changes")
             ahead = int(git("rev-list", "--count", f"main..{j['branch']}").stdout.strip() or 0)
             if rc == STOPPED:  # the swarm is stopping: back in the queue, so the next start resumes it on its branch
@@ -1107,7 +1178,7 @@ class Supervisor:
             sec = self.c[group]  # read each round so a config reload applies
             roles = list(sec["roles"])
             role = roles[i % len(roles)]
-            self.turn(role, compose(role, [sec["base"], role]), pool="support", timeout=sec["turn_timeout_s"])
+            self.turn(role, compose(role, [sec["base"], role]), pool="support", timeout=sec["turn_timeout_s"], group=sec["base"])
             i += 1
             self.wait(max(60, sec["every_s"] / len(roles)) + self.backoff())
 
@@ -1131,7 +1202,7 @@ class Supervisor:
             out = DOCS / "research" / "reports" / f"{j['slug']}.md"
             extra = f"# Your assignment\nTopic: {j['topic']}\nRequested by: {j['requester']}\nWrite the report to `{out.relative_to(ROOT).as_posix()}`.\n"
             rc, _ = self.turn(f"research-{j['slug'][:30]}", compose("deep-researcher", "deep-researcher", extra, inbox=""), pool="support",
-                              timeout=self.c["research"]["timeout_s"], kind="research")
+                              timeout=self.c["research"]["timeout_s"], kind="research", group="research")
             if rc == STOPPED and not out.exists():  # the swarm is stopping: run it again on the next start
                 j["status"] = "queued"
                 _write(p, json.dumps(j))
@@ -1179,7 +1250,8 @@ class Supervisor:
             extra = (f"# Why you were called\n{why}.\n\n# The rules' verdict (already recorded)\n**{rv['verdict']}**: {rv['reason']}\n\n"
                      f"# Usage digest (hx swarm usage, last {a['window_min']} min)\n```json\n{digest}\n```\n")
             # the auditor runs outside the turn slots so a busy swarm can't starve it
-            run_turn("auditor", compose("auditor", "auditor", extra), timeout=a["turn_timeout_s"], kind="audit")
+            prompt, timeout = self.budgeted("auditor", compose("auditor", "auditor", extra), a["turn_timeout_s"])
+            run_turn("auditor", prompt, timeout=timeout, kind="audit")
             mv = [e for e in events(t0) if e["kind"] == "verdict" and e.get("by") != "rules"]
             if mv and SEVERITY.get(mv[-1]["verdict"], 0) > SEVERITY[rv["verdict"]]:
                 final = {"verdict": mv[-1]["verdict"], "reason": f"auditor escalated: {mv[-1].get('reason', '')}",
@@ -1237,7 +1309,8 @@ class Supervisor:
         extra = (f"# Incident\nRead `{incident.relative_to(ROOT).as_posix()}`. Logs: `harness/data/swarm/logs/` "
                  f"(orchestrator, designer and researcher turns; `.prompt.md` is what each was given). Events: "
                  f"`harness/data/swarm/events.jsonl`. Audits: `docs/swarm/audits/`.\n")
-        run_turn("postmortem", compose("postmortem", "postmortem", extra), timeout=self.c["audit"]["turn_timeout_s"] * 2, kind="postmortem")
+        prompt, timeout = self.budgeted("postmortem", compose("postmortem", "postmortem", extra), self.c["audit"]["turn_timeout_s"] * 2)
+        run_turn("postmortem", prompt, timeout=timeout, kind="postmortem")
         update_state(lambda s: (s.__setitem__("generation", s["generation"] + 1), s.__setitem__("alert_streak", 0),
                                 s["postmortems"].append(now().isoformat())))
         commit_docs(f"swarm: postmortem for generation {s['generation']}, prompts adjusted")
@@ -1249,7 +1322,7 @@ class Supervisor:
             self.hold_support()
             if not self.alive():
                 break
-            self.turn("retro", compose("retro", "retro"), pool="support", timeout=self.c["retro"]["turn_timeout_s"])
+            self.turn("retro", compose("retro", "retro"), pool="support", timeout=self.c["retro"]["turn_timeout_s"], group="retro")
             commit_docs("swarm: retro")
             self.wait(self.c["retro"]["every_s"])
 
