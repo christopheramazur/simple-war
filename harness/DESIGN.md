@@ -116,6 +116,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - Declined candidates (sw-8o1): `hx cat-sed` (`cat && sed`, 8 uses). Same shape as sw-k5a/sw-8v9: it reads two files with a line range, which the Read tool (offset/limit, parallel calls) already does; a verb would only duplicate it.
   - Declined candidates (sw-hw2): `hx find WarRoom tests` (`ls && grep`, 12 uses). The verb already exists: `hx find <regex> <path>` searches recursively with bounded output, and the Glob tool covers the `ls` half; the miner just never saw it used.
   - Declined candidates (sw-591): `hx bd create` (`bd create`, 11 uses). The example was `bd create --help`; the real shape is `bd create --title/--description/...`, which `hx task new` already wraps, and the cost is mostly the long description text the agent must write anyway, so a verb saves nothing.
+   - Declined candidates (sw-i6q): `hx inspect` (`cat && grep`, 17 uses). Same shape as sw-k5a/sw-8o1: a whole-file read plus a pattern search, which the Read tool and `hx find <regex> <path> -C N` already cover; a verb would duplicate both.
 
 ## 6. Encoding (Q27)
 - **rtk** command-line tool only (Apache-2.0; not the BUSL proxy). Hook for Claude Code and OpenCode.
