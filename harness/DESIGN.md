@@ -119,6 +119,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
    - Declined candidates (sw-i6q): `hx inspect` (`cat && grep`, 17 uses). Same shape as sw-k5a/sw-8o1: a whole-file read plus a pattern search, which the Read tool and `hx find <regex> <path> -C N` already cover; a verb would duplicate both.
   - Declined candidates (sw-i7r): `hx gut-run --dir ... --grep ... --head N` (raw Godot console GUT run piped to `grep -B6 | head`, 31 uses). `hx godot test --dir tests/sim` already runs GUT headlessly and prints only the summary and failures, so the manual grep/head filter is what the verb replaces; a second verb would duplicate it.
   - Declined candidates (sw-3fn): `hx searchlist <pattern> <file> <dir>` (`grep && ls`, 16 uses). Two unrelated commands glued together: `hx find <regex> <path> --max N` already gives the bounded search and the Glob tool lists a directory, so a verb would only fuse two independent calls (which can run in parallel) and its fixed argument shape would fit few real uses.
+  - Declined candidates (sw-4ei): `hx init-build` (`bd init`, 7 uses). The proposal (a build-directory initializer) does not match the shape: it is `bd init --help`, the beads CLI's one-time workspace setup, and the Godot project has no build directory to initialize (export is `export-builds`). A one-time command run in 3 sessions is mostly `--help` lookups, so a verb would save nothing.
 
 ## 6. Encoding (Q27)
 - **rtk** command-line tool only (Apache-2.0; not the BUSL proxy). Hook for Claude Code and OpenCode.
