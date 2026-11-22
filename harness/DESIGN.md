@@ -111,6 +111,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - Declined candidates (sw-sy8): `hx read` (Get-Content, 12 uses). The Read tool already reads files with line ranges, and the example target was a config outside the repo; a verb would only duplicate it.
   - Declined candidates (sw-wv7): `hx status` (git status, 9 uses). `hx status` already exists and is a superset (branch, dirty counts, last commit, Godot, autoloads, tasks); the mined calls were raw `git status`, so use the existing verb.
   - Declined candidates (sw-ywf): `hx update <project> [--claim]` (`bd update`, 6 uses). The proposal misread `bd update` as a project updater; the real shape is `bd update <id> --claim/--append-notes`, which `hx task claim` and `hx task note` already wrap, and ~44 tokens per use is too small for a new verb.
+  - Declined candidates (sw-k5a): `hx extract` (`sed -n A,Bp file; grep -n pat file`, 119 uses). `hx find <regex> <path> -C N --max N` already gives bounded `file:line: text` with context, and the Read tool takes offset/limit; a verb would duplicate both.
 
 ## 6. Encoding (Q27)
 - **rtk** command-line tool only (Apache-2.0; not the BUSL proxy). Hook for Claude Code and OpenCode.
