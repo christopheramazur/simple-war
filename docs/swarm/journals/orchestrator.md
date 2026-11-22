@@ -497,3 +497,6 @@
   - `$ tasklist | grep -i -E 'opencode|node' | head -8 && ls docs/swarm harness/swarm`
 - commits this turn: 225ae7f swarm: docs and status; 75ac7a1 swarm: docs and status; 5857acd swarm: docs and status; ca69119 swarm: docs and status
 - next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
+
+## 2026-11-22T07:00Z turn
+- woke: supervisor mail - sw-ll4.27.6 partial (rc=-9, commits kept, WIP saved). No AUDIT FAIL mail; latest audit WARN 06:29. 28/37 (~76%) rate-limited -> lean turn: review/merge .6 first, then refill slots. Journal early.
