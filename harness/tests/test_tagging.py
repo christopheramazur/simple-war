@@ -86,3 +86,20 @@ def test_untagged_busy_flags_idle_sessions_without_a_tag(env):
     gap = tagging.untagged_busy(con, now=(old + timedelta(days=2)).timestamp())
     assert gap == [{"session": "busy", "calls": 30}]
     assert tagging.untagged_busy(con, now=(old + timedelta(hours=1)).timestamp()) == []  # still live
+
+
+def test_worker_tag_session_job_puts_a_kind_tag_in_the_ledger(env, monkeypatch):
+    """Entry point: the tag_session job (enqueued by every session_end) leaves a kind tag in the tag file."""
+    from hx import delegate, ledger, worker
+    assert "tag_session" in worker.FOLLOW_UPS
+    monkeypatch.setattr(tagging, "metrics", lambda con, sid: {
+        "calls": 4, "minutes": 3, "tools": {}, "tool_calls": 0, "tool_errors": 0, "denied": 0, "interrupts": 0,
+        "api_errors": 0, "compactions": 0, "prompts": 1, "tasks": []})
+    monkeypatch.setattr(ledger, "read_only", lambda: type("C", (), {"close": lambda self: None})())
+    good = '{"kind": "feature", "area": "combat UI", "complexity": 2, "outcome": "completed", "confidence": 0.8}'
+    monkeypatch.setattr(delegate, "run", lambda *a, **k: Outcome(target="b", model="bonsai/nothink", text=good))
+    monkeypatch.setattr(tagging, "is_audited", lambda sid, share: False)
+    out = worker.HANDLERS["tag_session"][0]({"session_id": "s1"})
+    assert "feature/completed" in out
+    assert ("s1", "tagger") in tagging.tagged_ids()
+    assert [r["kind"] for r in tagging.read_rows()] == ["feature"]
