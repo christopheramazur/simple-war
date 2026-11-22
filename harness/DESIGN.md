@@ -107,6 +107,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - Savings: each filed shape keeps its tokens per use as a baseline, to compare with the verb's tokens per use in `hx mine --report`.
   - First run (2026-11-01): no shape yet meets the 3-session bar. Only 2 sessions have real shell activity, and the top shape is `uv run pytest` with 17 uses in 1 session.
 
+  - Declined candidates (sw-0l2): `hx ls` (Get-ChildItem, 34 uses). It lists directories mostly outside the repo; the Glob tool and `ls` already give short output, so a verb would not cut tokens.
 ## 6. Encoding (Q27)
 - **rtk** command-line tool only (Apache-2.0; not the BUSL proxy). Hook for Claude Code and OpenCode.
 - rtk only rewrites the Bash tool, so agents use Git Bash by default; PowerShell only for Windows-only operations wrapped by `hx`.
