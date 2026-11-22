@@ -49,6 +49,25 @@ def cfg() -> dict:
     return tomllib.loads((SWARM / "swarm.toml").read_text(encoding="utf-8"))
 
 
+def cfg_mtime() -> float:
+    try:
+        return (SWARM / "swarm.toml").stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def cfg_diff(old: dict, new: dict, prefix: str = "") -> list[str]:
+    """Dotted keys whose value differs between two config dicts (added, removed or changed)."""
+    out = []
+    for k in sorted(set(old) | set(new), key=str):
+        a, b, key = old.get(k), new.get(k), f"{prefix}{k}"
+        if isinstance(a, dict) and isinstance(b, dict):
+            out += cfg_diff(a, b, key + ".")
+        elif a != b:
+            out.append(key)
+    return out
+
+
 def _write(p: Path, text: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="utf-8", newline="\n")
@@ -582,13 +601,79 @@ def supervisor_pid() -> int | None:
         return None
 
 
+class Slots:
+    """A turn pool whose size can change while turns hold slots: shrinking never interrupts a running
+    turn, it only makes new turns wait until enough slots are free."""
+
+    def __init__(self, size: int) -> None:
+        self.size, self.used = size, 0
+        self.cond = threading.Condition()
+
+    def resize(self, size: int) -> None:
+        with self.cond:
+            self.size = size
+            self.cond.notify_all()
+
+    def __enter__(self) -> Slots:
+        with self.cond:
+            while self.used >= self.size:
+                self.cond.wait(5)
+            self.used += 1
+        return self
+
+    def __exit__(self, *exc) -> None:
+        with self.cond:
+            self.used -= 1
+            self.cond.notify_all()
+
+
 class Supervisor:
     def __init__(self) -> None:
         self.c = cfg()
+        self.cfg_mtime = cfg_mtime()
         self.stop = threading.Event()
         self.orch_paused = threading.Event()   # set while a postmortem runs
-        self.pools = {p: threading.BoundedSemaphore(self.c["run"][f"{p}_slots"]) for p in ("core", "support")}
+        self.pools = {p: Slots(self.c["run"][f"{p}_slots"]) for p in ("core", "support")}
         self.end = datetime.fromisoformat(self.c["run"]["end_at"])
+        self.workers_started = 0
+
+    def maybe_reload(self) -> list[str] | None:
+        """Re-reads swarm.toml when its mtime changed (sw-0zi.1). Loops read `self.c` on every use, so a
+        change applies from the next turn or wait; turn pools resize without touching running turns, and a
+        larger workers.max_parallel starts more worker threads. A file that fails to parse is logged once and
+        ignored (the old config stays). Returns the changed keys, or None when nothing was applied."""
+        m = cfg_mtime()
+        if m == self.cfg_mtime:
+            return None
+        self.cfg_mtime = m
+        try:
+            new = cfg()
+            for p in self.pools:
+                int(new["run"][f"{p}_slots"])
+            end = datetime.fromisoformat(new["run"]["end_at"])
+        except (OSError, ValueError, KeyError, TypeError, tomllib.TOMLDecodeError) as e:
+            log(f"swarm.toml not reloaded (kept the running config): {e!r}")
+            event("config_error", error=repr(e)[:300])
+            return None
+        changed = cfg_diff(self.c, new)
+        if not changed:
+            return None
+        self.c = new
+        self.end = end
+        for p, s in self.pools.items():
+            s.resize(int(new["run"][f"{p}_slots"]))
+        log(f"swarm.toml reloaded: {', '.join(changed)}")
+        event("config_reloaded", changed=changed)
+        self.start_workers()
+        return changed
+
+    def start_workers(self) -> None:
+        """Starts worker threads up to workers.max_parallel (threads above the limit idle in worker_loop)."""
+        while self.workers_started < int(self.c["workers"]["max_parallel"]):
+            n = self.workers_started
+            t = threading.Thread(target=self._guard, args=(lambda n=n: self.worker_loop(n),), name=f"worker{n}", daemon=True)
+            self.workers_started += 1
+            t.start()
 
     def alive(self) -> bool:
         if (STATE / "STOP").exists():
@@ -632,6 +717,9 @@ class Supervisor:
 
     def worker_loop(self, n: int) -> None:
         while self.alive():
+            if n >= int(self.c["workers"]["max_parallel"]):  # lowered by a config reload: idle until raised again
+                self.wait(20)
+                continue
             queued = []
             with file_lock("jobs"):
                 for j in jobs():
@@ -668,11 +756,11 @@ class Supervisor:
             self.wait(5)
 
     def periodic_loop(self, group: str) -> None:
-        sec = self.c[group]
-        roles = list(sec["roles"])
         i = 0
-        self.wait(sec.get("initial_delay_s", 60))
+        self.wait(self.c[group].get("initial_delay_s", 60))
         while self.alive():
+            sec = self.c[group]  # read each round so a config reload applies
+            roles = list(sec["roles"])
             role = roles[i % len(roles)]
             self.turn(role, compose(role, [sec["base"], role]), pool="support", timeout=sec["turn_timeout_s"])
             i += 1
@@ -704,12 +792,11 @@ class Supervisor:
             event("research_done", slug=j["slug"], status=j["status"])
 
     def audit_loop(self) -> None:
-        a = self.c["audit"]
-        self.wait(a["every_s"])
+        self.wait(self.c["audit"]["every_s"])
         while self.alive():
             if not self.orch_paused.is_set():
                 self.run_audit()
-            self.wait(a["every_s"])
+            self.wait(self.c["audit"]["every_s"])
 
     def run_audit(self) -> None:
         t0 = now()
@@ -768,12 +855,11 @@ class Supervisor:
         self.orch_paused.clear()
 
     def retro_loop(self) -> None:
-        r = self.c["retro"]
-        self.wait(r["every_s"])
+        self.wait(self.c["retro"]["every_s"])
         while self.alive():
-            self.turn("retro", compose("retro", "retro"), pool="support", timeout=r["turn_timeout_s"])
+            self.turn("retro", compose("retro", "retro"), pool="support", timeout=self.c["retro"]["turn_timeout_s"])
             commit_docs("swarm: retro")
-            self.wait(r["every_s"])
+            self.wait(self.c["retro"]["every_s"])
 
     def housekeeping_loop(self) -> None:
         while self.alive():
@@ -811,13 +897,16 @@ class Supervisor:
                    threading.Thread(target=self._guard, args=(self.housekeeping_loop,), name="housekeeping"),
                    threading.Thread(target=self._guard, args=(lambda: self.periodic_loop("designers"),), name="designers"),
                    threading.Thread(target=self._guard, args=(lambda: self.periodic_loop("researchers"),), name="researchers")]
-        threads += [threading.Thread(target=self._guard, args=(lambda n=n: self.worker_loop(n),), name=f"worker{n}")
-                    for n in range(self.c["workers"]["max_parallel"])]
         for t in threads:
             t.daemon = True
             t.start()
+        self.start_workers()
         while self.alive():
             time.sleep(5)
+            try:
+                self.maybe_reload()
+            except Exception as e:  # noqa: BLE001 - a reload problem must never stop the swarm
+                log(f"config reload: {e!r}")
         log("supervisor stopping")
         for t in threads:
             t.join(timeout=5)

@@ -12,7 +12,7 @@ Compute: merges per 12 h, worker turns per merge, share of turns that failed, ra
 ## Change
 Pick the one to three changes with the best expected effect:
 - Prompt edits in `harness/swarm/roles/*.md` (never `_common.md`).
-- Cadence and limits in `harness/swarm/swarm.toml`: within `core_slots` 1-3, `support_slots` 0-2, `workers.max_parallel` 1-2 (at most `core_slots` - 1), `every_s` not below 1800, time-outs not below 1800 s. The model is the bottleneck (about 80 calls an hour for the whole team), so more slots means slower turns, not more work. Most values apply after the supervisor restarts; note that.
+- Cadence and limits in `harness/swarm/swarm.toml`: within `core_slots` 1-3, `support_slots` 0-2, `workers.max_parallel` 1-2 (at most `core_slots` - 1), `every_s` not below 1800, time-outs not below 1800 s. The model is the bottleneck (about 80 calls an hour for the whole team), so more slots means slower turns, not more work. The supervisor reloads the file within seconds of a save (a `config_reloaded` event lists what changed; a file that fails to parse is ignored and logged as `config_error`), so check the event after editing. A long wait already in progress (for example a 4 h support cadence) finishes on the old value.
 - Harness or process improvements as beads: `bd create --labels=swarm,swarm-harness ...` with a measurable acceptance test.
 Compare with the previous retro's changes (`docs/swarm/retros/`): if a change made things worse, revert it.
 

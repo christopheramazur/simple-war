@@ -36,4 +36,4 @@ harness/bin/hx swarm start      # detached; survives this shell
 harness/bin/hx swarm status     # rewrites and prints docs/swarm/STATUS.md
 harness/bin/hx swarm stop       # writes harness/data/swarm/STOP; turns finish, then it exits
 ```
-Cadence and limits: `swarm.toml` (the run ends at `run.end_at`). Restore point from before the run: `../simple-war-snapshots/2026-11-20-pre-qwen-swarm/RESTORE.md` and the git tag `snapshot/2026-11-20-pre-qwen-swarm`.
+Cadence and limits: `swarm.toml` (the run ends at `run.end_at`). The running supervisor reloads it on save, with no restart: a `config_reloaded` event lists the changed keys, and a file that does not parse is ignored (`config_error`). Restore point from before the run: `../simple-war-snapshots/2026-11-20-pre-qwen-swarm/RESTORE.md` and the git tag `snapshot/2026-11-20-pre-qwen-swarm`.
