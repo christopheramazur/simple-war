@@ -397,8 +397,13 @@ func _build_ui() -> void:
 	save.text = "Save"
 	save.tooltip_text = "Save the game as it is now. Load it from the main menu."
 	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save.pressed.connect(save_game)
+	var save_name := LineEdit.new()
+	save_name.name = "SaveName"
+	save_name.placeholder_text = "Save name (optional)"
+	save_name.editable = replay == null
+	save.pressed.connect(func() -> void: save_game(save_name.text))
 	save.disabled = replay != null
+	tools.add_child(save_name)
 	tools.add_child(save)
 	panels["tools"] = tools
 	panels["main_menu"] = null
@@ -1632,14 +1637,14 @@ func play_again() -> void:
 	queue_free()
 
 
-## Saves the game to a new slot (MatchDriver.save_game). Returns the path
-## or "".
-func save_game() -> String:
+## Saves the game to a slot (MatchDriver.save_game; a blank name makes one
+## from the map and the turn). Returns the path or "".
+func save_game(slot: String = "") -> String:
 	if replay != null:
 		_hud_note = "a replay can't be saved"
 		_queue_refresh()
 		return ""
-	var path := driver.save_game()
+	var path := driver.save_game(slot.strip_edges())
 	_hud_note = "could not save: " + MatchDriver.last_error if path.is_empty() else "saved as " + path.get_file().get_basename()
 	_note(_hud_note)
 	_queue_refresh()
