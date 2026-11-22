@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-22 07:14 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-22 07:29 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-22 07:14 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 19 / 4 |
 | Workers queued / running / awaiting review | - / sw-vld / sw-ll4.27.6 |
 | Merged / rejected (all time) | 18 / 0 |
-| Gateway calls last hour (rate-limited) | 38 (29) |
+| Gateway calls last hour (rate-limited) | 38 (28) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-22 06:59 UTC **WARN** (rules) |
+| Latest audit | 11-22 07:29 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-22 07:14 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-22 07:29 UTC **WARN** (rules)
+
+20 swarm calls (13 rate-limited), all nous/qwen4-max, cost 0 USD | health: 13/20 calls rate-limited (65%) | health: no merge in 2 h while workers ran
 
 ### 11-22 06:59 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-22 07:14 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-22 05:29 UTC **WARN** (rules)
 
 27 swarm calls (19 rate-limited), all nous/qwen4-max, cost 0 USD | health: 19/27 calls rate-limited (70%)
-
-### 11-22 02:49 UTC **WARN** (auditor)
-
-Compliance clean: 21 gateway calls all nous/qwen4-max (orchestrator 10, craft-researcher 8, ux-art-director 2, auditor 1), 45/45 model banners clean, cost 0 USD, no hx delegate or Claude activity. But 52% of calls rate-limited (11/21; orchestrator 7/10 were 429s) and the ux-art-director turn was killed rc -9 at 3600s. Orchestrator alive and effective: 2 spawns at 02:41 (sw-ll4.27.6 running, sw-vld queued) after sw-ll4.27.3 merged 01:18 (~85 min ago), ending the long merge stall. WARN for 429 pressure plus worker timeout, not FAIL: work is moving again. Recommend throttling research roles to cut 429s and letting sw-ll4.27.6 finish.
 
