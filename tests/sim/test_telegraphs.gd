@@ -88,3 +88,64 @@ func test_telegraph_label_shares_playback_damage_text() -> void:
 	assert_eq(Telegraph.contact_label(ct, true), "⚔ t7 · 2 reactions")
 	assert_eq(Telegraph.contact_label({"tick": 3}, true), "⚔ t3")
 	assert_eq(GameSettings.DEFAULTS["forecast_detail"], "summary")
+
+
+
+
+## sw-abk: contacts on the planning forecast carry the damage the sim then
+## executes (same HealthSystem totals), when orders are committed unchanged.
+func test_forecast_contact_damage_equals_executed_damage() -> void:
+	var checked := 0
+	for seed_value in [11, 21, 5, 7, 1, 2, 3, 4, 6, 8]:
+		var s := BattleSession.create(_l().templates, _l().data_hash, "duel_crossroads", seed_value)
+		var c := _controllers()
+		for t in 14:
+			if s.is_over():
+				break
+			# Odd turns: player 2 keeps the orders it already has (unchanged).
+			var orders := {}
+			for p in s.players():
+				orders[p] = c[p].orders(s.observe(p)) if (p == 1 or t % 2 == 0) else []
+			var fc := s.forecast(1, orders[1])
+			# The forecast removes enemies player 1 can't see (fog), so exact
+			# equality holds unless a hidden one takes part in the turn's fire.
+			var sq := s.state.squads
+			var hidden := {}
+			for row in sq.count():
+				if sq.player[row] != 1 and sq.is_active(row) and sq.seen_by[row] & BattleSquads.bit(1) == 0:
+					hidden[sq.id_at(row)] = true
+			var before: String = s.state.state_hash().hex_encode()
+			for p in s.players():
+				s.submit_orders(p, orders[p])
+			assert_eq(before, s.state.state_hash().hex_encode(), "forecast is read-only")
+			for p in s.players():
+				s.ready(p)
+			s.ready(1)
+			s.ready(2)
+			s.ready(1)
+			s.ready(2)
+			var real := _executed(s)
+			for ct: Dictionary in fc.get("contacts", []):
+				if ct["dealt"] > 0 or ct["taken"] > 0:
+					checked += 1
+			var touched := false
+			for key: String in real:
+				for part in key.split(","):
+					touched = touched or hidden.has(int(part))
+			if t % 2 == 0 or touched:
+				continue
+			for ct: Dictionary in fc.get("contacts", []):
+				assert_true(ct.has("dealt") and ct.has("taken"))
+				var out: int = real.get("%d,%d" % [ct["squad"], ct["target"]], 0)
+				var inn: int = real.get("%d,%d" % [ct["target"], ct["squad"]], 0)
+				assert_eq(ct["dealt"], out, "dealt %d->%d" % [ct["squad"], ct["target"]])
+				assert_eq(ct["taken"], inn, "taken %d<-%d" % [ct["squad"], ct["target"]])
+	assert_gt(checked, 0, "some contact predicted damage")
+
+
+func test_contact_label_summary_then_numbers() -> void:
+	var one := Fixed.ONE
+	var ct := {"dealt": 12 * one, "taken": 5 * one}
+	assert_eq(Telegraph.contact_label(ct), "⚔ favourable")
+	assert_eq(Telegraph.contact_label(ct, true), "⚔ deal 12 · take 5")
+	assert_eq(Telegraph.contact_label({"dealt": 0, "taken": 0}), "⚔")

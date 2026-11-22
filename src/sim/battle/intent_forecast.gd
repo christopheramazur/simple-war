@@ -13,8 +13,13 @@ const SAMPLES: int = 5
 
 ## {"ghosts": own squad ID -> PackedInt64Array [x0, y0, x1, y1, ...] (fixed,
 ## SAMPLES points), "contacts": [{"squad" (own), "target", "tick",
-## "reactions" (names the own squad could react with)}] in canonical order
-## (tick, squad, target), "errors": the drafted orders' errors}.
+## "reactions" (names the own squad could react with), "dealt" / "taken"
+## (fixed damage the own squad deals to / takes from that target over the
+## turn), "kills_dealt" / "kills_taken"}] in canonical order (tick, squad,
+## target), "errors": the drafted orders' errors}. The damage numbers are the
+## `squad_damaged` totals the real HealthSystem emits on the scratch run, so
+## they equal what the turn executes when orders and enemy orders hold
+## (sw-abk, R1Q3). They assume the enemy keeps its current orders.
 static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) -> Dictionary:
 	Stats.warm(state.rules)
 	Fixed.warm()
@@ -58,12 +63,17 @@ static func _forecast(scratch: BattleState, sim: BattleSim, player: int, orders:
 	var ghosts := {}
 	var contacts := []
 	var seen := {}
+	# "own,target" -> [dealt, taken, kills_dealt, kills_taken]
+	var dmg := {}
 	var n: int = scratch.rules.ticks_per_turn
 	var every := maxi(n / SAMPLES, 1)
 	scratch.begin_turn()
 	for t in n:
 		sim.runner.step(scratch)
 		for e in scratch.turn_log:
+			if e.type == &"squad_damaged":
+				_tally(dmg, sq, player, e)
+				continue
 			if e.type != &"engagement":
 				continue
 			for pair in [[e.data["squad"], e.data["target"]], [e.data["target"], e.data["squad"]]]:
@@ -87,6 +97,12 @@ static func _forecast(scratch: BattleState, sim: BattleSim, player: int, orders:
 					pts[pts.size() - 2] = sq.cx[row]
 					pts[pts.size() - 1] = sq.cy[row]
 				ghosts[id] = pts
+	for ct in contacts:
+		var d: Array = dmg.get("%d,%d" % [ct["squad"], ct["target"]], [0, 0, 0, 0])
+		ct["dealt"] = d[0]
+		ct["taken"] = d[1]
+		ct["kills_dealt"] = d[2]
+		ct["kills_taken"] = d[3]
 	contacts.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
 		if x["tick"] != y["tick"]:
 			return x["tick"] < y["tick"]
@@ -94,3 +110,27 @@ static func _forecast(scratch: BattleState, sim: BattleSim, player: int, orders:
 			return x["squad"] < y["squad"]
 		return x["target"] < y["target"])
 	return {"ghosts": ghosts, "contacts": contacts, "errors": errors}
+
+
+## Adds one squad_damaged event to the per-contact totals, from the view of
+## the player's own squad (either side of the exchange).
+static func _tally(dmg: Dictionary, sq: BattleSquads, player: int, e: SimEvent) -> void:
+	var a: int = e.data["squad"]
+	var b: int = e.data["target"]
+	var arow := sq.row_of(a)
+	var brow := sq.row_of(b)
+	if arow < 0 or brow < 0:
+		return
+	var key := ""
+	var i := 0
+	if sq.player[arow] == player and sq.player[brow] != player:
+		key = "%d,%d" % [a, b]
+	elif sq.player[brow] == player and sq.player[arow] != player:
+		key = "%d,%d" % [b, a]
+		i = 1
+	else:
+		return
+	var d: Array = dmg.get(key, [0, 0, 0, 0])
+	d[i] += int(e.data["damage"])
+	d[2 + i] += int(e.data["kills"])
+	dmg[key] = d

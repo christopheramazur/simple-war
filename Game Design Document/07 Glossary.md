@@ -54,6 +54,7 @@ Format: **Term**: definition. *(decision IDs; former names)*
 - **FPDR**: Fixed Point Defined Rounding, the deterministic arithmetic rule. *(R4Q8)*
 - **Accumulator**: a deterministic counter that replaces chance: it counts an event (seconds, hits, distance, health lost, ...) and fires at a threshold. *(R2Q6, R5Q5, E2Q9)*
 - **Defensive Profile**: the defence layers: Evasion, Block, Resistance, Flat, Percentage, Floor, Temporary HP, Absorption. *(R5Q7, R7Q1)*
+- **Contact forecast**: the planning preview of a coming engagement: who comes out ahead, and at higher verbosity the exact damage dealt and taken. Computed by the same combat code the turn runs, and it assumes the enemy keeps its current orders and shows nothing the player can't see. *(R1Q3, R4Q3, R6Q2)*
 - **Evasion**: avoids a hit entirely. *(R7Q1)*
 - **Block**: a percentage chance to block a percentage of a hit. *(R6Q7)*
 - **Floor**: the minimum damage a hit can deal after reductions, per damage type. 0 means immunity is possible. *(R7Q1)*
