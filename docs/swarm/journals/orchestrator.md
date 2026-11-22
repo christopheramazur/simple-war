@@ -466,3 +466,8 @@
 ### Audit response
 - AUDIT WARN 22:16 ('auditor recorded no verdict'). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 35/35 banners nous/qwen4-max, supervisor alive, streak 0, events_30m verdict:1 (auditor recovered). All delegation via hx swarm spawn only. No fix needed beyond clearing the review backlog.
 - Lean throttled turn (22/43 = 51% rate-limited): journal early, merge the waiting .3 partial first, then refill slots. NOTE: selfcheck reports .3 attempts=4 (a ~21:08 turn spawned it and was killed before journaling). This is the LAST attempt: merge if complete, else park per 4-attempt rule.
+
+## 2026-11-22T00:22Z turn
+### Audit response
+- Two AUDIT WARNs (23:16, 00:13). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 31/31 log banners nous/qwen4-max, supervisor alive, streak 0. All delegation via hx swarm spawn/research only; no other model/API touched.
+- WARN cause: 57-62% rate-limited calls, zero merges since sw-opt 20:42 (~3.5h), sw-ll4.27.3 partial at attempt 4 (LAST attempt) awaiting review since 21:08. Fix per auditor: resolve its journal conflict, review new commits only (code ff9a7d4 verified green earlier), merge FIRST this turn, then refill slots. Lean turn: journal early and after each action.
