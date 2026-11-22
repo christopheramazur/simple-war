@@ -442,6 +442,9 @@ static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: b
 		if drop >= 0 and bi > 0:
 			text += "  · %s to %s" % [Fixed.to_display(drop), _band_word(DataSchema.BANDS[bi - 1])]
 	row.add_child(_lbl(text, "CaptionDimLabel"))
+	row.tooltip_text = ledger_text(pool, pd.get("ledger", []))
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.focus_mode = Control.FOCUS_ALL  # reachable by keyboard (sw-1jy.6)
 	return row
 
 
@@ -460,6 +463,18 @@ static func pool_word(pool: String, glossary: Glossary = null) -> String:
 	var key := "pool." + pool
 	var s := String(TranslationServer.translate(key))
 	return s if s != key else pool.capitalize()
+
+
+## The pool's source-tagged ledger as tooltip lines, the sim's exact net
+## amounts (sw-1jy.6): "Source: +1.5". Exact numbers only, no magnitude words.
+static func ledger_text(pool: String, ledger: Array) -> String:
+	var lines := PackedStringArray(["%s: net change by source this battle" % pool.capitalize()])
+	if ledger.is_empty():
+		lines.append("No changes yet")
+	for e: Dictionary in ledger:
+		var amt := int(e["amount"])
+		lines.append("%s: %s%s" % [Glossary.ledger_source_text(String(e["source"])), "+" if amt > 0 else "", Fixed.to_display(amt)])
+	return "\n".join(lines)
 
 
 ## The band word through the translation table (the glossary's "band.<id>"

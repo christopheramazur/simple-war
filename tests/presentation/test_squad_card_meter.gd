@@ -191,3 +191,38 @@ func test_each_simpl_pool_has_a_unique_icon_and_glossary_name_with_hover() -> vo
 	assert_eq(labels.size(), 5)
 	for lab: Label in labels:
 		assert_true(lab.tooltip_text.contains(g.text_of("term_" + String(lab.get_meta(&"pool")))))
+
+
+func test_pool_tooltip_matches_the_battle_ledger_exactly() -> void:
+	var st := _session.state
+	Pools.flow(st, _row, BattleSquads.MORALE, -6 * ONE, &"hp_lost")
+	Pools.flow(st, _row, BattleSquads.MORALE, 2 * ONE + ONE / 2, &"drift")
+	Pools.flow(st, _row, BattleSquads.MORALE, -ONE, &"hp_lost")
+	var pd: Dictionary = _squad()["pools"]["morale"]
+	var expect := []
+	for k: String in st.ledger:
+		if k.begins_with("%d|%d|" % [_sid, BattleSquads.MORALE]):
+			expect.append(int(st.ledger[k]))
+	var got := []
+	for e: Dictionary in pd["ledger"]:
+		got.append(int(e["amount"]))
+	expect.sort()
+	got.sort()
+	assert_eq(got, expect, "API ledger equals the battle ledger")
+	var tip := SquadCard.ledger_text("morale", pd["ledger"])
+	assert_string_contains(tip, "Wounds: -7")
+	assert_string_contains(tip, "Drift toward rest: +2.5")
+	for w in ["slight", "major", "minor", "huge", "small"]:
+		assert_false(tip.to_lower().contains(w), "no vague magnitude word " + w)
+	var found := false
+	for n: Node in _with_meta_tooltip(_card()):
+		found = found or (n as Control).tooltip_text == SquadCard.ledger_text("morale", pd["ledger"])
+	assert_true(found, "the morale meter row carries the tooltip")
+
+
+func _with_meta_tooltip(node: Node, out: Array = []) -> Array:
+	if node is Control and (node as Control).tooltip_text != "":
+		out.append(node)
+	for c in node.get_children():
+		_with_meta_tooltip(c, out)
+	return out

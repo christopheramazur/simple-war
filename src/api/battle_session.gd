@@ -271,6 +271,8 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 				pools[DataSchema.SIMPL[p]] = {
 					"value": Pools.value(state, row, p), "capacity": Pools.capacity(state, row, p),
 					"band": DataSchema.BANDS[Pools.band(state, row, p)],
+						# Net flow per source over the battle (sw-1jy.6).
+						"ledger": state.ledger_of(sid, p),
 				}
 			d["pools"] = pools
 			# The compiled band floors (read-only), so pool meters can place

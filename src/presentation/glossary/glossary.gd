@@ -50,6 +50,33 @@ const EN: Dictionary = {
 }
 
 
+## Pressure-ledger sources in words (sw-1jy.6); prefixed sources
+## ("legend_*", "ability_*", "effect:*") are resolved in ledger_source_text.
+const LEDGER_SOURCES: Dictionary = {
+	"drift": "Drift toward rest", "morale_base": "Morale upkeep", "morale_leech": "Morale leeched",
+	"morale_pay": "Morale paid to other pools", "hp_lost": "Wounds", "running": "Running",
+	"fire_moving": "Firing on the move", "interrupt": "Interrupting an enemy", "readying": "Readying an ability",
+	"ambush": "Ambush", "intercept": "Intercept", "reacted_to": "Reacted to", "scout_reveal": "Scouting",
+	"effect_capacity": "Capacity change",
+}
+
+
+## The display text of a ledger source tag, through the translation table
+## ("ledger.source.<tag>") with English fallback.
+static func ledger_source_text(source: String) -> String:
+	var key := "ledger.source." + source
+	var s := String(TranslationServer.translate(key))
+	if s != key:
+		return s
+	if LEDGER_SOURCES.has(source):
+		return LEDGER_SOURCES[source]
+	for pre: String in ["legend_", "ability_", "effect:"]:
+		if source.begins_with(pre):
+			var nm := source.substr(pre.length()).replace("_", " ").capitalize()
+			return {"legend_": "Legend: %s", "ability_": "Ability: %s", "effect:": "Effect: %s"}[pre] % nm
+	return source.replace("_", " ").capitalize()
+
+
 ## The display text of a squad activity code (BattleActivity.Squad);
 ## `target_name` fills {target} for ENGAGED.
 static func activity_text(code: int, target_name: String = "") -> String:

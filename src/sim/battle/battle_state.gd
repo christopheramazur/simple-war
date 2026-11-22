@@ -97,6 +97,18 @@ func record_flow(squad_id: int, pool: int, source: StringName, amount: int) -> v
 	ledger[key] = int(ledger.get(key, 0)) + amount
 
 
+## One squad pool's ledger: [{"source": String, "amount": int (fixed)}], the
+## net flow per source over the battle, sorted by source (sw-1jy.6). Read-only.
+func ledger_of(squad_id: int, pool: int) -> Array:
+	var prefix := "%d|%d|" % [squad_id, pool]
+	var out := []
+	for k: String in ledger:
+		if k.begins_with(prefix):
+			out.append({"source": k.substr(prefix.length()), "amount": int(ledger[k])})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["source"]) < String(b["source"]))
+	return out
+
+
 func _snapshot_extra(snap: Dictionary) -> void:
 	snap["battle"] = {
 		"turn": turn, "players": players.duplicate(),
