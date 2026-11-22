@@ -28,3 +28,8 @@
 - did: mock_runner.gd now writes <name>_greyscale/_protan/_deutan.png beside the normal PNG via new shared src/presentation/mocks/cvd_sim.gd (same Machado 2009 / WCAG maths as team_palette_mock); godot.py mock_variant_paths + `variants` in output; README documented; pytest added. Proof: team_palette mock -> 3 variants.
 - decided: conversion on the Godot side (no Python deps); normal PNG path/content untouched.
 - tests: hx godot check 0 errors; pytest run.
+
+## 2026-11-22 turn (autopilot, sw-kys.9)
+- did: wrote docs/swarm/research/notes/cc0-asset-shortlist.md. Kenney (carried forward) and SBS Town Pack (CC0 verified verbatim on the page) are usable. Other SBS iso packs (not linked from the page) and the Blarumyrran OGA sprites (403 on the page, search excerpt only) are marked unverified/unusable.
+- decided: a search excerpt is not page verification, so Blarumyrran stays unusable until a person reads the page.
+- tests: docs-only, none.
