@@ -230,3 +230,4 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
 - Whether LiteLLM's custom-logger callback is in the open-source edition (OTel callback is a known-good fallback).
 - Python hook latency on Windows (decides whether hooks are written in Go).
 - Bonsai's best context size on 12 GB.
+  - Declined candidates (sw-8o1): `hx cat-sed` (`cat && sed`, 8 uses). Same shape as sw-k5a/sw-8v9: it reads two files with a line range, which the Read tool (offset/limit, parallel calls) already does; a verb would only duplicate it.
