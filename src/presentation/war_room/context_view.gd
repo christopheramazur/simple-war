@@ -651,23 +651,31 @@ func _battle_squads() -> Array:
 						pts[j] = (pts[j] as Vector2).lerp(to[sa["ids"][j]], f - i)
 			var d: Dictionary = (info.get(id, {}) as Dictionary).duplicate()
 			d.merge({"id": id, "player": sa["player"], "facing": sa["facing"], "pts": pts, "alive": pts.size(),
-				"uids": sa["ids"], "tmpls": sa.get("tmpls", []), "uhp": sa.get("hp", []), "acts": sa.get("acts", [])}, true)
+				"uids": sa["ids"], "tmpls": sa.get("tmpls", []), "uhp": sa.get("hp", []), "acts": sa.get("acts", []),
+				"activity": sa.get("activity", -1), "own": sa.has("holds")}, true)
+			if sa.has("holds"):
+				d.merge({"holds": sa["holds"], "reload": sa.get("reload", []), "cooldown": sa.get("cooldown", [])}, true)
 			out.append(d)
 	else:
 		var by := {}
 		for u: Dictionary in _obs.get("units", []):
 			if not by.has(u["squad"]):
-				by[u["squad"]] = {"pts": [], "uids": [], "tmpls": [], "uhp": [], "acts": []}
+				by[u["squad"]] = {"pts": [], "uids": [], "tmpls": [], "uhp": [], "acts": [], "holds": [], "reload": [], "cooldown": []}
 			var b: Dictionary = by[u["squad"]]
 			(b["pts"] as Array).append(Vector2(u["x"], u["y"]) / ONE)
 			(b["uids"] as Array).append(u["id"])
 			(b["tmpls"] as Array).append(u.get("tmpl", ""))
 			(b["uhp"] as Array).append(clampf(float(u["hp"]) / maxf(float(u.get("hp_max", u["hp"])), 1.0), 0.0, 1.0))
 			(b["acts"] as Array).append(int(u.get("acts", 0)))
+			(b["holds"] as Array).append(int(u.get("hold", -1)))
+			(b["reload"] as Array).append(int(u.get("reload", 0)))
+			(b["cooldown"] as Array).append(int(u.get("cooldown", 0)))
+		var viewer := int(_obs.get("player", -1))
 		for sq: Dictionary in _obs.get("squads", []):
 			if sq.get("destroyed", false) or sq.get("withdrawn", false):
 				continue
 			var d := sq.duplicate()
+			d["own"] = int(sq["player"]) == viewer
 			if by.has(sq["id"]):
 				d.merge(by[sq["id"]], true)
 			else:
