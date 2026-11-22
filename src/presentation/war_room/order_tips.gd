@@ -88,17 +88,17 @@ static func action_of(id: String) -> StringName:
 
 ## The key text of an order's action from the planning context ("H", "Shift+W"),
 ## "" if the order has no key (pointer-only) or the key is unbound.
-static func key_of(id: String, p: PlanningInput = null) -> String:
+static func key_of(id: String, p: Object = null) -> String:
 	var action := action_of(id)
 	if action == &"":
 		return ""
 	var own := p == null
 	if own:
-		p = PlanningInput.new()
+		p = (load("res://src/presentation/planning/planning_input.gd") as GDScript).new()
 	var ims: Array = []
-	for m: GUIDEActionMapping in p.context.mappings:
+	for m in p.context.mappings:
 		if m.action.name == action:
-			for im: GUIDEInputMapping in m.input_mappings:
+			for im in m.input_mappings:
 				ims.append(GuideKeys.key_text(im.input))
 	if own:
 		p.free()
@@ -106,7 +106,7 @@ static func key_of(id: String, p: PlanningInput = null) -> String:
 
 
 ## The tooltip text of an order: name, effect, weapon behaviour, costs, key.
-static func tip(id: String, p: PlanningInput = null) -> String:
+static func tip(id: String, p: Object = null) -> String:
 	if not ids().has(id):
 		return ""
 	var lines := PackedStringArray([
