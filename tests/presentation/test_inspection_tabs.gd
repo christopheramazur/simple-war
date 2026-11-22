@@ -97,3 +97,11 @@ func test_panel_keeps_tab_across_refresh() -> void:
 	panel._pick("effects", -1)
 	var tabs := _find(panel, func(n: Node) -> bool: return n is Button and n.has_meta(&"tab") and (n as Button).button_pressed)
 	assert_eq((tabs[0] as Button).get_meta(&"tab"), "effects")
+
+
+func test_squad_tab_shows_what_the_opponent_sees() -> void:
+	var mine := _pair(1)
+	var theirs := Inspection.squad(_session.state, int(mine[0]["id"]), 2)
+	var c := InspectionTabs.build(mine[0], mine[1], 1, 10, false, {"opponent_insp": theirs}, "squad", -1, _pick)
+	autofree(c)
+	assert_true("What the opponent sees" in _texts(c), "opponent panel shown for own squad")

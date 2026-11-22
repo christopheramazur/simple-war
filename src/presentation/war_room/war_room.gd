@@ -668,7 +668,15 @@ func _refresh_battle_panel() -> void:
 			if r == null:
 				r = rec["rules"]
 	var ctx := {"rules": r, "weapon_names": _weapon_names(r), "glossary": glossary}
-	_battle_box.show_battle(battle_name(eid), session.observe_battle(player, eid), squad, insp, player,
+	var bobs := session.observe_battle(player, eid)
+	if id >= 0 and _play.is_empty() and int(squad.get("player", -1)) == player:
+		for p: int in (bobs.get("scores", {}) as Dictionary):
+			if p != player:  # what an opponent that can see this squad is shown (E2Q12)
+				var theirs := session.inspect_battle(p, eid, id)
+				if not theirs.is_empty():
+					ctx["opponent_insp"] = theirs
+				break
+	_battle_box.show_battle(battle_name(eid), bobs, squad, insp, player,
 		r.tps if r != null else 10, false, ctx)
 
 

@@ -58,6 +58,7 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int, ve
 		_:
 			col.add_child(SquadCard.build(squad, insp, viewer, tps, verbose, ctx))
 			_unit_cards(col, insp, on_pick)
+			_opponent_view(col, insp, ctx.get("opponent_insp", {}))
 	return col
 
 
@@ -200,3 +201,33 @@ static func _abilities(col: VBoxContainer, insp: Dictionary, tps: int) -> void:
 			col.add_child(UiTheme.label("  Costs: " + ", ".join(costs), "CaptionDimLabel"))
 		for text: String in a.get("lines", []):
 			col.add_child(UiTheme.label("  " + text, "CaptionDimLabel", true))
+
+
+## "What the opponent sees" (E2Q12): for your own squad, the effects you hold
+## that they see disguised (or not at all), and the stats that differ.
+static func _opponent_view(col: VBoxContainer, mine: Dictionary, theirs: Dictionary) -> void:
+	if theirs.is_empty() or not mine.has("abilities"):
+		return
+	col.add_child(UiTheme.label("What the opponent sees", "CardHeadLabel"))
+	var seen := {}
+	for e: Dictionary in theirs.get("effects", []):
+		seen[e["bundle"]] = e
+	var shown := {}
+	for e: Dictionary in mine.get("effects", []):
+		shown[e["bundle"]] = true
+		if not seen.has(e["bundle"]):
+			col.add_child(UiTheme.label("  %s is disguised" % e["name"], "SmallAccentLabel"))
+	for e: Dictionary in theirs.get("effects", []):
+		if not shown.has(e["bundle"]):
+			col.add_child(UiTheme.label("  They see %s instead" % e["name"], "CaptionDimLabel"))
+	var diffs := 0
+	var mu: Array = mine.get("units", [])
+	var tu: Array = theirs.get("units", [])
+	for i in mini(mu.size(), tu.size()):
+		for e: Dictionary in tu[i].get("stats", []):
+			for m: Dictionary in mu[i].get("stats", []):
+				if m["stat"] == e["stat"] and m.get("label", "") == e.get("label", "") and m["value"] != e["value"]:
+					diffs += 1
+					col.add_child(UiTheme.label("  %s: you %s, they %s" % [e["name"], SquadCard._fmt(m), SquadCard._fmt(e)], "CaptionDimLabel", true))
+	if diffs == 0 and seen.size() == shown.size():
+		col.add_child(UiTheme.label("  The same as you see.", "CaptionDimLabel"))
