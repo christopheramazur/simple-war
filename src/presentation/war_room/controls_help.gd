@@ -12,13 +12,15 @@ static func help() -> Array:
 	var nxt := k.text_of(&"next_battle")
 	var prev := k.text_of(&"previous_battle")
 	var follow := k.text_of(&"follow")
+	var focus := k.text_of(&"focus_controls")
 	var deselect := k.text_of(&"deselect_all")
 	return [
 		["Anywhere", "%s: end the turn (or skip a turn that is playing out)
-%s / %s: next / previous battle
+%s / %s: next / previous battle (with no button focused)
+%s: focus the buttons; then Tab / Shift+Tab walk them and Space or Enter presses one. While a button has focus, Tab and Space belong to it; Escape lets go
 %s: leave a battle for the overworld (or skip a turn that is playing out)
 Mouse wheel: zoom; zooming in on a battle hex enters it
-%s: deselect everything" % [end, nxt, prev, cancel, deselect]],
+%s: deselect everything" % [end, nxt, prev, focus, cancel, deselect]],
 		["Overworld", "Left click: select a commander or a hex (the panel on the right says what is there)
 Right click: move the selected commander there. Lit hexes are in reach this turn; the number is the movement cost
 %s + right click: add a waypoint, so the route goes there next

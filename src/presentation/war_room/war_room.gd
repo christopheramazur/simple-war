@@ -1304,13 +1304,13 @@ func _jump_to_reaction(o: Dictionary) -> void:
 	_open_radial.call_deferred(o["engagement"], o["squad"])
 
 
-## Buttons take keyboard focus when clicked, and a focused button would
-## take Space (ui_accept) for itself. Keys belong to the war room's
-## commands, so a key press first drops a button's focus; Enter still
-## presses it.
+## Standard button semantics win while a control has focus (sw-hk0): Tab and
+## Shift+Tab walk the controls, Space and Enter press the focused button, and
+## the Tab / Space hotkeys stand down (_hotkey_free). Any other war-room key
+## first drops a button's focus, so the hotkey acts as it always did.
 func _input(event: InputEvent) -> void:
 	var k := event as InputEventKey
-	if k == null or not k.pressed or k.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+	if k == null or not k.pressed or k.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_TAB, KEY_SPACE]:
 		return
 	var owner := get_viewport().gui_get_focus_owner()
 	if not owner is BaseButton:
@@ -1336,13 +1336,14 @@ func _bind_keys() -> void:
 	keys = DefaultKeys.war_room()
 	for dir: Array in [[&"pan_left", Vector2.LEFT], [&"pan_right", Vector2.RIGHT], [&"pan_up", Vector2.UP], [&"pan_down", Vector2.DOWN]]:
 		keys.on(dir[0], _on_pan.bind(dir[1]))
-	keys.on(&"next_battle", func() -> void: _key_command(func() -> void: contexts.cycle(1)))
-	keys.on(&"previous_battle", func() -> void: _key_command(func() -> void: contexts.cycle(-1)))
+	keys.on(&"next_battle", func() -> void: _hotkey_free(func() -> void: contexts.cycle(1)))
+	keys.on(&"previous_battle", func() -> void: _hotkey_free(func() -> void: contexts.cycle(-1)))
+	keys.on(&"focus_controls", _focus_first_control)
 	keys.on(&"cancel", func() -> void: _key_command(_on_cancel_key))
 	keys.on(&"follow", func() -> void: _key_command(contexts.follow))
 	keys.on(&"next_player", func() -> void: _key_command(_on_next_player_key))
 	keys.on(&"deselect_all", func() -> void: _key_command(contexts.deselect_all))
-	keys.on(&"end_turn", func() -> void: _key_command(_on_end_turn_key))
+	keys.on(&"end_turn", func() -> void: _hotkey_free(_on_end_turn_key))
 	keys.enable(self)
 
 
@@ -1355,6 +1356,28 @@ func _keys_free() -> bool:
 func _key_command(fn: Callable) -> void:
 	if contexts != null and _keys_free():
 		fn.call()
+
+
+## Hotkeys that share a key with GUI focus handling (Tab, Space): they only
+## act while no button has the keyboard focus.
+func _hotkey_free(fn: Callable) -> void:
+	if not get_viewport().gui_get_focus_owner() is BaseButton:
+		_key_command(fn)
+
+
+## F6: put the keyboard focus on the first visible button, so Tab can walk
+## the controls (with no focus, Tab cycles battles instead).
+func _focus_first_control() -> void:
+	if not _keys_free():
+		return
+	var queue: Array[Node] = [self]
+	while not queue.is_empty():
+		var n: Node = queue.pop_front()
+		var c := n as Control
+		if c is BaseButton and c.is_visible_in_tree() and c.focus_mode == Control.FOCUS_ALL and not (c as BaseButton).disabled:
+			c.grab_focus()
+			return
+		queue.append_array(n.get_children())
 
 
 func _on_pan(dir: Vector2) -> void:

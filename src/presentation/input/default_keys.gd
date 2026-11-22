@@ -11,6 +11,7 @@ static func war_room() -> GuideKeys:
 	g.bind(&"end_turn", "End turn / skip playback", [GuideKeys.key(KEY_SPACE, false, false, true)])
 	g.bind(&"next_battle", "Next battle", [GuideKeys.key(KEY_TAB)])
 	g.bind(&"previous_battle", "Previous battle", [GuideKeys.key(KEY_TAB, false, true)])
+	g.bind(&"focus_controls", "Focus the buttons (then Tab walks them)", [GuideKeys.key(KEY_F6, false, false, true)])
 	g.bind(&"cancel", "Cancel / skip playback / leave battle", [GuideKeys.key(KEY_ESCAPE, false, false, true)])
 	g.bind(&"follow", "Follow commander", [GuideKeys.key(KEY_F, false, false, true)])
 	g.bind(&"next_player", "View next player (replay)", [GuideKeys.key(KEY_V, false, false, true)])
