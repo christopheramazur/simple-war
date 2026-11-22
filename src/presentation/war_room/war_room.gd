@@ -1354,6 +1354,11 @@ func _bind_keys() -> void:
 	keys.on(&"next_player", func() -> void: _key_command(_on_next_player_key))
 	keys.on(&"deselect_all", func() -> void: _key_command(contexts.deselect_all))
 	keys.on(&"end_turn", func() -> void: _hotkey_free(_on_end_turn_key))
+	keys.on(&"zoom_in", func() -> void: _key_command(func() -> void: contexts.zoom_by(1.25)))
+	keys.on(&"zoom_out", func() -> void: _key_command(func() -> void: contexts.zoom_by(0.8)))
+	keys.on(&"next_squad", func() -> void: _hotkey_free(_cycle_squad.bind(1)))
+	keys.on(&"previous_squad", func() -> void: _hotkey_free(_cycle_squad.bind(-1)))
+	keys.on(&"inspect_squad", func() -> void: _hotkey_free(_toggle_inspect))
 	keys.enable(self)
 
 
@@ -1393,6 +1398,38 @@ func _focus_first_control() -> void:
 func _on_pan(dir: Vector2) -> void:
 	if contexts != null and _keys_free() and contexts.focus != ViewContexts.OVERWORLD:
 		_main.pan_camera(dir * PAN_STEP)
+
+
+## Gamepad / key squad selection (sw-dqq): steps through the focused
+## battle's own squads and shows the card of the one reached. Selection
+## itself needs the planning or reaction phase; during playback it only
+## inspects.
+func _cycle_squad(dir: int) -> void:
+	var pl := _focused_planner()
+	if pl == null:
+		return
+	var ids := pl.own_squads()
+	if ids.is_empty():
+		return
+	var cur: int = _inspected if ids.has(_inspected) else (pl.selection[0] if not pl.selection.is_empty() else -1)
+	var i := ids.find(cur)
+	var next: int = ids[posmod(i + dir, ids.size())] if i >= 0 else ids[0 if dir > 0 else ids.size() - 1]
+	_inspected = next
+	if _play.is_empty() and session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
+		pl.select([next])
+	_queue_refresh()
+
+
+## The card button: shows the selected squad's card, or hides it again.
+func _toggle_inspect() -> void:
+	var pl := _focused_planner()
+	if pl == null:
+		return
+	if _inspected >= 0:
+		_inspected = -1
+	elif not pl.selection.is_empty():
+		_inspected = pl.selection[0]
+	_queue_refresh()
 
 
 func _on_cancel_key() -> void:

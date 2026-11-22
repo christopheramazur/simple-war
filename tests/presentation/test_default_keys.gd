@@ -68,3 +68,46 @@ func test_every_planning_order_action_has_a_tooltip() -> void:
 	assert_string_contains(OrderTips.tip("withdraw", p), "Shift+W")
 	assert_string_contains(OrderTips.reaction_tip("halt"), "Hold")
 	p.free()
+
+
+## Every core action has a default gamepad mapping, all remappable GUIDE
+## actions (sw-dqq). next_player is replay-only (a paddle button).
+func test_every_core_action_has_a_pad_mapping() -> void:
+	var g := DefaultKeys.war_room()
+	for name: StringName in [&"end_turn", &"next_battle", &"previous_battle", &"focus_controls", &"cancel", &"follow",
+			&"deselect_all", &"pan_left", &"pan_right", &"pan_up", &"pan_down", &"route_via", &"zoom_in", &"zoom_out",
+			&"next_squad", &"previous_squad", &"inspect_squad", &"next_player"]:
+		assert_gt((g.pads[name] as Array).size(), 0, "war room %s has a pad input" % name)
+	var r := DefaultKeys.replay()
+	for name: StringName in r.actions:
+		assert_gt((r.pads[name] as Array).size(), 0, "replay %s has a pad input" % name)
+	var p := PlanningInput.new()
+	for name: StringName in [&"hold", &"attack_move", &"fall_back", &"withdraw", &"run", &"abilities"]:
+		assert_gt((p.pad_names[name] as Array).size(), 0, "planning %s has a pad input" % name)
+	p.free()
+
+
+func test_pad_inputs_stay_out_of_key_text_and_are_device_neutral() -> void:
+	var g := DefaultKeys.war_room()
+	assert_eq(g.text_of(&"end_turn"), "Space")
+	assert_eq(g.pad_text_of(&"end_turn"), "Start")
+	assert_eq(g.pad_text_of(&"pan_left"), "Left stick left")
+	assert_eq(g.pad_text_of(&"pan_down"), "Left stick down")
+	var text := ""
+	for part: Array in ControlsHelp.help():
+		text += part[1]
+	assert_string_contains(text, "Dpad right")
+	assert_false(text.contains("Xbox") or text.contains("Cross"))
+
+
+func test_stick_directions_are_limited_to_one_sign() -> void:
+	var g := DefaultKeys.war_room()
+	var seen := {}
+	for m: GUIDEActionMapping in g.context.mappings:
+		if m.action.name in [&"pan_left", &"pan_right"]:
+			for im: GUIDEInputMapping in m.input_mappings:
+				if im.input is GUIDEInputJoyAxis1D:
+					assert_eq(im.modifiers.size(), 1)
+					seen[m.action.name] = (im.modifiers[0] as GUIDEModifierPositiveNegative).range
+	assert_eq(seen[&"pan_left"], GUIDEModifierPositiveNegative.LimitRange.NEGATIVE)
+	assert_eq(seen[&"pan_right"], GUIDEModifierPositiveNegative.LimitRange.POSITIVE)
