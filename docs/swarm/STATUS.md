@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-22 05:44 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-22 05:59 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 47, craft-researcher: 12, games-researcher: 13, lead-designer: 14, orchestrator: 71, retro: 1, tech-lead: 9, ux-art-director: 11 |
+| Turns per role | auditor: 48, craft-researcher: 12, games-researcher: 13, lead-designer: 14, orchestrator: 72, retro: 1, tech-lead: 9, ux-art-director: 11 |
 | Worker turns / research turns (24 h) | 19 / 4 |
 | Workers queued / running / awaiting review | sw-vld / sw-ll4.27.6 / - |
 | Merged / rejected (all time) | 18 / 0 |
-| Gateway calls last hour (rate-limited) | 37 (26) |
+| Gateway calls last hour (rate-limited) | 47 (32) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-22 05:29 UTC **WARN** (rules) |
+| Latest audit | 11-22 05:59 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-22 05:44 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-22 05:59 UTC **WARN** (rules)
+
+20 swarm calls (13 rate-limited), all nous/qwen4-max, cost 0 USD | health: 13/20 calls rate-limited (65%)
 
 ### 11-22 05:29 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ WARN - compliance clean: 21 gateway calls in the 01:13-01:43 window all nous/qwe
 ### 11-22 01:13 UTC **WARN** (auditor)
 
 auditor recorded no verdict
-
-### 11-21 23:51 UTC **WARN** (auditor) ([report](audits/20261121-2346.md))
-
-WARN - compliance clean: 21 gateway calls in 23:16-23:46 window, all nous/qwen4-max (orchestrator 10, lead-designer 8, craft-researcher 2, auditor 1), 48/48 log banners clean, cost 0 USD, no delegate or Claude activity, ~188.7k tokens. Health poor: 13/21 calls rate-limited (62%; last hour 26/41), craft-researcher turn killed rc -9 at 3601s, zero spawn/merge/reject in window, no merge since sw-opt at 20:42 (~3 h). sw-ll4.27.3 partial at attempt 4 since 21:08, the recurring journal-conflict bead, past its 2 h cap. Orchestrator alive (2 successful calls, status page fresh 23:39) and the worker is awaiting review, not idle, so WARN not FAIL. Recommend: resolve the sw-ll4.27.3 worker.md journal conflict by hand and merge it first, one merge per turn, journal immediately; throttle or pause research roles to free gateway capacity. If next window still has zero merges with sw-ll4.27.3 stuck, escalate to FAIL for loop-without-effect.
 

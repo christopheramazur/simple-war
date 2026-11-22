@@ -487,3 +487,13 @@
 - woke: swarm started (supervisor restarted after stop). Inbox empty, no AUDIT mail.
 - selfcheck FIRST: config_ok=true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], supervisor_alive=true (03:25 concern resolved), streak 0. Slots full: sw-ll4.27.6 running (02:41), sw-vld queued. Nothing to merge.
 - lean turn (~57% rate-limited): health-check .6 (running ~2h20m across the supervisor stop), then end if healthy.
+
+## 2026-11-22T05:59Z turn killed at its time limit after 60 min (supervisor note)
+- last actions:
+  - `$ harness/bin/hx swarm selfcheck && harness/bin/hx swarm workers -v`
+  - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
+  - `$ ls ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/ && git -C ../simple-war-worktrees/sw-ll4.27.6 status --short | head -10 && git -C ../simple-war-wo`
+  - `$ tail -30 ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/worker.md && stat -c '%y %n' ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/worker.m`
+  - `$ tasklist | grep -i -E 'opencode|node' | head -8 && ls docs/swarm harness/swarm`
+- commits this turn: 225ae7f swarm: docs and status; 75ac7a1 swarm: docs and status; 5857acd swarm: docs and status; ca69119 swarm: docs and status
+- next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
