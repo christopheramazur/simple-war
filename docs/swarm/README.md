@@ -5,7 +5,7 @@ Written by the Qwen4 Max swarm (`harness/bin/hx swarm`, see `harness/swarm/READM
 | Folder | What |
 |---|---|
 | `STATUS.md` | Live status: roles, workers, merges, audits (rewritten every 15 min) |
-| `audits/` | Half-hourly audit reports: models, calls, tokens, cost, verdict |
+| `audits/` | Audit reports from the model auditor (escalations and a 4-hourly report): models, calls, tokens, cost, verdict. The half-hourly rules verdicts are on `STATUS.md`. |
 | `journals/` | Each role's running notes |
 | `research/` | Agenda, deep reports, human-readable summaries |
 | `proposals/` | Research-backed proposals with the designers' votes |

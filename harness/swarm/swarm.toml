@@ -24,6 +24,13 @@ every_s = 1800
 window_min = 30
 turn_timeout_s = 2700  # retro 2026-11-21: was 1800; throttled audits were killed mid-run, producing "no verdict" WARNs
 fail_streak = 2       # consecutive FAIL verdicts that stop the orchestrator (WARN never counts)
+# sw-0zi.4: the verdict comes from rules every cycle; the model auditor only escalates
+model_every_s = 14400       # the model writes its narrative report at least this often
+model_min_gap_s = 3600      # and at most this often for actionable WARNs (a FAIL always calls it)
+review_wait_min = 60        # a finished worker waiting longer than this is an actionable WARN
+rate_limited_warn = 0.4     # health WARN (not mailed) above this share of rate-limited calls
+loop_window_min = 120       # FAIL if the orchestrator ran loop_turns turns in this window with no effect
+loop_turns = 4
 max_postmortems_per_day = 3
 
 [designers]

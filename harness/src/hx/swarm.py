@@ -584,6 +584,114 @@ def run_turn(role: str, prompt: str, cwd: Path = ROOT, timeout: int = 1800, kind
     return rc, text
 
 
+# ---------------------------------------------------------------- the audit rules (sw-0zi.4)
+
+SEVERITY = {"PASS": 0, "WARN": 1, "FAIL": 2}
+OK_BANNERS = {GATEWAY_MODEL, MODEL}
+
+
+def _since(e: dict | str, t: datetime) -> float:
+    """Minutes from an event's timestamp (or an ISO timestamp string) to t."""
+    return (t - datetime.fromisoformat(e if isinstance(e, str) else e["ts"])).total_seconds() / 60
+
+
+def rule_verdict(c: dict, u: dict, ev: list[dict], js: list[dict], t: datetime, *, ready: int | None = None,
+                 paused: bool = False, orch_last: datetime | None = None) -> dict:
+    """The compliance and health verdict from counts alone, no model (sw-0zi.4).
+
+    `u`: usage(window) digest. `ev`: events of the last few hours. `js`: open worker jobs. `ready`: ready
+    beads (None if unknown). `paused`: the orchestrator is paused for a postmortem. `orch_last`: when the
+    orchestrator last started or finished a turn.
+
+    Returns {"verdict", "reason", "fail": [...], "act": [...], "health": [...]}: FAIL findings break the
+    hard rules; `act` are WARNs the orchestrator can act on (mailed); `health` are WARNs it can't fix
+    (throttling, slow turns), shown on STATUS.md only.
+    """
+    a = c.get("audit", {})
+    fail, act, health = [], [], []
+    swarm_calls = [g for g in u.get("gateway_calls", []) if str(g.get("caller", "")).startswith("swarm")]
+    # Compliance: model, money.
+    for g in swarm_calls:
+        if g.get("model") != GATEWAY_MODEL:
+            fail.append(f"non-Qwen model {g.get('model')} used by {g['caller']} ({g.get('calls', 0)} calls)")
+    bad = {m: n for m, n in u.get("swarm_log_model_banners", {}).items() if m not in OK_BANNERS}
+    if bad:
+        fail.append(f"non-Qwen model banners in swarm logs: {bad}")
+    cost = sum(g.get("cost_usd") or 0 for g in swarm_calls)
+    if cost > 0:
+        fail.append(f"swarm calls cost {cost:.4f} USD (must be 0)")
+    # The orchestrator is alive and doing something.
+    o = c.get("orchestrator", {})
+    silent = a.get("orchestrator_silent_min", (o.get("turn_timeout_s", 3600) + o.get("pause_s", 240)) / 60 + 60)
+    if not paused and orch_last is not None and (t - orch_last).total_seconds() / 60 > silent:
+        fail.append(f"no orchestrator turn for {(t - orch_last).total_seconds() / 60:.0f} min (limit {silent:.0f})")
+    loop_min = a.get("loop_window_min", 120)
+    recent = [e for e in ev if _since(e, t) <= loop_min]
+    orch_turns = sum(e["kind"] == "turn" and e.get("role") == "orchestrator" for e in recent)
+    moves = sum(e["kind"] in ("spawn", "merge", "reject", "research_queued") for e in recent)
+    busy = any(j["status"] in ("queued", "running") for j in js)
+    if not paused and orch_turns >= a.get("loop_turns", 4) and not moves and not busy and ready:
+        fail.append(f"orchestrator looping: {orch_turns} turns in {loop_min} min, no spawn/merge/reject, "
+                    f"workers idle, {ready} beads ready")
+    # Things the orchestrator can act on.
+    wait = a.get("review_wait_min", 60)
+    for j in js:
+        if j["status"] in ("done", "partial", "failed") and j.get("finished") and _since(j["finished"], t) > wait:
+            act.append(f"{j['bead']} finished ({j['status']}) {_since(j['finished'], t):.0f} min ago and awaits review")
+        if j["status"] == "running" and j.get("started"):
+            limit = c.get("workers", {}).get("timeout_s", 7200) / 60 + 10
+            if _since(j["started"], t) > limit:
+                act.append(f"worker {j['bead']} has run {_since(j['started'], t):.0f} min, past its {limit:.0f} min limit")
+    reds: dict[str, int] = {}
+    for e in ev:
+        if e["kind"] == "merge_red" and _since(e, t) <= 180:
+            reds[e["bead"]] = reds.get(e["bead"], 0) + 1
+    act += [f"{b} failed the merge gate {n} times in 3 h" for b, n in sorted(reds.items()) if n >= 2]
+    # Health the orchestrator can't fix.
+    calls = sum(g.get("calls", 0) for g in swarm_calls)
+    limited = sum(g.get("rate_limited", 0) for g in swarm_calls)
+    if calls >= 10 and limited / calls > a.get("rate_limited_warn", 0.4):
+        health.append(f"{limited}/{calls} calls rate-limited ({100 * limited / calls:.0f}%)")
+    window = [e for e in ev if _since(e, t) <= u.get("window_minutes", 30)]
+    turns = [e for e in window if e["kind"] in ("turn", "worker", "audit", "research")]
+    failed = [e for e in turns if e.get("rc") not in (0, None)]
+    if len(turns) >= 4 and len(failed) / len(turns) > 0.5:
+        health.append(f"{len(failed)}/{len(turns)} turns failed or timed out")
+    two_h = [e for e in ev if _since(e, t) <= 120]
+    if any(e["kind"] == "worker" for e in two_h) and not any(e["kind"] == "merge" for e in two_h):
+        health.append("no merge in 2 h while workers ran")
+    verdict = "FAIL" if fail else "WARN" if act or health else "PASS"
+    head = (f"{calls} swarm calls ({limited} rate-limited), all {GATEWAY_MODEL}, cost 0 USD"
+            if not fail else "; ".join(fail))
+    parts = [head] + [f"act: {x}" for x in act] + [f"health: {x}" for x in health]
+    return {"verdict": verdict, "reason": " | ".join(parts), "fail": fail, "act": act, "health": health}
+
+
+def _ready_count() -> int | None:
+    try:
+        r = subprocess.run(["bd", "ready", "--json"], cwd=ROOT, capture_output=True, text=True, timeout=60, encoding="utf-8")
+        return len(json.loads(r.stdout)) if r.returncode == 0 else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
+def _orchestrator_last() -> datetime | None:
+    """Start of the newest orchestrator turn log, or the last orchestrator turn event, whichever is later."""
+    last = None
+    d = STATE / "logs" / "orchestrator"
+    for f in d.glob("*.log") if d.exists() else []:
+        try:
+            ts = datetime.strptime(f.stem, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        last = ts if last is None or ts > last else last
+    for e in events(now() - timedelta(days=1)):
+        if e["kind"] == "turn" and e.get("role") == "orchestrator":
+            ts = datetime.fromisoformat(e["ts"])
+            last = ts if last is None or ts > last else last
+    return last
+
+
 # ---------------------------------------------------------------- supervisor
 
 def supervisor_pid() -> int | None:
@@ -794,36 +902,75 @@ class Supervisor:
     def audit_loop(self) -> None:
         self.wait(self.c["audit"]["every_s"])
         while self.alive():
+            t0 = time.time()
             if not self.orch_paused.is_set():
                 self.run_audit()
-            self.wait(self.c["audit"]["every_s"])
+            self.wait(max(60, self.c["audit"]["every_s"] - (time.time() - t0)))
 
     def run_audit(self) -> None:
-        t0 = now()
-        digest = json.dumps(usage(self.c["audit"]["window_min"]), indent=1)[:20000]
-        extra = f"# Usage digest (hx swarm usage, last {self.c['audit']['window_min']} min)\n```json\n{digest}\n```\n"
-        # the auditor runs outside the turn slots so a busy swarm can't starve it
-        run_turn("auditor", compose("auditor", "auditor", extra), timeout=self.c["audit"]["turn_timeout_s"], kind="audit")
-        verdicts = [e for e in events(t0) if e["kind"] == "verdict"]
-        v = verdicts[-1] if verdicts else {"verdict": "WARN", "reason": "auditor recorded no verdict"}
-        if not verdicts:
-            event("verdict", verdict="WARN", reason=v["reason"], by="supervisor")
+        """One audit cycle (sw-0zi.4). The rules give the verdict every cycle without a model call. The model
+        auditor runs only to escalate (a FAIL, something the orchestrator can act on, or a FAIL to confirm)
+        or for its periodic narrative report; it may raise the verdict, never lower it, and a killed model
+        turn leaves the rules' verdict standing."""
+        a = self.c["audit"]
+        t0 = now().replace(microsecond=0)  # events are stamped to the second
+        u = usage(a["window_min"])
+        js = [j for j in jobs() if j["status"] not in DONE]
+        rv = rule_verdict(self.c, u, events(t0 - timedelta(hours=6)), js, t0, ready=_ready_count(),
+                          paused=self.orch_paused.is_set(), orch_last=_orchestrator_last())
+        event("verdict", verdict=rv["verdict"], reason=rv["reason"][:2000], by="rules")
+        s = load_state()
+        last_model = s.get("last_model_audit")
+        since_model = (t0 - datetime.fromisoformat(last_model)).total_seconds() if last_model else float("inf")
+        escalate = (rv["verdict"] == "FAIL" or s.get("last_verdict") == "FAIL"
+                    or (rv["act"] and since_model >= a.get("model_min_gap_s", 3600))
+                    or since_model >= a.get("model_every_s", 14400))
+        final = rv
+        if rv["verdict"] == "FAIL":  # alert now; the model only writes the report, it can't raise a FAIL
+            self.apply_verdict(rv)
+        if escalate:
+            update_state(lambda s: s.__setitem__("last_model_audit", t0.isoformat(timespec="seconds")))
+            why = ("the rules found a FAIL" if rv["verdict"] == "FAIL" else "the last audit was a FAIL: confirm or clear it"
+                   if s.get("last_verdict") == "FAIL" else "the rules found something the orchestrator should act on"
+                   if rv["act"] else "the periodic report is due")
+            digest = json.dumps(u, indent=1)[:20000]
+            extra = (f"# Why you were called\n{why}.\n\n# The rules' verdict (already recorded)\n**{rv['verdict']}**: {rv['reason']}\n\n"
+                     f"# Usage digest (hx swarm usage, last {a['window_min']} min)\n```json\n{digest}\n```\n")
+            # the auditor runs outside the turn slots so a busy swarm can't starve it
+            run_turn("auditor", compose("auditor", "auditor", extra), timeout=a["turn_timeout_s"], kind="audit")
+            mv = [e for e in events(t0) if e["kind"] == "verdict" and e.get("by") != "rules"]
+            if mv and SEVERITY.get(mv[-1]["verdict"], 0) > SEVERITY[rv["verdict"]]:
+                final = {"verdict": mv[-1]["verdict"], "reason": f"auditor escalated: {mv[-1].get('reason', '')}",
+                         "fail": [mv[-1].get("reason", "")] if mv[-1]["verdict"] == "FAIL" else [],
+                         "act": [] if mv[-1]["verdict"] == "FAIL" else [mv[-1].get("reason", "")], "health": []}
+        if rv["verdict"] != "FAIL":
+            self.apply_verdict(final)
 
-        def bump(s: dict) -> None:  # FAIL counts, PASS resets, WARN alerts without counting
+    def apply_verdict(self, v: dict) -> None:
+        """Counts the verdict (FAIL +1, PASS resets, WARN leaves the streak) and alerts the orchestrator only
+        about what it can act on: a FAIL, or WARN findings it can fix. Health-only WARNs (throttling, slow
+        turns) stay on STATUS.md."""
+        def bump(s: dict) -> None:
             if v["verdict"] == "FAIL":
                 s["alert_streak"] += 1
             elif v["verdict"] == "PASS":
                 s["alert_streak"] = 0
+            s["last_verdict"] = v["verdict"]
         s = update_state(bump)
         log(f"audit {v['verdict']} fail_streak={s['alert_streak']}: {v.get('reason', '')[:200]}")
-        if v["verdict"] in ("WARN", "FAIL"):
+        limit = self.c["audit"]["fail_streak"]
+        if v["verdict"] == "FAIL":
             send_mail("orchestrator", "auditor",
-                      f"AUDIT {v['verdict']} (consecutive FAILs: {s['alert_streak']}; the orchestrator stops at "
-                      f"{self.c['audit']['fail_streak']}).\n{v.get('reason', '')}\n\n"
+                      f"AUDIT FAIL (consecutive FAILs: {s['alert_streak']}; the orchestrator stops at {limit}).\n"
+                      + "\n".join(f"- {x}" for x in v["fail"]) + "\n\n"
                       "Before anything else this turn: run `harness/bin/hx swarm selfcheck`, confirm every delegation goes through "
                       "`hx swarm spawn` / `hx swarm research` (Qwen only), fix what the alert names, and write what you checked and "
                       "changed in your journal under a heading `Audit response`.")
-        if s["alert_streak"] >= self.c["audit"]["fail_streak"]:
+        elif v["act"]:
+            send_mail("orchestrator", "auditor",
+                      "AUDIT WARN: compliance is clean (no selfcheck needed). Act on these this turn, before new spawns:\n"
+                      + "\n".join(f"- {x}" for x in v["act"]))
+        if s["alert_streak"] >= limit:
             self.postmortem(v)
 
     def postmortem(self, v: dict) -> None:
@@ -971,9 +1118,11 @@ STATUS_DETAILS = "<!-- details: agents see only the summary above -->"
 
 def _audit_line(e: dict) -> str:
     t = datetime.fromisoformat(e["ts"])
+    if e.get("by") == "rules":  # the deterministic audit (sw-0zi.4) writes no report
+        return f"{t:%m-%d %H:%M} UTC **{e['verdict']}** (rules)"
     f = _audit_report(t)
     link = f" ([report](audits/{f.name}))" if f else ""
-    return f"{t:%m-%d %H:%M} UTC **{e['verdict']}**{link}"
+    return f"{t:%m-%d %H:%M} UTC **{e['verdict']}** (auditor){link}"
 
 
 def _audit_report(t: datetime) -> Path | None:
