@@ -52,6 +52,13 @@ func _process(_delta: float) -> bool:
 		push_error("mock_runner: could not save %s (%d)" % [path, err])
 	else:
 		print("mock_runner: wrote %s (%dx%d)" % [path, img.get_width(), img.get_height()])
+		for variant in CvdSim.VARIANTS:
+			var vpath := path.get_basename() + "_" + variant + ".png"
+			var verr := CvdSim.simulate(img, variant).save_png(vpath)
+			if verr != OK:
+				push_error("mock_runner: could not save %s (%d)" % [vpath, verr])
+			else:
+				print("mock_runner: variant %s" % vpath)
 	return true
 
 

@@ -251,6 +251,15 @@ def mock_out(mock: str, out: str | None) -> str:
     return f"{MOCK_DIR}/{name}.png"
 
 
+MOCK_VARIANTS = ("greyscale", "protan", "deutan")
+
+
+def mock_variant_paths(out: str) -> list[str]:
+    """Colour-vision variant PNGs mock_runner.gd writes beside the normal one."""
+    base = out[:-4] if out.lower().endswith(".png") else out
+    return [f"{base}_{v}.png" for v in MOCK_VARIANTS]
+
+
 def _mock(args) -> Result:
     r = Result("godot mock")
     root, exe = _console()
@@ -264,6 +273,7 @@ def _mock(args) -> Result:
     errs = errors(lines)
     wrote = [x for x in lines if x.startswith("mock_runner: wrote")]
     r.data["out"] = out
+    r.data["variants"] = ", ".join(mock_variant_paths(out))
     if wrote:
         r.data["image"] = wrote[-1].removeprefix("mock_runner: wrote ").strip()
     if errs:

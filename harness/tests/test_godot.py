@@ -63,3 +63,8 @@ def test_run_options_after_the_target_are_not_swallowed():
 def test_mock_default_out():
     assert godot_cmd.mock_out("res://src/presentation/mocks/inspection_window_mock.gd", None) ==         "Game Design Document/Mocks/inspection_window.png"
     assert godot_cmd.mock_out("res://x/y.gd", "a.png") == "a.png"
+
+
+def test_mock_variant_paths():
+    assert godot_cmd.mock_variant_paths("a/b/x.png") == [
+        "a/b/x_greyscale.png", "a/b/x_protan.png", "a/b/x_deutan.png"]

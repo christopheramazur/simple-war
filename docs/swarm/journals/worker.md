@@ -23,3 +23,8 @@
 - tests: hx godot check 0 errors; full hx godot test 493/493 (7974 asserts).
 - next: orchestrator review/merge; attempt 2 = F4 text floors once sw-ll4.27.3/.6 merge (do not touch squad_card/context_view before then).
 - blocked/asked: none. War-room 640x360 stage (battle col 290 + side min 220) runtime-verify left as follow-up, out of attempt-1 scope.
+
+## 2026-11-22 turn (autopilot, sw-rlg)
+- did: mock_runner.gd now writes <name>_greyscale/_protan/_deutan.png beside the normal PNG via new shared src/presentation/mocks/cvd_sim.gd (same Machado 2009 / WCAG maths as team_palette_mock); godot.py mock_variant_paths + `variants` in output; README documented; pytest added. Proof: team_palette mock -> 3 variants.
+- decided: conversion on the Godot side (no Python deps); normal PNG path/content untouched.
+- tests: hx godot check 0 errors; pytest run.
