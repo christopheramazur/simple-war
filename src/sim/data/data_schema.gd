@@ -496,6 +496,14 @@ const KINDS: Dictionary = {
 		"max_fires": {"type": "int", "min": 0},
 		"text": {"type": "string"},
 	},
+	## A dialogue graph (GDD 03 §3.5, R3Q18): nodes of lines and choices whose
+	## effects are sim variables (dispositions). See Dialogue.
+	"dialogue": {
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"start": {"type": "string", "required": true},
+		"nodes": {"type": "dict", "required": true},
+	},
 	## A glossary term (GDD 07, R1Q3, R3Q10, R8Q10): the source of hoverable,
 	## context-aware tooltips. `name` and `text` are the English fallbacks of
 	## the translation keys "term.<id>.name" / "term.<id>.text". `aliases`
@@ -604,6 +612,9 @@ static func validate(table: TemplateTable) -> PackedStringArray:
 			errors.append("%s: unknown kind '%s'" % [tid, kind])
 			continue
 		_check_object(table.values_of(tid), KINDS[kind], tid, "", table, errors)
+		if kind == "dialogue":
+			for e in Dialogue.problems(table.values_of(tid)):
+				errors.append("%s: %s" % [tid, e])
 	return errors
 
 

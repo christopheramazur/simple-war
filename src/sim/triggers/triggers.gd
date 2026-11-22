@@ -132,6 +132,9 @@ static func _act(state: SimContext, a: Dictionary, tid: String, data: Dictionary
 			vars[String(a["name"])] = int(vars.get(String(a["name"]), 0)) + int(_v(a, "value", 1, data))
 		"message":
 			_message(state, a, tid, data)
+		"start_dialogue":
+			var d := {"rule": tid, "dialogue": String(a["dialogue"]), "player": int(_v(a, "player", 0, data))}
+			state.events.push(&"dialogue_started", d, state.tick)
 		"add_value":
 			(state as OverworldState).add_value(int(_v(a, "player", 1, data)), int(_v(a, "amount", 0, data)), &"trigger")
 		"add_feature":

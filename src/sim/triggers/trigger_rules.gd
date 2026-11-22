@@ -16,7 +16,9 @@ extends RefCounted
 ##   zone_owner, zone_locked. Comparisons use "op" (==, !=, <, <=, >, >=,
 ##   default >=) against "value" (default 1).
 ## Actions: set_var, add_var, message (translation "key" with "text"
-##   fallback, to "player", 0 = all) in any context; overworld: add_value,
+##   fallback, to "player", 0 = all) and start_dialogue ("dialogue", a
+##   dialogue template; "player", 0 = all; pushes dialogue_started) in any
+##   context; overworld: add_value,
 ##   add_feature, remove_feature, end_mission ("outcome" won or lost, with a
 ##   message "key" / "text"; the first one stands); battle: unlock_zone,
 ##   lock_zone, end_battle.
@@ -30,7 +32,7 @@ const CHECKS: Dictionary = {
 	"overworld": ["value", "owns", "feature_at"],
 	"battle": ["zone_owner", "zone_locked"],
 }
-const COMMON_ACTIONS: Array[String] = ["set_var", "add_var", "message"]
+const COMMON_ACTIONS: Array[String] = ["set_var", "add_var", "message", "start_dialogue"]
 const ACTIONS: Dictionary = {
 	"overworld": ["add_value", "add_feature", "remove_feature", "end_mission"],
 	"battle": ["unlock_zone", "lock_zone", "end_battle"],
@@ -63,7 +65,7 @@ static func compile(t: TemplateTable, ids: PackedStringArray, ctx: String, names
 		for c: Dictionary in checks:
 			r._check_check(tid, c, names)
 		for a: Dictionary in actions:
-			r._check_action(tid, a, names)
+			r._check_action(tid, a, names, t)
 		var i := r.triggers.size()
 		var on := StringName(String(v["on"]))
 		r.triggers.append({"id": tid, "on": on, "where": (v.get("where", {}) as Dictionary).duplicate(true),
@@ -114,7 +116,7 @@ func _check_check(tid: String, c: Dictionary, names: PackedStringArray) -> void:
 		errors.append("%s: unknown feature '%s'" % [tid, c.get("feature", "")])
 
 
-func _check_action(tid: String, a: Dictionary, names: PackedStringArray) -> void:
+func _check_action(tid: String, a: Dictionary, names: PackedStringArray, t: TemplateTable) -> void:
 	var kind := String(a.get("do", ""))
 	if not (kind in COMMON_ACTIONS or kind in ACTIONS[context]):
 		errors.append("%s: action '%s' is not available in %s triggers" % [tid, kind, context])
@@ -125,5 +127,7 @@ func _check_action(tid: String, a: Dictionary, names: PackedStringArray) -> void
 		errors.append("%s: unknown feature '%s'" % [tid, a.get("feature", "")])
 	if kind == "end_mission" and not String(a.get("outcome", "")) in ["won", "lost"]:
 		errors.append("%s: end_mission needs an outcome, won or lost" % tid)
+	if kind == "start_dialogue" and (not t.has(String(a.get("dialogue", ""))) or t.kind_of(String(a["dialogue"])) != "dialogue"):
+		errors.append("%s: unknown dialogue '%s'" % [tid, a.get("dialogue", "")])
 	if kind in ["set_var", "add_var"] and String(a.get("name", "")).is_empty():
 		errors.append("%s: %s needs a name" % [tid, kind])

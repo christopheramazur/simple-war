@@ -67,6 +67,7 @@ const _EVENT_FIELDS := {
 	&"feature_added": [[], [], ["plot"]],
 	&"feature_removed": [[], [], ["plot"]],
 	&"trigger_message": [[], ["player"], []],
+	&"dialogue_started": [[], ["player"], []],
 	&"guard_dispersed": [[], ["player"], ["plot"]],
 	&"guard_returned": [[], [], ["plot"]],
 	&"mission_ended": [[], [], []],

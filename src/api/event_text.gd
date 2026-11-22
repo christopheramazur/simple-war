@@ -123,7 +123,7 @@ static func describe(e: Dictionary, rules: OverworldRules, viewer: int = 0) -> S
 
 ## Whether the feed shows this event type.
 static func in_feed(type: StringName) -> bool:
-	return not QUIET.has(type) and type != &"trigger_message" and type != &"mission_ended"
+	return not QUIET.has(type) and type not in [&"trigger_message", &"dialogue_started", &"mission_ended"]
 
 
 static func side(p: int, viewer: int) -> String:
