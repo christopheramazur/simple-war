@@ -482,3 +482,8 @@
 - Two AUDIT WARNs (02:13, 03:13). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 38/38 log banners nous/qwen4-max, alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
 - WARN cause: 52-60% rate-limited calls + ux-art-director turn killed at 3600s. Fix: lean throttled turn - journal early, merge before spawn, skip idle health checks. Research-role throttling is the supervisor's knob; noted for it.
 - CONCERN: selfcheck says supervisor_alive=false and events_30m shows supervisor_stop:1 (status page 03:10 said 'Supervisor running'). Investigating before anything else. sw-ll4.27.6 running (02:41), sw-vld queued: slots full, nothing awaiting review.
+
+## 2026-11-22T05:00Z turn
+- woke: swarm started (supervisor restarted after stop). Inbox empty, no AUDIT mail.
+- selfcheck FIRST: config_ok=true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], supervisor_alive=true (03:25 concern resolved), streak 0. Slots full: sw-ll4.27.6 running (02:41), sw-vld queued. Nothing to merge.
+- lean turn (~57% rate-limited): health-check .6 (running ~2h20m across the supervisor stop), then end if healthy.
