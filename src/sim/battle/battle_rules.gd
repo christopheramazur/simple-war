@@ -123,6 +123,8 @@ var ab_ready_prowess: PackedInt64Array = PackedInt64Array()  ## Prowess Vacuum p
 var ab_lose_on: Array[PackedStringArray] = []
 var ab_range: PackedInt64Array = PackedInt64Array()        ## fixed, -1 = unlimited
 var ab_targeting: PackedInt64Array = PackedInt64Array()    ## TARGETING index
+var ab_radius: PackedInt64Array = PackedInt64Array()       ## point burst radius, fixed
+var ab_affects: PackedStringArray = PackedStringArray()    ## point burst sides: all / allies / enemies
 ## True when some ability is lost on damage or casualties (HealthSystem
 ## only reports to Abilities then).
 var ab_lost_on_hits: bool = false
@@ -701,6 +703,10 @@ func _compile_abilities(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 		ab_range.append(DataSchema.to_fixed(act["range"]) if act.has("range") else -1)
 		var targeting := TARGETING.find(act.get("targeting", "none"))
 		ab_targeting.append(targeting)
+		ab_radius.append(DataSchema.to_fixed(act.get("radius", 0)))
+		ab_affects.append(String(act.get("affects", "all")))
+		if TARGETING[targeting] == "point" and (toggle or reaction or DataSchema.to_fixed(act.get("radius", 0)) <= 0):
+			errors.append("%s: a point ability is not a toggle or reaction and needs a radius" % tid)
 		if reaction and (toggle or ready > 0):
 			errors.append("%s: a reaction acts at once (no toggle, no ready_s)" % tid)
 		if TARGETING[targeting] == "squad" and toggle:
