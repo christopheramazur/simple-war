@@ -476,3 +476,9 @@
 ### Audit response
 - AUDIT WARN 01:13 ('auditor recorded no verdict'). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 23/23 log banners nous/qwen4-max, supervisor alive, streak 0, events_30m verdict:1 (auditor recovered). All delegation via hx swarm spawn only; no other model/API touched.
 - WARN context: 24/40 = 60% rate-limited last hour; open_workers=[] - the 00:22 turn merged sw-ll4.27.3 at 01:18 but was killed before close/refill. Lean turn: journal early, verify .3 closed, refill both slots.
+
+## 2026-11-22T03:25Z turn
+### Audit response
+- Two AUDIT WARNs (02:13, 03:13). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 38/38 log banners nous/qwen4-max, alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
+- WARN cause: 52-60% rate-limited calls + ux-art-director turn killed at 3600s. Fix: lean throttled turn - journal early, merge before spawn, skip idle health checks. Research-role throttling is the supervisor's knob; noted for it.
+- CONCERN: selfcheck says supervisor_alive=false and events_30m shows supervisor_stop:1 (status page 03:10 said 'Supervisor running'). Investigating before anything else. sw-ll4.27.6 running (02:41), sw-vld queued: slots full, nothing awaiting review.
