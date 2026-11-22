@@ -75,6 +75,10 @@ var locked: bool = false
 ## Presentation opt-in: keep every battle's last turn tick by tick
 ## (`playback`). Read-only; it never changes a result.
 var keep_playback: bool = false
+## Whether the reaction window forecasts enemy attack telegraphs (UI only).
+## Off for headless runs: a battle with no reaction ability then skips the
+## forecast's scratch turn (sw-kd5).
+var want_telegraphs: bool = true
 ## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
 var _playback: Dictionary = {}
 ## Engagement ID -> player -> worst own SIMPL band index last recorded (at
@@ -550,7 +554,7 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 			var ids: Array = battles.keys()
 			ids.sort()
 			for eid: int in ids:
-				var fc := Reactions.forecast_all((battles[eid] as OverworldBattle).state, _battle_sim)
+				var fc := Reactions.forecast_all((battles[eid] as OverworldBattle).state, _battle_sim, want_telegraphs)
 				_opportunities[eid] = fc["opportunities"]
 				_telegraphs[eid] = fc["telegraphs"]
 			_auto_ready = true
