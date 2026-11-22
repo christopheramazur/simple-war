@@ -38,3 +38,9 @@
 - did: wrote docs/swarm/research/notes/angelfall-tutorial-pacing-gaps.md: 4 gaps (stakes escalation, objective ordering, first lift-off vs taught mechanics, first battle is the finale), each with options and GDD refs.
 - decided: options only, no chosen fix, no GDD/code/data edits.
 - tests: docs-only, none.
+
+## 2026-11-22 turn (autopilot, sw-136.4)
+- did: wrote docs/swarm/research/notes/angelfall-glossary-tooltip-audit.md: term-by-term table (hover y/n, glossary y/n), 9 candidate follow-ups, legibility at 1280x800, no-mouse reachability.
+- found: only `_title()` headings and the Events log are hoverable; squad card, battle panel, hex card, phase text are plain Labels; no keyboard/controller path to any tooltip; Ruin term clashes with the ruins terrain; "Reserve" meaning clash. Glossary card definition is 13 px (native tooltip 14 px).
+- decided: audit only, no beads filed, sw-dqj and sw-vld referenced not re-reported. Nothing was run in-engine.
+- tests: docs-only, none.
