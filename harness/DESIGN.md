@@ -132,7 +132,7 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - *Built (sw-lbm.15):* reads `config/routing.toml`. Lookup goes exact route → same class at a larger size → targets `auto` on every route of the level.
   - Candidates go through the gateway; the Claude subscription goes through `claude -p`. Fallback to the next candidate happens on a local model that can't start, a 429, or an error.
   - Nothing usable gives exit code 2 (escalate). A `review` verdict flags the output for checking.
-  - `--agent` uses headless OpenCode, limited to models in `opencode.json`. The MCP tool is the stdlib `hx mcp` server (`.mcp.json`).
+  - `--agent` uses headless OpenCode, limited to models in `opencode.json`. The MCP tool is the stdlib `hx mcp` server; it is no longer registered in `.mcp.json` (sw-68h).
   - Raw call records without prompt or output go to `data/raw/delegate/`; ledger ingest is not done yet.
 - **Lifecycle (Q33):** `hx worker` starts Bonsai on demand when about 11 GB of VRAM is free and stops it after 10 idle minutes. Jobs are queued in the ledger from client hooks (Claude Code SessionEnd/Stop, an OpenCode plugin). `hx delegate` calls jump the queue.
 - *Worker as built (sw-lbm.16):*
@@ -152,6 +152,11 @@ Tagged after each session by Bonsai, with confidence. *Built (sw-lbm.17):*
   - A turn ends with `session.execution.succeeded`/`failed`.
   - `opencode run` attaches to the desktop app's background service by default, which uses that service's environment and working directory. `hx delegate --agent` uses `--standalone` and passes `HX_GATEWAY_KEY`.
   - The desktop app itself can't use the `hx` provider until `HX_GATEWAY_KEY` is in its environment.
+- **Decision (sw-68h, 2026-11-23): retire the MCP registration, keep the rest; do not repair bonsai now.**
+  - Evidence: the `delegate` MCP tool had 0 calls; `hx delegate` ran 9 times, all by 2026-11-01; all 150 `gateway_failure` and 62 `gateway_refused` events fell in 2026-10-31 to 11-01 (the launch and swarm-guard period); local Bonsai never started on the 12 GB card (~2.3 GB short, sw-hbz).
+  - Retired: the `hx` entry in `.mcp.json` (now empty). It cost context in every Claude Code session for a tool nobody called. `hx mcp` stays in the CLI; re-add the entry if agents ever need it.
+  - Kept: `hx delegate`, the gateway and the benchmark ladder. The session tagger, the worker and the swarm all route through them, and cloud candidates (Cloudflare, OpenRouter) do serve calls. sw-hbz already stops the doomed Bonsai start.
+  - Not done: a smaller local model. Revisit only if the weekly reflection shows tagging or delegate spend that a local model would save; the benchmark ladder (§8) is the way to qualify one.
 - **Context (Q18c):** 200k may not fit (estimated 10.4 GiB). The benchmark finds the best context size for the VRAM that's free.
   - *Measured (sw-lbm.12, `hx bonsai probe`):* every size up to 200k loads and fills on the RTX 3060.
   - Short-prompt generation speed is 34.5 t/s up to 128k, then 31.1 at 160k and 25.2 at 200k. Generation on a short prompt shouldn't depend on context size, so the drop means the driver is spilling into shared memory.
