@@ -109,6 +109,9 @@ var _menu: VBoxContainer
 var _cmds: VBoxContainer
 var _hud: Label
 var _dirty: bool = false
+## Observations shared by the panels of one refresh (state cannot change inside it).
+var _obs_cache: Dictionary = {}
+var _caching: bool = false
 ## Engagement ID -> BattlePlanner, and -> its latest forecast.
 var planners: Dictionary = {}
 var _forecasts: Dictionary = {}
@@ -201,7 +204,7 @@ func _ready() -> void:
 	contexts = ViewContexts.new(player)
 	contexts.changed.connect(_queue_refresh)
 	contexts.camera_changed.connect(_on_camera_changed)
-	contexts.sync(session.observe(player))
+	contexts.sync(_obs())
 	match demo_view:
 		"battle":
 			contexts.tab_in()
@@ -217,7 +220,7 @@ func _ready() -> void:
 				pl.select(pl.own_squads())
 				pl.move_to(pl.selection_centre() + Vector2(35, 8), true)
 		"move":  # the overworld with a free commander selected: its reach
-			for cmd: Dictionary in session.observe(player).get("commanders", []):
+			for cmd: Dictionary in _obs().get("commanders", []):
 				if cmd["player"] == player and cmd["engagement"] < 0:
 					contexts.select_commander(cmd["id"])
 					break
@@ -501,8 +504,30 @@ func _queue_refresh() -> void:
 
 func _refresh() -> void:
 	PerfRecorder.begin(&"ui_refresh")
+	_obs_cache = {}
+	_caching = true
 	_refresh_inner()
+	_caching = false
+	_obs_cache = {}
 	PerfRecorder.end(&"ui_refresh")
+
+
+## session.observe(player), computed once per refresh (read-only for callers).
+func _obs() -> Dictionary:
+	if not _caching:
+		return session.observe(player)
+	if not _obs_cache.has(-2):
+		_obs_cache[-2] = session.observe(player)
+	return _obs_cache[-2]
+
+
+## session.observe_battle(player, eid), computed once per refresh.
+func _obs_battle(eid: int) -> Dictionary:
+	if not _caching:
+		return session.observe_battle(player, eid)
+	if not _obs_cache.has(eid):
+		_obs_cache[eid] = session.observe_battle(player, eid)
+	return _obs_cache[eid]
 
 
 func _refresh_inner() -> void:
@@ -550,9 +575,9 @@ func _show_main() -> void:
 	if contexts.focus == ViewContexts.OVERWORLD:
 		var extra := _overworld_extra()
 		extra["summaries"] = _battle_summaries()
-		_main.show_overworld(session.observe(player), session.rules.feature_ids, contexts, extra)
+		_main.show_overworld(_obs(), session.rules.feature_ids, contexts, extra)
 		return
-	var obs := session.observe_battle(player, contexts.focus)
+	var obs := _obs_battle(contexts.focus)
 	var pl := planner(contexts.focus)
 	pl.sync(obs)
 	_main.title = battle_name(contexts.focus)
@@ -632,7 +657,7 @@ func _reset_view() -> void:
 	messages = PackedStringArray()
 	if _alerts != null:
 		_alerts.dismiss_all()
-	contexts.sync(session.observe(player))
+	contexts.sync(_obs())
 	_queue_refresh()
 
 
@@ -697,7 +722,7 @@ func _overworld_extra() -> Dictionary:
 		var path := session.path(player, cid, _hover_plot, via)
 		var costs := 0
 		var known: Dictionary = reach["reach"]
-		var obs_costs := session.observe(player)
+		var obs_costs := _obs()
 		for p in path:
 			costs += _step_cost(p, known, obs_costs)
 		out["preview"] = path
@@ -714,7 +739,7 @@ func _step_cost(p: int, _known: Dictionary, _obs: Dictionary) -> int:
 
 ## The selected commander's planned route.
 func _route_of(cid: int) -> PackedInt64Array:
-	return (session.observe(player).get("routes", {}) as Dictionary).get(cid, PackedInt64Array())
+	return (_obs().get("routes", {}) as Dictionary).get(cid, PackedInt64Array())
 
 
 func _on_hex_hovered(p: int) -> void:
@@ -744,7 +769,7 @@ func _refresh_battle_panel() -> void:
 			if r == null:
 				r = rec["rules"]
 	var ctx := {"rules": r, "weapon_names": _weapon_names(r), "glossary": glossary}
-	var bobs := session.observe_battle(player, eid)
+	var bobs := _obs_battle(eid)
 	if id >= 0 and _play.is_empty() and int(squad.get("player", -1)) == player:
 		for p: int in (bobs.get("scores", {}) as Dictionary):
 			if p != player:  # what an opponent that can see this squad is shown (E2Q12)
@@ -797,7 +822,7 @@ func card_squad() -> int:
 	if eid == ViewContexts.OVERWORLD:
 		return -1
 	var known := {}
-	for sq: Dictionary in session.observe_battle(player, eid).get("squads", []):
+	for sq: Dictionary in _obs_battle(eid).get("squads", []):
 		if not (sq.get("destroyed", false) or sq.get("withdrawn", false)):
 			known[sq["id"]] = true
 	var pl := planner(eid)
@@ -839,7 +864,7 @@ func _refresh_pips() -> void:
 		_pip_layer.add_child(pip)
 		var sum := session.battle_summary(player, eid)
 		pip.view.title = battle_name(eid) + ("" if sum.is_empty() else " · " + EventText.battle_summary(sum))
-		pip.view.show_battle(session.observe_battle(player, eid), {"terrain": _battle_rules(eid)})
+		pip.view.show_battle(_obs_battle(eid), {"terrain": _battle_rules(eid)})
 
 
 func _refresh_menu() -> void:
@@ -894,7 +919,7 @@ func _battle_summaries() -> Dictionary:
 
 func _refresh_commanders() -> void:
 	_clear(_cmds)
-	for cmd: Dictionary in session.observe(player).get("commanders", []):
+	for cmd: Dictionary in _obs().get("commanders", []):
 		if cmd["player"] != player:
 			continue
 		var b := Button.new()
@@ -939,7 +964,7 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 		return
 	# A commander first; clicking its hex again selects the garrison or
 	# convoy there (sw-kys.8).
-	var obs := session.observe(player)
+	var obs := _obs()
 	var det := -1
 	for d: Dictionary in obs.get("detachments", []):
 		if int(d["plot"]) == p and int(d["player"]) == player and int(d["engagement"]) < 0 and int(d["id"]) != contexts.selected_detachment:
@@ -979,7 +1004,7 @@ func _steer(p: int, shift: bool) -> String:
 	if p == here and not shift:
 		return halt_detachment()
 	if not shift:
-		for cmd: Dictionary in session.observe(player).get("commanders", []):
+		for cmd: Dictionary in _obs().get("commanders", []):
 			if cmd["plot"] == p and cmd["player"] == player:
 				rally(did, -1, int(cmd["id"]), "convoy %d" % (did & 0xffff))
 				return ""
@@ -1015,7 +1040,7 @@ func halt_detachment() -> String:
 
 
 func _convoy_route_of(did: int) -> PackedInt64Array:
-	return (session.observe(player).get("convoy_routes", {}) as Dictionary).get(did, PackedInt64Array())
+	return (_obs().get("convoy_routes", {}) as Dictionary).get(did, PackedInt64Array())
 
 
 # --- planning ------------------------------------------------------------------
@@ -1024,7 +1049,7 @@ func _convoy_route_of(did: int) -> PackedInt64Array:
 func planner(eid: int) -> BattlePlanner:
 	if not planners.has(eid):
 		var pl := BattlePlanner.new(player)
-		pl.sync(session.observe_battle(player, eid))
+		pl.sync(_obs_battle(eid))
 		pl.changed.connect(_on_draft.bind(eid))
 		planners[eid] = pl
 	return planners[eid]
@@ -1104,6 +1129,7 @@ func wait_forecasts() -> void:
 ## A new turn: forecasts and reactions start over; drafts too, except
 ## those queued while orders were locked.
 func _new_turn() -> void:
+	_obs_cache = {}
 	_turn_seen = session.turns_resolved()
 	for eid: int in planners:
 		if not _pending.has(eid):
@@ -1354,7 +1380,7 @@ func _open_radial(eid: int, squad: int) -> void:
 
 
 func _squad_obs(eid: int, squad: int) -> Dictionary:
-	for sq: Dictionary in session.observe_battle(player, eid).get("squads", []):
+	for sq: Dictionary in _obs_battle(eid).get("squads", []):
 		if sq["id"] == squad:
 			return sq
 	return {}
@@ -1640,7 +1666,7 @@ func send_to(p: int) -> String:
 	if _target.is_empty():
 		return "nothing to send"
 	var cid := -1
-	for cmd: Dictionary in session.observe(player).get("commanders", []):
+	for cmd: Dictionary in _obs().get("commanders", []):
 		if cmd["plot"] == p and cmd["player"] == player:
 			cid = cmd["id"]
 	var err := ""
@@ -1708,7 +1734,7 @@ func _alert_from(e: Dictionary, d: Dictionary, line: String) -> void:
 func _refresh_log() -> void:
 	if session.turns_resolved() != _log_turn:
 		_log_turn = session.turns_resolved()
-		var obs := session.observe(player)
+		var obs := _obs()
 		for e: Dictionary in obs.get("events", []):
 			var d: Dictionary = e["data"] if e.has("data") else e
 			if e["type"] in [&"trigger_message", &"mission_ended"]:
@@ -1726,7 +1752,7 @@ func _refresh_log() -> void:
 			var l := _title(messages[i])
 			l.theme_type_variation = &""
 			_log_box.add_child(l)
-	var outcome: Dictionary = session.observe(player).get("outcome", {})
+	var outcome: Dictionary = _obs().get("outcome", {})
 	_banner.visible = not outcome.is_empty()
 	if _banner.visible:
 		var won: bool = outcome["outcome"] == "won"
@@ -1797,7 +1823,7 @@ func pick_up(detachment_id: int) -> String:
 		return "no commander selected"
 	var err := ""
 	var n := 0
-	for det: Dictionary in session.observe(player).get("detachments", []):
+	for det: Dictionary in _obs().get("detachments", []):
 		if int(det["id"]) == detachment_id:
 			for q: Dictionary in det.get("squads", []):
 				err = session.transfer_squad(player, int(q["id"]), cid)
@@ -1806,7 +1832,7 @@ func pick_up(detachment_id: int) -> String:
 				n += 1
 	_hud_note = err
 	_note("pick up: %s took %d squad%s%s" % [EventText.commander(cid), n, "" if n == 1 else "s", "" if err.is_empty() else " - stopped: " + err])
-	contexts.sync(session.observe(player))
+	contexts.sync(_obs())
 	_queue_refresh()
 	return err
 
@@ -1850,7 +1876,7 @@ func _end_turn() -> void:
 	if played and turn_time() > 0.0:
 		_start_play(before, resolved + 1)
 		return
-	contexts.sync(session.observe(player))
+	contexts.sync(_obs())
 	_queue_refresh()
 
 
@@ -1939,7 +1965,7 @@ func _show_play() -> void:
 	elif battles.has(eid):
 		_main.title = battle_name(eid)
 		_main.set_camera(contexts.zoom, contexts.battle_centre)
-		_main.show_playback(battles[eid], t, session.observe_battle(player, eid), _inspected)
+		_main.show_playback(battles[eid], t, _obs_battle(eid), _inspected)
 		# The squad card follows the shown moment: rebuild it when the frame
 		# changes, not on every draw (sw-ll4.27.3).
 		var frames: Array = (battles[eid] as Dictionary).get("frames", [])
@@ -1952,7 +1978,7 @@ func _show_play() -> void:
 	for pip in _pip_layer.get_children():
 		if pip is PipPanel and battles.has((pip as PipPanel).engagement):
 			var e := (pip as PipPanel).engagement
-			(pip as PipPanel).view.show_playback(battles[e], t, session.observe_battle(player, e))
+			(pip as PipPanel).view.show_playback(battles[e], t, _obs_battle(e))
 	_phase_banner.show()
 	_phase_text.text = "Turn %d is playing out (%d%%).  Space or Esc to skip." % [int(_play["turn"]), int(t * 100.0)]
 	_refresh_hud()
@@ -1983,7 +2009,7 @@ func skip_playback() -> void:
 	_play_card_frame = -1
 	_refresh_hover_card()
 	set_process(false)
-	contexts.sync(session.observe(player))
+	contexts.sync(_obs())
 	_queue_refresh()
 	if auto_play and replay != null and not replay.at_end():
 		end_turn_requested.emit.call_deferred()
