@@ -467,9 +467,14 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
   - **Measured** (200 × 100 map, one plan): about 17 ms across open ground with forests, about 48 ms through a comb of walls, 2 µs when cached. A plan happens once per leg, not per tick.
 
 ### What v1 leaves out
-- **Collision:** units and squads don't block each other. Two squads may stand in the same place. This is revisited only if playtests show it reads badly.
+- **Collision between units and squads:** units and squads don't block each other. Two squads may stand in the same place. This is revisited only if playtests show it reads badly.
 - **Elevation:** there is no height. The map format reserves an elevation layer (Data Model §3.5) so it can be added without a format change. Adding it is a rules decision, not a presentation one.
-- **Formation width:** a route is planned for the anchor point. A wide formation may clip impassable cells at its edges; units there cross them at their plain speed, since nothing collides in v1.
+- **Formation width:** a route is planned for the anchor point, so a wide formation may reach past impassable cells at its edges. Units handle that themselves (next section).
+
+### Unit movement (sw-ll4.16)
+- **Terrain collision:** a unit can't enter a cell its own movement type can't (cost 0). If its step would, it slides along the wall on one axis (x first) when that is open, else it stands still for the tick. A unit already on an impassable cell (deployed or displaced there) may leave it.
+- **Coherency:** a unit whose formation slot lies on a cell it can't enter heads for the squad's anchor instead, which routes keep on passable ground. There is no separate leash distance: slots are at most a formation's width from the anchor.
+- **Not built:** unit-vs-unit collision, and unit pathfinding. A unit stuck in a concave wall pocket waits until the anchor moves on. Revisit if playtests show it reads badly.
 
 ### Charges
 A **charge** is an Attack order while the squad is still closing on its target. This is the meaning Intercept (§2.7) already uses. Melee has no rules of its own in v1: a short-range weapon is a weapon with a short range.
