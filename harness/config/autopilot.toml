@@ -1,0 +1,26 @@
+# hx autopilot: headless Claude Code works `bd ready` beads one at a time (harness/README.md, "Autopilot").
+# Read before every bead, so edits apply without a restart. Raising any cap here needs the user's OK (AGENTS.md §6).
+
+[claude]
+model = "sonnet"            # the plan's limits are shared with your own sessions; sonnet stretches them furthest
+permission_mode = "auto"    # auto mode: no prompts, risky actions still get reviewed; never bypassPermissions
+max_turns = 120             # model turns per bead attempt
+timeout_s = 7200            # wall clock per bead attempt; the work so far is kept as a WIP commit
+
+# Plan limits (Claude Pro: a 5-hour window and a weekly window, shared with interactive use).
+# Readings come from the status line of your own sessions and from every headless turn's rate-limit events.
+[limits]
+five_hour_start_pct = 60    # start a bead only below this share of the 5-hour window...
+five_hour_stop_pct = 85     # ...and end a running one (keeping its work) above this, leaving room for you
+weekly_max_pct = 75         # never take the weekly window past this
+weekly_slack_pct = 10       # pace: by a point in the week, use at most weekly_max x the share of the week gone + this
+reading_max_age_s = 900     # older than this: ask the API with a one-word haiku call before starting a bead
+
+[beads]
+max_attempts = 2            # a bead that fails this often is labelled autopilot-failed and left for a person
+exclude_labels = ["needs-human", "swarm-harness", "autopilot-failed", "autopilot-blocked"]
+exclude_parents = ["sw-p2q"]  # the design-interview epic: those need the user
+idle_s = 900                # nothing to do: look again this much later
+
+[merge]
+test_timeout_s = 1800
