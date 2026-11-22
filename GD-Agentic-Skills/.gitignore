@@ -1,0 +1,81 @@
+# -----------------------------
+# Agent & AI Assistant Workspaces
+# -----------------------------
+# Brainstorm / companion mockups (local only)
+.superpowers/
+
+# Generated star-history site (deployed via Actions → Pages, not committed)
+site/
+
+# Exclude common agent configuration and memory directories
+.agent/
+.agents/
+.gemini/
+.cursor/
+.windsurf/
+.cline/
+.aider/
+.editorconfig
+GEMINI.md
+LEARNINGS.gemini.md
+skills-lock.json
+
+# Agent memory, databases, and logs
+brain/
+knowledge/
+memory/
+workspace/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.jsonl
+
+# Python bytecode (never commit)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# -----------------------------
+# Godot 4+ Standard
+# -----------------------------
+# .godot/ is the cache folder for the editor. It should NOT be committed.
+.godot/
+
+# Generated translation files
+*.translation
+
+# Mono/C# builds (if applicable)
+.mono/
+*.csproj
+*.sln
+
+# -----------------------------
+# IDEs & Editors
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -----------------------------
+# OS Generated
+# -----------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# -----------------------------
+# Builds & Exports
+# -----------------------------
+export/
+builds/
+*.tmp
+.notes/
+.docs/
+.audit/
+docs/internal/
+.venv/
+
+# GDSkills agent vision scratch (do not commit)
+.gdskills/
