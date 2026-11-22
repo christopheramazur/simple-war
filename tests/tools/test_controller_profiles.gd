@@ -138,3 +138,26 @@ func test_faults_forfeit() -> void:
 	assert_eq(forfeited.size(), 1, "the first fault forfeits")
 	assert_true(report.has("fault"))
 	assert_true(report["think_ms_max"].has("2"))
+
+
+func test_economy_orders_are_valid_and_applied() -> void:
+	var u := _profile("profile_utility")
+	var x := OverworldSession.create(_l().templates, _l().data_hash, "skirmish_seeded", 3)
+	var ctl := {1: ProfileController.new(1, u, 3), 2: ProfileController.new(2, u, 3)}
+	var orders := 0
+	for t in 15:
+		for p in [1, 2]:
+			for e: Dictionary in (ctl[p] as ProfileController).economy(x.observe(p), x):
+				orders += 1
+				if x.clock.phase != PulseClock.Phase.PLANNING:
+					continue
+				if e.has("output"):
+					assert_eq(x.set_output(p, e["feature"], e["output"]), "", "output order is legal")
+				if e.has("commander"):
+					assert_eq(x.set_supply_line(p, e["feature"], -1, e["commander"]), "", "supply order is legal")
+		HeadlessOverworld.play(x, ctl, t + 1)
+		if not x.state.outcome.is_empty():
+			break
+	assert_gt(orders, 0, "producers get orders")
+	for p in [1, 2]:
+		assert_eq((ctl[p] as ProfileController).fault, "", "no faults")

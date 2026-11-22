@@ -160,6 +160,14 @@ func plan(obs: Dictionary, session: OverworldSession) -> Array:
 	return _timed(func() -> Variant: return _overworld.plan(obs, session), int(obs.get("turn", 0)))
 
 
+## Production outputs and supply lines (sw-884.11) when the overworld
+## process decides them (HeadlessOverworld.plan_for applies them).
+func economy(obs: Dictionary, session: OverworldSession) -> Array:
+	if _overworld != null and _overworld.has_method("economy"):
+		return _overworld.economy(obs, session)
+	return []
+
+
 ## Reserves into battles (sw-884.14): each engaged own commander sends the
 ## squads of its army that are not fighting, strongest first; the session
 ## takes them up to the battleforce squad cap, so casualties are replaced

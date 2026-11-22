@@ -46,6 +46,12 @@ static func plan_for(session: OverworldSession, p: int, controller: Object) -> v
 		session.set_route(p, o["commander"], o["route"])
 		if not String(o.get("activity", "")).is_empty():
 			session.set_activity(p, o["commander"], o["activity"], o.get("option", ""))
+	if controller.has_method("economy"):
+		for e: Dictionary in controller.economy(session.observe(p), session):
+			if e.has("output"):
+				session.set_output(p, e["feature"], e["output"])
+			if e.has("commander"):
+				session.set_supply_line(p, e["feature"], -1, e["commander"])
 	if controller.has_method("battle_orders"):
 		var eids: Array = session.battles.keys()
 		eids.sort()

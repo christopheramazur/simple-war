@@ -28,6 +28,12 @@ extends RefCounted
 ## scatters its whole army. Winning against a commander adds half the
 ## outcome weight; losing our last commander subtracts the whole weight.
 ##
+## Economy (sw-884.11): `economy(obs, session)` picks each owned producer's
+## output (the squad worth most Value per turn of production, preferring ones
+## we can afford; a running option is kept unless the best is twice as good or
+## nothing has been invested) and sends its output along a supply line to the
+## nearest own commander with room, keeping a line that still works.
+##
 ## Params: outcome_weight (1.0), risk (1.0, multiplies guessed enemy
 ## strength), explore (6, unexplored hexes considered per commander),
 ## cache_scale (10, Value at which a cache counts half of the economy
@@ -102,6 +108,77 @@ func plan(obs: Dictionary, session: OverworldSession) -> Array:
 				busy[o["route"][o["route"].size() - 1]] = true
 				out.append(o)
 	return out
+
+
+## Production orders for owned producers: [{"feature", "output" (option
+## index, optional), "commander" (supply line target, optional)}].
+func economy(obs: Dictionary, session: OverworldSession) -> Array:
+	var r := session.rules
+	var production: Dictionary = obs.get("production", {})
+	var lines: Dictionary = obs.get("supply_lines", {})
+	var value := int(obs.get("value", 0))
+	var cmds := []
+	for c: Dictionary in obs["commanders"]:
+		if int(c["player"]) == player:
+			cmds.append(c)
+	var fids: Array = production.keys()
+	fids.sort()
+	var plots: Dictionary = obs["plots"]
+	var out := []
+	for fid: int in fids:
+		var ft := {}
+		for p: int in plots:
+			for f: Dictionary in plots[p]["features"]:
+				if int(f["id"]) == fid:
+					ft = f.duplicate()
+					ft["plot"] = p
+		if ft.is_empty() or int(ft["owner"]) != player:
+			continue
+		var o := {"feature": fid}
+		var t := int(ft["tmpl"])
+		var n := r.production_count(t)
+		var cur := int((production[fid] as Dictionary)["output"])
+		var best := -1
+		var best_score := 0.0
+		var cur_score := 0.0
+		for i in n:
+			var sc := _output_score(r, t, i, value)
+			if i == cur:
+				cur_score = sc
+			if sc > best_score:
+				best_score = sc
+				best = i
+		if best >= 0 and best != cur and (int((production[fid] as Dictionary)["progress"]) <= 0 or best_score >= 2.0 * cur_score):
+			o["output"] = best
+		var line: Dictionary = lines.get(fid, {})
+		var target := -1
+		var live := false
+		for c: Dictionary in cmds:
+			if not line.is_empty() and int(c["id"]) == int(line.get("commander", -1)):
+				live = true
+		if not live and not cmds.is_empty():
+			var bd := 1 << 30
+			for c: Dictionary in cmds:
+				var d := Hex.plot_distance(int(c["plot"]), int(ft["plot"]), r.width)
+				if d < bd:
+					bd = d
+					target = int(c["id"])
+		if target >= 0:
+			o["commander"] = target
+		if o.size() > 1:
+			out.append(o)
+	return out
+
+
+## Value of the squad an option makes per turn of production (0 for items;
+## an option costing more than we hold is discounted to a tenth).
+func _output_score(r: OverworldRules, t: int, i: int, value: int) -> float:
+	var opts := r.hf_produces[t]
+	var o := i * OverworldRules.PRODUCTION_STRIDE
+	if opts[o] < 0:
+		return 0.0
+	var sc := float(r.sq_value[opts[o]]) / maxf(float(opts[o + 1]), 1.0)
+	return sc if opts[o + 2] <= value else sc * 0.1
 
 
 ## Keeps looking for the enemy: the nearest reachable unexplored hex, else
