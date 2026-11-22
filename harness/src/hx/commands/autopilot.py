@@ -50,9 +50,12 @@ def run(args) -> Result:
         if not snaps:
             r.checks.append(Check("probe", FAIL, "no rate-limit reading came back; see harness/data/autopilot/autopilot.log"))
     s = ap.status()
-    r.data.update(status=s)
+    if getattr(args, "json", False):
+        r.data.update(status=s)
+    else:
+        r.data["recent"] = "; ".join(f"{j['bead']} {j['outcome']}" for j in s["recent"][:5]) or "none"
     r.checks.append(Check("loop", OK if s["pid"] else WARN, f"running (pid {s['pid']})" if s["pid"] else "not running"))
     r.checks.append(Check("limits", OK if s["gate"] == "go" else WARN, f"{s['gate']}: {s['why']}"))
     if s["current"]:
-        r.checks.append(Check("bead", OK, f"working {s['current']} since {s['since']}"))
+        r.data["working"] = f"{s['current']} since {s['since']}"
     return r
