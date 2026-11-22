@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-22 07:45 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-22 08:00 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-22 07:45 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 19 / 4 |
 | Workers queued / running / awaiting review | sw-ll4.27.6 / sw-vld / - |
 | Merged / rejected (all time) | 18 / 0 |
-| Gateway calls last hour (rate-limited) | 39 (27) |
+| Gateway calls last hour (rate-limited) | 40 (27) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-22 07:29 UTC **WARN** (rules) |
+| Latest audit | 11-22 07:59 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-22 07:45 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-22 07:59 UTC **WARN** (rules)
+
+20 swarm calls (14 rate-limited), all nous/qwen4-max, cost 0 USD | health: 14/20 calls rate-limited (70%) | health: no merge in 2 h while workers ran
 
 ### 11-22 07:29 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-22 07:45 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-22 05:59 UTC **WARN** (rules)
 
 20 swarm calls (13 rate-limited), all nous/qwen4-max, cost 0 USD | health: 13/20 calls rate-limited (65%)
-
-### 11-22 05:29 UTC **WARN** (rules)
-
-27 swarm calls (19 rate-limited), all nous/qwen4-max, cost 0 USD | health: 19/27 calls rate-limited (70%)
 
