@@ -31,7 +31,7 @@
 			"max_width": 640,
 			"width_setting": "side_width",
 			"grip": true,
-			"scroll": ["battles_title", "battles", "commanders_title", "commanders", "commander", "orders", "reactions", "events"],
+			"scroll": ["alerts", "battles_title", "battles", "commanders_title", "commanders", "commander", "orders", "reactions", "events"],
 			"footer": ["end_turn", "replay_controls", "tools", "main_menu"]
 		}
 	]

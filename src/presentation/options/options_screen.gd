@@ -14,6 +14,7 @@ var _scale: OptionButton
 var _theme: OptionButton
 var _palette: OptionButton
 var _turn: OptionButton
+var _alert: OptionButton
 var _said: Label
 var _sizes: Array[Vector2i] = []
 
@@ -100,6 +101,15 @@ func _ready() -> void:
 			_turn.select(i)
 	_turn.item_selected.connect(func(i: int) -> void: _change("turn_seconds", GameSettings.TURN_SECONDS[i]))
 	col.add_child(_row("A turn plays out over", _turn))
+	_alert = OptionButton.new()
+	_alert.name = "AlertSeconds"
+	for i in GameSettings.ALERT_SECONDS.size():
+		var a := GameSettings.ALERT_SECONDS[i]
+		_alert.add_item("Until dismissed" if a <= 0.0 else "%d seconds" % int(a))
+		if is_equal_approx(a, float(GameSettings.value("alert_seconds"))):
+			_alert.select(i)
+	_alert.item_selected.connect(func(i: int) -> void: _change("alert_seconds", GameSettings.ALERT_SECONDS[i]))
+	col.add_child(_row("Battle alerts stay new for", _alert))
 	_said = UiTheme.label("", "DimLabel", true)
 	_said.custom_minimum_size = Vector2(390, 0)
 	col.add_child(_said)

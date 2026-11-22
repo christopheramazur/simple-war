@@ -127,6 +127,7 @@ var _orders_box: VBoxContainer
 var _reactions_box: VBoxContainer
 var _commander_box: CommandPanel
 var _log_box: VBoxContainer
+var _alerts: BattleAlerts
 var _banner: PanelContainer
 var _banner_text: Label
 ## Messages from triggers, newest last: [translated text].
@@ -332,6 +333,9 @@ func _build_ui() -> void:
 	_log_box = VBoxContainer.new()
 	_log_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panels["events"] = _log_box
+	_alerts = BattleAlerts.new()
+	_alerts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panels["alerts"] = _alerts
 	_banner = PanelContainer.new()
 	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner.theme_type_variation = &"BannerPanel"
@@ -472,6 +476,7 @@ func _refresh_inner() -> void:
 		return
 	if session.turns_resolved() != _turn_seen:
 		_new_turn()
+	_alerts.focus_changed(contexts.focus)
 	for eid: int in planners.keys():
 		if not session.battles.has(eid):
 			planners.erase(eid)
@@ -549,6 +554,8 @@ func view_as(p: int) -> void:
 	_inspected = -1
 	_log_turn = -1
 	messages = PackedStringArray()
+	if _alerts != null:
+		_alerts.dismiss_all()
 	contexts.sync(session.observe(player))
 	_queue_refresh()
 
@@ -1544,6 +1551,22 @@ func set_activity(activity: String, option: String = "") -> String:
 	return err
 
 
+## Battle start/end and losses go to the persistent alert panel (sw-9un).
+func _alert_from(e: Dictionary, d: Dictionary, line: String) -> void:
+	var kind := ""
+	match StringName(e["type"]):
+		&"battle_started":
+			kind = "start"
+		&"battle_resolved":
+			kind = "end"
+		&"squads_lost", &"commander_defeated":
+			kind = "alert"
+	if kind.is_empty():
+		return
+	var eid := int(d.get("engagement", -1))
+	_alerts.add(kind, line, eid, _log_turn, contexts.focus == eid)
+
+
 ## The event feed (sw-ip8.7): what this player saw happen each turn
 ## (EventText), trigger messages, and the mission's outcome.
 func _refresh_log() -> void:
@@ -1559,6 +1582,7 @@ func _refresh_log() -> void:
 				var line := EventText.describe(e, session.rules, player)
 				if not line.is_empty():
 					messages.append("T%d · %s" % [_log_turn, line])
+					_alert_from(e, d, line)
 	_clear(_log_box)
 	if not messages.is_empty():
 		_log_box.add_child(_title("Events"))

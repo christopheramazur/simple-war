@@ -12,9 +12,11 @@ const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1280, 800), Vector
 	Vector2i(2560, 1440), Vector2i(3840, 2160)]
 const UI_SCALES: Array[float] = [0.75, 1.0, 1.25, 1.5, 2.0]
 const TURN_SECONDS: Array[float] = [0.0, 2.0, 5.0, 10.0]
+## How long a battle alert stays marked NEW (sw-9un): 0 = until dismissed.
+const ALERT_SECONDS: Array[float] = [6.0, 20.0, 60.0, 120.0, 0.0]
 const DEFAULTS: Dictionary = {
 	"window_mode": "windowed", "width": 1280, "height": 720, "vsync": true, "ui_scale": 1.0, "turn_seconds": 5.0,
-	"ui_theme": "default", "side_width": 300, "team_palette": "okabe_ito",
+	"ui_theme": "default", "side_width": 300, "team_palette": "okabe_ito", "alert_seconds": 6.0,
 }
 
 ## Where the settings are kept (tests point this elsewhere).
