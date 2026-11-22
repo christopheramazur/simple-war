@@ -235,6 +235,29 @@ def untagged_sessions(con) -> list[str]:
     return [s for s in ids if s not in done]
 
 
+UNTAGGED_MIN_CALLS = 20   # a session with more calls than this and no kind tag is a coverage gap
+UNTAGGED_GRACE_S = 12 * 3600  # sessions active more recently than this may still be running
+
+
+def untagged_busy(con, since=None, min_calls: int = UNTAGGED_MIN_CALLS, grace_s: float = UNTAGGED_GRACE_S,
+                  now: float | None = None) -> list[dict]:
+    """Finished-looking sessions (idle for grace_s) with more than min_calls calls and no valid tagger row.
+
+    This is the loud check for sw-j41: a week of calls with an empty sessions_by_kind means the tag path
+    (session_end -> tag_session job -> tags jsonl) is dropping sessions."""
+    import time
+    now = time.time() if now is None else now
+    done = {sid for sid, role in tagged_ids() if role == "tagger"}
+    sql = "SELECT session_id, count(*), epoch(max(ts)) FROM call GROUP BY 1"
+    args: list = []
+    if since is not None:
+        sql += " HAVING max(ts) >= ?"
+        args = [since.replace(tzinfo=None)]
+    return [{"session": sid[:14], "calls": n} for sid, n, last in
+            sorted(con.execute(sql, args).fetchall(), key=lambda r: -r[1])
+            if n > min_calls and sid not in done and now - last >= grace_s]
+
+
 def accuracy(rows: list[dict]) -> dict:
     """Agreement between tagger and audit on sessions that have both (valid) tags."""
     by: dict[str, dict] = {}

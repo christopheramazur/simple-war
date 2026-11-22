@@ -73,3 +73,16 @@ def test_escalated_tagger_is_recorded_invalid(env, monkeypatch):
     rows = tagging.tag_session("s1", con=object(), tax={**TAX, "audit_share": 0.0},
                                delegate_run=lambda *a: Outcome())
     assert rows[0]["valid"] is False and "escalated" in rows[0]["problem"]
+
+
+def test_untagged_busy_flags_idle_sessions_without_a_tag(env):
+    import duckdb
+    from datetime import datetime, timedelta
+    con = duckdb.connect()
+    con.execute("CREATE TABLE call (session_id VARCHAR, ts TIMESTAMP)")
+    old = datetime(2026, 1, 1)
+    con.executemany("INSERT INTO call VALUES (?, ?)", [("busy", old)] * 30 + [("small", old)] * 3 + [("tagged", old)] * 30)
+    tagging._write({"session_id": "tagged", "role": "tagger", "valid": True, "kind": "chat"})
+    gap = tagging.untagged_busy(con, now=(old + timedelta(days=2)).timestamp())
+    assert gap == [{"session": "busy", "calls": 30}]
+    assert tagging.untagged_busy(con, now=(old + timedelta(hours=1)).timestamp()) == []  # still live
