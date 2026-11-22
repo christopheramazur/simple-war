@@ -316,54 +316,69 @@ def _checks_for(changed: list[str]) -> list[list[str]]:
     return checks
 
 
-def merge_worker(bead: str) -> str:
-    """Bring main into the worker branch, run the tests there, then fast-forward main. Main never goes red."""
-    j = load_job(bead)
-    if not j or j["status"] not in ("done", "partial"):
-        raise ValueError(f"{bead}: no finished worker to merge (status {j and j['status']})")
-    wt = Path(j["worktree"])
-    timeout = cfg()["merge"]["test_timeout_s"]
+class MergeRed(ValueError):
+    """The tests failed on the branch with main merged in; main is untouched."""
+
+    def __init__(self, check: str, msg: str) -> None:
+        super().__init__(msg)
+        self.check = check
+
+
+def merge_branch(branch: str, wt: Path, timeout: int, protected: frozenset[str] | set[str] = frozenset()) -> tuple[list[str], str]:
+    """Bring main into `branch` (checked out at `wt`), run the tests there, then fast-forward main, push, and remove
+    the worktree and branch. Main never goes red. Returns (check names, push error or ""). Shared by the swarm and
+    hx autopilot; both take the same `git` lock, so their merges never interleave."""
     env = {k: v for k, v in os.environ.items() if k != "HX_REPO_ROOT"}
-    commit_docs("swarm: docs before merge")
     for _ in range(3):
         with file_lock("git"):
-            if git("rev-list", "--count", f"HEAD..{j['branch']}").stdout.strip() in ("", "0"):
-                raise ValueError(f"{j['branch']} has no commits that main lacks; reject it or re-spawn")
-            r = git("merge", "--no-edit", "-m", f"Merge main into {j['branch']}", "main", cwd=wt)
+            if git("rev-list", "--count", f"HEAD..{branch}").stdout.strip() in ("", "0"):
+                raise ValueError(f"{branch} has no commits that main lacks; reject it or re-spawn")
+            r = git("merge", "--no-edit", "-m", f"Merge main into {branch}", "main", cwd=wt)
             if r.returncode:
                 git("merge", "--abort", cwd=wt)
-                raise ValueError("main does not merge cleanly into the worker branch. Re-spawn with --fresh to redo it "
-                                 "on the new main, or with a note asking the worker to resolve it: " + (r.stdout + r.stderr)[-400:])
+                raise ValueError("main does not merge cleanly into the branch. Redo it on the new main, or ask the "
+                                 "worker to resolve it: " + (r.stdout + r.stderr)[-400:])
         changed = git("diff", "--name-only", "main...HEAD", cwd=wt).stdout.split()
-        if bad := [f for f in changed if f in PROTECTED]:
+        if bad := [f for f in changed if f in protected]:
             raise ValueError(f"the branch changes protected swarm guardrail files {bad}; reject it (only the user changes these)")
         checks = _checks_for(changed)
         for c in checks:
             t = subprocess.run(c, cwd=wt, capture_output=True, text=True, encoding="utf-8", errors="replace",
                                stdin=subprocess.DEVNULL, timeout=timeout, env=env)
             if t.returncode:
-                event("merge_red", bead=bead, check=" ".join(c[-2:]))
-                raise ValueError(f"tests failed on the merged branch ({' '.join(c[-2:])}); main is untouched. "
-                                 f"Send it back to a worker or reject it. Tail:\n" + (t.stdout + t.stderr)[-1500:])
+                raise MergeRed(" ".join(c[-2:]), f"tests failed on the merged branch ({' '.join(c[-2:])}); main is "
+                               f"untouched. Send it back to a worker or reject it. Tail:\n" + (t.stdout + t.stderr)[-1500:])
         with file_lock("git"):
-            ff = git("merge", "--ff-only", j["branch"])
+            ff = git("merge", "--ff-only", branch)
             if ff.returncode:
-                if git("merge-base", "--is-ancestor", "HEAD", j["branch"]).returncode:
+                if git("merge-base", "--is-ancestor", "HEAD", branch).returncode:
                     continue  # main moved while we tested: merge it in and test again
                 raise ValueError("fast-forward of main failed (uncommitted changes in the main checkout?): "
                                  + (ff.stdout + ff.stderr)[-400:])
             p = git("push", "-q", "origin", "HEAD")
-            git("worktree", "remove", "--force", j["worktree"])
-            git("branch", "-D", j["branch"])
-        names = [" ".join(c[-2:]) for c in checks]
-        j.update(status="merged", merged=now().isoformat(timespec="seconds"), checks=names)
-        save_job(j)
-        event("merge", bead=bead, pushed=not p.returncode, checks=names)
-        # the work is on main: close the bead here, so a turn killed right after a merge leaves nothing open (sw-0zi.3)
-        _bd("close", bead, f"--reason=merged to main by hx swarm merge ({', '.join(names) or 'docs only'} green)")
-        return (f"merged ({', '.join(names) or 'docs only, no tests'} green)"
-                + ("" if not p.returncode else "; push failed: " + p.stderr[-200:]))
+            git("worktree", "remove", "--force", str(wt))
+            git("branch", "-D", branch)
+        return [" ".join(c[-2:]) for c in checks], ("" if not p.returncode else p.stderr[-200:])
     raise ValueError("main kept moving during the tests; run the merge again")
+
+
+def merge_worker(bead: str) -> str:
+    """Bring main into the worker branch, run the tests there, then fast-forward main. Main never goes red."""
+    j = load_job(bead)
+    if not j or j["status"] not in ("done", "partial"):
+        raise ValueError(f"{bead}: no finished worker to merge (status {j and j['status']})")
+    commit_docs("swarm: docs before merge")
+    try:
+        names, push_err = merge_branch(j["branch"], Path(j["worktree"]), cfg()["merge"]["test_timeout_s"], PROTECTED)
+    except MergeRed as e:
+        event("merge_red", bead=bead, check=e.check)
+        raise
+    j.update(status="merged", merged=now().isoformat(timespec="seconds"), checks=names)
+    save_job(j)
+    event("merge", bead=bead, pushed=not push_err, checks=names)
+    # the work is on main: close the bead here, so a turn killed right after a merge leaves nothing open (sw-0zi.3)
+    _bd("close", bead, f"--reason=merged to main by hx swarm merge ({', '.join(names) or 'docs only'} green)")
+    return f"merged ({', '.join(names) or 'docs only, no tests'} green)" + (f"; push failed: {push_err}" if push_err else "")
 
 
 def ask(question: str, sender: str) -> None:
