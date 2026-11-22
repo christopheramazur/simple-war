@@ -1,3 +1,8 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "hx": {
+      "command": "uv",
+      "args": ["run", "--project", "harness", "--quiet", "hx", "mcp"]
+    }
+  }
 }
