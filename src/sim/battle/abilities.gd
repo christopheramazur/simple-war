@@ -234,15 +234,58 @@ static func tick(state: BattleState) -> void:
 		if r.ab_toggle[ab] == 0:
 			continue
 		var off := false
+		var rule := auto_off_rule(state, t.squad[row], r.ab_ids[ab])
+		var turns := int(rule.get("turns", 0))
+		if turns > 0 and state.tick + 1 - t.since[row] >= turns * r.ticks_per_turn:
+			off = true
+		var band_limit: int = int(rule.get("band", -1))
+		if band_limit < 0:
+			band_limit = r.ab_auto_off_band[ab]
 		for p in 5:
 			var up := Stats.squad(state, srow, UPKEEP_STATS[p], r.ab_upkeep[ab][p])
 			if up <= 0:
 				continue
 			Pools.flow(state, srow, p, -Fixed.round_div(up, r.tps), StringName("ability_" + r.ab_ids[ab]))
-			off = off or Pools.band(state, srow, p) <= r.ab_auto_off_band[ab]
+			off = off or Pools.band(state, srow, p) <= band_limit
 		if off:
 			_end(state, aid, "auto_off")
 			state.events.push(&"ability_auto_off", {"squad": t.squad[row], "ability": r.ab_ids[ab]}, state.tick)
+
+
+## The owner's auto-off rule for a toggle ability ({} = the data band only).
+static func auto_off_rule(state: BattleState, squad_id: int, ability_id: String) -> Dictionary:
+	var srow := state.squads.row_of(squad_id)
+	if srow < 0 or state.auto_off_rules.is_empty():
+		return {}
+	var mine: Dictionary = state.auto_off_rules.get(state.squads.player[srow], {})
+	return mine.get(ability_id, {})
+
+
+## Sets (or with an empty rule clears) a player's auto-off rule for a toggle
+## ability: {"turns": N >= 0 (0 none), "band": band name or ""}. "turns" ends
+## it N battle turns after switch-on; "band" replaces the data band (ends at
+## or below it). Returns an error text, "" if accepted.
+static func set_auto_off(state: BattleState, player: int, ability_id: String, rule: Dictionary) -> String:
+	if not state.players.has(player):
+		return "unknown player"
+	var ab := index_of(state, ability_id)
+	if ab < 0 or state.rules.ab_toggle[ab] == 0:
+		return "not a toggle ability: " + ability_id
+	var turns := int(rule.get("turns", 0))
+	var band_name := String(rule.get("band", ""))
+	var band := DataSchema.BANDS.find(band_name) if band_name != "" else -1
+	if turns < 0 or (band_name != "" and band < 0):
+		return "bad auto-off rule"
+	var mine: Dictionary = state.auto_off_rules.get(player, {})
+	if turns == 0 and band < 0:
+		mine.erase(ability_id)
+	else:
+		mine[ability_id] = {"turns": turns, "band": band}
+	if mine.is_empty():
+		state.auto_off_rules.erase(player)
+	else:
+		state.auto_off_rules[player] = mine
+	return ""
 
 
 ## What the Game API shows for a squad's abilities.

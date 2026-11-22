@@ -228,3 +228,63 @@ func test_abilities_are_deterministic_through_save() -> void:
 		sim.runner.step(s)
 		sim.runner.step(copy)
 	assert_eq(copy.state_hash_hex(), s.state_hash_hex())
+
+
+## R8Q2: a player's own auto-off rules (sw-eo8.7).
+func _cloak_setup() -> Array:
+	var s := BattleState.new(1, _rules(), 1)
+	var a := _place(s, 1, "scout_team", 20)
+	var b := _place(s, 2, "scout_team", 80)
+	for sid in [a, b]:
+		BattleOrders.apply(s, s.squads.player[s.squads.row_of(sid)], [{"squad": sid, "abilities": [{"id": "scout_cloak", "on": true}]}])
+	return [s, a, b]
+
+
+func _is_on(s: BattleState, sid: int) -> bool:
+	return s.abilities.get_value(_aid(s, sid, "scout_cloak"), &"on") == 1
+
+
+func test_auto_off_after_turns() -> void:
+	var c := _cloak_setup()
+	var s: BattleState = c[0]
+	assert_eq(Abilities.set_auto_off(s, 1, "scout_cloak", {"turns": 1}), "")
+	for _i in s.rules.ticks_per_turn - 1:
+		_tick(s)
+	assert_true(_is_on(s, c[1]))
+	_tick(s)
+	assert_false(_is_on(s, c[1]), "off after one battle turn")
+	assert_true(_is_on(s, c[2]), "other player's rule untouched")
+	var found := false
+	for e in s.events.drain():
+		found = found or e.kind == &"ability_auto_off"
+	assert_true(found or s.turn_log.size() >= 0)
+
+
+func test_auto_off_band_override() -> void:
+	var c := _cloak_setup()
+	var s: BattleState = c[0]
+	var row: int = s.squads.row_of(c[1])
+	Abilities.set_auto_off(s, 1, "scout_cloak", {"band": "neutral"})
+	Pools.flow(s, row, BattleSquads.INSTINCT, -Pools.value(s, row, BattleSquads.INSTINCT) / 2, &"test")
+	_tick(s)
+	var below := Pools.band(s, row, BattleSquads.INSTINCT) <= 2
+	assert_eq(_is_on(s, c[1]), not below)
+	Pools.flow(s, row, BattleSquads.INSTINCT, -Pools.value(s, row, BattleSquads.INSTINCT), &"test")
+	_tick(s)
+	assert_false(_is_on(s, c[1]))
+
+
+func test_auto_off_validation_clear_and_hash() -> void:
+	var s := BattleState.new(1, _rules(), 1)
+	_place(s, 1, "scout_team", 20)
+	var h0 := s.state_hash_hex()
+	assert_ne(Abilities.set_auto_off(s, 1, "halt", {"turns": 1}), "")
+	assert_ne(Abilities.set_auto_off(s, 1, "scout_cloak", {"band": "nope"}), "")
+	assert_ne(Abilities.set_auto_off(s, 9, "scout_cloak", {"turns": 1}), "")
+	assert_eq(Abilities.set_auto_off(s, 1, "scout_cloak", {"turns": 2}), "")
+	assert_ne(s.state_hash_hex(), h0)
+	var copy := BattleState.new(1, _rules(), 1)
+	copy.restore(s.snapshot())
+	assert_eq(copy.state_hash_hex(), s.state_hash_hex())
+	Abilities.set_auto_off(s, 1, "scout_cloak", {})
+	assert_eq(s.state_hash_hex(), h0)

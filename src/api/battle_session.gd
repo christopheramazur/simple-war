@@ -107,6 +107,18 @@ func submit_orders(player: int, orders: Array) -> PackedStringArray:
 	return errors
 
 
+## Sets a player's auto-off rule for a toggle ability (R8Q2); see
+## Abilities.set_auto_off. A match input: logged and replayed. Returns an
+## error text, "" if accepted.
+func set_auto_off(player: int, ability_id: String, rule: Dictionary) -> String:
+	if is_over():
+		return "match is over"
+	var err := Abilities.set_auto_off(state, player, ability_id, rule)
+	if err.is_empty():
+		_log(player, "auto_off", {"ability": ability_id, "rule": rule})
+	return err
+
+
 func ready(player: int) -> void:
 	if not state.players.has(player) or is_over():
 		return
@@ -438,6 +450,8 @@ func replay_inputs(inputs: Array) -> void:
 				ready(i["player"])
 			"advance":
 				advance(i["payload"])
+			"auto_off":
+				set_auto_off(i["player"], i["payload"]["ability"], i["payload"]["rule"])
 			"reaction":
 				var p: Dictionary = i["payload"]
 				submit_reaction(i["player"], p["squad"], p["reaction"], p["trigger"])
