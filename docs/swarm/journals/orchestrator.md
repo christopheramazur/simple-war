@@ -526,3 +526,7 @@
 ## 2026-11-23T09:42Z turn
 - woke: 2 AUDIT WARN (compliance clean): sw-ll4.27.6 + sw-vld partials await review; sw-ll4.27.7 running past its 130m limit. 33/42 (~79%) rate-limited -> LEAN turn: merge before spawn, journal after each step.
 - plan: verify state left by killed 08:58 turn (vld merge-check note appended; did ow6/7wt merges land?), then merge the longest-waiting partial, refill slots only if budget allows.
+
+## 2026-11-23T10:35Z turn
+- woke: 2 AUDIT WARN (compliance clean): sw-ll4.27.6 partial 240m + sw-vld partial 216m await review; sw-ll4.27.7 running 206m > 130m limit. 31/43 (~72%) rate-limited -> LEAN turn: merge before spawn, journal after each step.
+- plan: verify state left by killed 08:58/09:42 turns (vld merge-check note appended; ow6/7wt merges appear landed), then review+merge longest-waiting partial, investigate .7, refill slots only if budget allows.
