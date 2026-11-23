@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-23 21:35 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 21:50 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,7 +8,7 @@ Updated 2026-11-23 21:35 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 43 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
 | Merged / rejected (all time) | 18 / 1 |
-| Gateway calls last hour (rate-limited) | 4 (0) |
+| Gateway calls last hour (rate-limited) | 3 (0) |
 | Incidents | 0 postmortem(s) |
 | Latest audit | 11-23 21:31 UTC **WARN** (rules) |
 
