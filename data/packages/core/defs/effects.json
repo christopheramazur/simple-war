@@ -9,6 +9,10 @@
 	{"id": "concealment", "kind": "tag", "values": {"name": "Concealment"}},
 	{"id": "reaction", "kind": "tag", "values": {"name": "Reaction"}},
 	{"id": "deception", "kind": "tag", "values": {"name": "Deception", "description": "Shown to opponents as its disguise."}},
+	{"id": "kinetic", "kind": "tag", "values": {"name": "Kinetic", "damage_type": true}},
+	{"id": "energy", "kind": "tag", "values": {"name": "Energy", "damage_type": true}},
+	{"id": "explosive", "kind": "tag", "values": {"name": "Explosive", "damage_type": true}},
+	{"id": "magic", "kind": "tag", "values": {"name": "Magic", "damage_type": true}},
 
 	{"id": "inspired", "kind": "bundle", "values": {
 		"name": "Inspired", "tags": ["buff"],

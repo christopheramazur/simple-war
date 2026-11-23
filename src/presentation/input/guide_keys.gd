@@ -13,6 +13,9 @@ const PULSE := 2
 var context := GUIDEMappingContext.new()
 var actions: Dictionary = {}
 var keys: Dictionary = {}
+## name -> the default gamepad inputs (joy buttons and stick axes), kept apart
+## from `keys` so keyboard help text never lists them (sw-dqq).
+var pads: Dictionary = {}
 var category: String = ""
 
 
@@ -33,9 +36,20 @@ func bind(name: StringName, display: String, inputs: Array, kind: int = PRESSED)
 	var m := GUIDEActionMapping.new()
 	m.action = a
 	var ims: Array[GUIDEInputMapping] = []
+	var key_inputs: Array = []
+	var pad_inputs: Array = []
 	for input: GUIDEInput in inputs:
+		if input is GUIDEInputKey:
+			key_inputs.append(input)
+		else:
+			pad_inputs.append(input)
 		var im := GUIDEInputMapping.new()
 		im.input = input
+		if input.has_meta(&"limit"):
+			var lim := GUIDEModifierPositiveNegative.new()
+			lim.range = input.get_meta(&"limit")
+			var mods: Array[GUIDEModifier] = [lim]
+			im.modifiers = mods
 		var trig: Array[GUIDETrigger] = []
 		match kind:
 			DOWN:
@@ -54,7 +68,8 @@ func bind(name: StringName, display: String, inputs: Array, kind: int = PRESSED)
 	ms.append(m)
 	context.mappings = ms
 	actions[name] = a
-	keys[name] = inputs
+	keys[name] = key_inputs
+	pads[name] = pad_inputs
 	return a
 
 
@@ -65,6 +80,65 @@ static func key(k: Key, ctrl: bool = false, shift: bool = false, extra_ok: bool 
 	i.shift = shift
 	i.allow_additional_modifiers = extra_ok
 	return i
+
+
+## A gamepad button input (any pad). Names in help stay device-neutral.
+static func pad(b: JoyButton) -> GUIDEInputJoyButton:
+	var i := GUIDEInputJoyButton.new()
+	i.button = b
+	return i
+
+
+## One direction of a stick or trigger axis (`positive`: toward +1, i.e.
+## right / down / pulled). GUIDE triggers test the absolute value, so the
+## opposite direction is clipped away by a positive/negative modifier.
+static func stick(axis: JoyAxis, positive: bool) -> GUIDEInputJoyAxis1D:
+	var i := GUIDEInputJoyAxis1D.new()
+	i.axis = axis
+	i.set_meta(&"limit", GUIDEModifierPositiveNegative.LimitRange.POSITIVE if positive else GUIDEModifierPositiveNegative.LimitRange.NEGATIVE)
+	return i
+
+
+## Device-neutral name of a gamepad input: "Dpad left", "Left stick left".
+static func pad_text(i: GUIDEInput) -> String:
+	if i is GUIDEInputJoyButton:
+		return _BUTTON_NAMES.get((i as GUIDEInputJoyButton).button, "Button %d" % (i as GUIDEInputJoyButton).button)
+	if i is GUIDEInputJoyAxis1D:
+		var a := (i as GUIDEInputJoyAxis1D).axis
+		var pos: bool = i.get_meta(&"limit", 1) == GUIDEModifierPositiveNegative.LimitRange.POSITIVE
+		match a:
+			JOY_AXIS_LEFT_X:
+				return "Left stick " + ("right" if pos else "left")
+			JOY_AXIS_LEFT_Y:
+				return "Left stick " + ("down" if pos else "up")
+			JOY_AXIS_RIGHT_X:
+				return "Right stick " + ("right" if pos else "left")
+			JOY_AXIS_RIGHT_Y:
+				return "Right stick " + ("down" if pos else "up")
+			JOY_AXIS_TRIGGER_LEFT:
+				return "Left trigger"
+			JOY_AXIS_TRIGGER_RIGHT:
+				return "Right trigger"
+	return "pad input"
+
+
+const _BUTTON_NAMES := {
+	JOY_BUTTON_A: "South button", JOY_BUTTON_B: "East button", JOY_BUTTON_X: "West button",
+	JOY_BUTTON_Y: "North button", JOY_BUTTON_START: "Start", JOY_BUTTON_BACK: "Back",
+	JOY_BUTTON_LEFT_SHOULDER: "Left bumper", JOY_BUTTON_RIGHT_SHOULDER: "Right bumper",
+	JOY_BUTTON_LEFT_STICK: "Left stick click", JOY_BUTTON_RIGHT_STICK: "Right stick click",
+	JOY_BUTTON_DPAD_UP: "Dpad up", JOY_BUTTON_DPAD_DOWN: "Dpad down",
+	JOY_BUTTON_DPAD_LEFT: "Dpad left", JOY_BUTTON_DPAD_RIGHT: "Dpad right",
+	JOY_BUTTON_MISC1: "Share",
+}
+
+
+## The gamepad inputs of an action as help text: "Dpad left / Left stick left".
+func pad_text_of(name: StringName, joiner: String = " / ") -> String:
+	var parts: PackedStringArray = []
+	for i: GUIDEInput in pads.get(name, []):
+		parts.append(pad_text(i))
+	return joiner.join(parts)
 
 
 ## "Ctrl+Shift+W" for one key input.

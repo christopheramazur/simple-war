@@ -99,7 +99,8 @@ static func key_of(id: String, p: Object = null) -> String:
 	for m in p.context.mappings:
 		if m.action.name == action:
 			for im in m.input_mappings:
-				ims.append(GuideKeys.key_text(im.input))
+				if im.input is GUIDEInputKey:
+					ims.append(GuideKeys.key_text(im.input))
 	if own:
 		p.free()
 	return " / ".join(ims)

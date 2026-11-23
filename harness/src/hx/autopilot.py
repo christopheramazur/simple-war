@@ -375,18 +375,28 @@ def run_bead(c: dict, b: dict, stop_flag=lambda: False) -> dict:
              turns=res["turns"], cost_usd=res["cost_usd"], commits=commits, end=res["end"], status="idle")
     outcome = res["result"] or (res["end"] if res["end"] != "exit" else "no_result")
     detail = res["summary"]
-    if res["result"] == "done" and res["end"] == "exit" and commits:
+    # Partial or blocked work is merged too when it passes the gate: it is usually finished except for a piece
+    # that waits on another bead, and left on its branch it was lost (19 beads by 2026-11-23). The bead stays open.
+    merged = False
+    if res["result"] in ("done", "partial", "blocked") and res["end"] == "exit" and commits:
         try:
             names, push_err = swarm.merge_branch(branch, wt, c["merge"]["test_timeout_s"], swarm.PROTECTED)
-            swarm._bd("close", bead, f"--reason=merged to main by hx autopilot ({', '.join(names) or 'docs only'} green): {detail}"[:900])
-            outcome, j["status"] = "merged", "merged"
+            merged = True
             if push_err:
                 detail += f" (push failed: {push_err})"
         except ValueError as e:
             outcome, detail = "merge_failed", str(e)[:1200]
     elif res["result"] == "done" and not commits:
         outcome, detail = "no_commits", "reported done but committed nothing"
-    if j["status"] != "merged":
+    if merged and res["result"] == "done":
+        swarm._bd("close", bead, f"--reason=merged to main by hx autopilot ({', '.join(names) or 'docs only'} green): {detail}"[:900])
+        outcome, j["status"] = "merged", "merged"
+    elif merged:
+        # what is done is on main; what is left needs a look (often a follow-up bead the session filed)
+        swarm._bd("unclaim", bead)
+        outcome = f"merged_{res['result']}"
+        swarm._bd("update", bead, "--add-label=" + ("autopilot-blocked" if res["result"] == "blocked" else "autopilot-partial"))
+    else:
         swarm._bd("unclaim", bead)
         if outcome == "blocked":
             swarm._bd("update", bead, "--add-label=autopilot-blocked")

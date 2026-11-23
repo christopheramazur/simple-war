@@ -27,6 +27,10 @@ MIN_INTERVAL_H = 6
 # Single agent primitives: repeating them is normal work, not a missing tool.
 PRIMITIVES = {"ls", "cat", "grep", "rg", "sed", "awk", "find", "head", "tail", "echo", "printf", "wc", "cd",
               "mkdir", "rm", "mv", "cp", "touch", "sleep", "python", "python3", "node", "bash", "sh", "pwd"}
+# Covered already: read-only listing/reading/status commands the agent has built-in tools for, and the
+# tracker CLI (bd direct is fine; hx task is only the swap-point interface). Never propose verbs for them.
+COVERED = {"git status", "git diff", "git log", "git show", "git branch", "git rev-parse", "git ls-files",
+           "tree", "stat", "file", "less", "more", "bd", "dir", "type", "readlink", "realpath", "which", "ps"}
 NAV = {"cd", "pushd", "popd", "export", "set", "source"}
 VALUE_FLAGS = {"--project", "--with", "--python", "--from", "-p", "--directory", "--package"}
 WRAPPERS = {"uv run", "uvx", "npx", "bunx", "pipx run"}
@@ -93,7 +97,7 @@ def candidates(con, min_sessions: int = MIN_SESSIONS, min_uses: int = MIN_USES) 
         if hx_verb(cmd):
             continue
         s = shape(cmd)
-        if not s or s in PRIMITIVES:
+        if not s or s in PRIMITIVES or any(k in COVERED or k.split()[0] in COVERED for k in s.split(" && ")):
             continue
         a = agg[s]
         a["uses"] += 1

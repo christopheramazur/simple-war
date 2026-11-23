@@ -6,16 +6,15 @@ extends RefCounted
 ## selection panel and anything later (a pinned window, a tooltip in the
 ## editor) say the same thing.
 
-const LINE_STYLES: Dictionary = {"head": "CardAccentLabel", "dim": "CaptionDimLabel", "text": "CaptionLabel"}
+## The card is data (sw-ijp.4): data/ui/panels/hex_card.json lays out the
+## lines this model carries.
+static func build(info: Dictionary, rules: OverworldRules, viewer: int) -> UiPanel:
+	return UiPanel.build("hex_card", model(info, rules, viewer))
 
 
-static func build(info: Dictionary, rules: OverworldRules, viewer: int) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.theme_type_variation = &"TightGap"
-	col.custom_minimum_size = Vector2(250, 0)
-	for line: Array in lines(info, rules, viewer):
-		col.add_child(UiTheme.label(line[0], LINE_STYLES.get(line[1], "CaptionLabel"), true))
-	return col
+## The view model: {"lines": [{"text", "tone"}]}.
+static func model(info: Dictionary, rules: OverworldRules, viewer: int) -> Dictionary:
+	return {"lines": lines(info, rules, viewer).map(func(l: Array) -> Dictionary: return {"text": l[0], "tone": l[1]})}
 
 
 ## The card as [text, "head" | "text" | "dim"] lines.

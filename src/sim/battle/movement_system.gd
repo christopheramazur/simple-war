@@ -240,8 +240,21 @@ func _move_units(state: BattleState) -> void:
 		var step := mini(speed[row], dist)
 		if step <= 0:
 			continue
-		x[row] = Fixed.clamp_fixed(x[row] + Fixed.mul_ratio(dx, step, dist), 0, max_x)
-		y[row] = Fixed.clamp_fixed(y[row] + Fixed.mul_ratio(dy, step, dist), 0, max_y)
+		var nx := Fixed.clamp_fixed(x[row] + Fixed.mul_ratio(dx, step, dist), 0, max_x)
+		var ny := Fixed.clamp_fixed(y[row] + Fixed.mul_ratio(dy, step, dist), 0, max_y)
+		if _blocked(r, profile, nx, ny) and not _blocked(r, profile, x[row], y[row]):
+			# Terrain collision (§2.14): slide along the wall on one axis if
+			# that is open (x first), else stand still. A unit already on an
+			# impassable cell is free to leave it.
+			if not _blocked(r, profile, nx, y[row]):
+				ny = y[row]
+			elif not _blocked(r, profile, x[row], ny):
+				nx = x[row]
+			else:
+				speed[row] = 0
+				continue
+		x[row] = nx
+		y[row] = ny
 		facing[row] = _turn(facing[row], Fixed.atan2(dy, dx), r.mv_turn[profile])
 		moving[row] = 1
 	u.put_column(&"x", x)
@@ -249,6 +262,11 @@ func _move_units(state: BattleState) -> void:
 	u.put_column(&"facing", facing)
 	u.put_column(&"speed", speed)
 	u.put_column(&"moving", moving)
+
+
+## True if a unit with this movement profile can't enter the cell under a point.
+static func _blocked(r: BattleRules, profile: int, x: int, y: int) -> bool:
+	return r.mv_cost[profile * r.feature_count() + r.feature_at(x, y)] <= 0
 
 
 static func _turn(current: int, desired: int, max_step: int) -> int:

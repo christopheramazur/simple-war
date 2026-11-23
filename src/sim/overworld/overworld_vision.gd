@@ -102,6 +102,9 @@ static func sight(s: OverworldState, player: int) -> PackedByteArray:
 	var r := s.rules
 	var out := PackedByteArray()
 	out.resize(r.plot_count())
+	if player <= 0:  # the all-seeing view (replays): the whole map is in sight
+		out.fill(1)
+		return out
 	var c := s.commanders
 	for row in c.count():
 		if not s.hostile(player, c.player[row]):
@@ -344,6 +347,8 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 ## turn `turn` (default: the turn just resolved). Battle tiles starting and
 ## ending are public, reduced to where they are.
 static func filter_events(s: OverworldState, player: int, events: Array[SimEvent], turn: int = -1) -> Array[SimEvent]:
+	if player <= 0:  # all-seeing: every event, unredacted
+		return events.duplicate()
 	if turn < 0:
 		turn = s.turn - 1
 	var mem: Dictionary = s.memory.get(player, {})

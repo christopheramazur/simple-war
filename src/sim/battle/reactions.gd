@@ -104,6 +104,16 @@ static func sees_at_reveal(state: BattleState, player: int, trigger: int) -> boo
 	return row >= 0 and state.squads.seen_by[row] & BattleSquads.bit(player) != 0
 
 
+## Whether any squad owns a reaction ability (else a forecast finds no
+## opportunity, and only the telegraphs would need its run).
+static func any_reactions(state: BattleState) -> bool:
+	var t := state.abilities
+	for row in t.count():
+		if state.rules.ab_reaction[t.ability[row]] == 1:
+			return true
+	return false
+
+
 ## Runs the coming turn on a scratch copy and returns opportunities (only
 ## against triggers the reacting player sees at Reveal, sees_at_reveal):
 ## [{"squad", "player", "trigger", "tick", "reactions": [names]}] in
@@ -120,7 +130,9 @@ static func forecast(state: BattleState, sim: BattleSim) -> Array:
 ## committed attacks on a squad whose attacker its player sees at Reveal
 ## (sees_at_reveal): hidden attackers and drafts never show. It assumes
 ## the orders stay as committed; a reaction changes the real result.
-static func forecast_all(state: BattleState, sim: BattleSim) -> Dictionary:
+static func forecast_all(state: BattleState, sim: BattleSim, telegraphs_wanted: bool = true) -> Dictionary:
+	if not telegraphs_wanted and not any_reactions(state):
+		return {"opportunities": [], "telegraphs": []}  # nothing to react with: skip the scratch turn (sw-kd5)
 	var scratch := BattleState.new(state.id, state.rules)
 	scratch.restore(state.snapshot())
 	Centroids.update(scratch)
