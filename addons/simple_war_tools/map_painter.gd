@@ -15,7 +15,9 @@ extends HSplitContainer
 ## squads) in the panel. Save writes the map and the scenario.
 ##
 ## Mouse: left paints, right paints the base feature (or removes a stamp
-## with the Stamp tool), middle drags the view, the wheel zooms.
+## with the Stamp tool), middle drags the view, the wheel zooms. Paint lands
+## on top of stamps: a stamp painted on becomes painted cells (undo brings
+## it back), and Fill and Pick go by what the map shows.
 ## Keys (over the map): B R L F I S O pick a tool, arrows set the facing,
 ## Backspace clears it, Delete removes the selected object, Ctrl+Z /
 ## Ctrl+Y undo and redo (of the scenario while the Objects tool is on).
@@ -25,6 +27,16 @@ signal saved(map_id: String)
 enum Tool { BRUSH, RECT, LINE, FILL, PICK, STAMP, OBJECT, SELECT }
 
 const TOOL_NAMES: PackedStringArray = ["Brush (B)", "Rectangle (R)", "Line (L)", "Fill (F)", "Pick (I)", "Stamp (S)", "Objects (O)", "Select (M)"]
+const TOOL_TIPS: PackedStringArray = [
+	"Left paints the feature, right paints the base. Paint lands on top of stamps.",
+	"Drag a rectangle of the feature (right button: the base)",
+	"Drag a line of brush marks (right button: the base)",
+	"Fill the joined cells that look the same (right button: the base)",
+	"Pick the feature and facing under the cursor",
+	"Left places the chosen map as a stamp; right-click a stamp to remove it",
+	"Select, move and resize the scenario's zones and deployment areas",
+	"Drag a marquee over cells, or pick up a stamp to move it (Delete removes it)",
+]
 const MIRROR_NAMES: PackedStringArray = ["No mirror", "Left and right", "Top and bottom", "Four ways", "Half turn"]
 const FACING_NAMES: PackedStringArray = ["No facing", "North", "East", "South", "West"]
 
@@ -392,6 +404,8 @@ func changed() -> void:
 	else:
 		_undo.disabled = canvas == null or not canvas.can_undo()
 		_redo.disabled = canvas == null or not canvas.can_redo()
+		if canvas != null and not canvas.flattened.is_empty():
+			_say("Painted over the stamp %s: it is painted cells now (Ctrl+Z brings it back). To remove a whole stamp, right-click it with the Stamp tool." % ", ".join(canvas.flattened))
 	view.queue_redraw()
 
 
@@ -480,6 +494,7 @@ func _build() -> void:
 	for i in TOOL_NAMES.size():
 		var b := Button.new()
 		b.text = TOOL_NAMES[i]
+		b.tooltip_text = TOOL_TIPS[i]
 		b.toggle_mode = true
 		b.button_pressed = i == tool
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -510,6 +525,7 @@ func _build() -> void:
 
 	side.add_child(_heading("Stamp"))
 	_stamps = OptionButton.new()
+	_stamps.tooltip_text = "The map the Stamp tool places. Right-click a stamp with the Stamp tool to remove it."
 	_stamps.item_selected.connect(func(i: int) -> void:
 		stamp_id = _stamps.get_item_text(i)
 		set_tool(Tool.STAMP))
@@ -919,8 +935,9 @@ class MapView:
 				c.fill(cell.x, cell.y, _f, _fc)
 			MapPainter.Tool.PICK:
 				if cell.x >= 0 and cell.y >= 0 and cell.x < c.width and cell.y < c.height:
-					painter.set_feature(c.feat[cell.y * c.width + cell.x])
-					painter.set_facing(c.face[cell.y * c.width + cell.x])
+					var shown := c.composite()
+					painter.set_feature((shown["feature"] as PackedInt32Array)[cell.y * c.width + cell.x])
+					painter.set_facing((shown["facing"] as PackedByteArray)[cell.y * c.width + cell.x])
 			MapPainter.Tool.STAMP:
 				var at := c.stamp_at(cell.x, cell.y)
 				if erase and at >= 0:

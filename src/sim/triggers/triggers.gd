@@ -64,6 +64,19 @@ static func _plot(s: OverworldState, d: Dictionary, data: Dictionary) -> int:
 	return Hex.plot(int(_v(d, "col", 0, data)), int(_v(d, "row", 0, data)), s.rules.width)
 
 
+## The commander a gift goes to: "target" (an ID or "$field"), else the
+## first commander of "player" on the plot.
+static func _target(s: OverworldState, a: Dictionary, data: Dictionary) -> int:
+	if a.has("target"):
+		var cid := int(_v(a, "target", -1, data))
+		return cid if s.commanders.row_of(cid) >= 0 else -1
+	var player := int(_v(a, "player", 1, data))
+	for cid in Commanders.at(s, _plot(s, a, data)):
+		if s.commanders.get_value(cid, &"player") == player:
+			return cid
+	return -1
+
+
 static func _all(state: SimContext, checks: Array, data: Dictionary) -> bool:
 	for c: Dictionary in checks:
 		if _check(state, c, data) == bool(c.get("not", false)):
@@ -113,6 +126,18 @@ static func _check(state: SimContext, c: Dictionary, data: Dictionary) -> bool:
 		"feature_at":
 			var s := state as OverworldState
 			return s.feature_row(_plot(s, c, data), s.rules.feature_index(String(c["feature"]))) >= 0
+		"commander_at":
+			var s := state as OverworldState
+			var p := _plot(s, c, data)
+			var n := 0
+			for cid in Commanders.at(s, p):
+				var row := s.commanders.row_of(cid)
+				if c.has("player") and s.commanders.player[row] != int(_v(c, "player", 1, data)):
+					continue
+				if c.has("commander") and s.commanders.tmpl[row] != s.rules.commander_index(String(c["commander"])):
+					continue
+				n += 1
+			return _cmp(n, c, data)
 		"zone_owner":
 			var b := state as BattleState
 			var owner := b.zone_owner[b.rules.zone_ids.find(String(c["zone"]))]
@@ -158,6 +183,60 @@ static func _act(state: SimContext, a: Dictionary, tid: String, data: Dictionary
 				s.outcome = {"outcome": String(a["outcome"]), "key": String(a.get("key", "")),
 					"text": String(a.get("text", "")), "turn": s.turn}
 				s.events.push(&"mission_ended", s.outcome.duplicate(), s.tick)
+		"spawn_commander":
+			var s := state as OverworldState
+			var p := _plot(s, a, data)
+			var player := int(_v(a, "player", 1, data))
+			var t := s.rules.commander_index(String(a["commander"]))
+			var cid := Commanders.spawn_index(s, player, t, p)
+			s.events.push(&"commander_spawned", {"commander": cid, "tmpl": t, "plot": p, "player": player, "rule": tid}, s.tick)
+		"give_squad":
+			var s := state as OverworldState
+			var cid := _target(s, a, data)
+			if cid >= 0 and OverworldArmies.count(s, cid) < OverworldArmies.cap(s, cid):
+				var sq := s.rules.squad_index(String(a["squad"]))
+				var sid := OverworldArmies.add(s, cid, sq)
+				s.events.push(&"squad_given", {"commander": cid, "squad": sid, "tmpl": sq,
+					"player": s.commanders.get_value(cid, &"player"), "rule": tid}, s.tick)
+		"give_item":
+			var s := state as OverworldState
+			var cid := _target(s, a, data)
+			if cid >= 0:
+				var t := s.rules.item_index(String(a["item"]))
+				var n := int(_v(a, "count", 1, data))
+				WarChest.add(s, t, n, cid, -1, -1)
+				s.events.push(&"item_granted", {"commander": cid, "item": t, "count": n,
+					"player": s.commanders.get_value(cid, &"player"), "rule": tid}, s.tick)
+		"start_engagement":
+			var s := state as OverworldState
+			var p := _plot(s, a, data)
+			var eid := s.engagement_at(p)
+			if eid < 0:
+				eid = s.engagements.spawn({&"plot": p, &"kinds": OverworldEngagements.COMMANDERS, &"turn": s.turn})
+				s.events.push(&"engagement_started", {"engagement": eid, "plot": p, "kinds": OverworldEngagements.COMMANDERS, "rule": tid}, s.tick)
+			for other in Commanders.at(s, p):
+				if s.commanders.get_value(other, &"engagement") == eid:
+					continue
+				s.commanders.set_value(other, &"engagement", eid)
+				s.events.push(&"commander_engaged", {"commander": other, "engagement": eid, "plot": p}, s.tick)
+				OverworldBattleforce.deploy(s, other, eid)
+		"apply_bundle":
+			var b := state as BattleState
+			var bi := b.rules.fx.index_of(String(a["bundle"]))
+			var player := int(_v(a, "player", 0, data))
+			var st := b.rules.squad_index(String(a["squad"])) if a.has("squad") else -1
+			for row in b.squads.count():
+				if not b.squads.is_active(row) or b.squads.alive[row] <= 0:
+					continue
+				if (player > 0 and b.squads.player[row] != player) or (st >= 0 and b.squads.tmpl[row] != st):
+					continue
+				Effects.apply(b, bi, b.squads.id_at(row), -1, -1)
+		"reveal_area":
+			var b := state as BattleState
+			var turns := int(_v(a, "turns", 1, data))
+			b.reveals.append([int(_v(a, "player", 1, data)), Fixed.from_int(int(_v(a, "x", 0, data))),
+				Fixed.from_int(int(_v(a, "y", 0, data))), Fixed.from_int(int(_v(a, "radius", 10, data))),
+				-1 if turns <= 0 else b.turn + turns])
 		"unlock_zone", "lock_zone":
 			var b := state as BattleState
 			var z := b.rules.zone_ids.find(String(a["zone"]))

@@ -29,6 +29,17 @@ func _dig_rules() -> BattleRules:
 	return _dig
 
 
+## Core rules where rifle squads also know "flare_shell" (a point burst).
+func _flare_rules() -> BattleRules:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
+	var r := BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
+	var st := r.squad_index("rifle_squad")
+	var list := r.sq_abilities[st].duplicate()
+	list.append(Array(r.ab_ids).find("flare_shell"))
+	r.sq_abilities[st] = list
+	return r
+
+
 func _place(s: BattleState, player: int, squad: String, x: int, y: int = 50) -> int:
 	var sid := BattleSetup.spawn_squad(s, player, s.rules.squad_index(squad), x * ONE, y * ONE, 0)
 	Centroids.update(s)
@@ -288,3 +299,29 @@ func test_auto_off_validation_clear_and_hash() -> void:
 	assert_eq(copy.state_hash_hex(), s.state_hash_hex())
 	Abilities.set_auto_off(s, 1, "scout_cloak", {})
 	assert_eq(s.state_hash_hex(), h0)
+
+
+func test_point_ability_bursts_on_enemies_in_radius() -> void:
+	var s := BattleState.new(1, _flare_rules(), 1)
+	var me := _place(s, 1, "rifle_squad", 20)
+	var near := _place(s, 2, "rifle_squad", 50, 50)
+	var far := _place(s, 2, "rifle_squad", 50, 90)
+	var friend := _place(s, 1, "rifle_squad", 50, 52)
+	var row := s.squads.row_of(me)
+	assert_true(s.rules.is_valid(), str(s.rules.errors))
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell"}), "needs a target point")
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell", "x": 90 * ONE, "y": 50 * ONE}), "out of range")
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell", "x": -ONE, "y": 50 * ONE}), "off the map")
+	var order := {"squad": me, "type": "hold", "abilities": [{"id": "flare_shell", "x": 52 * ONE, "y": 50 * ONE}]}
+	assert_eq(BattleOrders.apply(s, 1, [order]).size(), 0)
+	var lit := Array(s.effects.ids()).filter(func(e: int) -> bool: return s.effects.holder_squad[s.effects.row_of(e)] in [near, far, friend])
+	assert_eq(lit.size(), 1, "only the enemy inside the radius")
+	assert_eq(s.effects.holder_squad[s.effects.row_of(lit[0])], near)
+	assert_eq(s.effects.source[s.effects.row_of(lit[0])], me)
+	assert_eq(s.abilities.get_value(_aid(s, me, "flare_shell"), &"on"), 0, "a burst holds nothing")
+	assert_eq(s.abilities.get_value(_aid(s, me, "flare_shell"), &"charges"), 1)
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell", "x": 52 * ONE, "y": 50 * ONE}), "cooling down")
+	_tick(s)
+	assert_eq(_events(s, &"ability_used")[0].data["hit"], 1)
+	var text := RulesText.ability_lines(s.rules, Abilities.index_of(s, "flare_shell"))
+	assert_string_contains(str(text), "radius")

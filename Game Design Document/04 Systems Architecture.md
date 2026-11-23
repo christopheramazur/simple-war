@@ -141,7 +141,7 @@ data                  (immutable template tables from packages)
   - **Test:** "Play this map" starts a skirmish on it against a chosen AI profile.
   - **In play (sw-ll4.6):** `MapPainter` (the tab) over `MapCanvas` (the model, no UI), for `battle_map` templates.
     - **Tools:** brush with a size, rectangle, line, fill, pick. The right button paints the base feature. Five mirrors: none, left and right, top and bottom, four ways, half turn; facings flip with them.
-    - **Stamps:** the Stamp tool places the chosen map with a quarter-turn rotation; the right button removes one. The Select tool (M) drags a marquee over cells or picks up a stamp to move it (Delete removes it); "Save selection as a map" writes the marquee, stamps drawn in, as a new battle map in the chosen data file (sw-ll4.17).
+    - **Stamps:** the Stamp tool places the chosen map with a quarter-turn rotation; the right button removes one. Painting on a stamp turns it into painted cells first (with any stamp below that it overlaps), so the paint shows on top; undo brings the stamp back. Fill and Pick go by what the map shows, stamps included. The Select tool (M) drags a marquee over cells or picks up a stamp to move it (Delete removes it); "Save selection as a map" writes the marquee, stamps drawn in, as a new battle map in the chosen data file (sw-ll4.17).
     - **Layers:** the editor holds one painted layer with the stamps drawn above it. Saving writes the painted layer as merged rectangles, then the stamps, so hand-written fills are merged again (a fill that was one rectangle stays one). A map that fills over a stamp loads with a note and saves with the stamp on top.
     - **Saving:** new maps are added to a chosen data file; existing ones replace their own text. Fields the editor doesn't know are kept. A map that would break the package (a stamp loop) is refused with the reasons, and so is one that a scenario played on it no longer fits (a zone centred off it, a deployment area not wholly inside it).
     - **Also:** undo and redo (64 steps), resize, change the base, zoom and drag the view. Feature colours come from the feature's `color`.
@@ -163,3 +163,22 @@ data                  (immutable template tables from packages)
 - **Keep:** dialogic (presentation only), gut (tests), guide (input).
 - **Removed (sw-ip8.5):** `godot-rts-entity-controller` was evaluated for selection and command UI ideas and nothing was taken. Its autoloads drew their own control-group bar over every screen, so the addon, its autoloads and its input actions are gone. Control groups are the planner's own (`BattlePlanner`).
 - **Removed:** gecs.
+
+## 4.11 Implementation status of the Rules Spec
+The Rules Spec (doc 2) holds rules only. Which task built what lives in the tracker (`hx task show <id>`); this table maps rules to the tasks that implemented them.
+
+| Rules Spec | Built by |
+|---|---|
+| §2.2 Intent forecast, reaction marks and queue; only visible triggers | sw-ip8.3, sw-tz1 |
+| §2.3 Armies, battleforces, drop-offs and detachments | sw-o1m.2.1, sw-o1m.2.2, sw-o1m.2.4 |
+| §2.4 Battles from engagements, shared pulse, leaving | sw-o1m.2.3, sw-o1m.2.5, sw-o1m.2.7 |
+| §2.6 Range and vision, "in range" marks | sw-kys.6, sw-kys.7 |
+| §2.9 Turn order, offers | sw-o1m.1.3, sw-cgl.2 |
+| §2.9 Movement and sight | sw-o1m.1.2, sw-o1m.1.4, sw-o1m.2.4 |
+| §2.9 Production, supply lines, steering, convoys | sw-o1m.2.5, sw-kys.8, sw-ll4.19 |
+| §2.9 Items and chests | sw-o1m.2.6 |
+| §2.11 Angels, dispersal, guards in battle | sw-cgl.2, sw-136.2, sw-cf6 |
+| §2.13 Ability activation, inspection | sw-ps1.5, sw-ps1.6 |
+| §2.14 Battle grid, routing, deployment | sw-ll4.2, sw-ll4.4, sw-ll4.15 |
+
+Not built yet (still specified): the Angel roster stealing items and inverted auto-resolve for the final battles (sw-136.2 covers dispersal only), charges (§2.14), and chase and intercept (§2.9).

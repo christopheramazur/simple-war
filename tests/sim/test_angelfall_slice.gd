@@ -53,6 +53,14 @@ func test_the_mission_can_be_won() -> void:
 	assert_true(x.last_events.any(func(e: SimEvent) -> bool: return e.type == &"mission_ended"))
 
 
+func test_the_mission_is_won_on_every_seed() -> void:
+	# sw-8vt: balance guard for the escorts-intercept profile (seeds 1-10 all win at turn 6).
+	for sd in range(1, 11):
+		var x := _play(sd)
+		assert_eq(x.state.outcome.get("outcome", ""), "won", "seed %d" % sd)
+		assert_lt(x.turns_resolved(), 12, "seed %d took too long" % sd)
+
+
 func test_the_slice_replays() -> void:
 	var x := _play(6)
 	var rebuilt := OverworldSession.rebuild(x.save(), _l().templates, _l().data_hash)

@@ -12,6 +12,7 @@ func P(col: int, row: int) -> int:
 
 func _room() -> WarRoom:
 	var w: WarRoom = load("res://src/presentation/angelfall/angelfall.tscn").instantiate()
+	w.use_settings = false  # the scene plays turns out over the saved time; tests resolve at once
 	add_child_autofree(w)
 	return w
 

@@ -588,25 +588,75 @@ def benchmark(con: duckdb.DuckDBPyConnection, batch_id: str, spec: dict) -> floa
     return round(sum(vals) / len(vals), 4) if vals else None
 
 
+def slope(points: list[tuple[float, float]]) -> float | None:
+    """Least-squares slope of y on x; None without two distinct x values."""
+    n = len(points)
+    if n < 2:
+        return None
+    mx = sum(x for x, _ in points) / n
+    my = sum(y for _, y in points) / n
+    sxx = sum((x - mx) ** 2 for x, _ in points)
+    if sxx <= 0:
+        return None
+    return sum((x - mx) * (y - my) for x, y in points) / sxx
+
+
 def gain_rate(con: duckdb.DuckDBPyConnection, run: str) -> dict:
-    """Scoring-gain rate (R7Q18): benchmark fitness gained per wall-clock hour."""
+    """Scoring-gain rate (R7Q18): benchmark fitness gained per wall-clock hour,
+    the least-squares slope over every benchmark point (one noisy point can't decide it)."""
     rows = con.execute("SELECT generation, bench, wall_s FROM factory_gen WHERE run = ? ORDER BY generation",
                        [run]).fetchall()
     hours = sum(w or 0.0 for _, _, w in rows) / 3600.0
-    marks = [(g, b) for g, b, _ in rows if b is not None]
-    out = {"generations": len(rows), "hours": round(hours, 3), "bench_points": len(marks)}
-    if len(marks) >= 2 and hours > 0:
-        out["gain_per_hour"] = round((marks[-1][1] - marks[0][1]) / hours, 4)
+    points, elapsed = [], 0.0
+    for _, b, w in rows:
+        elapsed += (w or 0.0) / 3600.0
+        if b is not None:
+            points.append((elapsed, b))
+    out = {"generations": len(rows), "hours": round(hours, 3), "bench_points": len(points)}
+    m = slope(points)
+    if m is not None:
+        out["gain_per_hour"] = round(m, 4)
     return out
 
 
+def champion_record(con: duckdb.DuckDBPyConnection, batch_id: str) -> tuple[int, int, int] | None:
+    """Champion wins/losses/draws in a benchmark batch (champion is player 1 as bencha, else 2)."""
+    variant_of = dict(con.execute("SELECT run_id, variant FROM sim_run WHERE batch_id = ? AND status = 'ok'",
+                                  [batch_id]).fetchall())
+    if not variant_of:
+        return None
+    flags: dict[tuple[str, int], dict[str, float]] = {}
+    for run_id, metric, player, value in con.execute(
+            "SELECT m.run_id, m.metric, m.player, m.value FROM sim_metric m JOIN sim_run r USING (run_id) "
+            "WHERE r.batch_id = ? AND r.status = 'ok'", [batch_id]).fetchall():
+        key = metric.rsplit(".", 1)[-1]
+        if key in ("won", "drew", "lost"):
+            flags.setdefault((run_id, player), {})[key] = value
+    w = l = d = 0
+    for run_id, variant in variant_of.items():
+        f = flags.get((run_id, 1 if variant == "bencha" else 2))
+        if not f:
+            continue
+        if f.get("won"):
+            w += 1
+        elif f.get("drew"):
+            d += 1
+        else:
+            l += 1
+    return (w, l, d) if w + l + d else None
+
+
 def table(con: duckdb.DuckDBPyConnection, run: str) -> list[dict]:
-    return [{"gen": g, "runs": n, "failed": f, "wall_s": round(w or 0, 1), "lambda": round(lam or 0, 3),
-             "hof_rate": None if h is None else round(h, 2), "best": None if b is None else round(b, 3),
-             "mean": None if m is None else round(m, 3), "bench": bench}
-            for g, n, f, w, lam, h, b, m, bench in con.execute(
-                "SELECT generation, runs, failed, wall_s, lam, hof_rate, best, mean, bench FROM factory_gen "
-                "WHERE run = ? ORDER BY generation", [run]).fetchall()]
+    out = []
+    for g, bid, n, f, w, lam, h, b, m, bench in con.execute(
+            "SELECT generation, batch_id, runs, failed, wall_s, lam, hof_rate, best, mean, bench FROM factory_gen "
+            "WHERE run = ? ORDER BY generation", [run]).fetchall():
+        rec = champion_record(con, f"{bid}-bench") if bench is not None else None
+        out.append({"gen": g, "runs": n, "failed": f, "wall_s": round(w or 0, 1), "lambda": round(lam or 0, 3),
+                    "hof_rate": None if h is None else round(h, 2), "best": None if b is None else round(b, 3),
+                    "mean": None if m is None else round(m, 3), "bench": bench,
+                    "bench_wld": None if rec is None else "%d-%d-%d" % rec})
+    return out
 
 
 def elites(con: duckdb.DuckDBPyConnection, run: str) -> list[dict]:

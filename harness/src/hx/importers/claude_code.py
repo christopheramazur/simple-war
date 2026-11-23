@@ -90,6 +90,18 @@ def _ts(s: str | None) -> datetime | None:
         return None
 
 
+def _first_line(content, limit: int = 200) -> str | None:
+    """First non-blank line of a tool result's text, for grouping failures by signature."""
+    if isinstance(content, list):
+        content = "\n".join(b.get("text", "") for b in content if isinstance(b, dict))
+    if not isinstance(content, str):
+        return None
+    for line in content.splitlines():
+        if line.strip():
+            return line.strip()[:limit]
+    return None
+
+
 def _text_len(content) -> int:
     if isinstance(content, str):
         return len(content)
@@ -211,6 +223,7 @@ def _user(r, out, sid, agent, ts):
                 "tool_use_id": b.get("tool_use_id"), "session_id": sid, "ts": ts,
                 "result_chars": _text_len(b.get("content")), "is_error": bool(b.get("is_error")),
                 "denied": r.get("toolDenialKind"),
+                "error_line": _first_line(b.get("content")) if b.get("is_error") else None,
             })
         elif b.get("type") == "text":
             text = b.get("text", "")

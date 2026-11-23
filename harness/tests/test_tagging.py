@@ -63,7 +63,20 @@ def test_tag_session_writes_tagger_and_audit(env, monkeypatch):
     assert tagging.tagged_ids() == {("s1", "tagger"), ("s1", "audit")}
     assert tagging.tag_session("s1", con=object(), tax=tax, delegate_run=None, audit_call=None) == []  # done
     acc = tagging.accuracy(tagging.read_rows())
-    assert acc == {"pairs": 1, "kind_agree": 1.0, "outcome_agree": 0.0, "complexity_within_1": 1.0}
+    assert acc["pairs"] == 1 and acc["insufficient_sample"] is True
+    assert (acc["kind_agree"], acc["outcome_agree"], acc["complexity_within_1"]) == (1.0, 0.0, 1.0)
+    assert [d["session"] for d in acc["disagreements"]] == ["s1"]
+
+
+def test_partial_outcome_is_always_audited(env, monkeypatch):
+    monkeypatch.setattr(tagging, "metrics", lambda con, sid: {
+        "calls": 4, "minutes": 3, "tools": {}, "tool_calls": 0, "tool_errors": 0, "denied": 0, "interrupts": 0,
+        "api_errors": 0, "compactions": 0, "prompts": 1, "tasks": []})
+    part = '{"kind": "feature", "area": "x", "complexity": 2, "outcome": "partial", "confidence": 0.8}'
+    rows = tagging.tag_session("s1", con=object(), tax={**TAX, "audit_share": 0.0},
+                               delegate_run=lambda *a: Outcome(target="b", model="m", text=part),
+                               audit_call=lambda *a: Reply(text=part))
+    assert [r["role"] for r in rows] == ["tagger", "audit"]
 
 
 def test_escalated_tagger_is_recorded_invalid(env, monkeypatch):
@@ -73,3 +86,33 @@ def test_escalated_tagger_is_recorded_invalid(env, monkeypatch):
     rows = tagging.tag_session("s1", con=object(), tax={**TAX, "audit_share": 0.0},
                                delegate_run=lambda *a: Outcome())
     assert rows[0]["valid"] is False and "escalated" in rows[0]["problem"]
+
+
+def test_untagged_busy_flags_idle_sessions_without_a_tag(env):
+    import duckdb
+    from datetime import datetime, timedelta
+    con = duckdb.connect()
+    con.execute("CREATE TABLE call (session_id VARCHAR, ts TIMESTAMP)")
+    old = datetime(2026, 1, 1)
+    con.executemany("INSERT INTO call VALUES (?, ?)", [("busy", old)] * 30 + [("small", old)] * 3 + [("tagged", old)] * 30)
+    tagging._write({"session_id": "tagged", "role": "tagger", "valid": True, "kind": "chat"})
+    gap = tagging.untagged_busy(con, now=(old + timedelta(days=2)).timestamp())
+    assert gap == [{"session": "busy", "calls": 30}]
+    assert tagging.untagged_busy(con, now=(old + timedelta(hours=1)).timestamp()) == []  # still live
+
+
+def test_worker_tag_session_job_puts_a_kind_tag_in_the_ledger(env, monkeypatch):
+    """Entry point: the tag_session job (enqueued by every session_end) leaves a kind tag in the tag file."""
+    from hx import delegate, ledger, worker
+    assert "tag_session" in worker.FOLLOW_UPS
+    monkeypatch.setattr(tagging, "metrics", lambda con, sid: {
+        "calls": 4, "minutes": 3, "tools": {}, "tool_calls": 0, "tool_errors": 0, "denied": 0, "interrupts": 0,
+        "api_errors": 0, "compactions": 0, "prompts": 1, "tasks": []})
+    monkeypatch.setattr(ledger, "read_only", lambda: type("C", (), {"close": lambda self: None})())
+    good = '{"kind": "feature", "area": "combat UI", "complexity": 2, "outcome": "completed", "confidence": 0.8}'
+    monkeypatch.setattr(delegate, "run", lambda *a, **k: Outcome(target="b", model="bonsai/nothink", text=good))
+    monkeypatch.setattr(tagging, "is_audited", lambda sid, share: False)
+    out = worker.HANDLERS["tag_session"][0]({"session_id": "s1"})
+    assert "feature/completed" in out
+    assert ("s1", "tagger") in tagging.tagged_ids()
+    assert [r["kind"] for r in tagging.read_rows()] == ["feature"]
