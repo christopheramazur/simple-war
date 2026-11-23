@@ -2,12 +2,20 @@ extends GutTest
 ## Game API, saves, replays and the headless Duel. Tasks sw-lgj.1, sw-qio.8, sw-lgj.2.
 
 static var _loader: PackageLoader
+## Finished seed-5 duel, played once and shared (full Duels dominate the suite time).
+static var _finished5: BattleSession
 
 
 func _l() -> PackageLoader:
 	if _loader == null:
 		_loader = PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
 	return _loader
+
+
+func _finished_seed5() -> BattleSession:
+	if _finished5 == null:
+		_finished5 = HeadlessDuel.play(_session(5), _controllers())
+	return _finished5
 
 
 func _session(seed_value: int = 11) -> BattleSession:
@@ -69,7 +77,7 @@ func test_timeouts_drive_the_clock() -> void:
 
 
 func test_headless_duel_finishes_deterministically() -> void:
-	var a := HeadlessDuel.play(_session(5), _controllers())
+	var a := _finished_seed5()
 	var b := HeadlessDuel.play(_session(5), _controllers())
 	assert_true(a.is_over())
 	assert_eq(a.state.state_hash().hex_encode(), b.state.state_hash().hex_encode())
@@ -116,17 +124,14 @@ func test_observation_hides_unseen_enemies() -> void:
 
 
 func test_save_load_continues_identically() -> void:
-	var full := _session(9)
-	var c := _controllers()
-	HeadlessDuel.play(full, c, 3)
-	# Play 3 turns, save in planning, load, finish; compare with uninterrupted.
-	var part := _session(9)
+	# Play 3 turns, save in planning, load, finish; compare with the shared uninterrupted duel.
+	var full := _finished_seed5()
+	var part := _session(5)
 	HeadlessDuel.play(part, _controllers(), 3)
 	var bytes := part.save()
 	var loaded := BattleSession.load_save(bytes, _l().templates, _l().data_hash)
 	assert_not_null(loaded)
 	assert_eq(loaded.state.state_hash().hex_encode(), part.state.state_hash().hex_encode())
-	HeadlessDuel.play(full, c)
 	HeadlessDuel.play(loaded, _controllers())
 	assert_eq(loaded.state.state_hash().hex_encode(), full.state.state_hash().hex_encode())
 	assert_eq(loaded.state.result, full.state.result)

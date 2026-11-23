@@ -58,3 +58,17 @@ def test_run_files_survivors_and_throttles(con):
 def test_model_error_files_nothing(con):
     out = reflection.run(con, force=True, call=lambda *a: Reply(error="quota"), create=lambda p: 1 / 0, titles=[])
     assert out["proposals"] == [] and out["error"] == "quota"
+
+
+def test_unknown_billing_zero_spend_is_unpriced(con, monkeypatch):
+    from hx import providers
+    monkeypatch.setattr(providers, "load", lambda: {
+        "nous": providers.Provider(id="nous", name="n", kind="api", billing="unknown"),
+        "groq": providers.Provider(id="groq", name="g", kind="api", billing="none")})
+    for i, (prov, usd) in enumerate([("nous", 0.0), ("nous", 0.0), ("groq", 0.0)]):
+        con.execute("INSERT INTO call (call_id, client, provider, ts, est_usd) VALUES (?, 'gw', ?, '2026-11-02', ?)",
+                    [f"c{i}", prov, usd])
+    ev = reflection.evidence(con, datetime(2026, 11, 1))
+    by = {r["provider"]: r for r in ev["spend"]}
+    assert by["nous"]["usd"] == "unpriced" and by["groq"]["usd"] == 0
+    assert ev["unpriced_calls"] == {"nous": 2}

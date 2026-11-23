@@ -2,9 +2,9 @@ class_name ScenarioCanvas
 extends RefCounted
 ## A `scenario`'s objects while the map editor works on them (GDD 04 §4.9,
 ## O1Q6, sw-ll4.7): its zones and its sides, each with a deployment area, a
-## facing and the squads it fields. No UI: MapPainter draws it over the map
-## and turns the mouse into these edits. Everything else the scenario says
-## (ruleset, victory, triggers) is kept as it was written.
+## facing and the squads it fields, and its victory settings. No UI: MapPainter
+## draws it over the map and turns the mouse and form into these edits.
+## Everything else the scenario says (ruleset, triggers) is kept as written.
 ##
 ## Positions are whole cells (metres). Saving writes the definition text in
 ## the layout the hand-written files use, through PackageEditor, so a
@@ -14,6 +14,10 @@ const UNDO_MAX: int = 64
 ## Facings a side can take: name -> binary angle (east is 0).
 const FACINGS: Dictionary = {"East": 0, "South": 16384, "West": 32768, "North": 49152}
 const ZONE_DEFAULTS: Dictionary = {"radius": 10, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1}
+## The victory settings the form edits (Data Model 03 'victory'), with the
+## value battle_rules uses when nothing says otherwise.
+const VICTORY_DEFAULTS: Dictionary = {"turn_limit": 10, "primary": "influence", "score_target": 0, "annihilation": true, "withdrawal": true}
+const VICTORY_PRIMARIES: PackedStringArray = ["influence", "value"]
 
 var id: String = ""
 var name: String = ""
@@ -23,6 +27,10 @@ var map_id: String = ""
 var zones: Array[Dictionary] = []
 ## [{"player", "facing", "deploy": {"x", "y", "w", "h"}, "squads": [ids]}].
 var sides: Array[Dictionary] = []
+## The victory keys this scenario writes itself. Keys it inherits stay in
+## `flat_victory` (what the template gives once flattened) and are not written.
+var victory: Dictionary = {}
+var flat_victory: Dictionary = {}
 var dirty: bool = false
 ## Counts edits, so a view knows when to redraw.
 var revision: int = 0
@@ -49,6 +57,10 @@ static func open(t: TemplateTable, def: Dictionary) -> ScenarioCanvas:
 	for s: Variant in flat.get("sides", []):
 		if s is Dictionary:
 			c.sides.append(_side((s as Dictionary).duplicate(true)))
+	if own.get("victory") is Dictionary:
+		c.victory = _ints((own["victory"] as Dictionary).duplicate(true))
+	if flat.get("victory") is Dictionary:
+		c.flat_victory = _ints((flat["victory"] as Dictionary).duplicate(true))
 	return c
 
 
@@ -67,6 +79,7 @@ static func create(t: TemplateTable, new_id: String, map: String, w: int, h: int
 	c.id = new_id
 	c.name = v["name"]
 	c.map_id = map
+	c.victory = _ints((v.get("victory", {}) as Dictionary).duplicate(true)) if v.get("victory") is Dictionary else {}
 	@warning_ignore("integer_division")
 	var inset := clampi(w / 24, 1, 5)
 	@warning_ignore("integer_division")
@@ -121,13 +134,14 @@ func redo() -> void:
 
 
 func _snapshot() -> Array:
-	return [zones.duplicate(true), sides.duplicate(true), name]
+	return [zones.duplicate(true), sides.duplicate(true), name, victory.duplicate(true)]
 
 
 func _restore(snap: Array) -> void:
 	zones.assign((snap[0] as Array).duplicate(true))
 	sides.assign((snap[1] as Array).duplicate(true))
 	name = snap[2]
+	victory = (snap[3] as Dictionary).duplicate(true)
 	_touch()
 
 
@@ -260,6 +274,40 @@ func remove_squad(i: int, at: int) -> void:
 		_touch()
 
 
+## What the victory setting `key` is now: the scenario's own value, else the
+## one its template gives, else the default.
+func victory_value(key: String) -> Variant:
+	if victory.has(key):
+		return victory[key]
+	return flat_victory.get(key, VICTORY_DEFAULTS.get(key))
+
+
+## Writes one victory setting of the scenario itself (turn limit, primary
+## score, score target, annihilation, withdrawal). Returns "" or why not.
+func set_victory(key: String, value: Variant) -> String:
+	match key:
+		"turn_limit":
+			value = int(value)
+			if value < 1:
+				return "the turn limit is at least 1"
+		"primary":
+			value = str(value)
+			if not VICTORY_PRIMARIES.has(value):
+				return "the primary score is influence or value"
+		"score_target":
+			value = int(value)
+			if value < 0:
+				return "the score target is 0 or more (0 is none)"
+		"annihilation", "withdrawal":
+			value = bool(value)
+		_:
+			return "no victory setting '%s'" % key
+	if not victory.has(key) or victory[key] != value:
+		victory[key] = value
+		_touch()
+	return ""
+
+
 func area_rect(i: int) -> Rect2i:
 	var d: Dictionary = sides[i]["deploy"]
 	return Rect2i(d["x"], d["y"], d["w"], d["h"])
@@ -309,6 +357,8 @@ func values() -> Dictionary:
 	v["map"] = map_id
 	v["zones"] = zones.duplicate(true)
 	v["sides"] = sides.duplicate(true)
+	if not victory.is_empty() or v.has("victory"):
+		v["victory"] = victory.duplicate(true)
 	return v
 
 

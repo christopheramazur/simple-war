@@ -17,6 +17,7 @@ extends RefCounted
 
 ## Plays until `turns` overworld turns have resolved. Returns the session.
 static func play(session: OverworldSession, controllers: Dictionary, turns: int) -> OverworldSession:
+	session.want_telegraphs = false  # no UI: skip the forecast turn when nothing can react (sw-kd5)
 	var guard := 0
 	while session.turns_resolved() < turns and guard < turns * 5:
 		guard += 1
@@ -46,6 +47,12 @@ static func plan_for(session: OverworldSession, p: int, controller: Object) -> v
 		session.set_route(p, o["commander"], o["route"])
 		if not String(o.get("activity", "")).is_empty():
 			session.set_activity(p, o["commander"], o["activity"], o.get("option", ""))
+	if controller.has_method("economy"):
+		for e: Dictionary in controller.economy(session.observe(p), session):
+			if e.has("output"):
+				session.set_output(p, e["feature"], e["output"])
+			if e.has("commander"):
+				session.set_supply_line(p, e["feature"], -1, e["commander"])
 	if controller.has_method("battle_orders"):
 		var eids: Array = session.battles.keys()
 		eids.sort()

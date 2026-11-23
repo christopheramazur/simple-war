@@ -205,21 +205,24 @@ func test_a_squad_never_deploys_inside_a_wall() -> void:
 		assert_gt(costs[r.terrain[Fixed.to_int_floor(s2.squads.ay[srow]) * r.width + Fixed.to_int_floor(s2.squads.ax[srow])]], 0)
 
 
-## sw-0nl: a central block with equal detours north and south (rows 15..23,
-## five rows either way from row 19). Frame 0 breaks the tie towards the low
-## cell indices (north); the 180° frame breaks it the other way.
+## sw-0nl: a central block with near-equal detours north and south (rows
+## 15..23 around row 19). The two frames plan on mirrored grids, so they must
+## not both take the same side: one detours north, the other south. Which
+## side wins is decided by the gate graph's costs (sw-ll4.29), not by the
+## cell search's index tie-break, so the test checks the split, not the side.
 func test_equal_detours_mirror_with_the_frame() -> void:
 	var r := _rules([{"feature": "wall", "x": 28, "y": 15, "w": 4, "h": 9}])
 	var fx := 10 * ONE + ONE / 2
 	var fy := 19 * ONE + ONE / 2
 	var tx := 50 * ONE + ONE / 2
 	var ty := 19 * ONE + ONE / 2
-	var north := r.routes.next_waypoint(r, 0, fx, fy, tx, ty)
-	assert_lt(north[1], fy, "frame 0 detours north")
+	var frame0 := r.routes.next_waypoint(r, 0, fx, fy, tx, ty)
+	assert_ne(frame0[1], fy, "frame 0 detours")
 	# The same cells in the flipped frame: the cache must not hand back the
-	# north leg, and the tie goes south.
-	var south := r.routes.next_waypoint(r, 0, fx, fy, tx, ty, Fixed.ANGLE_HALF)
-	assert_gt(south[1], fy, "the 180° frame detours south")
+	# frame 0 leg, and the flipped detour goes to the other side.
+	var flipped := r.routes.next_waypoint(r, 0, fx, fy, tx, ty, Fixed.ANGLE_HALF)
+	assert_ne(flipped[1], fy, "the 180° frame detours too")
+	assert_true((frame0[1] < fy) != (flipped[1] < fy), "the two frames take opposite sides")
 
 
 ## sw-0nl: on an asymmetric map the flipped plan runs on the rotated grid, so
@@ -248,3 +251,23 @@ func test_a_forecast_job_warms_the_route_caches_on_the_caller_thread() -> void:
 	var costs: PackedInt32Array = (r.routes._costs[0] as PackedInt32Array).duplicate()
 	costs.reverse()
 	assert_eq(r.routes._costs_flipped[0], costs, "the flipped frame is the rotated grid")
+
+
+## Unit collision with terrain (§2.14, sw-ll4.16): a squad skirting a wall
+## with a wide formation never has a unit inside the wall, and still arrives.
+func test_units_never_enter_a_wall_while_the_squad_skirts_it() -> void:
+	var r := _rules(WALL)
+	var made: Array = _squad(r, 26, 30)
+	var s: BattleState = made[0]
+	BattleOrders.apply(s, 1, [{"squad": made[1], "type": "move", "x": 40 * ONE, "y": 30 * ONE}])
+	var wall := r.feature_ids.find("wall")
+	var inside := []
+	var sim := BattleSim.new()
+	sim.tick_hook = func(st: BattleState) -> void:
+		for u in st.units.count():
+			if r.feature_at(st.units.x[u], st.units.y[u]) == wall:
+				inside.append(u)
+	for _t in 5:
+		sim.execute_turn(s)
+	assert_eq(inside.size(), 0, "a unit stood in the wall %d times" % inside.size())
+	assert_eq(_anchor(s, made[1]), Vector2i(40, 30))

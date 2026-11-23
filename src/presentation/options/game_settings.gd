@@ -12,10 +12,18 @@ const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1280, 800), Vector
 	Vector2i(2560, 1440), Vector2i(3840, 2160)]
 const UI_SCALES: Array[float] = [0.75, 1.0, 1.25, 1.5, 2.0]
 const TURN_SECONDS: Array[float] = [0.0, 2.0, 5.0, 10.0]
+## How long a battle alert stays marked NEW (sw-9un): 0 = until dismissed.
+const ALERT_SECONDS: Array[float] = [6.0, 20.0, 60.0, 120.0, 0.0]
+## Frame rate caps (sw-gtj): 0 = uncapped. Keeps planning from burning a core.
+const MAX_FPS: Array[int] = [30, 60, 120, 144, 240, 0]
 const DEFAULTS: Dictionary = {
-	"window_mode": "windowed", "width": 1280, "height": 720, "vsync": true, "ui_scale": 1.0, "turn_seconds": 5.0,
-	"ui_theme": "default", "side_width": 300, "team_palette": "okabe_ito",
+	"window_mode": "windowed", "width": 1280, "height": 720, "vsync": true, "max_fps": 144, "ui_scale": 1.0, "turn_seconds": 5.0,
+	"ui_theme": "default", "side_width": 300, "team_palette": "okabe_ito", "alert_seconds": 6.0,
+	"forecast_detail": "summary", "telemetry_opt_in": false,
 }
+## How much a forecast contact marker says (sw-czg).
+const FORECAST_DETAILS: Array[String] = ["summary", "numbers"]
+const FORECAST_DETAIL_NAMES: Dictionary = {"summary": "Summary", "numbers": "Numbers (tick, reactions)"}
 
 ## Where the settings are kept (tests point this elsewhere).
 static var path: String = "user://settings.cfg"
@@ -81,6 +89,7 @@ static func apply(window: Window) -> void:
 	UiTheme.apply(window)
 	if DisplayServer.get_name() == "headless" or window.is_embedded():
 		return
+	Engine.max_fps = maxi(int(value("max_fps")), 0)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if bool(value("vsync")) else DisplayServer.VSYNC_DISABLED)
 	match String(value("window_mode")):
 		"borderless":

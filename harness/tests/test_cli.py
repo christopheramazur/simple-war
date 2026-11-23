@@ -35,3 +35,10 @@ def test_doctor_flags_secret(fake_repo, capsys):
 def test_unknown_verb_exits():
     with pytest.raises(SystemExit):
         main(["nope"])
+
+
+def test_status_short_log(fake_repo, capsys):
+    code = main(["status", "--short", "--log", "2", "--json"])
+    d = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert "changed" in d["data"] and "godot" not in d["data"]

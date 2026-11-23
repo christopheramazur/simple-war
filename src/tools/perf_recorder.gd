@@ -30,6 +30,8 @@ var _sec: Dictionary = {}
 var _open: Dictionary = {}
 ## What the game is showing, set by the war room ("overworld", "battle", ...).
 var context: String = ""
+var _last_orphans: int = 0
+var _orphan_samples: int = 0
 
 
 ## Starts the recorder once per run if the game was launched with --perf.
@@ -110,6 +112,20 @@ func _process(delta: float) -> void:
 		_flush()
 
 
+## sw-mun: orphans that survive two samples (0.5 s, so not a node just queued
+## for freeing) are a leak. Notes them in marks.csv and has Godot list them
+## (name, class, path where known) on the console; once per new count.
+func _watch_orphans(n: int) -> void:
+	if n == 0 or n != _last_orphans:
+		_orphan_samples = 0 if n == 0 else 1
+		_last_orphans = n
+		return
+	_orphan_samples += 1
+	if _orphan_samples == 2:
+		mark("orphans=%d (scene %s)" % [n, get_tree().current_scene.name if get_tree().current_scene != null else ""])
+		Node.print_orphan_nodes()
+
+
 func _flush() -> void:
 	var t := _now()
 	var n := _frames.size()
@@ -135,6 +151,7 @@ func _flush() -> void:
 	cells.append(scene)
 	cells.append(context)
 	_samples.store_line(",".join(cells))
+	_watch_orphans(int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)))
 	for s: StringName in _sec:
 		var a: Array = _sec[s]
 		_sections.store_line("%.3f,%s,%d,%d,%d" % [t, s, a[0], a[1], a[2]])

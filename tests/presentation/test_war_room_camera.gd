@@ -52,10 +52,7 @@ func test_panning_moves_a_zoomed_battle_and_stops_at_its_edge() -> void:
 	v.zoom_camera(3.0, v.size / 2.0)
 	w._show_main()
 	var before := v.battle_area().position
-	var key := InputEventKey.new()
-	key.keycode = KEY_RIGHT
-	key.pressed = true
-	w._unhandled_input(key)
+	w.keys.actions[&"pan_right"].triggered.emit()
 	assert_almost_eq(v.battle_area().position.x, before.x - WarRoom.PAN_STEP, 0.5, "the right arrow shows more to the right")
 	for _i in 200:
 		v.pan_camera(Vector2(100, 0))
@@ -66,7 +63,21 @@ func test_panning_moves_a_zoomed_battle_and_stops_at_its_edge() -> void:
 	assert_eq(w.contexts.battle_centre, ViewContexts.NO_CENTRE, "leaving a battle resets its camera")
 
 
-func test_space_ends_the_turn_after_a_button_was_clicked() -> void:
+func _tap(keycode: Key) -> void:
+	var e := InputEventKey.new()
+	e.keycode = keycode
+	e.physical_keycode = keycode
+	e.pressed = true
+	Input.parse_input_event(e)
+	await get_tree().process_frame  # GUIDE reads the key state once a frame
+	await get_tree().process_frame
+	var up := e.duplicate()
+	up.pressed = false
+	Input.parse_input_event(up)
+	await get_tree().process_frame
+
+
+func test_space_presses_a_focused_button_and_ends_the_turn_otherwise() -> void:
 	var w := _demo()
 	w.turn_seconds = 0.0
 	var turns := [0]
@@ -78,23 +89,11 @@ func test_space_ends_the_turn_after_a_button_was_clicked() -> void:
 	w.add_child(other)
 	other.grab_focus()
 	assert_eq(get_viewport().gui_get_focus_owner(), other)
-	var space := InputEventKey.new()
-	space.keycode = KEY_SPACE
-	space.pressed = true
-	Input.parse_input_event(space)
-	var up := space.duplicate()
-	up.pressed = false
-	Input.parse_input_event(up)
-	await get_tree().process_frame
-	assert_eq(pressed[0], 0, "the focused button is not pressed")
-	assert_eq(turns[0], 1, "Space ends the turn")
-	other.grab_focus()
-	var enter := InputEventKey.new()
-	enter.keycode = KEY_ENTER
-	enter.pressed = true
-	Input.parse_input_event(enter)
-	var enter_up := enter.duplicate()
-	enter_up.pressed = false
-	Input.parse_input_event(enter_up)
-	await get_tree().process_frame
-	assert_eq(pressed[0], 1, "Enter still presses a focused button")
+	await _tap(KEY_SPACE)
+	assert_eq(pressed[0], 1, "Space presses the focused button")
+	assert_eq(turns[0], 0, "and does not end the turn")
+	await _tap(KEY_ENTER)
+	assert_eq(pressed[0], 2, "Enter presses a focused button")
+	other.release_focus()
+	await _tap(KEY_SPACE)
+	assert_eq(turns[0], 1, "with no focus Space ends the turn")

@@ -73,7 +73,7 @@ func test_every_band_reads_as_icon_and_word() -> void:
 		assert_eq(String(pools[DataSchema.SIMPL[b]]["band"]), DataSchema.BANDS[b], "the sim maps mid-band")
 	var text := "\n".join(_texts(_card()))
 	for band: String in DataSchema.BANDS:
-		assert_string_contains(text, String(SquadCard.BAND_ICONS[band]) + " " + band.capitalize(),
+		assert_string_contains(text, String(BandGlyphs.ICONS[band]) + " " + band.capitalize(),
 			"icon + word, never colour alone")
 
 
@@ -143,7 +143,7 @@ func _meter_text(pool: String, verbose: bool) -> String:
 	for seg: Panel in _with_meta(_card(verbose), &"band"):
 		var row: Node = seg.get_parent().get_parent()
 		var first := row.get_child(0) as Label
-		if first != null and first.text == pool.capitalize():
+		if first != null and first.text.ends_with(pool.capitalize()):
 			return (row.get_child(row.get_child_count() - 1) as Label).text
 	return ""
 
@@ -173,3 +173,56 @@ func test_a_broken_pool_has_no_distance_even_verbose() -> void:
 	assert_eq(BattleRules.points_to_drop(Pools.value(st, _row, BattleSquads.MORALE),
 		Pools.capacity(st, _row, BattleSquads.MORALE), st.rules.band_floor_pct), -1, "no lower band")
 	assert_false(_meter_text("morale", true).contains(" to "), "nothing below Broken")
+
+
+func test_each_simpl_pool_has_a_unique_icon_and_glossary_name_with_hover() -> void:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var g := Glossary.from_templates(l.templates)
+	var seen := {}
+	for p: String in DataSchema.SIMPL:
+		var icon := SquadCard.pool_icon(p)
+		assert_false(seen.has(icon), "icon for %s is shared" % p)
+		seen[icon] = true
+		assert_false(BandGlyphs.ICONS.values().has(icon), "%s clashes with a band icon" % p)
+		assert_eq(SquadCard.pool_word(p, g), g.name_of("term_" + p))
+	var card := SquadCard.build(_squad(), {}, 1, 10, false, {"glossary": g})
+	autofree(card)
+	var labels := _with_meta(card, &"pool")
+	assert_eq(labels.size(), 5)
+	for lab: Label in labels:
+		assert_true(lab.tooltip_text.contains(g.text_of("term_" + String(lab.get_meta(&"pool")))))
+
+
+func test_pool_tooltip_matches_the_battle_ledger_exactly() -> void:
+	var st := _session.state
+	Pools.flow(st, _row, BattleSquads.MORALE, -6 * ONE, &"hp_lost")
+	Pools.flow(st, _row, BattleSquads.MORALE, 2 * ONE + ONE / 2, &"drift")
+	Pools.flow(st, _row, BattleSquads.MORALE, -ONE, &"hp_lost")
+	var pd: Dictionary = _squad()["pools"]["morale"]
+	var expect := []
+	for k: String in st.ledger:
+		if k.begins_with("%d|%d|" % [_sid, BattleSquads.MORALE]):
+			expect.append(int(st.ledger[k]))
+	var got := []
+	for e: Dictionary in pd["ledger"]:
+		got.append(int(e["amount"]))
+	expect.sort()
+	got.sort()
+	assert_eq(got, expect, "API ledger equals the battle ledger")
+	var tip := SquadCard.ledger_text("morale", pd["ledger"])
+	assert_string_contains(tip, "Wounds: -7")
+	assert_string_contains(tip, "Drift toward rest: +2.5")
+	for w in ["slight", "major", "minor", "huge", "small"]:
+		assert_false(tip.to_lower().contains(w), "no vague magnitude word " + w)
+	var found := false
+	for n: Node in _with_meta_tooltip(_card()):
+		found = found or (n as Control).tooltip_text == SquadCard.ledger_text("morale", pd["ledger"])
+	assert_true(found, "the morale meter row carries the tooltip")
+
+
+func _with_meta_tooltip(node: Node, out: Array = []) -> Array:
+	if node is Control and (node as Control).tooltip_text != "":
+		out.append(node)
+	for c in node.get_children():
+		_with_meta_tooltip(c, out)
+	return out

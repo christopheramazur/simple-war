@@ -202,18 +202,12 @@ func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
 func test_space_and_esc_skip_the_playback() -> void:
 	var w := _demo()
 	_play_a_moving_turn(w)
-	var k := InputEventKey.new()
-	k.keycode = KEY_SPACE
-	k.pressed = true
-	w._unhandled_input(k)
+	w.keys.actions[&"end_turn"].triggered.emit()
 	assert_false(w.playing(), "Space skips to the end")
 	await get_tree().process_frame
 	assert_true(w._main._play.is_empty(), "the view shows the present again")
 	_play_a_moving_turn(w)
-	k = InputEventKey.new()
-	k.keycode = KEY_ESCAPE
-	k.pressed = true
-	w._unhandled_input(k)
+	w.keys.actions[&"cancel"].triggered.emit()
 	assert_false(w.playing(), "Esc skips too")
 
 
@@ -399,7 +393,7 @@ func test_battle_tabs_and_tiles_show_the_worst_band_and_trend() -> void:
 	assert_eq(sum["band"], "broken")
 	var texts := "\n".join(_texts(w._menu))
 	assert_string_contains(texts, EventText.band_word("broken"), "the tab says the band as a word")
-	assert_string_contains(texts, String(EventText.BAND_ICONS["broken"]), "and an icon, never colour alone")
+	assert_string_contains(texts, String(BandGlyphs.ICONS["broken"]), "and an icon, never colour alone")
 	assert_string_contains(texts, EventText.trend_word(String(sum["trend"])), "with the backward-looking trend")
 	var sums: Dictionary = w._main._extra["summaries"]
 	assert_eq(sums.size(), 2, "both battle tiles carry a summary")

@@ -18,6 +18,7 @@ config/name="Simple War"
 config/description="High-narrative simulationist turn-based strategy. A hex overworld and several battles, all taking place simultaneously on one clock."
 run/main_scene="res://src/presentation/main_menu/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+run/max_fps=144
 
 [autoload]
 

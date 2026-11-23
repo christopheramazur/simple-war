@@ -151,3 +151,87 @@ func test_end_battle_action() -> void:
 	assert_true(s.is_over())
 	assert_eq(s.state.result["winner"], 2)
 	assert_eq(s.state.result["reason"], "scripted")
+
+
+func _battle_with(defs: Array, ids: Array) -> BattleSession:
+	var s := BattleSession.create(_l().templates, _l().data_hash, "hangar_drill", 3)
+	var tt := TemplateTable.build(_l().defs + defs)
+	s.state.rules.triggers = TriggerRules.compile(tt, PackedStringArray(ids), "battle", s.state.rules.zone_ids)
+	assert_eq(s.state.rules.triggers.errors.size(), 0, "; ".join(s.state.rules.triggers.errors))
+	return s
+
+
+func _step(s: BattleSession, turns: int) -> void:
+	var target := s.state.turn + turns
+	var guard := 0
+	while s.state.turn < target and not s.is_over() and guard < 40:
+		guard += 1
+		s.ready(1)
+		s.ready(2)
+
+
+func _live(s: BattleSession, player: int, tid: String) -> int:
+	var n := 0
+	var st := s.state.rules.squad_index(tid)
+	for row in s.state.squads.count():
+		if s.state.squads.tmpl[row] == st and s.state.squads.player[row] == player and s.state.squads.is_active(row):
+			n += 1
+	return n
+
+
+func test_battle_vocabulary_spawn_remove_score_and_checks() -> void:
+	var defs := [
+		{"id": "sp", "kind": "trigger", "values": {"on": "turn_resolved", "do": [
+			{"do": "spawn_squad", "squad": "scout_team", "player": 1, "x": 10, "y": 30},
+			{"do": "add_score", "player": 1, "amount": 7},
+			{"do": "add_score", "player": 2, "amount": 3, "score": "influence"}]}},
+		{"id": "rm", "kind": "trigger", "values": {"on": "turn_resolved", "if": [{"check": "turn", "value": 2}, {"check": "squad_alive", "squad": "marksman_team", "player": 2, "value": 1}, {"check": "strength", "player": 2, "value": 5}],
+			"do": [{"do": "remove_squad", "squad": "marksman_team", "player": 2}, {"do": "set_var", "name": "removed", "value": 1}]}}]
+	var s := _battle_with(defs, ["sp", "rm"])
+	var before := _live(s, 1, "scout_team")
+	_step(s, 1)
+	assert_eq(_live(s, 1, "scout_team"), before + 1, "spawned")
+	assert_eq(s.state.value_score[1], 7)
+	assert_eq(s.state.influence[2], 3)
+	_step(s, 1)
+	assert_eq(s.state.vars.get("removed", 0), 1)
+	assert_eq(_live(s, 2, "marksman_team"), 0)
+
+
+func test_order_squad_and_squads_in_zone() -> void:
+	var defs := [
+		{"id": "go", "kind": "trigger", "values": {"on": "turn_resolved", "do": [
+			{"do": "order_squad", "squad": "scout_team", "player": 1, "type": "move", "x": 100, "y": 50}]}},
+		{"id": "near", "kind": "trigger", "values": {"on": "turn_resolved", "max_fires": 0, "if": [{"check": "squads_in_zone", "zone": "hangar", "player": 1}],
+			"do": [{"do": "set_var", "name": "arrived", "value": 1}]}}]
+	var s := _battle_with(defs, ["go", "near"])
+	_step(s, 1)
+	var row := s.state.squads.row_of(s.state.squads.ids()[0])
+	var found := false
+	for r in s.state.squads.count():
+		if s.state.squads.tmpl[r] == s.state.rules.squad_index("scout_team") and s.state.squads.player[r] == 1:
+			assert_eq(s.state.squads.order[r], BattleSquads.Order.MOVE)
+			found = true
+	assert_true(found)
+	assert_gt(row, -1)
+
+
+func test_after_turns_delays_actions_and_saves() -> void:
+	var defs := [{"id": "late", "kind": "trigger", "values": {"on": "turn_resolved", "after_turns": 2, "do": [{"do": "set_var", "name": "late", "value": 1}]}}]
+	var s := _battle_with(defs, ["late"])
+	_step(s, 1)
+	assert_false(s.state.vars.has("late"), "not yet")
+	assert_eq(s.state.vars.keys().filter(func(k: String) -> bool: return k.begins_with("~due.")).size(), 1)
+	var loaded := BattleSession.load_save(s.save(), _l().templates, _l().data_hash)
+	assert_eq(loaded.state.vars, s.state.vars)
+	_step(s, 3)
+	assert_eq(s.state.vars.get("late", 0), 1)
+	assert_eq(s.state.vars.keys().filter(func(k: String) -> bool: return k.begins_with("~due.")).size(), 0)
+
+
+func test_new_action_validation() -> void:
+	var t_defs := ([
+		{"id": "x", "kind": "trigger", "values": {"on": "turn_resolved", "after_turns": -1, "if": [{"check": "squad_alive", "squad": "nope"}],
+			"do": [{"do": "spawn_squad", "squad": "nope"}, {"do": "add_score", "score": "gold"}, {"do": "order_squad", "squad": "nope", "type": "dance"}]}}])
+	var errs := TriggerRules.compile(TemplateTable.build(_l().defs + t_defs), PackedStringArray(["x"]), "battle", PackedStringArray()).errors
+	assert_eq(errs.size(), 6, "; ".join(errs))

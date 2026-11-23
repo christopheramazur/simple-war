@@ -64,6 +64,8 @@ var _execute_pending: bool = false
 var _reactions_allowed: bool = true
 ## Reaction window: engagement ID -> Reactions.forecast opportunities.
 var _opportunities: Dictionary = {}
+## Reaction window: engagement ID -> Reactions.forecast_all telegraphs (sw-7o7).
+var _telegraphs: Dictionary = {}
 ## Set on entering the reaction window: ready the players with nothing to
 ## react to (done in _pump, outside the clock's call stack).
 var _auto_ready: bool = false
@@ -73,6 +75,10 @@ var locked: bool = false
 ## Presentation opt-in: keep every battle's last turn tick by tick
 ## (`playback`). Read-only; it never changes a result.
 var keep_playback: bool = false
+## Whether the reaction window forecasts enemy attack telegraphs (UI only).
+## Off for headless runs: a battle with no reaction ability then skips the
+## forecast's scratch turn (sw-kd5).
+var want_telegraphs: bool = true
 ## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
 var _playback: Dictionary = {}
 ## Engagement ID -> player -> worst own SIMPL band index last recorded (at
@@ -146,6 +152,79 @@ func turns_resolved() -> int:
 
 
 # --- inputs ----------------------------------------------------------------
+
+## Where a dialogue stands (sw-62i): {"dialogue", "node", "speaker", "key",
+## "text", "choices" [{"index", "key", "text"} of the available ones], "ended"}.
+## {} for an
+## unknown dialogue. A dialogue not yet begun shows its start node. Progress
+## lives in the state, so it is saved and hashed.
+func dialogue_view(id: String) -> Dictionary:
+	if not templates.has(id) or templates.kind_of(id) != "dialogue":
+		return {}
+	var v := templates.values_of(id)
+	var at: String = state.dialogues.get(id, String(v["start"]))
+	var out := {"dialogue": id, "node": at, "ended": at == Dialogue.END, "speaker": "", "key": "", "text": "", "choices": []}
+	if out["ended"]:
+		return out
+	var node: Dictionary = (v["nodes"] as Dictionary)[at]
+	out["speaker"] = String(node.get("speaker", ""))
+	out["key"] = String(node.get("key", ""))
+	out["text"] = String(node.get("text", ""))
+	var list: Array = node.get("choices", [])
+	for i in Dialogue.available(state, v, at):
+		var c: Dictionary = list[i]
+		out["choices"].append({"index": i, "key": String(c.get("key", "")), "text": String(c.get("text", ""))})
+	return out
+
+
+## Begins a dialogue at its start node (its `do` runs). A no-op once begun.
+## "" or why not.
+func dialogue_begin(player: int, id: String) -> String:
+	var err := _planning(player)
+	if not err.is_empty():
+		return err
+	if not templates.has(id) or templates.kind_of(id) != "dialogue":
+		return "unknown dialogue"
+	if not state.dialogues.has(id):
+		var v := templates.values_of(id)
+		state.dialogues[id] = String(v["start"])
+		Dialogue.enter(state, v, String(v["start"]))
+		_log(player, "dialogue_begin", id)
+	return ""
+
+
+## Moves a dialogue on: picks choice `choice` of its node, or (-1) follows a
+## node without choices. "" or why not.
+func dialogue_pick(player: int, id: String, choice: int) -> String:
+	var err := _planning(player)
+	if not err.is_empty():
+		return err
+	var view := dialogue_view(id)
+	if view.is_empty():
+		return "unknown dialogue"
+	if not state.dialogues.has(id):
+		return "the dialogue has not begun"
+	if view["ended"]:
+		return "the dialogue has ended"
+	var v := templates.values_of(id)
+	var node: Dictionary = (v["nodes"] as Dictionary)[view["node"]]
+	var nxt := ""
+	if node.has("choices"):
+		if choice < 0 or not view["choices"].any(func(c: Dictionary) -> bool: return c["index"] == choice):
+			return "that choice is not available"
+		nxt = Dialogue.choose(state, v, view["node"], choice)
+	elif choice != -1:
+		return "this line has no choices"
+	else:
+		nxt = String(node.get("next", ""))
+	if nxt.is_empty():
+		state.dialogues[id] = Dialogue.END
+	else:
+		state.dialogues[id] = nxt
+		Dialogue.enter(state, v, nxt)
+	_log(player, "dialogue", {"dialogue": id, "choice": choice})
+	return ""
+
 
 ## Sets (or, with an empty route, clears) a commander's route. "" or why not.
 func set_route(player: int, commander_id: int, plots: PackedInt64Array) -> String:
@@ -401,6 +480,20 @@ func reaction_opportunities(player: int) -> Array:
 	return out
 
 
+## Enemy attack telegraphs in one battle during the reaction window
+## (BattleSession.telegraphs): [{"attacker", "target", "damage" (fixed),
+## "kills", "tick"}] on the player's squads; [] outside REACTION.
+func telegraphs(player: int, engagement_id: int) -> Array:
+	if clock.phase != PulseClock.Phase.REACTION:
+		return []
+	if want_telegraphs and not _telegraphs.has(engagement_id) and battles.has(engagement_id):
+		# Lazy (sw-pcl): the scratch turn runs only for a battle someone asks about
+		# (the focused one), not for every battle at REACTION.
+		_telegraphs[engagement_id] = Reactions.forecast_all((battles[engagement_id] as OverworldBattle).state, _battle_sim)["telegraphs"]
+	return (_telegraphs.get(engagement_id, []) as Array).filter(
+		func(t: Dictionary) -> bool: return t["player"] == player)
+
+
 ## Queues a reaction for one of the player's squads in a battle (Reaction
 ## phase only). "" or why not.
 func submit_reaction(player: int, engagement_id: int, squad: int, reaction: String, trigger: int) -> String:
@@ -534,10 +627,16 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 			clock.config.reaction_enabled = _reactions_allowed and not battles.is_empty()
 		PulseClock.Phase.REACTION:
 			_opportunities = {}
+			_telegraphs = {}
 			var ids: Array = battles.keys()
 			ids.sort()
 			for eid: int in ids:
-				_opportunities[eid] = Reactions.forecast((battles[eid] as OverworldBattle).state, _battle_sim)
+				var bstate := (battles[eid] as OverworldBattle).state
+				var fc := Reactions.forecast_all(bstate, _battle_sim, false)
+				_opportunities[eid] = fc["opportunities"]
+				if Reactions.any_reactions(bstate):
+					_telegraphs[eid] = fc["telegraphs"]  # the scratch turn ran anyway
+				# else: telegraphs() computes them lazily for a battle that is looked at (sw-pcl)
 			_auto_ready = true
 		PulseClock.Phase.EXECUTE:
 			_execute_pending = true
@@ -554,6 +653,7 @@ func _pump() -> void:
 			continue
 		_execute_pending = false
 		_opportunities = {}
+		_telegraphs = {}
 		PerfRecorder.begin(&"sim_battles")
 		_run_battles()
 		PerfRecorder.end(&"sim_battles")
@@ -700,10 +800,11 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 func playback(player: int) -> Dictionary:
 	PerfRecorder.begin(&"playback_build")
 	var out := {}
-	var me := BattleSquads.bit(player)
+	var all_seeing := player <= 0  # the replay's all-seeing view
+	var me := 0 if all_seeing else BattleSquads.bit(player)
 	for eid: int in _playback:
 		var rec: Dictionary = _playback[eid]
-		if not (rec["players"] as PackedInt64Array).has(player):
+		if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
 			continue
 		var r: BattleRules = rec["rules"]
 		var frames := []
@@ -713,7 +814,7 @@ func playback(player: int) -> Dictionary:
 			var squads := {}
 			var units := {}
 			for o in range(0, f.size(), PLAYBACK_STRIDE):
-				if f[o + 2] != player and f[o + 6] & me == 0:
+				if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
 					continue
 				var own_unit := f[o + 2] == player
 				if not squads.has(f[o + 1]):
@@ -820,7 +921,7 @@ func observe(player: int) -> Dictionary:
 ## overworld squad ID, own squads only).
 func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	var b: OverworldBattle = battles.get(engagement_id)
-	if b == null or not b.state.players.has(player):
+	if b == null or (player > 0 and not b.state.players.has(player)):
 		return {}
 	var o := BattleSession.observe_state(b.state, player)
 	o["engagement"] = engagement_id
@@ -1032,7 +1133,7 @@ func save() -> PackedByteArray:
 		"hashes": turn_hashes.duplicate(), "state": state.snapshot(), "clock": clock.snapshot(),
 		"last_events": events, "hash": state_hash_hex(),
 		"battles": _battles_dict(), "next_context": _next_context,
-		"opportunities": _opportunities.duplicate(true), "band_history": _band_history.duplicate(true),
+		"opportunities": _opportunities.duplicate(true), "telegraphs": _telegraphs.duplicate(true), "band_history": _band_history.duplicate(true),
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
 
@@ -1067,6 +1168,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		s.bus.register_context(b.state)
 	s._next_context = data.get("next_context", 100)
 	s._opportunities = data.get("opportunities", {})
+	s._telegraphs = data.get("telegraphs", {})
 	s._band_history = data.get("band_history", {})
 	if s.state_hash_hex() != data["hash"]:
 		last_error = "the saved state does not match its hash"
@@ -1163,6 +1265,10 @@ func _replay(inputs: Array) -> void:
 				submit_reaction(i["player"], p["engagement"], p["squad"], p["reaction"], p["trigger"])
 			"preset":
 				save_preset(i["player"], p["name"], p["prefer"], p["avoid"])
+			"dialogue_begin":
+				dialogue_begin(i["player"], p)
+			"dialogue":
+				dialogue_pick(i["player"], p["dialogue"], p["choice"])
 			"ready":
 				ready(i["player"])
 			"advance":

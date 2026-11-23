@@ -21,11 +21,14 @@ const SCOPES: Dictionary = {
 
 var _defs: Dictionary = {}  # id -> StatDef
 var _order: PackedStringArray = PackedStringArray()
+var _damage_types: Array[String] = DataSchema.DAMAGE_TYPES
 
 
 ## Builds the registry from DataSchema.KINDS / OBJECTS.
-static func from_schema() -> StatRegistry:
+## `damage_types` expands the damage-type key sets (DataSchema.damage_types).
+static func from_schema(damage_types: Array[String] = DataSchema.DAMAGE_TYPES) -> StatRegistry:
 	var reg := StatRegistry.new()
+	reg._damage_types = damage_types
 	for kind: String in SCOPES:
 		var spec: Dictionary = DataSchema.KINDS[kind]
 		for field: String in spec:
@@ -97,7 +100,7 @@ func _walk(kind: String, path: PackedStringArray, fs: Dictionary) -> void:
 		var inner := fs.duplicate()
 		inner["type"] = t.substr(4)
 		inner.erase("keys")
-		var keys: Array = fs.get("keys", ["*"])
+		var keys: Array = DataSchema.keys_of(fs, _damage_types) if fs.has("keys") else ["*"]
 		for key: String in keys:
 			_walk(kind, path + PackedStringArray([key]), inner)
 		return
@@ -111,7 +114,7 @@ func _walk(kind: String, path: PackedStringArray, fs: Dictionary) -> void:
 		var id_spec: Dictionary = obj.get("id", {})
 		if not id_spec.has("enum"):
 			return  # Composition lists (squad members) are not stats.
-		for key: String in id_spec["enum"]:
+		for key: String in DataSchema.enum_of(id_spec, _damage_types):
 			for field: String in obj:
 				if field != "id":
 					_walk(kind, path + PackedStringArray([key, field]), obj[field])

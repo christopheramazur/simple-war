@@ -108,6 +108,22 @@ func test_trigger_graphs() -> void:
 	assert_eq(TriggerGraph.build(t, "hex_lake")["errors"].size(), 1)
 
 
+func test_dialogue_graphs() -> void:
+	var t := PackageEditor.open(CORE).templates
+	var g := DialogueGraph.build(t, "af_jeff_briefing")
+	assert_eq(g["errors"], PackedStringArray())
+	for pair: Array in [["choice", "greet"], ["line", "careful"], ["end", "end"], ["var", "disp.jeff"], ["var", "briefed_careful"]]:
+		assert_ne(DialogueGraph.node_id(g, pair[0], pair[1]), -1, "%s %s" % pair)
+	var greet := DialogueGraph.node_id(g, "choice", "greet")
+	var fast := DialogueGraph.node_id(g, "line", "fast")
+	var disp := DialogueGraph.node_id(g, "var", "disp.jeff")
+	var links: Array = (g["links"] as Dictionary).values()
+	assert_true(links.any(func(l: Dictionary) -> bool: return l["start_node_id"] == greet and l["end_node_id"] == fast))
+	assert_true(links.any(func(l: Dictionary) -> bool: return l["start_node_id"] == greet and l["end_node_id"] == disp and l["label"] == "add_var"))
+	assert_true(links.any(func(l: Dictionary) -> bool: return l["start_node_id"] == disp and l["end_node_id"] == greet and l["label"] == "checks"))
+	assert_eq(DialogueGraph.build(t, "hex_lake")["errors"].size(), 1)
+
+
 func test_the_panel_runs_standalone() -> void:
 	var p := WarDataPanel.new()
 	p.package_dir = COPY
@@ -123,3 +139,24 @@ func test_the_panel_runs_standalone() -> void:
 	await get_tree().process_frame
 	assert_eq(p.graph_node_count(), (TriggerGraph.build(p.model.templates, "trigger_vale")["nodes"] as Dictionary).size())
 	assert_not_null(p._graph.call("get_graph_node", 0), "the graph editor holds the nodes")
+	p.show_dialogue("af_jeff_briefing")
+	await get_tree().process_frame
+	assert_eq(p.dialogue_node_count(), (DialogueGraph.build(p.model.templates, "af_jeff_briefing")["nodes"] as Dictionary).size())
+
+
+func test_the_trigger_graph_is_a_view() -> void:
+	# sw-ow6: a node drawn in the trigger graph is not saved; the graph is drawn
+	# again from the definition with a note.
+	var p := WarDataPanel.new()
+	p.package_dir = COPY
+	add_child_autofree(p)
+	p.show_triggers("trigger_vale")
+	await get_tree().process_frame
+	var before := JSON.stringify(p.model.templates.values_of("trigger_vale"))
+	var nodes := p.graph_node_count()
+	var g: CGEGraph = p._graph.get("graph")
+	g.create_node()
+	await get_tree().process_frame
+	assert_string_starts_with(p._tresult.text, "Not saved:")
+	assert_eq(JSON.stringify(p.model.templates.values_of("trigger_vale")), before, "nothing is written")
+	assert_eq(p.graph_node_count(), nodes, "the graph is drawn again from the definition")

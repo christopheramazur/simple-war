@@ -37,6 +37,7 @@ const EN: Dictionary = {
 	"ab.lose.damaged": "taking damage",
 	"ab.lose.casualty": "a casualty",
 	"ab.range": "Range {range} m.",
+	"ab.radius": "Area: radius {radius} m around the target point.",
 	"ab.or": " or ",
 	"fx.when.apply": "On application: {text}",
 	"fx.when.expire": "When it ends: {text}",
@@ -137,7 +138,7 @@ static func effect(fx: EffectRules, bd: Dictionary, e: Dictionary, registry: Sta
 				_:
 					text = _f("fx.override", {"stat": stat, "amount": _num(amount), "unit": unit})
 		"damage":
-			text = _f("fx.damage", {"amount": _num(amount), "damage_type": _t("damage." + DataSchema.DAMAGE_TYPES[e["dtype"]], DataSchema.DAMAGE_TYPES[e["dtype"]])})
+			text = _f("fx.damage", {"amount": _num(amount), "damage_type": _t("damage." + fx.damage_types[e["dtype"]], fx.damage_types[e["dtype"]])})
 		"heal":
 			text = _f("fx.heal", {"amount": _num(amount)})
 		"pool_flow":
@@ -205,6 +206,8 @@ static func ability_lines(r: BattleRules, ab: int) -> PackedStringArray:
 		out.append(_f("ab.charges", {"n": r.ab_charges[ab]}))
 	if r.ab_range[ab] >= 0:
 		out.append(_f("ab.range", {"range": _num(r.ab_range[ab])}))
+	if r.ab_radius[ab] > 0 and BattleRules.TARGETING[r.ab_targeting[ab]] == "point":
+		out.append(_f("ab.radius", {"radius": _num(r.ab_radius[ab])}))
 	if r.ab_ready_s[ab] > 0:
 		out.append(_f("ab.ready", {"seconds": _num(r.ab_ready_s[ab]), "prowess": _num(r.ab_ready_prowess[ab])}))
 	var lose := r.ab_lose_on[ab]
@@ -227,6 +230,8 @@ static func stat_name(id: String) -> String:
 		if leaf in ["capacity", "start_pct", "neutral_pct", "drift_pct_per_s", "instinct_cost"] and parts.size() >= 2:
 			leaf = parts[parts.size() - 2] + " " + leaf
 		fallback = leaf.replace("_pct", "").replace("_", " ").capitalize()
+		if id.begins_with("defense.resist_pct."):
+			fallback += " Resistance"
 	return _t("stat." + id, fallback)
 
 

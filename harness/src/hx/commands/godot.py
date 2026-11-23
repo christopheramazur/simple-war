@@ -1,7 +1,8 @@
 """hx godot: engine checks with error-only output (DESIGN.md §5 seed verbs).
 
   hx godot check [--no-import] [FILE...]  headless import, then a GDScript parse of every script under
-                                 src/ (or only FILEs, which skips the import)
+                                 src/ (or only FILEs, which skips the import), plus a ClassDB lint for calls to
+                                 methods a natively typed variable lacks (harness/godot/native_method_lint.gd)
   hx godot test [--dir D] [--file F] [--select S] [--test T]  run GUT headless (all, or a subset) and
                                  print the summary plus failures
   hx godot run <scene|script> [--quit-after N] [--editor]  run one scene or SceneTree script headless;
@@ -23,6 +24,7 @@ from hx.output import FAIL, OK, WARN, Check, Result
 
 HELP = ("Godot: check [files] (import + script parse, errors only) | test (GUT, or a subset) | "
         "run (one scene/script headless) | mock (UI mock -> PNG)")
+NATIVE_LINT = "res://harness/godot/native_method_lint.gd"
 MOCK_RUNNER = "res://src/presentation/mocks/mock_runner.gd"
 MOCK_DIR = "Game Design Document/Mocks"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -141,6 +143,11 @@ def _check(args) -> Result:
     with ThreadPoolExecutor(max_workers=4) as pool:
         for errs in pool.map(parse, scripts):
             found += errs
+    # The engine's parse-only check cannot see calls to methods a native type lacks (c.to_global() on a
+    # Control): a ClassDB-backed lint covers them. One launch for all scripts, in batches for command length.
+    for i in range(0, len(scripts), 40):
+        _, lines = _run(exe, root, ["--script", NATIVE_LINT, "--", *scripts[i:i + 40]], 120)
+        found += [x[len("NMLINT "):] for x in lines if x.startswith("NMLINT ")]
     r.data["scripts_parsed"] = len(scripts)
     r.data["errors"] = len(found)
     if found:
@@ -150,8 +157,22 @@ def _check(args) -> Result:
     return r
 
 
-SUMMARY = re.compile(r"^\s*(Tests|Passing( Tests)?|Failing( Tests)?|Pending|Asserts|Scripts|Time)\b.*\d", re.I)
+SUMMARY = re.compile(r"^\s*(Tests|Passing( Tests)?|Failing( Tests)?|Risky/Pending|Pending|Asserts|Scripts|Time)\b.*\d", re.I)
 FAILED = re.compile(r"\[Failed\]|^\s*FAILED|- test_\w+.*fail", re.I)
+FAILING_N = re.compile(r"Failing Tests\s+(\d+)")
+PENDING_N = re.compile(r"Risky/Pending\s+(\d+)")
+NOT_PASSING = re.compile(r"^- (test_\w+)\s*$")  # GUT's run summary lists only the failing and pending tests
+
+
+def not_passing(lines: list[str]) -> list[str]:
+    """'test_name: message' for each failing or pending test in GUT's run summary."""
+    out = []
+    for i, line in enumerate(lines):
+        m = NOT_PASSING.match(line.strip())
+        if m:
+            msg = next((x.strip() for x in lines[i + 1:i + 3] if x.strip()), "")
+            out.append(f"{m.group(1)}: {msg}".rstrip(": "))
+    return list(dict.fromkeys(out))
 
 
 def _test(args) -> Result:
@@ -180,13 +201,33 @@ def _test(args) -> Result:
     fails = [x.strip() for x in lines if FAILED.search(x)] + errors(lines)
     if fails:
         r.data["failures"] = "\n  " + "\n  ".join(dict.fromkeys(fails[:MAX_SHOWN]))
+    # A pending test exits 0 in GUT, so the status also reads GUT's failing and pending counts and names the tests.
+    failing = _count(FAILING_N, r.data["summary"])
+    pending = _count(PENDING_N, r.data["summary"])
+    named = not_passing(lines)
+    if named:
+        r.data["not_passing"] = "\n  " + "\n  ".join(named[:MAX_SHOWN])
     ran = re.search(r"Tests\s+(\d+)", r.data["summary"])
-    if code == 0 and not fails and (not ran or int(ran.group(1)) == 0):
+    if code == 0 and not fails and not failing and not pending and (not ran or int(ran.group(1)) == 0):
         r.checks.append(Check("gut", WARN, "no tests matched"))
         return r
-    r.checks.append(Check("gut", OK if code == 0 and not fails else FAIL,
-                          "timed out" if code == TIMED_OUT else f"exit {code}"))
+    problems = []
+    if code == TIMED_OUT:
+        problems.append("timed out")
+    elif code != 0:
+        problems.append(f"exit {code}")
+    if failing:
+        problems.append(f"{failing} failing")
+    if pending:
+        problems.append(f"{pending} pending")
+    ok = not problems and not fails
+    r.checks.append(Check("gut", OK if ok else FAIL, ", ".join(problems) or "failure output"))
     return r
+
+
+def _count(pattern: re.Pattern, text: str) -> int:
+    m = pattern.search(text)
+    return int(m.group(1)) if m else 0
 
 
 def gut_args(dirs: list[str], files: list[str], select: str | None, unit: str | None) -> list[str]:
@@ -251,6 +292,15 @@ def mock_out(mock: str, out: str | None) -> str:
     return f"{MOCK_DIR}/{name}.png"
 
 
+MOCK_VARIANTS = ("greyscale", "protan", "deutan")
+
+
+def mock_variant_paths(out: str) -> list[str]:
+    """Colour-vision variant PNGs mock_runner.gd writes beside the normal one."""
+    base = out[:-4] if out.lower().endswith(".png") else out
+    return [f"{base}_{v}.png" for v in MOCK_VARIANTS]
+
+
 def _mock(args) -> Result:
     r = Result("godot mock")
     root, exe = _console()
@@ -264,6 +314,7 @@ def _mock(args) -> Result:
     errs = errors(lines)
     wrote = [x for x in lines if x.startswith("mock_runner: wrote")]
     r.data["out"] = out
+    r.data["variants"] = ", ".join(mock_variant_paths(out))
     if wrote:
         r.data["image"] = wrote[-1].removeprefix("mock_runner: wrote ").strip()
     if errs:

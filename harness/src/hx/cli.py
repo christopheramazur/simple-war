@@ -14,7 +14,7 @@ import sys
 
 from hx import __version__
 
-VERBS = ["status", "doctor", "ingest", "report", "bench", "providers", "secrets", "gateway", "bonsai", "delegate", "mcp", "worker", "tag", "mine", "reflect", "task", "godot", "ab", "otel", "sim", "factory", "swarm"]
+VERBS = ["status", "doctor", "ingest", "report", "bench", "providers", "secrets", "gateway", "bonsai", "delegate", "mcp", "worker", "tag", "mine", "reflect", "task", "godot", "ab", "otel", "sim", "factory", "swarm", "autopilot", "find", "scan", "slice", "wt-status"]
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"hx {__version__}")
     sub = p.add_subparsers(dest="verb", required=True, metavar="<verb>")
     for name in VERBS:
-        mod = importlib.import_module(f"hx.commands.{name}")
+        mod = importlib.import_module(f"hx.commands.{name.replace('-', '_')}")
         sp = sub.add_parser(name, help=mod.HELP, description=mod.HELP)
         sp.add_argument("--json", action="store_true", help="machine-readable output")
         sp.add_argument("-v", "--verbose", action="store_true", help="show passing checks too")

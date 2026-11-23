@@ -9,7 +9,7 @@ Claude Code sessions cannot run on Qwen, so every role is a **headless OpenCode 
 |---|---|---|---|
 | Orchestrator | continuous (90 s pause) | `roles/orchestrator.md` | spawns workers, merges, closes beads |
 | Workers (≤2) | when queued | `roles/worker.md` | commits on `swarm/<bead>` in `../simple-war-worktrees/<bead>` |
-| Auditor | every 30 min, outside the turn slots | `roles/auditor.md` | `docs/swarm/audits/`, a PASS/WARN/FAIL verdict |
+| Auditor | the verdict every 30 min by rules (no model); the model only to escalate, confirm a FAIL, or every 4 h, outside the turn slots | `roles/auditor.md` | a PASS/WARN/FAIL verdict; `docs/swarm/audits/` when the model runs |
 | Designers ×3 | each ~45 min | `roles/designer.md` + persona | answers, reviews, votes, `swarm-proposed` beads |
 | Researchers ×2 | each ~60 min | `roles/researcher.md` + persona | agenda, summaries, proposals |
 | Deep research | when queued (≤3) | `roles/deep-researcher.md` | `docs/swarm/research/reports/` |
@@ -25,7 +25,13 @@ Every prompt is `roles/_common.md` (hard rules) + the role file + generated cont
 The auditor checks the evidence anyway; `hx swarm merge` refuses branches that touch these guardrail files.
 
 ## Audit and recovery
-FAIL = a non-Qwen model or money used by the swarm, or the orchestrator not running or spinning. WARN = poor health. WARN and FAIL mail the orchestrator, which must run `hx swarm selfcheck` and record an audit response. Two FAILs in a row: the orchestrator pauses, an incident file and a `bd human` bead are written, a Qwen postmortem edits the prompts (orchestrator, designers, researchers), and generation N+1 starts. A fourth postmortem within 24 h stops the swarm for the user.
+**Pipeline steps without a model** (sw-0zi.3): the orchestrator's turns start on new mail (a worker finished, an alert, an answer) or an hourly heartbeat, not on a timer. `hx swarm merge` closes the bead when the merge lands. Once a minute the supervisor spawns the top ready bead if a worker slot sat empty for 10 min (skipping epics, parents with open children, `needs-human`, `swarm-harness` and the design interviews), and merges a `done` worker nobody reviewed within 90 min through the same gate, labelling it `swarm-unreviewed`. Settings in `swarm.toml` `[orchestrator]` and `[workers]`.
+
+**Turn budgets** (sw-0zi.5): each turn's time limit is its call budget (`swarm.toml` `[budgets]`) times the current cost of a call (median latency of the last hour's successful swarm calls, scaled up by the rate-limited share) times 1.3, never below the role's configured time-out and never above twice it; the prompt states the budget. When a turn is killed or stopped, the supervisor appends a note to the role's journal with its last actions and commits, so the next turn knows where it stopped.
+
+**When Nous throttles** (sw-0zi.2): the gateway paces Nous call starts (AIMD, `hx/gateway/pacer.py`) and gives each free start to the waiting call in the best lane: the user's own tools, then workers and postmortems, the orchestrator, deep research, designers, researchers and the retro, then the auditor. A waiting call moves up a lane every 3 min, so nothing starves. While over 40% of the last hour's swarm calls were rate-limited, or fewer than 30 succeeded, the supervisor holds support turns (designers, researchers, research, retro) until the share is under 25% again (`throttle_on` / `throttle_off` events; thresholds in `swarm.toml` `[run]`).
+
+The supervisor computes the verdict every 30 min from counts (`rule_verdict` in `swarm.py`, sw-0zi.4): FAIL = a non-Qwen model or money used by the swarm, or the orchestrator silent or spinning; WARN = something the orchestrator can act on (a finished worker waiting for review, a worker past its limit, repeated `merge_red`) or poor health it can't fix (throttling, failed turns), which is only shown on STATUS.md. FAIL mails the orchestrator, which must run `hx swarm selfcheck` and record an audit response; an actionable WARN mails it the list to act on. The model auditor runs only for a FAIL, to confirm a previous FAIL, for an actionable WARN (at most hourly) or every 4 h; it can raise the verdict, never lower it, and a killed model turn leaves the rules' verdict standing. Two FAILs in a row: the orchestrator pauses, an incident file and a `bd human` bead are written, a Qwen postmortem edits the prompts (orchestrator, designers, researchers), and generation N+1 starts. A fourth postmortem within 24 h stops the swarm for the user.
 
 ## Merging
 `hx swarm merge <bead>` merges `main` into the worker branch, runs `hx godot test` (and harness pytest when `harness/` changed) in the worktree, and fast-forwards `main` only when green, then pushes. `main` never goes red from the swarm.
@@ -34,6 +40,6 @@ FAIL = a non-Qwen model or money used by the swarm, or the orchestrator not runn
 ```bash
 harness/bin/hx swarm start      # detached; survives this shell
 harness/bin/hx swarm status     # rewrites and prints docs/swarm/STATUS.md
-harness/bin/hx swarm stop       # writes harness/data/swarm/STOP; turns finish, then it exits
+harness/bin/hx swarm stop       # writes STOP; running turns are ended (workers keep WIP and resume on the next start), the supervisor exits, leftovers are killed
 ```
-Cadence and limits: `swarm.toml` (the run ends at `run.end_at`). Restore point from before the run: `../simple-war-snapshots/2026-11-20-pre-qwen-swarm/RESTORE.md` and the git tag `snapshot/2026-11-20-pre-qwen-swarm`.
+Cadence and limits: `swarm.toml` (the run ends at `run.end_at`). The running supervisor reloads it on save, with no restart: a `config_reloaded` event lists the changed keys, and a file that does not parse is ignored (`config_error`). Restore point from before the run: `../simple-war-snapshots/2026-11-20-pre-qwen-swarm/RESTORE.md` and the git tag `snapshot/2026-11-20-pre-qwen-swarm`.

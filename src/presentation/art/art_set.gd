@@ -9,6 +9,8 @@ extends RefCounted
 ## the view falls back to its colours.
 
 const CORE := "res://data/packages/core"
+## Pixels per battlefield metre (or map cell) when ground is drawn from textures.
+const GROUND_PX: int = 4
 
 static var _core: ArtSet
 
@@ -64,6 +66,38 @@ func texture(template: String, field: String = "icon") -> Texture2D:
 func shaped(template: String, field: String = "tile") -> bool:
 	var img := image(template, field)
 	return img != null and img.get_pixel(0, 0).a < 0.1
+
+
+## Ground as pixels (sw-8rk), shared by the war room's battle view and the
+## map editor. `cells[y * w + x]` indexes `ids` (feature template IDs) and
+## `colors` (one colour per ID, parallel to `ids`); an index out of range is
+## black. With a ground texture for any feature, each cell is GROUND_PX pixels
+## cut from its feature's texture (tiled, nearest); a feature without one is
+## a flat block of its colour. With no textures at all, a pixel a cell.
+## `art` may be null (colours only).
+static func ground_image(art: ArtSet, w: int, h: int, cells: PackedInt32Array, ids: PackedStringArray, colors: Array[Color]) -> Image:
+	var srcs := {}
+	if art != null:
+		for i in ids.size():
+			var src := art.image(ids[i], "texture")
+			if src != null:
+				srcs[i] = src
+	var px := GROUND_PX if not srcs.is_empty() else 1
+	var img := Image.create(maxi(w, 1) * px, maxi(h, 1) * px, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var i := cells[y * w + x]
+			var col := colors[i] if i >= 0 and i < ids.size() else Color.BLACK
+			if px == 1:
+				img.set_pixel(x, y, col)
+			elif srcs.has(i):
+				var src: Image = srcs[i]
+				var sx := (x * px) % maxi(src.get_width() - px + 1, 1)
+				var sy := (y * px) % maxi(src.get_height() - px + 1, 1)
+				img.blit_rect(src, Rect2i(sx, sy, px, px), Vector2i(x * px, y * px))
+			else:
+				img.fill_rect(Rect2i(x * px, y * px, px, px), col)
+	return img
 
 
 ## The template's art as an Image (RGBA8), or null.

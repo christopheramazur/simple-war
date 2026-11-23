@@ -104,21 +104,48 @@ static func sees_at_reveal(state: BattleState, player: int, trigger: int) -> boo
 	return row >= 0 and state.squads.seen_by[row] & BattleSquads.bit(player) != 0
 
 
+## Whether any squad owns a reaction ability (else a forecast finds no
+## opportunity, and only the telegraphs would need its run).
+static func any_reactions(state: BattleState) -> bool:
+	var t := state.abilities
+	for row in t.count():
+		if state.rules.ab_reaction[t.ability[row]] == 1:
+			return true
+	return false
+
+
 ## Runs the coming turn on a scratch copy and returns opportunities (only
 ## against triggers the reacting player sees at Reveal, sees_at_reveal):
 ## [{"squad", "player", "trigger", "tick", "reactions": [names]}] in
 ## canonical order (tick, squad ID, trigger ID).
 static func forecast(state: BattleState, sim: BattleSim) -> Array:
+	return forecast_all(state, sim)["opportunities"]
+
+
+## The same scratch run, with the enemy attack telegraphs (sw-7o7) taken
+## from it, so there is no second turn sim: {"opportunities": forecast(),
+## "telegraphs": [{"attacker", "target", "player" (the target's), "damage"
+## (fixed, summed over the turn from the sim's own squad_damaged events),
+## "kills", "tick" (first damage)}]} in (tick, attacker, target) order. Only
+## committed attacks on a squad whose attacker its player sees at Reveal
+## (sees_at_reveal): hidden attackers and drafts never show. It assumes
+## the orders stay as committed; a reaction changes the real result.
+static func forecast_all(state: BattleState, sim: BattleSim, telegraphs_wanted: bool = true) -> Dictionary:
+	if not telegraphs_wanted and not any_reactions(state):
+		return {"opportunities": [], "telegraphs": []}  # nothing to react with: skip the scratch turn (sw-kd5)
 	var scratch := BattleState.new(state.id, state.rules)
 	scratch.restore(state.snapshot())
 	Centroids.update(scratch)
 	var seen := {}
 	var out := []
+	var hits := {}
 	scratch.begin_turn()
 	for _t in state.rules.ticks_per_turn:
 		sim.runner.step(scratch)
 		var sq := scratch.squads
 		for e in scratch.turn_log:
+			if e.type == &"squad_damaged":
+				_tally(state, hits, e)
 			if e.type != &"engagement" or seen.has("%d,%d" % [e.data["squad"], e.data["target"]]):
 				continue
 			var a: int = e.data["squad"]
@@ -140,4 +167,28 @@ static func forecast(state: BattleState, sim: BattleSim) -> Array:
 		if x["squad"] != y["squad"]:
 			return x["squad"] < y["squad"]
 		return x["trigger"] < y["trigger"])
-	return out
+	var telegraphs := hits.values()
+	telegraphs.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
+		if x["tick"] != y["tick"]:
+			return x["tick"] < y["tick"]
+		if x["attacker"] != y["attacker"]:
+			return x["attacker"] < y["attacker"]
+		return x["target"] < y["target"])
+	return {"opportunities": out, "telegraphs": telegraphs}
+
+
+static func _tally(state: BattleState, hits: Dictionary, e: Variant) -> void:
+	var sq := state.squads
+	var a: int = e.data["squad"]
+	var b: int = e.data["target"]
+	var arow := sq.row_of(a)
+	var brow := sq.row_of(b)
+	if arow < 0 or brow < 0 or sq.player[arow] == sq.player[brow]:
+		return
+	if not sees_at_reveal(state, sq.player[brow], a):
+		return
+	var key := "%d,%d" % [a, b]
+	if not hits.has(key):
+		hits[key] = {"attacker": a, "target": b, "player": sq.player[brow], "damage": 0, "kills": 0, "tick": e.tick}
+	hits[key]["damage"] += int(e.data["damage"])
+	hits[key]["kills"] += int(e.data["kills"])

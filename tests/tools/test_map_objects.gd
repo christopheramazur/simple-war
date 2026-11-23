@@ -60,7 +60,7 @@ func test_a_scenario_opens_with_its_zones_and_sides() -> void:
 	var after := BattleRules.compile(m.templates, "duel_crossroads")
 	assert_eq(after.errors, PackedStringArray())
 	assert_eq([after.zn_x, after.zn_y, after.zn_radius, after.sides], [before.zn_x, before.zn_y, before.zn_radius, before.sides])
-	assert_eq(m.templates.values_of("duel_crossroads")["victory"]["score_target"], 20, "what it does not edit is kept")
+	assert_eq(m.templates.values_of("duel_crossroads")["victory"]["score_target"], 10, "what it does not edit is kept")
 	# A child scenario gets its parent's sides.
 	var drill := ScenarioCanvas.open(m.templates, JSON.parse_string(m.definition_text("hangar_drill")))
 	assert_eq(drill.sides.size(), 2)
@@ -230,3 +230,66 @@ func test_selecting_a_map_on_the_left_opens_it_for_play() -> void:
 	p.select("ow_field")
 	assert_eq([p.painter().canvas.id, p.painter().scenario.id], ["field_map", "ow_field"], "a scenario opens with its map")
 	assert_eq(MainMenu.play_map(screen, p, "profile_utility"), "")
+
+
+## Victory settings (Data Model 03 'victory', GDD 04 §4.9, sw-bel): read, set
+## with checks, and written as the scenario's own keys only.
+func test_victory_settings_are_read_set_and_written() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := ScenarioCanvas.open(m.templates, JSON.parse_string(m.definition_text("duel_crossroads")))
+	assert_eq([c.victory_value("turn_limit"), c.victory_value("primary"), c.victory_value("score_target")], [10, "influence", 10])
+	assert_eq(c.set_victory("turn_limit", 0), "the turn limit is at least 1")
+	assert_eq(c.set_victory("primary", "tempo"), "the primary score is influence or value")
+	assert_eq(c.set_victory("score_target", -1), "the score target is 0 or more (0 is none)")
+	assert_eq(c.set_victory("loot", 3), "no victory setting 'loot'")
+	assert_false(c.dirty, "refused changes change nothing")
+	c.mark_saved()
+	c.begin()
+	assert_eq(c.set_victory("turn_limit", 6), "")
+	assert_eq(c.set_victory("withdrawal", false), "")
+	assert_eq(c.set_victory("primary", "value"), "")
+	assert_true(c.dirty)
+	assert_eq(m.replace("duel_crossroads", c.definition_text()), PackedStringArray())
+	var after := BattleRules.compile(m.templates, "duel_crossroads")
+	assert_eq([after.turn_limit, after.primary_influence, after.withdrawal], [6, false, false])
+	c.undo()
+	assert_eq([c.victory_value("turn_limit"), c.victory_value("withdrawal")], [10, true])
+
+
+func test_an_inherited_victory_setting_writes_only_the_change() -> void:
+	var m := PackageEditor.open(COPY)
+	var drill := ScenarioCanvas.open(m.templates, JSON.parse_string(m.definition_text("hangar_drill")))
+	assert_eq(drill.victory_value("turn_limit"), 10, "inherited from duel_crossroads")
+	assert_false(drill.values().has("victory"), "nothing is written until a setting changes")
+	drill.begin()
+	assert_eq(drill.set_victory("turn_limit", 4), "")
+	assert_eq(drill.values()["victory"], {"turn_limit": 4}, "only the change is written")
+	assert_eq(m.replace("hangar_drill", drill.definition_text()), PackedStringArray())
+	assert_eq(BattleRules.compile(m.templates, "hangar_drill").turn_limit, 4)
+	assert_eq(BattleRules.compile(m.templates, "duel_crossroads").turn_limit, 10, "the parent keeps its own")
+
+
+func test_the_victory_form_edits_the_open_scenario() -> void:
+	var p := _panel()
+	var mp := p.painter()
+	assert_true(mp.open_map("crossroads_map"))
+	mp.set_tool(MapPainter.Tool.OBJECT)
+	assert_eq(mp.selected, {}, "the form shows with nothing selected")
+	var turns: SpinBox = mp._object_box.find_child("VictoryTurnLimit", true, false)
+	assert_eq(int(turns.value), 10)
+	turns.value = 6
+	assert_eq(mp.scenario.victory_value("turn_limit"), 6)
+	var primary: OptionButton = mp._object_box.find_child("VictoryPrimary", true, false)
+	primary.select(1)
+	primary.item_selected.emit(1)
+	assert_eq(mp.scenario.victory_value("primary"), "value")
+	var withdrawal: CheckBox = mp._object_box.find_child("Victory_withdrawal", true, false)
+	withdrawal.button_pressed = false
+	assert_eq(mp.scenario.victory_value("withdrawal"), false)
+	mp.undo()
+	assert_eq(mp.scenario.victory_value("withdrawal"), true, "undo acts on the form's change too")
+	assert_eq(mp.save(), PackedStringArray())
+	var saved: Dictionary = PackageEditor.open(COPY).templates.values_of("duel_crossroads")["victory"]
+	assert_eq([saved["turn_limit"], saved["primary"], saved["withdrawal"]], [6, "value", true])
+	assert_true(mp.open_scenario(""))
+	assert_null(mp._object_box.find_child("VictoryTurnLimit", true, false), "no form without a scenario")

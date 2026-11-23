@@ -17,8 +17,16 @@ var zone_owner: PackedInt64Array = PackedInt64Array()
 var zone_amount: PackedInt64Array = PackedInt64Array()
 ## 1 = locked (scripted objectives): no influence, no score.
 var zone_locked: PackedByteArray = PackedByteArray()
+## Scripted reveals (trigger reveal_area): [player, x, y, radius, expires_turn]
+## in fixed point; expires_turn -1 = permanent. Squads inside count as seen by
+## the player while the reveal lasts (VisionSystem).
+var reveals: Array = []
 ## Trigger variables and fire counts (Triggers).
 var vars: Dictionary = {}
+## Player-configured auto-off rules (R8Q2): player -> {ability id -> {"turns":
+## int, 0 = none; "band": int index into DataSchema.BANDS, -1 = none}}. Match
+## inputs: hashed and saved. The data band stays the fallback default.
+var auto_off_rules: Dictionary = {}
 var fired: Dictionary = {}
 ## player -> Victory Points from zones (Influence score).
 var influence: Dictionary = {}
@@ -89,6 +97,18 @@ func record_flow(squad_id: int, pool: int, source: StringName, amount: int) -> v
 	ledger[key] = int(ledger.get(key, 0)) + amount
 
 
+## One squad pool's ledger: [{"source": String, "amount": int (fixed)}], the
+## net flow per source over the battle, sorted by source (sw-1jy.6). Read-only.
+func ledger_of(squad_id: int, pool: int) -> Array:
+	var prefix := "%d|%d|" % [squad_id, pool]
+	var out := []
+	for k: String in ledger:
+		if k.begins_with(prefix):
+			out.append({"source": k.substr(prefix.length()), "amount": int(ledger[k])})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a["source"]) < String(b["source"]))
+	return out
+
+
 func _snapshot_extra(snap: Dictionary) -> void:
 	snap["battle"] = {
 		"turn": turn, "players": players.duplicate(),
@@ -96,6 +116,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"influence": influence.duplicate(), "value_score": value_score.duplicate(),
 		"ledger": ledger.duplicate(), "result": result.duplicate(true),
 		"zone_locked": zone_locked.duplicate(), "vars": vars.duplicate(), "fired": fired.duplicate(),
+		"auto_off_rules": auto_off_rules.duplicate(true), "reveals": reveals.duplicate(true),
 	}
 
 
@@ -112,6 +133,8 @@ func _restore_extra(snap: Dictionary) -> void:
 	zone_locked = (b.get("zone_locked", rules.zn_locked) as PackedByteArray).duplicate()
 	vars = (b.get("vars", {}) as Dictionary).duplicate()
 	fired = (b.get("fired", {}) as Dictionary).duplicate()
+	auto_off_rules = (b.get("auto_off_rules", {}) as Dictionary).duplicate(true)
+	reveals = (b.get("reveals", []) as Array).duplicate(true)
 
 
 ## Hash includes battle-level state beyond the tables.
@@ -132,7 +155,11 @@ func state_hash() -> PackedByteArray:
 		text += "P%d:%d:%d;" % [p, influence[p], value_score[p]]
 	text += JSON.stringify(result, "", true)
 	text += TriggerRules.hash_text(vars, fired)
+	if not auto_off_rules.is_empty():
+		text += "AO" + JSON.stringify(auto_off_rules, "", true)
 	if zone_locked.size() > 0:
 		h.update(zone_locked)
+	if not reveals.is_empty():
+		text += "RV" + JSON.stringify(reveals)
 	h.update(text.to_utf8_buffer())
 	return h.finish()

@@ -76,6 +76,7 @@ func test_pool_capacity_change_keeps_ratio_and_scales_neutral() -> void:
 
 func test_hp_and_damage_accept_decimals() -> void:
 	var t := TemplateTable.build([
+		{"id": "kinetic", "kind": "tag", "values": {"damage_type": true}},
 		{"id": "d", "kind": "defense", "values": {"flat": "0.5", "floor": {"kinetic": "0.25"}}},
 		{"id": "m", "kind": "movement", "values": {"walk": 1, "run": 2}},
 		{"id": "u", "kind": "unit", "values": {"hp": "2.5", "defense": "d", "movement": "m"}},

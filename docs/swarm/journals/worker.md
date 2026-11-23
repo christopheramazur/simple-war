@@ -23,3 +23,29 @@
 - tests: hx godot check 0 errors; full hx godot test 493/493 (7974 asserts).
 - next: orchestrator review/merge; attempt 2 = F4 text floors once sw-ll4.27.3/.6 merge (do not touch squad_card/context_view before then).
 - blocked/asked: none. War-room 640x360 stage (battle col 290 + side min 220) runtime-verify left as follow-up, out of attempt-1 scope.
+
+## 2026-11-22 turn (autopilot, sw-rlg)
+- did: mock_runner.gd now writes <name>_greyscale/_protan/_deutan.png beside the normal PNG via new shared src/presentation/mocks/cvd_sim.gd (same Machado 2009 / WCAG maths as team_palette_mock); godot.py mock_variant_paths + `variants` in output; README documented; pytest added. Proof: team_palette mock -> 3 variants.
+- decided: conversion on the Godot side (no Python deps); normal PNG path/content untouched.
+- tests: hx godot check 0 errors; pytest run.
+
+## 2026-11-22 turn (autopilot, sw-kys.9)
+- did: wrote docs/swarm/research/notes/cc0-asset-shortlist.md. Kenney (carried forward) and SBS Town Pack (CC0 verified verbatim on the page) are usable. Other SBS iso packs (not linked from the page) and the Blarumyrran OGA sprites (403 on the page, search excerpt only) are marked unverified/unusable.
+- decided: a search excerpt is not page verification, so Blarumyrran stays unusable until a person reads the page.
+- tests: docs-only, none.
+
+## 2026-11-22 turn (autopilot, sw-136.3)
+- did: wrote docs/swarm/research/notes/angelfall-tutorial-pacing-gaps.md: 4 gaps (stakes escalation, objective ordering, first lift-off vs taught mechanics, first battle is the finale), each with options and GDD refs.
+- decided: options only, no chosen fix, no GDD/code/data edits.
+- tests: docs-only, none.
+
+## 2026-11-22 turn (autopilot, sw-136.4)
+- did: wrote docs/swarm/research/notes/angelfall-glossary-tooltip-audit.md: term-by-term table (hover y/n, glossary y/n), 9 candidate follow-ups, legibility at 1280x800, no-mouse reachability.
+- found: only `_title()` headings and the Events log are hoverable; squad card, battle panel, hex card, phase text are plain Labels; no keyboard/controller path to any tooltip; Ruin term clashes with the ruins terrain; "Reserve" meaning clash. Glossary card definition is 13 px (native tooltip 14 px).
+- decided: audit only, no beads filed, sw-dqj and sw-vld referenced not re-reported. Nothing was run in-engine.
+- tests: docs-only, none.
+
+## 2026-11-22 turn (autopilot, sw-eo8.7)
+- did: per-player auto-off rules (R8Q2). BattleState.auto_off_rules (saved, hashed); Abilities.set_auto_off/auto_off_rule; Abilities.tick ends a toggle after `turns` battle turns or at/below a `band` override (data band stays default); BattleSession.set_auto_off logged as input "auto_off" and replayed. 3 GUT tests.
+- decided: "turns" counts from the `since` tick, ending on the last tick of turn X; band override is at-or-below, same as the data band. Sim + API only, no UI.
+- tests: hx godot check 0 errors; hx godot test 518/518.

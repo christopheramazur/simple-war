@@ -32,6 +32,9 @@ var dirty: bool = false
 var revision: int = 0
 ## What loading changed or could not show.
 var notes: PackedStringArray = PackedStringArray()
+## The stamps the edit since the last `begin` turned into painted cells, so
+## that paint could land on top of them (see `_flatten_at`).
+var flattened: PackedStringArray = PackedStringArray()
 
 var _t: TemplateTable
 var _def: Dictionary = {}
@@ -39,6 +42,8 @@ var _undo: Array[Dictionary] = []
 var _redo: Array[Dictionary] = []
 var _composite: Dictionary = {}
 var _composite_rev: int = -1
+## Stamped maps drawn on a grid, by "map@rotate" (see `_stamp_grid`).
+var _grids: Dictionary = {}
 
 
 ## Opens an existing battle map. `def` is its definition as written (so
@@ -91,6 +96,7 @@ static func create(t: TemplateTable, map_id: String, w: int, h: int, base_featur
 ## The package was reloaded: read stamps and features from the new table.
 func set_templates(t: TemplateTable) -> void:
 	_t = t
+	_grids = {}
 	revision += 1
 
 
@@ -103,6 +109,7 @@ func mark_saved() -> void:
 ## Call once before each stroke or edit: everything until the next `begin`
 ## is one undo step.
 func begin() -> void:
+	flattened = PackedStringArray()
 	_undo.append(_snapshot())
 	if _undo.size() > UNDO_MAX:
 		_undo.pop_front()
@@ -147,13 +154,17 @@ func line(x0: int, y0: int, x1: int, y1: int, feature: int, facing: int, size: i
 			y += sy
 
 
-## Fills the painted cells joined to x, y (by an edge) that match it.
+## Fills the cells joined to x, y (by an edge) that look the same as it,
+## stamps included: what the map shows, not only the painted layer.
 func fill(x: int, y: int, feature: int, facing: int) -> void:
 	if x < 0 or y < 0 or x >= width or y >= height:
 		return
+	var shown := composite()
+	var sf: PackedInt32Array = shown["feature"]
+	var sfc: PackedByteArray = shown["facing"]
 	var start := y * width + x
-	var f := feat[start]
-	var fc := face[start]
+	var f := sf[start]
+	var fc := sfc[start]
 	if f == feature and fc == facing:
 		return
 	var seen := PackedByteArray()
@@ -167,7 +178,7 @@ func fill(x: int, y: int, feature: int, facing: int) -> void:
 		region.append(i)
 		var cx := i % width
 		for n: int in [i - width, i + width, i - 1 if cx > 0 else -1, i + 1 if cx < width - 1 else -1]:
-			if n >= 0 and n < seen.size() and seen[n] == 0 and feat[n] == f and face[n] == fc:
+			if n >= 0 and n < seen.size() and seen[n] == 0 and sf[n] == f and sfc[n] == fc:
 				seen[n] = 1
 				stack.append(n)
 	for i in region:
@@ -227,6 +238,15 @@ func remove_stamp(index: int) -> void:
 	_changed()
 
 
+## Moves a stamp so its top-left corner is at x, y.
+func move_stamp(index: int, x: int, y: int) -> void:
+	if int(stamps[index]["x"]) == x and int(stamps[index]["y"]) == y:
+		return
+	stamps[index]["x"] = x
+	stamps[index]["y"] = y
+	_changed()
+
+
 func stamp_rect(index: int) -> Rect2i:
 	var s := stamps[index]
 	return Rect2i(Vector2i(s["x"], s["y"]), stamp_size(s["stamp"], s["rotate"]))
@@ -275,10 +295,9 @@ func composite() -> Dictionary:
 	var cf := feat.duplicate()
 	var cface := face.duplicate()
 	for s in stamps:
-		var grid := _raster(s["stamp"], PackedStringArray([id]))
+		var grid := _stamp_grid(s)
 		if grid.is_empty():
 			continue
-		grid = BattleRules._turned(grid, int(s["rotate"]) / 90)
 		var sw: int = grid["w"]
 		var sfeat: PackedInt32Array = grid["feature"]
 		var sface: PackedByteArray = grid["facing"]
@@ -332,6 +351,45 @@ func cells() -> Array[Dictionary]:
 			e["rotate"] = s["rotate"]
 		out.append(e)
 	return out
+
+
+## The cells inside `area` (clipped to the map) as a new map's definition
+## text, stamps drawn in: what "Save selection as a map" writes. Empty if the
+## area has no cells.
+func selection_text(area: Rect2i, new_id: String) -> String:
+	var r := area.intersection(Rect2i(0, 0, width, height))
+	if r.size.x <= 0 or r.size.y <= 0:
+		return ""
+	var c := MapCanvas.create(_t, new_id, r.size.x, r.size.y, features[base])
+	var comp := composite()
+	var cf: PackedInt32Array = comp["feature"]
+	var cface: PackedByteArray = comp["facing"]
+	for y in r.size.y:
+		for x in r.size.x:
+			c.feat[y * r.size.x + x] = cf[(r.position.y + y) * width + r.position.x + x]
+			c.face[y * r.size.x + x] = cface[(r.position.y + y) * width + r.position.x + x]
+	return c.definition_text()
+
+
+## The piece of a wall or road to draw at a cell, from its neighbours
+## (ConnectShape): joins the cell's own feature and the ones its `connects`
+## lists (a feature with no `connects` field draws no pieces). {} if so, else {"shape", "turn"}. Drawing
+## only.
+func shape_at(x: int, y: int) -> Dictionary:
+	var comp := composite()
+	var fid := features[comp["feature"][y * width + x]]
+	var v := _t.values_of(fid)
+	if not v.has("connects"):
+		return {}
+	var links: Array = v["connects"]
+	var joins := func(dx: int, dy: int) -> bool:
+		var nx := x + dx
+		var ny := y + dy
+		if nx < 0 or ny < 0 or nx >= width or ny >= height:
+			return false
+		var other := features[comp["feature"][ny * width + nx]]
+		return other == fid or links.has(other)
+	return ConnectShape.of(ConnectShape.mask_of(joins))
 
 
 ## The template's definition text, laid out like the hand-written data files
@@ -400,6 +458,8 @@ func _mark(x: int, y: int, feature: int, facing: int) -> void:
 func _put(x: int, y: int, feature: int, facing: int) -> void:
 	if x < 0 or y < 0 or x >= width or y >= height:
 		return
+	if not stamps.is_empty():
+		_flatten_at(x, y)
 	var i := y * width + x
 	if feat[i] == feature and face[i] == facing:
 		return
@@ -437,6 +497,77 @@ func _restore(s: Dictionary) -> void:
 	height = s["height"]
 	base = s["base"]
 	_changed()
+
+
+## Paint lands on top: if a stamp shows at x, y, that stamp becomes painted
+## cells first, with every stamp below it that it overlaps (so nothing that
+## was hidden under it shows through), and the edit paints over them. The
+## names go in `flattened`; undo brings the stamps back.
+func _flatten_at(x: int, y: int) -> void:
+	var hit := -1
+	for i in range(stamps.size() - 1, -1, -1):
+		if _stamp_paints(i, x, y):
+			hit = i
+			break
+	if hit < 0:
+		return
+	var take := {hit: true}
+	var grew := true
+	while grew:
+		grew = false
+		for j in hit:
+			if take.has(j):
+				continue
+			for k: int in take:
+				if k > j and stamp_rect(j).intersects(stamp_rect(k)):
+					take[j] = true
+					grew = true
+					break
+	var order: Array = take.keys()
+	order.sort()
+	for i: int in order:
+		var s := stamps[i]
+		var grid := _stamp_grid(s)
+		if grid.is_empty():
+			continue
+		var sw: int = grid["w"]
+		var sfeat: PackedInt32Array = grid["feature"]
+		var sface: PackedByteArray = grid["facing"]
+		for sy in int(grid["h"]):
+			var yy := int(s["y"]) + sy
+			if yy < 0 or yy >= height:
+				continue
+			for sx in sw:
+				var xx := int(s["x"]) + sx
+				if xx >= 0 and xx < width and sfeat[sy * sw + sx] >= 0:
+					feat[yy * width + xx] = sfeat[sy * sw + sx]
+					face[yy * width + xx] = sface[sy * sw + sx]
+	order.reverse()
+	for i: int in order:
+		flattened.append(str(stamps[i]["stamp"]))
+		stamps.remove_at(i)
+	_changed()
+
+
+## Whether stamp `index` paints the cell x, y (its own cells, not the gaps).
+func _stamp_paints(index: int, x: int, y: int) -> bool:
+	var s := stamps[index]
+	if not stamp_rect(index).has_point(Vector2i(x, y)):
+		return false
+	var grid := _stamp_grid(s)
+	if grid.is_empty():
+		return false
+	return (grid["feature"] as PackedInt32Array)[(y - int(s["y"])) * int(grid["w"]) + x - int(s["x"])] >= 0
+
+
+## A stamp entry's map drawn on a grid and turned, as the composite places
+## it. Empty if it can't be drawn.
+func _stamp_grid(s: Dictionary) -> Dictionary:
+	var key := "%s@%d" % [s["stamp"], int(s["rotate"])]
+	if not _grids.has(key):
+		var grid := _raster(s["stamp"], PackedStringArray([id]))
+		_grids[key] = {} if grid.is_empty() else BattleRules._turned(grid, int(s["rotate"]) / 90)
+	return _grids[key]
 
 
 ## Another map's own entries on a grid of its size, as BattleRules draws a

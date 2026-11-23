@@ -15,16 +15,28 @@ extends HSplitContainer
 ## squads) in the panel. Save writes the map and the scenario.
 ##
 ## Mouse: left paints, right paints the base feature (or removes a stamp
-## with the Stamp tool), middle drags the view, the wheel zooms.
+## with the Stamp tool), middle drags the view, the wheel zooms. Paint lands
+## on top of stamps: a stamp painted on becomes painted cells (undo brings
+## it back), and Fill and Pick go by what the map shows.
 ## Keys (over the map): B R L F I S O pick a tool, arrows set the facing,
 ## Backspace clears it, Delete removes the selected object, Ctrl+Z /
 ## Ctrl+Y undo and redo (of the scenario while the Objects tool is on).
 
 signal saved(map_id: String)
 
-enum Tool { BRUSH, RECT, LINE, FILL, PICK, STAMP, OBJECT }
+enum Tool { BRUSH, RECT, LINE, FILL, PICK, STAMP, OBJECT, SELECT }
 
-const TOOL_NAMES: PackedStringArray = ["Brush (B)", "Rectangle (R)", "Line (L)", "Fill (F)", "Pick (I)", "Stamp (S)", "Objects (O)"]
+const TOOL_NAMES: PackedStringArray = ["Brush (B)", "Rectangle (R)", "Line (L)", "Fill (F)", "Pick (I)", "Stamp (S)", "Objects (O)", "Select (M)"]
+const TOOL_TIPS: PackedStringArray = [
+	"Left paints the feature, right paints the base. Paint lands on top of stamps.",
+	"Drag a rectangle of the feature (right button: the base)",
+	"Drag a line of brush marks (right button: the base)",
+	"Fill the joined cells that look the same (right button: the base)",
+	"Pick the feature and facing under the cursor",
+	"Left places the chosen map as a stamp; right-click a stamp to remove it",
+	"Select, move and resize the scenario's zones and deployment areas",
+	"Drag a marquee over cells, or pick up a stamp to move it (Delete removes it)",
+]
 const MIRROR_NAMES: PackedStringArray = ["No mirror", "Left and right", "Top and bottom", "Four ways", "Half turn"]
 const FACING_NAMES: PackedStringArray = ["No facing", "North", "East", "South", "West"]
 
@@ -42,9 +54,16 @@ var facing: int = 0
 var brush: int = 1
 var stamp_id: String = ""
 var stamp_rotate: int = 0
+## The Select tool's marquee in cells (size zero when there is none) and the
+## stamp picked up by it (-1 for none).
+var selection: Rect2i = Rect2i()
+var selected_stamp: int = -1
 ## One colour per feature of `feature_ids`.
 var feature_ids: PackedStringArray = PackedStringArray()
 var colors: Array[Color] = []
+## The edited package's art (sw-8rk): ground textures on the canvas and in the
+## feature list, colours where a feature has none. Null without a package.
+var art: ArtSet
 
 var view: MapView
 var _maps: OptionButton
@@ -64,6 +83,7 @@ var _rotate: OptionButton
 var _file: OptionButton
 var _result: Label
 var _status: Label
+var _selection_id: LineEdit
 var _undo: Button
 var _redo: Button
 
@@ -78,6 +98,7 @@ func set_model(m: PackageEditor) -> void:
 	model = m
 	if model.templates == null:
 		return
+	art = ArtSet.from_loader(model.loader) if model.loader != null else null
 	feature_ids = PackedStringArray()
 	colors = []
 	for id in model.templates.ids():
@@ -198,6 +219,13 @@ func select_object(sel: Dictionary) -> void:
 
 ## Removes the selected object.
 func remove_selected() -> void:
+	if tool == Tool.SELECT:
+		if canvas != null and selected_stamp >= 0 and selected_stamp < canvas.stamps.size():
+			canvas.begin()
+			canvas.remove_stamp(selected_stamp)
+			selected_stamp = -1
+			changed()
+		return
 	if scenario == null or selected.is_empty():
 		return
 	scenario.begin()
@@ -207,6 +235,32 @@ func remove_selected() -> void:
 		scenario.remove_side(selected["index"])
 	select_object({})
 	changed()
+
+
+## Makes the cells inside the selection a new map, added to the chosen data
+## file, so it can be stamped. Returns the errors.
+func save_selection_as_map(id: String) -> PackedStringArray:
+	if canvas == null or selection.size.x <= 0 or selection.size.y <= 0:
+		return _refuse("Select some cells first (Select tool, drag over the map).")
+	if id.is_empty() or model.file_of(id) != "":
+		return _refuse("A new map needs an id nothing else uses.")
+	var text := canvas.selection_text(selection, id)
+	if text.is_empty():
+		return _refuse("The selection is outside the map.")
+	var errs := model.add(text, _file.get_item_text(_file.selected))
+	if not errs.is_empty():
+		_say("Not saved:
+" + "
+".join(errs))
+		return errs
+	_say("Saved the selection as the map '%s' in %s. It is in the Stamp list." % [id, model.file_of(id)])
+	set_model(model)
+	return errs
+
+
+func _refuse(why: String) -> PackedStringArray:
+	_say(why)
+	return PackedStringArray([why])
 
 
 ## Starts a new map. It joins the package when it is saved.
@@ -354,6 +408,8 @@ func changed() -> void:
 	else:
 		_undo.disabled = canvas == null or not canvas.can_undo()
 		_redo.disabled = canvas == null or not canvas.can_redo()
+		if canvas != null and not canvas.flattened.is_empty():
+			_say("Painted over the stamp %s: it is painted cells now (Ctrl+Z brings it back). To remove a whole stamp, right-click it with the Stamp tool." % ", ".join(canvas.flattened))
 	view.queue_redraw()
 
 
@@ -373,6 +429,20 @@ func show_cell(cell: Vector2i) -> void:
 	if s >= 0:
 		text += "  ·  stamp " + str(canvas.stamps[s]["stamp"])
 	_status.text = text + ("    (unsaved)" if canvas.dirty else "")
+
+
+## A feature's list swatch (sw-8rk): its ground texture when the package has
+## one (scaled to the swatch), else its colour.
+func _swatch(id: String, color: Color) -> Texture2D:
+	var src: Image = art.image(id, "texture") if art != null else null
+	var img: Image
+	if src != null:
+		img = src.duplicate()
+		img.resize(14, 14, Image.INTERPOLATE_NEAREST)
+	else:
+		img = Image.create(14, 14, false, Image.FORMAT_RGB8)
+		img.fill(color)
+	return ImageTexture.create_from_image(img)
 
 
 ## A feature's `color`, or a steady made-up one for features without it.
@@ -442,6 +512,7 @@ func _build() -> void:
 	for i in TOOL_NAMES.size():
 		var b := Button.new()
 		b.text = TOOL_NAMES[i]
+		b.tooltip_text = TOOL_TIPS[i]
 		b.toggle_mode = true
 		b.button_pressed = i == tool
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -472,6 +543,7 @@ func _build() -> void:
 
 	side.add_child(_heading("Stamp"))
 	_stamps = OptionButton.new()
+	_stamps.tooltip_text = "The map the Stamp tool places. Right-click a stamp with the Stamp tool to remove it."
 	_stamps.item_selected.connect(func(i: int) -> void:
 		stamp_id = _stamps.get_item_text(i)
 		set_tool(Tool.STAMP))
@@ -480,6 +552,13 @@ func _build() -> void:
 		stamp_rotate = i * 90
 		view.queue_redraw())
 	side.add_child(_rotate)
+	_selection_id = LineEdit.new()
+	_selection_id.placeholder_text = "id for the selection as a map"
+	side.add_child(_selection_id)
+	side.add_child(_button("Save selection as a map", func() -> void:
+		if save_selection_as_map(_selection_id.text.strip_edges()).is_empty():
+			_selection_id.text = "",
+		"Select tool (M): drag over cells, or click a stamp to move it"))
 
 	side.add_child(_heading("Save"))
 	var undo_row := HBoxContainer.new()
@@ -560,10 +639,8 @@ func _fill_lists() -> void:
 		stamp_id = _stamps.get_item_text(at)
 	_features.clear()
 	for i in feature_ids.size():
-		var img := Image.create(14, 14, false, Image.FORMAT_RGB8)
-		img.fill(colors[i])
 		var label := str(model.templates.values_of(feature_ids[i]).get("name", feature_ids[i]))
-		_features.add_item("%s  (%s)" % [label, feature_ids[i]], ImageTexture.create_from_image(img))
+		_features.add_item("%s  (%s)" % [label, feature_ids[i]], _swatch(feature_ids[i], colors[i]))
 	set_feature(feature)
 	var keep := _file.get_item_text(_file.selected) if _file.selected >= 0 else ""
 	if keep.is_empty() and _maps.item_count > 0:
@@ -614,13 +691,49 @@ func _add_side() -> void:
 	changed()
 
 
-## The panel for the selected object.
+## The panel for the selected object, and under it the scenario's victory
+## settings.
 func _fill_object_box() -> void:
 	if _object_box == null:
 		return
 	for c in _object_box.get_children():
 		_object_box.remove_child(c)
 		c.queue_free()
+	_add_selection_box()
+	if scenario != null:
+		_add_victory_form()
+
+
+## The victory settings of the open scenario (Data Model 03 'victory'). A value
+## the scenario inherits shows as it is; a change writes the scenario's own.
+func _add_victory_form() -> void:
+	_object_box.add_child(_heading("Victory"))
+	var tl := _spin(1, 999, int(scenario.victory_value("turn_limit")))
+	tl.name = "VictoryTurnLimit"
+	tl.tooltip_text = "The battle ends on this turn; the side in the lead wins"
+	tl.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_victory("turn_limit", int(v))))
+	_object_box.add_child(_field("Turn limit", tl))
+	var pr := _options(PackedStringArray(["Influence", "Value"]), func(at: int) -> void:
+		_edit(func() -> String: return scenario.set_victory("primary", ScenarioCanvas.VICTORY_PRIMARIES[at])))
+	pr.name = "VictoryPrimary"
+	pr.tooltip_text = "The score the target and the turn limit count"
+	pr.select(maxi(ScenarioCanvas.VICTORY_PRIMARIES.find(str(scenario.victory_value("primary"))), 0))
+	_object_box.add_child(_field("Primary score", pr))
+	var st := _spin(0, 9999, int(scenario.victory_value("score_target")))
+	st.name = "VictoryScoreTarget"
+	st.tooltip_text = "A side that reaches this primary score wins at once; 0 means no score win"
+	st.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_victory("score_target", int(v))))
+	_object_box.add_child(_field("Score target", st))
+	for key: String in ["annihilation", "withdrawal"]:
+		var cb := CheckBox.new()
+		cb.name = "Victory_" + key
+		cb.text = {"annihilation": "A side with no squads fielded loses", "withdrawal": "A side that withdraws its last squads loses"}[key]
+		cb.button_pressed = bool(scenario.victory_value(key))
+		cb.toggled.connect(func(on: bool) -> void: _edit(func() -> String: return scenario.set_victory(key, on)))
+		_object_box.add_child(cb)
+
+
+func _add_selection_box() -> void:
 	if scenario == null:
 		_object_box.add_child(_hint("Pick a scenario above, or give a new one an id and press New, to place zones and deployment areas."))
 		return
@@ -743,6 +856,9 @@ func _select_map(id: String) -> void:
 func _use(c: MapCanvas) -> void:
 	# Saving reopens the same map: keep the zoom and position then.
 	var same := canvas != null and canvas.id == c.id and canvas.width == c.width and canvas.height == c.height
+	if not same:
+		selection = Rect2i()
+		selected_stamp = -1
 	canvas = c
 	canvas.mirror = _mirror.selected
 	_new_w.value = c.width
@@ -790,6 +906,8 @@ class MapView:
 	const INK := Color("e6b450")
 	const GRID_FROM := 6.0
 	const ARROWS_FROM := 9.0
+	## Wall pieces (ConnectShape) are drawn from the zoom the arrows are.
+	const SHAPES_FROM := 9.0
 
 	var painter: MapPainter
 	## Pixels per cell, and where the map's top-left corner is drawn.
@@ -800,6 +918,10 @@ class MapView:
 	var _tex: ImageTexture
 	var _tex_rev: int = -1
 	var _tex_of: MapCanvas
+	## The wall piece at each cell (pieces_for): the sides it joins, -1 for none.
+	var _pieces: PackedInt32Array = PackedInt32Array()
+	var _pieces_rev: int = -1
+	var _pieces_of: MapCanvas
 	## The view shows the whole map until the user zooms or drags it.
 	var _auto_fit: bool = true
 	var _panning: bool = false
@@ -815,6 +937,11 @@ class MapView:
 	var _held_base: Vector2i
 	var _held_resize: bool = false
 	var _held_moved: bool = false
+	## The Select tool: dragging a marquee, or a stamp (and where it was).
+	var _marquee: bool = false
+	var _stamp_drag: bool = false
+	var _stamp_from: Vector2i
+	var _stamp_base: Vector2i
 
 	func _init() -> void:
 		focus_mode = Control.FOCUS_CLICK
@@ -849,6 +976,9 @@ class MapView:
 		if painter.tool == MapPainter.Tool.OBJECT:
 			_press_object(cell, erase)
 			return
+		if painter.tool == MapPainter.Tool.SELECT:
+			_press_select(cell, erase)
+			return
 		match painter.tool:
 			MapPainter.Tool.BRUSH:
 				c.begin()
@@ -863,8 +993,9 @@ class MapView:
 				c.fill(cell.x, cell.y, _f, _fc)
 			MapPainter.Tool.PICK:
 				if cell.x >= 0 and cell.y >= 0 and cell.x < c.width and cell.y < c.height:
-					painter.set_feature(c.feat[cell.y * c.width + cell.x])
-					painter.set_facing(c.face[cell.y * c.width + cell.x])
+					var shown := c.composite()
+					painter.set_feature((shown["feature"] as PackedInt32Array)[cell.y * c.width + cell.x])
+					painter.set_facing((shown["facing"] as PackedByteArray)[cell.y * c.width + cell.x])
 			MapPainter.Tool.STAMP:
 				var at := c.stamp_at(cell.x, cell.y)
 				if erase and at >= 0:
@@ -876,6 +1007,49 @@ class MapView:
 					if not why.is_empty():
 						c.undo()
 						painter._say(why)
+		painter.changed()
+
+	## The Select tool: a stamp under the cell is picked up to be moved,
+	## otherwise a marquee starts. The right button clears both.
+	func _press_select(cell: Vector2i, erase: bool) -> void:
+		var c := painter.canvas
+		_stamp_drag = false
+		_marquee = false
+		if erase:
+			painter.selection = Rect2i()
+			painter.selected_stamp = -1
+			painter.changed()
+			return
+		var at := c.stamp_at(cell.x, cell.y)
+		if at >= 0:
+			painter.selected_stamp = at
+			painter.selection = c.stamp_rect(at)
+			_stamp_drag = true
+			_held_moved = false
+			_stamp_from = cell
+			_stamp_base = painter.selection.position
+		else:
+			painter.selected_stamp = -1
+			_marquee = true
+			_start = cell
+			painter.selection = Rect2i(cell, Vector2i.ONE)
+		painter.changed()
+
+	func _drag_select(cell: Vector2i) -> void:
+		var c := painter.canvas
+		if _stamp_drag:
+			var to := _stamp_base + cell - _stamp_from
+			if not _held_moved:
+				if to == _stamp_base:
+					return
+				c.begin()
+				_held_moved = true
+			c.move_stamp(painter.selected_stamp, to.x, to.y)
+			painter.selection = c.stamp_rect(painter.selected_stamp)
+		elif _marquee:
+			var lo := Vector2i(mini(_start.x, cell.x), mini(_start.y, cell.y))
+			var hi := Vector2i(maxi(_start.x, cell.x), maxi(_start.y, cell.y))
+			painter.selection = Rect2i(lo, hi - lo + Vector2i.ONE)
 		painter.changed()
 
 	## The Objects tool: select what is at the cell and get ready to drag it
@@ -933,6 +1107,9 @@ class MapView:
 		if painter.tool == MapPainter.Tool.OBJECT:
 			_drag_object(cell)
 			return
+		if painter.tool == MapPainter.Tool.SELECT:
+			_drag_select(cell)
+			return
 		if _stroke and painter.tool == MapPainter.Tool.BRUSH and cell != _last:
 			painter.canvas.line(_last.x, _last.y, cell.x, cell.y, _f, _fc, painter.brush)
 			_last = cell
@@ -940,6 +1117,12 @@ class MapView:
 
 	func release(cell: Vector2i) -> void:
 		var c := painter.canvas
+		if _stamp_drag or _marquee:
+			_stamp_drag = false
+			_marquee = false
+			_held_moved = false
+			painter.changed()
+			return
 		if not _held.is_empty():
 			var moved := _held_moved
 			_held = {}
@@ -1015,6 +1198,7 @@ class MapView:
 			KEY_I: painter.set_tool(MapPainter.Tool.PICK)
 			KEY_S: painter.set_tool(MapPainter.Tool.STAMP)
 			KEY_O: painter.set_tool(MapPainter.Tool.OBJECT)
+			KEY_M: painter.set_tool(MapPainter.Tool.SELECT)
 			KEY_DELETE: painter.remove_selected()
 			KEY_UP: painter.set_facing(1)
 			KEY_RIGHT: painter.set_facing(2)
@@ -1044,6 +1228,13 @@ class MapView:
 				draw_line(origin + Vector2(x, y0) * zoom, origin + Vector2(x, y1) * zoom, GRID)
 			for y in range(y0, y1 + 1):
 				draw_line(origin + Vector2(x0, y) * zoom, origin + Vector2(x1, y) * zoom, GRID)
+		if zoom >= SHAPES_FROM:
+			var pieces := pieces_for(c)
+			for y in range(y0, y1):
+				for x in range(x0, x1):
+					var sides := pieces[y * c.width + x]
+					if sides >= 0:
+						_piece(origin + (Vector2(x, y) + Vector2(0.5, 0.5)) * zoom, sides)
 		if zoom >= ARROWS_FROM:
 			var face: PackedByteArray = c.composite()["facing"]
 			for y in range(y0, y1):
@@ -1064,6 +1255,14 @@ class MapView:
 			draw_arc(mid, 6.0, 0.0, TAU, 16, INK, 1.0)
 		if painter.scenario != null:
 			_draw_objects(painter.scenario)
+		if painter.selection.size.x > 0:
+			var sr := painter.selection
+			var box := Rect2(origin + Vector2(sr.position) * zoom, Vector2(sr.size) * zoom)
+			draw_rect(box, Color(INK, 0.15))
+			draw_dashed_line(box.position, box.position + Vector2(box.size.x, 0), INK, 1.0, 4.0)
+			draw_dashed_line(box.position + Vector2(0, box.size.y), box.end, INK, 1.0, 4.0)
+			draw_dashed_line(box.position, box.position + Vector2(0, box.size.y), INK, 1.0, 4.0)
+			draw_dashed_line(box.position + Vector2(box.size.x, 0), box.end, INK, 1.0, 4.0)
 		if painter.tool != MapPainter.Tool.OBJECT:
 			_draw_cursor(c)
 
@@ -1123,6 +1322,35 @@ class MapView:
 		var hi := Vector2(maxi(from.x, to.x) + 1, maxi(from.y, to.y) + 1)
 		draw_rect(Rect2(origin + lo * zoom, (hi - lo) * zoom), INK, false, 1.0)
 
+	## The wall piece at each cell, as the sides it joins (-1: no piece), from
+	## MapCanvas.shape_at. Kept until the canvas changes.
+	func pieces_for(c: MapCanvas) -> PackedInt32Array:
+		if _pieces_of == c and _pieces_rev == c.revision:
+			return _pieces
+		_pieces = PackedInt32Array()
+		_pieces.resize(c.width * c.height)
+		for y in c.height:
+			for x in c.width:
+				var p := c.shape_at(x, y)
+				_pieces[y * c.width + x] = -1 if p.is_empty() else ConnectShape.sides_of(p["shape"], p["turn"])
+		_pieces_of = c
+		_pieces_rev = c.revision
+		return _pieces
+
+	## A wall piece at a cell's centre: a bar from the centre to the edge of
+	## each side it joins, or a post when it joins none.
+	func _piece(at: Vector2, sides: int) -> void:
+		var ink := Color(1, 1, 1, 0.55)
+		if sides == 0:
+			draw_circle(at, zoom * 0.14, ink)
+			return
+		var half := zoom * 0.5
+		var width := maxf(zoom * 0.2, 1.0)
+		var dirs: Array[Vector2] = [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
+		for side in 4:
+			if sides & (1 << side):
+				draw_line(at, at + dirs[side] * half, ink, width)
+
 	func _arrow(at: Vector2, fc: int) -> void:
 		var d: Vector2 = [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT][fc - 1]
 		var tip := at + d * zoom * 0.32
@@ -1134,18 +1362,6 @@ class MapView:
 
 	func _rebuild(c: MapCanvas) -> void:
 		var f: PackedInt32Array = c.composite()["feature"]
-		var palette := PackedByteArray()
-		for col in painter.colors:
-			palette.append_array(PackedByteArray([col.r8, col.g8, col.b8]))
-		var data := PackedByteArray()
-		data.resize(c.width * c.height * 3)
-		var known := painter.colors.size()
-		for i in f.size():
-			var p := f[i] * 3
-			if f[i] >= 0 and f[i] < known:
-				data[i * 3] = palette[p]
-				data[i * 3 + 1] = palette[p + 1]
-				data[i * 3 + 2] = palette[p + 2]
-		_tex = ImageTexture.create_from_image(Image.create_from_data(c.width, c.height, false, Image.FORMAT_RGB8, data))
+		_tex = ImageTexture.create_from_image(ArtSet.ground_image(painter.art, c.width, c.height, f, painter.feature_ids, painter.colors))
 		_tex_of = c
 		_tex_rev = c.revision

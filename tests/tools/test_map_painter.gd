@@ -165,6 +165,79 @@ func test_stamps_and_resizing() -> void:
 	assert_eq([c.width, c.cells().size()], [40, 2])
 
 
+## Paint lands on top of a stamp: the stamp becomes painted cells, the map
+## looks the same everywhere else, and undo brings the stamp back.
+func test_paint_over_a_stamp_flattens_it() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_map", 40, 30, "open")
+	var forest := c.features.find("forest")
+	c.begin()
+	c.add_stamp("ruin_block", 10, 5, 90)
+	c.begin()
+	c.paint(39, 29, forest, 0)
+	assert_eq(c.stamps.size(), 1, "paint away from a stamp leaves it")
+	var before: PackedInt32Array = c.composite()["feature"].duplicate()
+	c.begin()
+	c.paint(17, 20, forest, 0)
+	var after: PackedInt32Array = c.composite()["feature"]
+	assert_eq(after[20 * 40 + 17], forest, "the paint shows")
+	assert_eq(c.stamps.size(), 0)
+	assert_eq(c.flattened, PackedStringArray(["ruin_block"]))
+	var changed := 0
+	for i in after.size():
+		if after[i] != before[i]:
+			changed += 1
+	assert_eq(changed, 1, "only the painted cell looks different")
+	c.undo()
+	assert_eq(c.stamps.size(), 1, "undo brings the stamp back")
+	assert_eq(c.features[c.composite()["feature"][20 * 40 + 17]], "ruins")
+	assert_eq(c.cells().size(), 2, "saved: the forest cell and the stamp")
+
+
+## Flattening a stamp takes the stamps below it that it overlaps, so what was
+## hidden under it stays hidden; right-painting a stamped cell shows the base.
+func test_flatten_takes_overlapped_stamps_below() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_map", 40, 30, "open")
+	c.begin()
+	c.add_stamp("ruin_block", 2, 2, 0)
+	c.add_stamp("ruin_block", 6, 4, 0)
+	c.add_stamp("ruin_block", 30, 20, 0)
+	var top := c.stamp_rect(1)
+	var cell := Vector2i(-1, -1)
+	for y in range(top.position.y, top.end.y):
+		for x in range(top.position.x, top.end.x):
+			if cell.x < 0 and c.stamp_at(x, y) == 1 and c._stamp_paints(1, x, y):
+				cell = Vector2i(x, y)
+	assert_gt(cell.x, -1, "the top stamp paints a cell")
+	var before: PackedInt32Array = c.composite()["feature"].duplicate()
+	c.begin()
+	c.paint(cell.x, cell.y, c.base, 0)
+	assert_eq(c.stamps.size(), 1, "the far stamp stays")
+	assert_eq(c.stamps[0]["x"], 30)
+	var after: PackedInt32Array = c.composite()["feature"]
+	assert_eq(after[cell.y * 40 + cell.x], c.base, "the right button erases a stamped cell to the base")
+	var changed := 0
+	for i in after.size():
+		if after[i] != before[i]:
+			changed += 1
+	assert_eq(changed, 1)
+
+
+func test_fill_goes_by_what_the_map_shows() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_map", 40, 30, "open")
+	var forest := c.features.find("forest")
+	c.begin()
+	c.add_stamp("ruin_block", 10, 5, 90)
+	c.begin()
+	c.fill(17, 20, forest, 0)
+	var shown: PackedInt32Array = c.composite()["feature"]
+	assert_eq(shown[20 * 40 + 17], forest)
+	assert_eq(c.stamps.size(), 0, "the stamp is flattened")
+	assert_eq(shown[0], c.base, "the open ground around it is not filled")
+
+
 func test_the_maps_tab_paints_and_saves_a_new_map() -> void:
 	var p := WarDataPanel.new()
 	p.package_dir = COPY
@@ -209,3 +282,94 @@ func test_a_map_that_breaks_the_package_is_not_saved() -> void:
 	assert_gt(errs.size(), 0, "crossroads stamps ruin_block, so this is a loop")
 	assert_true(mp.canvas.dirty)
 	assert_eq((PackageEditor.open(COPY).templates.values_of("ruin_block")["cells"] as Array).size(), 1)
+
+
+func test_moving_a_stamp_undoes() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := _open(m, "crossroads_map")
+	var before: Dictionary = c.stamps[0].duplicate()
+	c.begin()
+	c.move_stamp(0, int(before["x"]) + 3, int(before["y"]) - 2)
+	assert_eq([c.stamps[0]["x"], c.stamps[0]["y"]], [int(before["x"]) + 3, int(before["y"]) - 2])
+	assert_true(c.dirty)
+	c.undo()
+	assert_eq(c.stamps[0], before)
+
+
+func test_a_selection_becomes_a_stamp_map() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_src", 20, 10, "open")
+	var wall := c.features.find("wall")
+	c.begin()
+	c.rect(4, 2, 7, 3, wall, 0)
+	var text := c.selection_text(Rect2i(3, 2, 6, 4), "t_piece")
+	assert_eq(c.selection_text(Rect2i(30, 30, 2, 2), "t_x"), "", "outside the map")
+	assert_eq(m.add(text, m.file_of("crossroads_map")), PackedStringArray())
+	var piece := _open(m, "t_piece")
+	assert_eq([piece.width, piece.height], [6, 4])
+	assert_eq(piece.cells(), [{"feature": "wall", "x": 1, "y": 0, "w": 4, "h": 2}] as Array[Dictionary])
+
+
+func test_ground_is_textured_where_the_package_has_art() -> void:
+	# sw-8rk: the editor draws the war room's ground. "open" and "wall" have
+	# textures in core; "nope" has none and is a flat block of its colour.
+	var art := ArtSet.core()
+	var blue := Color.BLUE
+	var red := Color.RED
+	var img := ArtSet.ground_image(art, 2, 1, PackedInt32Array([0, 1]), PackedStringArray(["open", "wall"]), [red, blue])
+	assert_eq(img.get_size(), Vector2i(2 * ArtSet.GROUND_PX, ArtSet.GROUND_PX))
+	var src := art.image("wall", "texture")
+	var sx := ArtSet.GROUND_PX % maxi(src.get_width() - ArtSet.GROUND_PX + 1, 1)
+	assert_eq(img.get_pixel(ArtSet.GROUND_PX, 0), src.get_pixel(sx, 0), "a wall cell is cut from the wall texture")
+	assert_ne(img.get_pixel(ArtSet.GROUND_PX, 0), blue, "not the flat colour")
+	var flat := ArtSet.ground_image(art, 1, 1, PackedInt32Array([1]), PackedStringArray(["open", "nope"]), [red, blue])
+	assert_eq(flat.get_pixel(0, 0), blue, "a feature without art is its colour")
+	assert_eq(flat.get_pixel(ArtSet.GROUND_PX - 1, ArtSet.GROUND_PX - 1), blue)
+	var none := ArtSet.ground_image(null, 2, 1, PackedInt32Array([0, 1]), PackedStringArray(["open", "wall"]), [red, blue])
+	assert_eq(none.get_size(), Vector2i(2, 1), "no art: a pixel a cell")
+	assert_eq(none.get_pixel(1, 0), blue)
+
+
+func test_the_maps_tab_draws_the_package_art() -> void:
+	var p := WarDataPanel.new()
+	p.package_dir = COPY
+	add_child_autofree(p)
+	var mp: MapPainter = p._maps
+	assert_not_null(mp.art, "the edited package's art")
+	assert_true(mp.art.has_art("open", "texture"))
+	assert_true(mp.open_map("field_map"))
+	var i := mp.feature_ids.find("open")
+	assert_eq(mp._features.get_item_icon(i).get_size(), Vector2(14, 14), "a texture swatch in the feature list")
+	var c := mp.canvas
+	mp.view._rebuild(c)
+	assert_eq(mp.view._tex.get_size(), Vector2(c.width, c.height) * ArtSet.GROUND_PX, "the canvas is textured")
+	mp.art = null
+	mp.view._tex = null
+	mp.view._rebuild(c)
+	assert_eq(mp.view._tex.get_size(), Vector2(c.width, c.height), "no art: a pixel a cell")
+
+
+func test_wall_pieces_round_trip_their_sides() -> void:
+	# sw-bgd: sides_of is the inverse of ConnectShape.of for every mask.
+	for mask in 16:
+		var p := ConnectShape.of(mask)
+		assert_eq(ConnectShape.sides_of(p["shape"], p["turn"]), mask, "mask %d" % mask)
+
+
+func test_the_maps_tab_draws_a_wall_piece_per_cell() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_wall_pieces", 5, 5, "open")
+	var wall := c.features.find("wall")
+	c.begin()
+	c.rect(1, 2, 3, 2, wall, 0)
+	c.paint(2, 3, wall, 0)
+	var view := MapPainter.MapView.new()
+	var pieces := view.pieces_for(c)
+	assert_eq(pieces.size(), 25)
+	assert_eq(pieces[2 * 5 + 1], ConnectShape.E, "(1, 2) is an end pointing east")
+	assert_eq(pieces[2 * 5 + 2], ConnectShape.E | ConnectShape.S | ConnectShape.W, "(2, 2) is a tee")
+	assert_eq(pieces[3 * 5 + 2], ConnectShape.N, "(2, 3) is an end pointing north")
+	assert_eq(pieces[0], -1, "open ground draws no piece")
+	c.paint(0, 0, wall, 0)
+	assert_eq(view.pieces_for(c)[0], 0, "a wall with no neighbours is a post")
+	view.free()

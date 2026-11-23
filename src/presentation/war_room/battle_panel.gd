@@ -8,8 +8,22 @@ extends VBoxContainer
 ## none) and `insp` its inspect_battle result. `tps`: ticks per second.
 ## `verbose` and `card_ctx` pass through to SquadCard.build; the engaged
 ## squad's display name is resolved here from the observation.
+## The inspection window's shown tab and unit (view state only).
+var _tab: String = "squad"
+var _unit: int = -1
+var _last: Array = []
+
+
+func _pick(tab: String, unit: int) -> void:
+	_tab = tab
+	_unit = unit
+	if not _last.is_empty():
+		callv("show_battle", _last)
+
+
 func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictionary, player: int, tps: int,
 		verbose: bool = false, card_ctx: Dictionary = {}) -> void:
+	_last = [title, obs, squad, insp, player, tps, verbose, card_ctx]
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
@@ -37,7 +51,7 @@ func show_battle(title: String, obs: Dictionary, squad: Dictionary, insp: Dictio
 			if int(q["id"]) == tid:
 				ctx["target_name"] = String(q.get("name", q.get("template", "")))
 				break
-	add_child(SquadCard.build(squad, insp, player, tps, verbose, ctx))
+	add_child(InspectionTabs.build(squad, insp, player, tps, verbose, ctx, _tab, _unit, _pick))
 
 
 func _dim(text: String) -> Label:

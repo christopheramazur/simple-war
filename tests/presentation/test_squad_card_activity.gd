@@ -117,7 +117,7 @@ func test_the_weapon_block_shows_the_sims_numbers() -> void:
 	var w := int(_session.state.rules.weapon_index[wid])
 	var text := "\n".join(_texts(_card(_squad(), insp)))
 	assert_string_contains(text, String(_templates.values_of(wid)["name"]), "the weapon's package name")
-	assert_string_contains(text, String(DataSchema.DAMAGE_TYPES[_session.state.rules.wp_type[w]]).capitalize(),
+	assert_string_contains(text, String(_session.state.rules.damage_types[_session.state.rules.wp_type[w]]).capitalize(),
 		"the damage type")
 	assert_string_contains(text, "Range %s–%s m" % [Fixed.to_display(_session.state.rules.wp_min_range[w]),
 		Fixed.to_display(_session.state.rules.wp_range[w])], "the min-max range band")

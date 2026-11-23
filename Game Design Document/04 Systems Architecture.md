@@ -131,7 +131,7 @@ data                  (immutable template tables from packages)
   - **Edits are textual:** `PackageEditor` replaces only that template's span in its JSON file, so formatting and diffs survive. An edit is checked against the whole package first (schema, every map and scenario compiling, the glossary) and refused if anything breaks.
   - **Triggers:** a map's or scenario's triggers drawn with `custom_graph_editor` (`TriggerGraph`). The nodes are events, triggers, variables, zones and features, and links show what reads or writes what. Selecting a trigger opens its template. The graph is a view; edits happen in the definition text.
   - **Problems:** everything the package would fail to load with.
-  - **Dialogue graphs** wait for a dialogue data model (sw-cgl.4).
+  - **Dialogue graphs** (sw-cgl.4): the `dialogue` kind (`Dialogue`) holds nodes, choices and set_var/add_var effects (dispositions are sim variables, R3Q18); the Dialogues tab draws them (`DialogueGraph`) and edits them in the graph (add a node, draw or delete a link; `DialogueEdit` applies each change, validated and saved; sw-7wt); the `start_dialogue` trigger action pushes `dialogue_started`. Dialogic playback of it is not built yet.
 - **Map editor** (O1Q6; the terrain painter, "Play this map" and battle-map objects are in play, sw-ll4.6, sw-ll4.7; the trigger form and overworld maps are not built): a **Maps** tab in the War Data screen, in the spirit of StarCraft's editor. It edits `battle_map`, `scenario` and `overworld_map` templates through `PackageEditor`, so every change is validated against the whole package before it is written.
   - **Terrain:** paint cells or hexes from the feature list with brush, rectangle, line and fill tools; mirror painting for two-player maps. The editor keeps a cell grid while you paint and saves it as the map's shape list (Data Model §3.5): runs of the same feature and facing merged into rectangles, written in row order so files diff.
   - **Stamps:** place another map (a building, a bridge) as one object, move it and turn it in quarter turns. "Save selection as a map" makes a new stamp.
@@ -141,16 +141,22 @@ data                  (immutable template tables from packages)
   - **Test:** "Play this map" starts a skirmish on it against a chosen AI profile.
   - **In play (sw-ll4.6):** `MapPainter` (the tab) over `MapCanvas` (the model, no UI), for `battle_map` templates.
     - **Tools:** brush with a size, rectangle, line, fill, pick. The right button paints the base feature. Five mirrors: none, left and right, top and bottom, four ways, half turn; facings flip with them.
-    - **Stamps:** the Stamp tool places the chosen map with a quarter-turn rotation; the right button removes one. Moving a stamp and "Save selection as a map" are not built.
+    - **Stamps:** the Stamp tool places the chosen map with a quarter-turn rotation; the right button removes one. Painting on a stamp turns it into painted cells first (with any stamp below that it overlaps), so the paint shows on top; undo brings the stamp back. Fill and Pick go by what the map shows, stamps included. The Select tool (M) drags a marquee over cells or picks up a stamp to move it (Delete removes it); "Save selection as a map" writes the marquee, stamps drawn in, as a new battle map in the chosen data file (sw-ll4.17).
     - **Layers:** the editor holds one painted layer with the stamps drawn above it. Saving writes the painted layer as merged rectangles, then the stamps, so hand-written fills are merged again (a fill that was one rectangle stays one). A map that fills over a stamp loads with a note and saves with the stamp on top.
     - **Saving:** new maps are added to a chosen data file; existing ones replace their own text. Fields the editor doesn't know are kept. A map that would break the package (a stamp loop) is refused with the reasons, and so is one that a scenario played on it no longer fits (a zone centred off it, a deployment area not wholly inside it).
     - **Also:** undo and redo (64 steps), resize, change the base, zoom and drag the view. Feature colours come from the feature's `color`.
-    - **Not built:** overworld hexes and passes, cell selection.
+    - **Overworld maps, model only (sw-96x):** `OverworldCanvas` (no UI) holds an `overworld_map` as fills, one painted feature per hex (hex brush, rectangle, hex line, fill; `rect` and `line` passes load into it), objects (`place` passes and owned hexes, with owners) and starts, with undo, mirror-map ghosts (`partner`, players 1 and 2 swapped) and a save that merges painted hexes into rectangles and keeps `scatter` passes as written.
+    - **World maps tab, in play (sw-7ii):** `OverworldPainter`, a tab of its own beside Maps (so each painter keeps its own tools), draws the open overworld map on its hexes (pointy-top, odd rows shifted) and edits it through `OverworldCanvas`. Selecting an overworld map on the left opens it there.
+      - **Tools:** Brush (a hex and its neighbours out to a radius), Rectangle, Line (a hex line), Fill and Pick paint the ground; the right button clears the painted feature, leaving the fills. Place puts the chosen feature on a hex with the chosen owner; Start adds the chosen player's starting commander. Click an object or start to select it, drag to move it, right-click or Delete to remove it; the owner and commander lists change the selected one.
+      - **Map settings:** name, `elimination` (the skirmish win condition) and `mirror`, each one undo step. A mirror map needs an even height. On a mirror map painting the ground paints both halves, so the view shows what the game makes; objects and starts are made on one half and their partners drawn as ghosts.
+      - **Saving:** like battle maps: new maps go to a chosen data file, and a map that would break the package is refused.
+    - **Wall shapes:** `MapCanvas.shape_at` names the piece to draw (end, straight, corner, tee, cross, with quarter turns) from a feature's `connects` field (`ConnectShape`); drawing only. **Drawn (sw-bgd):** the Maps tab draws the piece in each cell from zoom 9 (where the facing arrows start), as bars from the centre to each joined side, or a post when it joins none.
   - **Objects, in play (sw-ll4.7):** a `scenario` played on the open map is open with it (`ScenarioCanvas`, the model, no UI). A map opens with the first scenario that names it; the Scenario list picks another or none, and New starts one with the core field scenario's rules, a deployment strip inside each short edge and a centre zone.
     - **Drawn over the terrain:** each side's deployment area in its player's colour, with its facing as an arrow and how many squads it lists, and each zone with its id and points.
     - **Objects tool (O):** click a zone or an area to select it, drag to move it, drag an area's corner handle to resize it; Delete removes it. The panel edits the rest: a zone's id, radius, points, threshold, decay and buffer; a side's player, facing and squads (add from the package's squads, remove one by one). A side that lists no squads is for overworld battles, where the commanders bring them.
     - **Saving:** Save writes the map and then the scenario, each checked against the whole package. Everything the editor does not edit in a scenario (ruleset, victory, triggers) is kept as written. Undo and redo act on the scenario while the Objects tool is on, and on the terrain otherwise.
-    - **Not built:** objects of an overworld map (starts, features with owners), squads placed at their own positions (a side's squads deploy evenly down its area), victory settings in a form, mirroring objects.
+    - **Victory, in play (sw-bel):** below the selected object's panel, the open scenario's victory settings: turn limit, primary score (influence or value), score target, and the annihilation and withdrawal switches. A value the scenario inherits from its parent shows as it is and is written only once changed; undo covers them.
+    - **Not built:** squads placed at their own positions (a side's squads deploy evenly down its area), mirroring objects.
   - **Play this map, in play:** the main menu's **Map editor** opens the War Data screen on the Maps tab, with an opponent list and a **Play this map** button (`MapPlaytest`).
     - **What it plays:** a battle on the open map as it is painted at that moment, saved or not, against the chosen controller profile. Nothing is written. "Back to the editor" returns to the map with its unsaved paint.
     - **How:** a battle map is not a match by itself, so the playtest adds two templates in memory: a scenario on the map and a four-hex overworld whose two commanders meet at once. The scenario is the one open in the editor, with its unsaved zones, areas and squads. With none open, it is made up: the core field scenario's rules (`ow_field`), a deployment strip inside the left and right edges, and one zone in the middle.
@@ -163,3 +169,22 @@ data                  (immutable template tables from packages)
 - **Keep:** dialogic (presentation only), gut (tests), guide (input).
 - **Removed (sw-ip8.5):** `godot-rts-entity-controller` was evaluated for selection and command UI ideas and nothing was taken. Its autoloads drew their own control-group bar over every screen, so the addon, its autoloads and its input actions are gone. Control groups are the planner's own (`BattlePlanner`).
 - **Removed:** gecs.
+
+## 4.11 Implementation status of the Rules Spec
+The Rules Spec (doc 2) holds rules only. Which task built what lives in the tracker (`hx task show <id>`); this table maps rules to the tasks that implemented them.
+
+| Rules Spec | Built by |
+|---|---|
+| §2.2 Intent forecast, reaction marks and queue; only visible triggers | sw-ip8.3, sw-tz1 |
+| §2.3 Armies, battleforces, drop-offs and detachments | sw-o1m.2.1, sw-o1m.2.2, sw-o1m.2.4 |
+| §2.4 Battles from engagements, shared pulse, leaving | sw-o1m.2.3, sw-o1m.2.5, sw-o1m.2.7 |
+| §2.6 Range and vision, "in range" marks | sw-kys.6, sw-kys.7 |
+| §2.9 Turn order, offers | sw-o1m.1.3, sw-cgl.2 |
+| §2.9 Movement and sight | sw-o1m.1.2, sw-o1m.1.4, sw-o1m.2.4 |
+| §2.9 Production, supply lines, steering, convoys | sw-o1m.2.5, sw-kys.8, sw-ll4.19 |
+| §2.9 Items and chests | sw-o1m.2.6 |
+| §2.11 Angels, dispersal, guards in battle | sw-cgl.2, sw-136.2, sw-cf6 |
+| §2.13 Ability activation, inspection | sw-ps1.5, sw-ps1.6 |
+| §2.14 Battle grid, routing, deployment | sw-ll4.2, sw-ll4.4, sw-ll4.15 |
+
+Not built yet (still specified): the Angel roster stealing items and inverted auto-resolve for the final battles (sw-136.2 covers dispersal only), charges (§2.14), and chase and intercept (§2.9).

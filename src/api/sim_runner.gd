@@ -14,6 +14,8 @@ extends SceneTree
 ## code 0 on a finished run, 1 on a setup error (reported in the JSON).
 
 const CORE := "res://data/packages/core"
+## Seeded deployment jitter (cells) so harness seeds vary a battle (sw-884.5).
+const DEPLOY_JITTER := 2
 
 
 func _initialize() -> void:
@@ -63,7 +65,7 @@ static func _quitter(v: SimVariant, players: PackedInt64Array) -> Array:
 
 
 func _battle(t: TemplateTable, v: SimVariant, sid: String, report: Dictionary, replay: String, m: SimMetrics) -> Array:
-	var s := BattleSession.create(t, v.data_hash, sid, report["seed"])
+	var s := BattleSession.create(t, v.data_hash, sid, report["seed"], null, DEPLOY_JITTER)
 	if s == null:
 		report["error"] = BattleSession.last_error
 		return []

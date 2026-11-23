@@ -130,7 +130,7 @@ func _legend_per_10(state: BattleState, row: int, counter: StringName, amount: i
 	var key := ""
 	if counter == &"dmg_dealt" and arche == "damage":
 		key = "legend_damage_per_10_dealt"
-	elif counter == &"dmg_dealt" and arche == "sapper" and BattleRules.DAMAGE_TYPES[dtype] == "explosive":
+	elif counter == &"dmg_dealt" and arche == "sapper" and r.damage_types[dtype] == "explosive":
 		key = "legend_sapper_per_10_dealt"
 	elif counter == &"dmg_taken" and arche == "tank":
 		key = "legend_tank_per_10_taken"

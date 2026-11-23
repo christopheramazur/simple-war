@@ -2,12 +2,14 @@
 "templates": [
 	{"id": "profile_utility", "kind": "controller_profile", "values": {
 		"name": "Utility",
+			"difficulty": "Standard",
 		"text": "Utility processes on both layers, seeing the default fitness shaping as its mask.",
 		"overworld": {"process": "utility"},
 		"battle": {"process": "utility"}}},
 
 	{"id": "profile_aggressor", "kind": "controller_profile", "values": {
 		"name": "Aggressor",
+			"difficulty": "Hard",
 		"text": "Hunts enemy forces: underrates them, values the exchange and pressure, stops exploring once it has met the enemy.",
 		"overworld": {"process": "utility", "params": {"risk": "0.8", "outcome_weight": "1.5"}},
 		"battle": {"process": "utility", "params": {"run": true, "fall_back_pct": 60}},
@@ -23,6 +25,7 @@
 
 	{"id": "profile_turtle", "kind": "controller_profile", "values": {
 		"name": "Turtle",
+			"difficulty": "Standard",
 		"text": "Builds an economy and keeps its commanders safe; fights only with a clear edge.",
 		"overworld": {"process": "utility", "params": {"risk": "1.5", "outcome_weight": "0.7"}},
 		"battle": {"process": "utility", "params": {"fall_back_pct": 20}},

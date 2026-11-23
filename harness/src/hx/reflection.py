@@ -68,6 +68,11 @@ def evidence(con, since: datetime) -> dict:
     ev["spend"] = [{"client": c, "provider": p, "calls": n, "usd": round(u or 0, 2)} for c, p, n, u in q(
         "SELECT client, provider, count(*), sum(est_usd) FROM call WHERE ts >= ? AND source IS DISTINCT FROM 'gateway-dup' GROUP BY 1, 2 ORDER BY 4 DESC NULLS LAST")]
     from hx import providers
+    unknown = {pid for pid, p in providers.load().items() if p.billing == "unknown"}
+    unpriced = [r for r in ev["spend"] if r["provider"] in unknown and not r["usd"]]
+    for r in unpriced:  # $0 from an account whose billing is unknown means "no price recorded", not "free"
+        r["usd"] = "unpriced"
+    ev["unpriced_calls"] = {r["provider"]: r["calls"] for r in unpriced}
     ev["billing"] = {pid: ("free account: usd is list price, not charged" if p.billing == "none" else p.billing)
                      for pid, p in providers.load().items() if p.kind in ("api", "local")}
     ev["failing_tools"] = [{"tool": t, "calls": n, "errors": e} for t, n, e in q("""
@@ -90,6 +95,9 @@ def evidence(con, since: datetime) -> dict:
                                     for r in sorted(tagger, key=lambda r: -r["friction"]["score"])[:5]
                                     if r["friction"]["score"] >= 0.2]
     ev["tag_audit"] = tagging.accuracy(tags)
+    gap = tagging.untagged_busy(con, since)
+    if gap:  # the tag path is dropping sessions (sw-j41); say so instead of showing an empty table
+        ev["untagged_busy_sessions"] = {"count": len(gap), "top": gap[:5]}
 
     dl = _jsonl(paths.data_dir() / "raw" / "delegate", since)
     skips = Counter(t.get("skipped") or t.get("error", "")[:80] for r in dl for t in r.get("tried", []) if not t.get("ok"))

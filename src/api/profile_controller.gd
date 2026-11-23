@@ -39,6 +39,9 @@ var _battle_section: Dictionary = {}
 var _battles: Dictionary = {}  # engagement (0 = a standalone battle) -> process
 var _rules: BattleRules
 var _fuzz := 0.0
+## The fuzz as the whole percent the profile actually plays with (the
+## skirmish profile card shows this, so it shows what is used).
+var fuzz_pct := 0
 var _rng: SimRng
 var _mask_spec: Dictionary = {}
 var _hold := 3
@@ -53,6 +56,7 @@ func _init(player_id: int, profile_in: Dictionary = {}, seed_value: int = 0) -> 
 	profile = profile_in
 	think_ms = int(profile.get("think_ms", DEFAULT_THINK_MS))
 	_fuzz = clampf(float(profile.get("fuzz", 0)) / 100.0, 0.0, 1.0)
+	fuzz_pct = int(roundf(_fuzz * 100.0))
 	_rng = SimRng.new(hash([int(profile.get("fuzz_seed", 0)), seed_value, player_id]))
 	_mask_spec = profile.get("mask", default_mask())
 	_hold = int(profile.get("hold_turns", 3))
@@ -106,6 +110,48 @@ static func default_mask() -> Dictionary:
 	return _default_mask
 
 
+## The controller's memory, plain data for a saved game: the shared RNG,
+## a fault, and how far each scripted opening has got (the overworld's and
+## each engagement's battle process). Everything else is rebuilt from the
+## profile, so a loaded game plays on as the saved one would have.
+func save_state() -> Dictionary:
+	var battles := {}
+	for k: int in _battles:
+		battles[k] = _script_steps(_battles[k])
+	return {"rng": _rng.get_state(), "fault": fault, "fault_turn": fault_turn, "max_think_us": max_think_us,
+		"overworld": _script_steps(_overworld), "battles": battles}
+
+
+## Restores save_state's memory into a controller made from the same profile.
+func load_state(data: Dictionary) -> void:
+	if data.get("rng") is PackedInt64Array and (data["rng"] as PackedInt64Array).size() == 4:
+		_rng.set_state(data["rng"])
+	fault = String(data.get("fault", ""))
+	fault_turn = int(data.get("fault_turn", -1))
+	max_think_us = int(data.get("max_think_us", 0))
+	_set_script_steps(_overworld, data.get("overworld", []))
+	var battles: Dictionary = data.get("battles", {})
+	for k: int in battles:
+		_set_script_steps(_battle(k), battles[k])
+
+
+## last_turn of each ScriptedProcess along proc's "then" chain.
+static func _script_steps(proc: Object) -> Array:
+	var out := []
+	while proc is ScriptedProcess:
+		out.append((proc as ScriptedProcess).last_turn)
+		proc = (proc as ScriptedProcess).then
+	return out
+
+
+static func _set_script_steps(proc: Object, steps: Array) -> void:
+	for t: Variant in steps:
+		if not proc is ScriptedProcess:
+			return
+		(proc as ScriptedProcess).last_turn = int(t)
+		proc = (proc as ScriptedProcess).then
+
+
 ## Battle rules are public data; utility battles value squads with them, and
 ## the battle process reads its side's facing for mirror-neutral tie-breaks
 ## (sw-0nl).
@@ -154,6 +200,14 @@ func plan(obs: Dictionary, session: OverworldSession) -> Array:
 				if bool(q.get("own", false)):
 					_leaders[int(q["id"])] = true
 	return _timed(func() -> Variant: return _overworld.plan(obs, session), int(obs.get("turn", 0)))
+
+
+## Production outputs and supply lines (sw-884.11) when the overworld
+## process decides them (HeadlessOverworld.plan_for applies them).
+func economy(obs: Dictionary, session: OverworldSession) -> Array:
+	if _overworld != null and _overworld.has_method("economy"):
+		return _overworld.economy(obs, session)
+	return []
 
 
 ## Reserves into battles (sw-884.14): each engaged own commander sends the

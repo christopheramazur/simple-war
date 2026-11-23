@@ -3,13 +3,82 @@ extends RefCounted
 ## The war room's list of every control, by where it works (split from
 ## war_room.gd, sw-ll4.8). Shown by the "Controls" button.
 
-const HELP: Array = [
-	["Anywhere", "Space: end the turn (or skip a turn that is playing out)\nTab / Shift+Tab: next / previous battle\nEsc: leave a battle for the overworld (or skip a turn that is playing out)\nMouse wheel: zoom; zooming in on a battle hex enters it\nBackspace: deselect everything"],
-	["Overworld", "Left click: select a commander or a hex (the panel on the right says what is there)\nRight click: move the selected commander there. Lit hexes are in reach this turn; the number is the movement cost\nShift + right click: add a waypoint, so the route goes there next\nRight click the commander itself: clear its route\nF: follow the selected commander\nGarrisons, convoys and producing features: select their hex, press \"Send to\", then click a hex or one of your commanders"],
-	["Battle", "Left click or drag a box: select your squads (Shift adds, Ctrl toggles, double click selects the type)\nLeft click any squad: show its card on the left. Hovering shows its weapon range\nRight click: move the selection there (Alt: in a new line). Right click an enemy: attack it\nH hold · A attack-move (then right click) · B fall back · R run · Shift+W withdraw · Q abilities\n1-9: recall a control group · Ctrl+1-9: make one · Shift+1-9: add to one\nF1-F4: go to a camera bookmark · Ctrl+F1-F4: set one"],
-	["Reaction window", "Marked squads can react to an enemy: click one, or use the Reactions list on the right. Moves are locked until the turn has played"],
-	["Playback", "While a turn plays out: Space or Esc skips to its end\nLeft click a squad (yours or a visible enemy): its card shows for the moment being shown\nClicks issue no orders — the turn has already resolved"],
-]
+## The list, with war room keys read from its GUIDE actions (DefaultKeys),
+## so help names the keys the game actually binds.
+static func help() -> Array:
+	var k := DefaultKeys.war_room()
+	var end := k.text_of(&"end_turn")
+	var cancel := k.text_of(&"cancel")
+	var nxt := k.text_of(&"next_battle")
+	var prev := k.text_of(&"previous_battle")
+	var follow := k.text_of(&"follow")
+	var focus := k.text_of(&"focus_controls")
+	var deselect := k.text_of(&"deselect_all")
+	return [
+		["Anywhere", "%s: end the turn (or skip a turn that is playing out)
+%s / %s: next / previous battle (with no button focused)
+%s: focus the buttons; then Tab / Shift+Tab walk them and Space or Enter presses one. While a button has focus, Tab and Space belong to it; Escape lets go
+%s: leave a battle for the overworld (or skip a turn that is playing out)
+Mouse wheel: zoom; zooming in on a battle hex enters it
+%s: deselect everything" % [end, nxt, prev, focus, cancel, deselect]],
+		["Overworld", "Left click: select a commander or a hex (the panel on the right says what is there)
+Right click: move the selected commander there. Lit hexes are in reach this turn; the number is the movement cost
+%s + right click: add a waypoint, so the route goes there next
+Right click the commander itself: clear its route
+%s: follow the selected commander
+Garrisons, convoys and producing features: select their hex, press \"Send to\", then click a hex or one of your commanders" % [k.text_of(&"route_via"), follow]],
+		["Battle", "Left click or drag a box: select your squads (Shift adds, Ctrl toggles, double click selects the type)
+Left click any squad: show its card on the left. Hovering shows its weapon range
+Right click: move the selection there (Alt: in a new line). Right click an enemy: attack it
+%s
+%s
+%s" % [_planning_line(), "1-9: recall a control group · Ctrl+1-9: make one · Shift+1-9: add to one", "F1-F4: go to a camera bookmark · Ctrl+F1-F4: set one"]],
+		["Controller", _controller_text(k)],
+		["Reaction window", "Marked squads can react to an enemy: click one, or use the Reactions list on the right. Moves are locked until the turn has played"],
+		["Playback", "While a turn plays out: %s or %s skips to its end
+Left click a squad (yours or a visible enemy): its card shows for the moment being shown
+Clicks issue no orders — the turn has already resolved" % [end, cancel]],
+	]
+
+
+## The gamepad bindings of the same actions, by device-neutral names. The
+## pad has no free cursor yet: squads are picked by cycling, and orders that
+## need a target point (move, attack) still use the mouse (sw-dqq).
+static func _controller_text(k: GuideKeys) -> String:
+	var p := PlanningInput.new()
+	var orders: PackedStringArray = []
+	for a: Array in [[&"hold", "hold"], [&"attack_move", "attack-move"], [&"fall_back", "fall back"], [&"run", "run"], [&"withdraw", "withdraw"], [&"abilities", "abilities"]]:
+		orders.append("%s %s" % [" / ".join(p.pad_names.get(a[0], [])), a[1]])
+	p.free()
+	return "Pan: %s, %s, %s, %s (left stick)
+Zoom: %s / %s
+%s: end the turn or skip playback · %s / %s: next / previous battle · %s: leave a battle · %s: follow commander
+%s / %s: select next / previous own squad (battle) · %s: show or hide its card
+%s: focus the buttons and the Reactions list, then the Dpad walks them and %s presses one
+%s: deselect everything · Hold %s: route via the planned route
+Orders: %s" % [k.pad_text_of(&"pan_up"), k.pad_text_of(&"pan_down"), k.pad_text_of(&"pan_left"), k.pad_text_of(&"pan_right"),
+		k.pad_text_of(&"zoom_in"), k.pad_text_of(&"zoom_out"),
+		k.pad_text_of(&"end_turn"), k.pad_text_of(&"next_battle"), k.pad_text_of(&"previous_battle"), k.pad_text_of(&"cancel"), k.pad_text_of(&"follow"),
+		k.pad_text_of(&"next_squad"), k.pad_text_of(&"previous_squad"), k.pad_text_of(&"inspect_squad"),
+		k.pad_text_of(&"focus_controls"), k.pad_text_of(&"inspect_squad"),
+		k.pad_text_of(&"deselect_all"), k.pad_text_of(&"route_via"),
+		" · ".join(orders)]
+
+
+## "H hold · A attack-move ..." from the planning context's own keys.
+static func _planning_line() -> String:
+	var p := PlanningInput.new()
+	var parts: PackedStringArray = []
+	for a: Array in [[&"hold", "hold"], [&"attack_move", "attack-move (then right click)"], [&"fall_back", "fall back"], [&"run", "run"], [&"withdraw", "withdraw"], [&"abilities", "abilities"]]:
+		var ims: Array = []
+		for m: GUIDEActionMapping in p.context.mappings:
+			if m.action.name == a[0]:
+				for im: GUIDEInputMapping in m.input_mappings:
+					if im.input is GUIDEInputKey:
+						ims.append(GuideKeys.key_text(im.input))
+		parts.append("%s %s" % [" / ".join(ims), a[1]])
+	p.free()
+	return " · ".join(parts)
 
 
 ## Side margin kept clear of the viewport edge when capping the body width
@@ -46,12 +115,21 @@ static func window() -> UiWindow:
 	col.theme_type_variation = &"FormGap"
 	panel.add_child(col)
 	var bodies: Array[Label] = []
-	for part: Array in HELP:
+	for part: Array in help():
 		col.add_child(UiTheme.label(part[0], "AccentLabel"))
 		var body := UiTheme.label(part[1], "SmallLabel", true)
 		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bodies.append(body)
 		col.add_child(body)
+	col.add_child(UiTheme.label("Battle orders (hover for details)", "AccentLabel"))
+	var pi := PlanningInput.new()
+	for id in OrderTips.ids():
+		var k := OrderTips.key_of(id, pi)
+		var row := UiTheme.label("%s%s" % [OrderTips.name_of(id), (" (%s)" % k) if k != "" else ""], "SmallLabel")
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.tooltip_text = OrderTips.tip(id, pi)
+		col.add_child(row)
+	pi.free()
 	var close := Button.new()
 	close.text = "Close"
 	close.focus_mode = Control.FOCUS_NONE  # Space stays "end turn"

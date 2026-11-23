@@ -5,3 +5,4 @@
 [node name="Angelfall" instance=ExtResource("1")]
 map_id = "angelfall_frontier"
 map_seed = 7
+use_settings = true

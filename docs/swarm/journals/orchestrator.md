@@ -476,3 +476,57 @@
 ### Audit response
 - AUDIT WARN 01:13 ('auditor recorded no verdict'). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 23/23 log banners nous/qwen4-max, supervisor alive, streak 0, events_30m verdict:1 (auditor recovered). All delegation via hx swarm spawn only; no other model/API touched.
 - WARN context: 24/40 = 60% rate-limited last hour; open_workers=[] - the 00:22 turn merged sw-ll4.27.3 at 01:18 but was killed before close/refill. Lean turn: journal early, verify .3 closed, refill both slots.
+
+## 2026-11-22T03:25Z turn
+### Audit response
+- Two AUDIT WARNs (02:13, 03:13). Ran hx swarm selfcheck FIRST: config_ok=true, models only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], 38/38 log banners nous/qwen4-max, alert streak 0. All delegation via hx swarm spawn only; no other model/API touched.
+- WARN cause: 52-60% rate-limited calls + ux-art-director turn killed at 3600s. Fix: lean throttled turn - journal early, merge before spawn, skip idle health checks. Research-role throttling is the supervisor's knob; noted for it.
+- CONCERN: selfcheck says supervisor_alive=false and events_30m shows supervisor_stop:1 (status page 03:10 said 'Supervisor running'). Investigating before anything else. sw-ll4.27.6 running (02:41), sw-vld queued: slots full, nothing awaiting review.
+
+## 2026-11-22T05:00Z turn
+- woke: swarm started (supervisor restarted after stop). Inbox empty, no AUDIT mail.
+- selfcheck FIRST: config_ok=true, only hx/nous/qwen4-max, non_qwen_swarm_calls_30m=[], supervisor_alive=true (03:25 concern resolved), streak 0. Slots full: sw-ll4.27.6 running (02:41), sw-vld queued. Nothing to merge.
+- lean turn (~57% rate-limited): health-check .6 (running ~2h20m across the supervisor stop), then end if healthy.
+
+## 2026-11-22T05:59Z turn killed at its time limit after 60 min (supervisor note)
+- last actions:
+  - `$ harness/bin/hx swarm selfcheck && harness/bin/hx swarm workers -v`
+  - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
+  - `$ ls ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/ && git -C ../simple-war-worktrees/sw-ll4.27.6 status --short | head -10 && git -C ../simple-war-wo`
+  - `$ tail -30 ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/worker.md && stat -c '%y %n' ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/worker.m`
+  - `$ tasklist | grep -i -E 'opencode|node' | head -8 && ls docs/swarm harness/swarm`
+- commits this turn: 225ae7f swarm: docs and status; 75ac7a1 swarm: docs and status; 5857acd swarm: docs and status; ca69119 swarm: docs and status
+- next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
+
+## 2026-11-22T07:00Z turn
+- woke: supervisor mail - sw-ll4.27.6 partial (rc=-9, commits kept, WIP saved). No AUDIT FAIL mail; latest audit WARN 06:29. 28/37 (~76%) rate-limited -> lean turn: review/merge .6 first, then refill slots. Journal early.
+- did: reviewed sw-ll4.27.6 WIP 00ba3e5 (only commit): _battle_squads() plumbing for holds/reload/cooldown/own/activity in playback+live paths. No marks, no tooltips, no crosshair fix -> INCOMPLETE. Spawned attempt 2 on same branch with detailed note (what is done, 3 remaining pieces, glossary.gd:61 pointer, commit-early warning).
+- concern: sw-vld 'running' since 02:41 (~5h), 0 commits, clean worktree, worker journal untouched since creation, bd lease heartbeat 4h old. Possibly orphaned by the 03:10-05:00 supervisor stop. Auditor 07:29 WARN does not flag it. Checking worker logs before acting; will NOT reject a running worker on suspicion.
+
+## 2026-11-22T08:17Z turn killed at its time limit after 78 min (supervisor note)
+- last actions:
+  - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
+  - `$ git -C ../simple-war-worktrees/sw-ll4.27.6 diff main...HEAD | head -60 && tail -25 ../simple-war-worktrees/sw-ll4.27.6/docs/swarm/journals/worker.md && git -C`
+  - `$ grep -n "hold_text\|Glossary\|tooltip" src/presentation/war_room/context_view.gd | head -12 && grep -rn "func hold_text" src/ | head -3 && harness/bin/hx swar`
+  - `$ bd update sw-ll4.27.6 --claim && harness/bin/hx swarm spawn sw-ll4.27.6 --note='Attempt 2, same branch. DONE in WIP commit 00ba3e5: _battle_squads() in contex`
+  - `$ bd show sw-vld | head -30 && harness/bin/hx swarm status 2>&1 | head -35`
+  - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
+- commits this turn: 353dcf3 swarm: docs and status; 37c0537 swarm: docs and status; 5d55ffe swarm: docs and status; 8735f7a swarm: docs and status; 9059e72 swarm: docs and status; 5f7ac22 swarm: docs and status
+- next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
+
+## 2026-11-23T08:58Z turn killed at its time limit after 120 min (supervisor note)
+- last actions:
+  - `$ harness/bin/hx swarm workers -v 2>&1 | head -30 && git -C ../simple-war-worktrees/sw-ll4.27.6 log --stat main..HEAD | head -30 && git -C ../simple-war-worktre`
+  - `$ git -C ../simple-war-worktrees/sw-vld diff main...HEAD | head -230 && bd show sw-vld | head -30`
+  - `$ grep -n "_tone\|_delta\|func moment" ../simple-war-worktrees/sw-vld/src/presentation/war_room/squad_card.gd && bd show sw-ll4.27.6 | head -45`
+  - `$ bd update sw-vld --append-notes='merge checks: test-edit eyeball clean (tests only added: all-themes direction test + Health numbers asserts, nothing weakened`
+  - `$ git -C ../simple-war-worktrees/sw-vld status --short | head -8 && git log --oneline -4 main -- src/presentation/war_room/squad_card.gd && git -C ../simple-war`
+- commits this turn: 0b31666 Merge main into autopilot/sw-ow6; d49c264 sw-ow6: the trigger graph is a view; an edit drawn in it is not saved and is redrawn from the definition; 2462aa7 swarm: docs and status; 18be0af swarm: docs and status; 435d287 Merge main into autopilot/sw-7wt; 7aaf21b sw-7wt: refuse graph edits to a dialogue whose nodes are inherited; 762320d swarm: docs and status; 54077ec swarm: docs and status
+- next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
+## 2026-11-23T09:42Z turn
+- woke: 2 AUDIT WARN (compliance clean): sw-ll4.27.6 + sw-vld partials await review; sw-ll4.27.7 running past its 130m limit. 33/42 (~79%) rate-limited -> LEAN turn: merge before spawn, journal after each step.
+- plan: verify state left by killed 08:58 turn (vld merge-check note appended; did ow6/7wt merges land?), then merge the longest-waiting partial, refill slots only if budget allows.
+
+## 2026-11-23T10:35Z turn
+- woke: 2 AUDIT WARN (compliance clean): sw-ll4.27.6 partial 240m + sw-vld partial 216m await review; sw-ll4.27.7 running 206m > 130m limit. 31/43 (~72%) rate-limited -> LEAN turn: merge before spawn, journal after each step.
+- plan: verify state left by killed 08:58/09:42 turns (vld merge-check note appended; ow6/7wt merges appear landed), then review+merge longest-waiting partial, investigate .7, refill slots only if budget allows.

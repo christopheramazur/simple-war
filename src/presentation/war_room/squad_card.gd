@@ -12,7 +12,7 @@ extends RefCounted
 ## exact percent and the points to the next lower band only at higher
 ## verbosity (sw-1jy.4); never colour alone.
 ## A first, one-page form of the inspection window (Mocks/
-## inspection_window.png); the tabs and per-stat traces are not built.
+## inspection_window.png); tabs and traces are InspectionTabs (sw-ll4.20).
 
 const ORDER_NAMES: Dictionary = {
 	"hold": "Holding", "move": "Moving", "attack_move": "Attack-moving", "attack": "Attacking",
@@ -21,8 +21,11 @@ const ORDER_NAMES: Dictionary = {
 
 ## Band glyphs, a ladder from empty/low to filled/high so the state reads
 ## without colour. Presentation only: the bands themselves come from the API.
-const BAND_ICONS: Dictionary = {
-	"broken": "×", "fraying": "▽", "neutral": "◇", "primed": "△", "surging": "▲",
+## Placeholder glyph per SIMPL pool (sw-1jy.7), distinct in shape from each
+## other and from the band icons so greyscale still tells them apart; the
+## art-direction interview replaces them. Overridable by "pool_icon.<id>".
+const POOL_ICONS: Dictionary = {
+	"stamina": "■", "instinct": "◉", "morale": "♥", "prowess": "✚", "legend": "★",
 }
 
 
@@ -35,14 +38,20 @@ const BAND_ICONS: Dictionary = {
 ## types, timer totals), "weapon_names" (weapon ID -> display name) and
 ## "target_name" (the engaged squad's name, for the activity line).
 static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 10, verbose: bool = false, ctx: Dictionary = {}) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.theme_type_variation = &"CardGap"
+	return UiPanel.build("squad_card", model(squad, insp, viewer, tps, verbose, ctx))
+
+
+## The view model (sw-zsm): {"items": [...]} for data/ui/panels/squad_card.json.
+## Each item carries one of: head, text / wrapped (+ style, tip), bar, meter,
+## kv, progress. The panel only draws it; every number is the simulation's.
+static func model(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 10, verbose: bool = false, ctx: Dictionary = {}) -> Dictionary:
+	var items: Array = []
 	var own := int(squad.get("player", 0)) == viewer
-	col.add_child(_lbl(String(squad.get("name", squad.get("template", "Squad"))), "SubheadLabel"))
+	items.append(_t(String(squad.get("name", squad.get("template", "Squad"))), "SubheadLabel"))
 	var alive := int(squad.get("alive", 0))
 	var size := int(squad.get("size", alive))
 	var who := "yours" if own else ("neutral" if int(squad.get("player", 0)) >= 30 else "enemy, player %d" % int(squad.get("player", 0)))
-	col.add_child(_lbl("%d / %d units  ·  %s" % [alive, size, who], "SmallGoodLabel" if alive >= size else ("SmallAccentLabel" if alive * 2 >= size else "SmallBadLabel")))
+	items.append(_t("%d / %d units  ·  %s" % [alive, size, who], "SmallGoodLabel" if alive >= size else ("SmallAccentLabel" if alive * 2 >= size else "SmallBadLabel")))
 	# What the squad is doing, in the glossary's words (sw-ll4.27.3). The
 	# code is the simulation's (BattleActivity); enemies carry behaviour only.
 	var act := int(squad.get("activity", insp.get("activity", -1)))
@@ -50,13 +59,15 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 		var tname := String(ctx.get("target_name", ""))
 		if act == BattleActivity.Squad.ENGAGED and tname.is_empty():
 			tname = "the enemy"
-		col.add_child(_lbl(Glossary.activity_text(act, tname), "SmallAccentLabel"))
+		items.append(_t(Glossary.activity_text(act, tname), "SmallAccentLabel"))
 	if own:
 		var order := String(squad.get("order", "hold"))
-		col.add_child(_lbl("Order: %s" % ORDER_NAMES.get(order, order.capitalize()), "SmallDimLabel"))
+		var order_item := _t("Order: %s" % ORDER_NAMES.get(order, order.capitalize()), "SmallDimLabel")
+		order_item["tip"] = OrderTips.tip(order)
+		items.append(order_item)
 		var hp_max := float(squad.get("hp_max", 0))
 		if hp_max > 0.0:
-			col.add_child(_stat_bar("Health", 1.0 - float(squad.get("hp_lost", 0)) / hp_max, "Good", ""))
+			items.append({"bar": _bar_model("Health", 1.0 - float(squad.get("hp_lost", 0)) / hp_max, "Good", "")})
 		var pools: Dictionary = squad.get("pools", {})
 		var floors: Array = squad.get("band_floor_pct", [])
 		for p: String in pools:
@@ -64,17 +75,17 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 			var cap := float(pd["capacity"])
 			var frac := float(pd["value"]) / cap if cap > 0.0 else 0.0
 			if DataSchema.SIMPL.has(p) and floors.size() == DataSchema.BANDS.size():
-				col.add_child(_simpl_meter(p, pd, floors, verbose))
+				items.append({"meter": _meter_model(p, pd, floors, verbose, ctx.get("glossary") as Glossary)})
 			else:
-				col.add_child(_stat_bar(p.capitalize(), frac, _pool_tone(p),
-					"%s  %s" % [Fixed.to_display(pd["value"]), String(pd["band"]).capitalize()]))
-	col.add_child(_head("Reach"))
+				items.append({"bar": _bar_model(p.capitalize(), frac, _pool_tone(p),
+					"%s  %s" % [Fixed.to_display(pd["value"]), String(pd["band"]).capitalize()])})
+	items.append({"head": "Reach"})
 	var reach := "Weapon range %s m" % Fixed.to_display(int(squad.get("range", 0))) if int(squad.get("range", 0)) > 0 else "No ranged weapon"
-	col.add_child(_lbl("%s  ·  sight %s m" % [reach, Fixed.to_display(int(squad.get("sight", 0)))], "SmallLabel"))
+	items.append(_t("%s  ·  sight %s m" % [reach, Fixed.to_display(int(squad.get("sight", 0)))], "SmallLabel"))
 	if own and not insp.is_empty():
-		_weapons(col, insp, ctx, tps, verbose)
+		_weapons(items, insp, ctx, tps, verbose)
 	if insp.is_empty():
-		return col
+		return {"items": items}
 	# One block per unit type: count, health, weapon modes, movement, defence.
 	var groups := {}
 	var order_of := []
@@ -92,46 +103,61 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 		for u: Dictionary in us:
 			hp += int(u["hp"])
 			hp_top += int(u["hp_max"])
-		col.add_child(_head("%d × %s" % [us.size(), first["name"]]))
-		col.add_child(_lbl("Health %s / %s" % [Fixed.to_display(hp), Fixed.to_display(hp_top)], "SmallLabel"))
-		var modes := {}
+		items.append({"head": "%d × %s" % [us.size(), first["name"]]})
+		items.append(_t("Health %s / %s" % [Fixed.to_display(hp), Fixed.to_display(hp_top)], "SmallLabel"))
 		var defence := PackedStringArray()
 		var move := PackedStringArray()
 		for e: Dictionary in first.get("stats", []):
 			var stat := String(e["stat"])
-			if stat.begins_with("weapon.modes"):
-				var m: Dictionary = modes.get(e["label"], {})
-				m["accuracy" if stat.ends_with("accuracy") else "damage"] = e
-				modes[e["label"]] = m
-			elif stat == "movement.walk":
+			if stat == "movement.walk":
 				move.append("walk %s" % _fmt(e))
 			elif stat == "movement.run":
 				move.append("run %s" % _fmt(e))
 			elif stat.begins_with("defense.") and int(e["value"]) != 0:
 				defence.append("%s %s" % [e["name"], _fmt(e)])
-		for label: String in modes:
-			var m: Dictionary = modes[label]
-			var line := HBoxContainer.new()
-			line.add_child(_lbl("%s:" % String(label).capitalize(), "SmallDimLabel"))
-			if m.has("accuracy"):
-				line.add_child(_lbl("%s to hit" % _fmt(m["accuracy"]), _tone(m["accuracy"])))
-			if m.has("damage"):
-				line.add_child(_lbl("· %s damage" % _fmt(m["damage"]), _tone(m["damage"])))
-			col.add_child(line)
+		_mode_items(items, first)
 		if not move.is_empty():
-			col.add_child(_lbl("Speed: " + ", ".join(move), "SmallLabel"))
-		col.add_child(_lbl("Defence: " + (", ".join(defence) if not defence.is_empty() else "none"), "CaptionDimLabel", true))
+			items.append(_t("Speed: " + ", ".join(move), "SmallLabel"))
+		items.append(_t("Defence: " + (", ".join(defence) if not defence.is_empty() else "none"), "CaptionDimLabel", true))
 	var effects: Array = insp.get("effects", [])
 	if not effects.is_empty():
-		col.add_child(_head("Effects"))
+		items.append({"head": "Effects"})
 		for fx: Dictionary in effects:
 			var left := int(fx.get("remaining_ticks", -1))
 			var time := "lasts the battle" if left < 0 else "%.1f s left" % (float(left) / maxi(tps, 1))
 			var stacks := "" if int(fx.get("stacks", 1)) <= 1 else " ×%d" % int(fx["stacks"])
-			col.add_child(_lbl("%s%s  (%s)" % [fx["name"], stacks, time], "SmallAccentLabel"))
+			items.append(_t("%s%s  (%s)" % [fx["name"], stacks, time], "SmallAccentLabel"))
 			for text: String in fx.get("lines", []):
-				col.add_child(_lbl("  " + text, "CaptionDimLabel", true))
-	return col
+				items.append(_t("  " + text, "CaptionDimLabel", true))
+	return {"items": items}
+
+
+## A text item: drawn wrapped when `wrap`.
+static func _t(text: String, style: String, wrap: bool = false) -> Dictionary:
+	return {"wrapped" if wrap else "text": text, "style": style}
+
+
+static func _bar_model(name: String, frac: float, tone: String, text: String) -> Dictionary:
+	return {"name": name, "frac": frac, "tone": tone, "text": text}
+
+
+## The accuracy / damage line of each weapon mode in `unit`'s stats (a kv item each).
+static func _mode_items(items: Array, unit: Dictionary) -> void:
+	var modes := {}
+	for e: Dictionary in unit.get("stats", []):
+		var stat := String(e["stat"])
+		if stat.begins_with("weapon.modes"):
+			var m: Dictionary = modes.get(e["label"], {})
+			m["accuracy" if stat.ends_with("accuracy") else "damage"] = e
+			modes[e["label"]] = m
+	for label: String in modes:
+		var m: Dictionary = modes[label]
+		var values: Array = []
+		if m.has("accuracy"):
+			values.append({"text": "%s to hit" % _fmt(m["accuracy"]), "tone": _tone(m["accuracy"])})
+		if m.has("damage"):
+			values.append({"text": "· %s damage" % _fmt(m["damage"]), "tone": _tone(m["damage"])})
+		items.append({"kv": {"key": "%s:" % String(label).capitalize(), "values": values}})
 
 
 ## The live weapon block (sw-ll4.27.3): one block per weapon the squad's
@@ -140,7 +166,7 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 ## unit's target distance, ammo, reload / cooldown progress, the hold-fire
 ## reason in the glossary's words, and shots / hits this turn when the
 ## caller carries them (playback). Every number is the simulation's.
-static func _weapons(col: VBoxContainer, insp: Dictionary, ctx: Dictionary, tps: int, verbose: bool) -> void:
+static func _weapons(items: Array, insp: Dictionary, ctx: Dictionary, tps: int, verbose: bool) -> void:
 	var units: Array = insp.get("units", [])
 	var groups := {}
 	var order := []
@@ -159,9 +185,9 @@ static func _weapons(col: VBoxContainer, insp: Dictionary, ctx: Dictionary, tps:
 		any_shots = any_shots or u.has("shots")
 	if order.is_empty():
 		return
-	col.add_child(_head("Weapons"))
+	items.append({"head": "Weapons"})
 	if not any_shots:
-		col.add_child(_lbl("Shots and hits this turn show during playback.", "CaptionDimLabel", true))
+		items.append(_t("Shots and hits this turn show during playback.", "CaptionDimLabel", true))
 	var rules: BattleRules = ctx.get("rules")
 	var wnames: Dictionary = ctx.get("weapon_names", {})
 	for wid: String in order:
@@ -172,36 +198,21 @@ static func _weapons(col: VBoxContainer, insp: Dictionary, ctx: Dictionary, tps:
 		var reload_total := 0
 		var cool_total := 0
 		if w >= 0:
-			title += " · %s" % String(DataSchema.DAMAGE_TYPES[rules.wp_type[w]]).capitalize()
+			title += " · %s" % String(rules.damage_types[rules.wp_type[w]]).capitalize()
 			reload_total = rules.wp_reload[w]
 			for m in range(rules.wp_mode_start[w], rules.wp_mode_start[w] + rules.wp_mode_count[w]):
 				cool_total = maxi(cool_total, rules.md_cooldown[m])
-		col.add_child(_lbl(title, "SmallLabel"))
-		var modes := {}
-		for e: Dictionary in first.get("stats", []):
-			var stat := String(e["stat"])
-			if stat.begins_with("weapon.modes"):
-				var m: Dictionary = modes.get(e["label"], {})
-				m["accuracy" if stat.ends_with("accuracy") else "damage"] = e
-				modes[e["label"]] = m
-		for label: String in modes:
-			var m: Dictionary = modes[label]
-			var line := HBoxContainer.new()
-			line.add_child(_lbl("%s:" % String(label).capitalize(), "SmallDimLabel"))
-			if m.has("accuracy"):
-				line.add_child(_lbl("%s to hit" % _fmt(m["accuracy"]), _tone(m["accuracy"])))
-			if m.has("damage"):
-				line.add_child(_lbl("· %s damage" % _fmt(m["damage"]), _tone(m["damage"])))
-			col.add_child(line)
+		items.append(_t(title, "SmallLabel"))
+		_mode_items(items, first)
 		if w >= 0:
-			col.add_child(_lbl("Range %s–%s m" % [Fixed.to_display(rules.wp_min_range[w]), Fixed.to_display(rules.wp_range[w])], "CaptionDimLabel"))
+			items.append(_t("Range %s–%s m" % [Fixed.to_display(rules.wp_min_range[w]), Fixed.to_display(rules.wp_range[w])], "CaptionDimLabel"))
 		for u: Dictionary in us:
-			_weapon_unit(col, u, String(labels[int(u["id"])]), w, rules, reload_total, cool_total, tps, verbose)
+			_weapon_unit(items, u, String(labels[int(u["id"])]), w, rules, reload_total, cool_total, tps, verbose)
 
 
 ## One unit's weapon state: the hold reason in words, time to fire, ammo,
 ## the target's distance against the range band, and shots / hits this turn.
-static func _weapon_unit(col: VBoxContainer, u: Dictionary, uname: String, w: int, rules: BattleRules,
+static func _weapon_unit(items: Array, u: Dictionary, uname: String, w: int, rules: BattleRules,
 		reload_total: int, cool_total: int, tps: int, verbose: bool) -> void:
 	var hold := int(u.get("hold", BattleActivity.Hold.NONE))
 	var rl := int(u.get("reload", 0))
@@ -226,11 +237,11 @@ static func _weapon_unit(col: VBoxContainer, u: Dictionary, uname: String, w: in
 		var sh := int(u["shots"])
 		var hi := int(u.get("hits", 0))
 		txt += " · %d %s, %d %s" % [sh, "shot" if sh == 1 else "shots", hi, "hit" if hi == 1 else "hits"]
-	col.add_child(_lbl(txt, "SmallLabel", true))
+	items.append(_t(txt, "SmallLabel", true))
 	if rl + cd > 0:
 		var total := reload_total if rl > 0 else cool_total
 		var left := rl if rl > 0 else cd
-		col.add_child(_mini_bar(1.0 - float(left) / total if total > 0 else 0.0))
+		items.append({"progress": {"frac": 1.0 - float(left) / total if total > 0 else 0.0}})
 
 
 ## Unit display names, duplicates numbered in inspection order (Trooper 1…).
@@ -249,20 +260,6 @@ static func _unit_labels(units: Array) -> Dictionary:
 		else:
 			out[int(u["id"])] = n
 	return out
-
-
-## A thin progress bar (reload / cooldown), fill = the part already done.
-static func _mini_bar(frac: float) -> Control:
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(120, 5)
-	c.add_child(UiTheme.backdrop("LineBar"))
-	var f := Panel.new()
-	var tone := "Accent" if (UiTheme.styles().get("tones", {}) as Dictionary).has("Accent") else "Text"
-	f.theme_type_variation = "%sBar" % tone
-	f.anchor_right = clampf(frac, 0.0, 1.0)
-	f.anchor_bottom = 1.0
-	c.add_child(f)
-	return c
 
 
 ## The card's dicts for the moment `t` (0..1) of a playback record
@@ -368,55 +365,20 @@ static func _pool_tone(pool: String) -> String:
 	return tone if (UiTheme.styles().get("tones", {}) as Dictionary).has(tone) else "Text"
 
 
-## One SIMPL pool as five countable segments (sw-1jy.3): the segment edges
+## One SIMPL pool as the meter section's model (sw-1jy.3): the segment edges
 ## and the ticks sit at the band floors the observation carries, the fill is
 ## the pool's theme tone, and the band reads as icon + word, never colour
 ## alone. `floors` is the compiled band_floor_pct; the sim owns the mapping.
-static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: bool) -> Control:
+static func _meter_model(pool: String, pd: Dictionary, floors: Array, verbose: bool, glossary: Glossary = null) -> Dictionary:
 	var tone := _pool_tone(pool)
-	var row := HBoxContainer.new()
-	var l := _lbl(pool.capitalize(), "Caption%sLabel" % tone)
-	l.custom_minimum_size = Vector2(62, 0)
-	row.add_child(l)
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(120, 8)
-	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	c.add_child(UiTheme.backdrop("ScreenBackgroundPanel"))
+	var d := {"pool": pool, "tone": tone, "floors": floors,
+		"label": "%s %s" % [pool_icon(pool), pool_word(pool, glossary)], "label_style": "Caption%sLabel" % tone}
+	if glossary != null and glossary.has("term_" + pool):
+		# Hover shows the glossary definition (GDD 01 pillar 3).
+		var tip := glossary.tooltip("term_" + pool)
+		d["label_tip"] = "%s: %s" % [tip["title"], tip["text"]]
 	var cap := float(pd["capacity"])
-	var pct := float(pd["value"]) / cap * 100.0 if cap > 0.0 else 0.0
-	for b in DataSchema.BANDS.size():
-		var lo := 0.0 if b == 0 else float(floors[b])
-		var hi := float(floors[b + 1]) if b + 1 < floors.size() else 100.0
-		var seg := Panel.new()
-		seg.theme_type_variation = "LineBar"
-		seg.set_meta(&"band", b)
-		seg.anchor_left = lo / 100.0
-		seg.anchor_right = hi / 100.0
-		seg.anchor_bottom = 1.0
-		seg.offset_left = 1.0
-		seg.offset_right = -1.0
-		c.add_child(seg)
-		var fill := clampf((pct - lo) / (hi - lo), 0.0, 1.0) if hi > lo else 0.0
-		if fill > 0.0:
-			var f := Panel.new()
-			f.theme_type_variation = "%sBar" % tone
-			f.anchor_right = fill
-			f.anchor_bottom = 1.0
-			seg.add_child(f)
-	# Ticks at every inner floor, a little taller than the bar so the
-	# thresholds stay visible whatever the fill does.
-	for b in range(1, floors.size()):
-		var tick := Panel.new()
-		tick.theme_type_variation = "DimBar"
-		tick.set_meta(&"tick", int(floors[b]))
-		tick.anchor_left = float(floors[b]) / 100.0
-		tick.anchor_right = tick.anchor_left
-		tick.anchor_bottom = 1.0
-		tick.offset_left = -1.0
-		tick.offset_top = -2.0
-		tick.offset_bottom = 2.0
-		c.add_child(tick)
-	row.add_child(c)
+	d["pct"] = float(pd["value"]) / cap * 100.0 if cap > 0.0 else 0.0
 	var band := String(pd["band"])
 	var text := "%s %s  %s" % [_band_icon(band), _band_word(band), Fixed.to_display(pd["value"])]
 	if verbose:
@@ -429,8 +391,38 @@ static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: b
 		var bi := DataSchema.BANDS.find(band)
 		if drop >= 0 and bi > 0:
 			text += "  · %s to %s" % [Fixed.to_display(drop), _band_word(DataSchema.BANDS[bi - 1])]
-	row.add_child(_lbl(text, "CaptionDimLabel"))
-	return row
+	d["text"] = text
+	d["tip"] = ledger_text(pool, pd.get("ledger", []))
+	return d
+
+
+## The pool's glyph through the translation table, with the placeholder
+## fallback until the art pass.
+static func pool_icon(pool: String) -> String:
+	var key := "pool_icon." + pool
+	var s := String(TranslationServer.translate(key))
+	return s if s != key else String(POOL_ICONS.get(pool, "·"))
+
+
+## The pool's name: the glossary term's name, else the "pool.<id>" key.
+static func pool_word(pool: String, glossary: Glossary = null) -> String:
+	if glossary != null and glossary.has("term_" + pool):
+		return glossary.name_of("term_" + pool)
+	var key := "pool." + pool
+	var s := String(TranslationServer.translate(key))
+	return s if s != key else pool.capitalize()
+
+
+## The pool's source-tagged ledger as tooltip lines, the sim's exact net
+## amounts (sw-1jy.6): "Source: +1.5". Exact numbers only, no magnitude words.
+static func ledger_text(pool: String, ledger: Array) -> String:
+	var lines := PackedStringArray(["%s: net change by source this battle" % pool.capitalize()])
+	if ledger.is_empty():
+		lines.append("No changes yet")
+	for e: Dictionary in ledger:
+		var amt := int(e["amount"])
+		lines.append("%s: %s%s" % [Glossary.ledger_source_text(String(e["source"])), "+" if amt > 0 else "", Fixed.to_display(amt)])
+	return "\n".join(lines)
 
 
 ## The band word through the translation table (the glossary's "band.<id>"
@@ -442,9 +434,7 @@ static func _band_word(band: String) -> String:
 
 
 static func _band_icon(band: String) -> String:
-	var key := "band_icon." + band
-	var s := String(TranslationServer.translate(key))
-	return s if s != key else String(BAND_ICONS.get(band, "·"))
+	return BandGlyphs.icon(band)
 
 
 static func _fmt(e: Dictionary) -> String:
@@ -455,31 +445,3 @@ static func _fmt(e: Dictionary) -> String:
 	if u == "%":
 		return Fixed.to_display(v) + "%"
 	return Fixed.to_display(v) if u.is_empty() else "%s %s" % [Fixed.to_display(v), u]
-
-
-static func _head(text: String) -> Label:
-	return _lbl(text, "CardHeadLabel")
-
-
-static func _lbl(text: String, style: String, wrap: bool = false) -> Label:
-	return UiTheme.label(text, style, wrap)
-
-
-static func _stat_bar(name: String, frac: float, tone: String, text: String) -> Control:
-	var row := HBoxContainer.new()
-	var l := _lbl(name, "Caption%sLabel" % tone)
-	l.custom_minimum_size = Vector2(62, 0)
-	row.add_child(l)
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(70, 6)
-	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	c.add_child(UiTheme.backdrop("LineBar"))
-	var fill := Panel.new()
-	fill.theme_type_variation = "%sBar" % tone
-	fill.anchor_right = clampf(frac, 0.0, 1.0)
-	fill.anchor_bottom = 1.0
-	c.add_child(fill)
-	row.add_child(c)
-	if not text.is_empty():
-		row.add_child(_lbl(text, "CaptionDimLabel"))
-	return row

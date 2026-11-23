@@ -140,7 +140,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	var w := top()
 	if w == null:
 		return
-	if k.pressed and not k.echo and k.keycode == KEY_ESCAPE and w.esc_closes:
+	if k.pressed and not k.echo and k.is_action(&"ui_cancel") and w.esc_closes:
 		w.close()
 		get_viewport().set_input_as_handled()
 	elif w.captures_keys:

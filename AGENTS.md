@@ -22,7 +22,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | `GD-Agentic-Skills/skills/godot-*/` | Skill modules (`SKILL.md`, `references/`, `scripts/`). Load **only** the module §12 names, never all of them. |
 | `data/` | Content packages (official content uses the mod package format). Schema: GDD `03 Data Model.md`. Gameplay data lives here, not in scenes. The old `data/defaults` JSON is archived in `Game Design Document/History/data/`. |
 | `src/` | Game code (`.gd` + `.tscn`). |
-| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `guide`, `simple_war_tools` (ours: the War Data editor screen, with the Maps tab that paints battle maps). Update this row when adding or removing addons. |
+| `addons/` | `dialogic`, `gut` (tests), `custom_graph_editor`, `guide`, `simple_war_tools` (ours: the War Data editor screen, with the Maps tab that paints battle maps and the World maps tab for overworld maps). Update this row when adding or removing addons. |
 | `%APPDATA%/Godot/app_userdata/Simple War/saves/` | Saved games (`MatchDriver.save_game`; `autosave.sav` is rewritten every turn of a game started from the menu). |
 | `%APPDATA%/Godot/app_userdata/Simple War/matches/` | Match logs of games played in the war room (`log.md` per turn, `match.sav` replayable); read these to review a playtest. |
 | `harness/` | Agent harness: the `hx` CLI, telemetry ledger, benchmarks. See `harness/README.md`; decisions and reasons are in `harness/DESIGN.md`. |
@@ -75,7 +75,8 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 - **Experiments are cheap**, as long as there's a way to roll back.
 - **Stuck:** search the web to simplify the problem. If a web tool fails, don't retry the same query or URL. Try another source once, then use local docs (GDD, `GD-Agentic-Skills/`) or ask the user.
 - **Long sessions:** at each milestone, record goal, decisions, next step and blockers with `hx task note <id> "…"`.
-  - After about 4 compactions, or near the context limit, write that hand-off and continue in a fresh session that starts from the note.
+  - **Checkpoint before compaction:** when the context is about 70% full, or a compaction looks imminent, first write a short checkpoint to the claimed task with `hx task note <id> "CHECKPOINT: goal; files touched; failing tests; next step"`. After a compaction, read that note first (`hx task show <id>`) instead of re-deriving the context.
+  - After about 2 compactions in one session, or near the context limit, write that hand-off and continue in a fresh session that starts from the note.
   - A blocked task always gets its blocker written down.
 
 ## 7. Build & test (Git Bash, from the repo root)
@@ -85,8 +86,12 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | Check toolchain and secrets | `harness/bin/hx doctor` |
 | Spend and usage report | `harness/bin/hx report` (`--since all`, `--html --open`); the ledger updates after every turn |
 | Open the editor | `./Godot_v4.7.2-stable_win64.exe` |
-| Import + script check | `harness/bin/hx godot check` (errors only; `--no-import` to parse scripts only). `harness/` and `GD-Agentic-Skills/` carry a `.gdignore` |
+| Import + script check | `harness/bin/hx godot check` (errors only; `--no-import` to parse scripts only); parse plus a ClassDB lint for calls to methods a natively typed variable lacks, e.g. `to_global` on a `Control`; untyped receivers are still only caught by the test gate). `harness/` and `GD-Agentic-Skills/` carry a `.gdignore` |
 | Game tests | `harness/bin/hx godot test` (GUT summary and failures); a subset: `--dir tests/sim`, `--file <script>`, `--select <script name>`, `--test <test name>`; writing tests: see `testing-patterns` |
+| Search with context | `harness/bin/hx find <regex> [path ...] [-C N] [--max N] [--glob '*.gd']` (bounded `file:line: text` plus context; use instead of chaining `grep` and `sed -n`) |
+| List and find by name | `harness/bin/hx scan <dir> [--depth N] [--name GLOB]...` (entries plus case-insensitive name matches in one call; replaces `ls && find`) |
+| Read a line range plus files | `harness/bin/hx slice <path>:<a>-<b> [--also <path>[:a-b]]...` (numbered lines, bounded; replaces `sed -n a,bp && cat`) |
+| Worktree peek | `harness/bin/hx wt-status [path] [--limit N]` (top-level entries plus `git status --short` in one call; replaces `ls dir; git -C dir status --short`) |
 | Check some scripts | `harness/bin/hx godot check src/a.gd src/b.gd` (parse only, no import) |
 | Run one scene or script headless | `harness/bin/hx godot run <scene.tscn \| script.gd> [--quit-after N] [-- args]` (errors plus the output tail; `--editor` loads editor plugins). Don't call the Godot exe directly |
 | UI mock to PNG | `harness/bin/hx godot mock res://src/presentation/mocks/<name>_mock.gd` (opens a window briefly; writes `Game Design Document/Mocks/<name>.png`) |
@@ -95,9 +100,10 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | AI factory evolution run | `harness/bin/hx factory run --generations 3 --seed 1 --intensity background` (`hx factory stop`, `hx factory resume`, `hx factory report`, `hx factory list`) |
 | AI factory fitness of a batch | `harness/bin/hx sim fitness [--batch ID] [--spec default]` (criteria in `data/sim/criteria.json`, specs in `data/sim/fitness/`) |
 | Harness tests | `uv run --project harness pytest -q` |
+| Headless Claude on the backlog | `harness/bin/hx autopilot start` (`stop`, `status`, `run --once`); one bead at a time inside the Claude plan's 5-hour and weekly limits, caps in `harness/config/autopilot.toml` |
 
 ## 8. Task tracking
-Use `harness/bin/hx task ready|show|claim|close|new|note`: it's the tracker interface, so the tracker can be swapped. The two blocks below are generated by `bd` (what `hx task` runs today). Leave their marker comments intact.
+Use `harness/bin/hx task ready|show|claim|close|new|note`: it's the tracker interface, so the tracker can be swapped. The two blocks below are generated by `bd` (what `hx task` runs today). Leave their marker comments intact. Running `bd` directly is fine (agents do, far more often than `hx task`); `hx task` is only the swap-point wrapper, and `hx mine` skips `bd` and read-only git/listing commands.
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:46cd31e7 -->
 ## Beads Issue Tracker

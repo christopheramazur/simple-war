@@ -12,6 +12,7 @@ func P(col: int, row: int) -> int:
 
 func _room() -> WarRoom:
 	var w: WarRoom = load("res://src/presentation/angelfall/angelfall.tscn").instantiate()
+	w.use_settings = false  # the scene plays turns out over the saved time; tests resolve at once
 	add_child_autofree(w)
 	return w
 
@@ -50,3 +51,16 @@ func test_supply_lines_and_the_banner() -> void:
 	w._refresh()
 	assert_true(w._banner.visible)
 	assert_string_contains(w._banner_text.text, "Mission won")
+
+
+func test_jeff_briefing_plays_after_the_first_turn() -> void:
+	var w := _room()
+	w.end_turn_requested.emit()
+	await get_tree().process_frame
+	assert_eq(w.current_dialogue(), "af_jeff_briefing")
+	w._on_dialogue_picked(1)
+	assert_eq(w.session.state.dialogues["af_jeff_briefing"], "careful")
+	w._on_dialogue_picked(-1)
+	w._on_dialogue_picked(-1)
+	assert_eq(w.current_dialogue(), "")
+	assert_eq(w.session.state.vars.get("briefed_careful", 0), 1)

@@ -12,7 +12,13 @@ extends RefCounted
 ## keys (allowed keys of a map), unit (display unit of a stat), stat (false
 ## keeps a numeric field out of the stat registry; see StatRegistry).
 
+## The core damage types. Damage types are data (tags flagged damage_type, O1Q10);
+## this list only fixes the order of the core four so type indexes stay stable.
+## Use damage_types(table) for the types a loaded package set actually defines.
 const DAMAGE_TYPES: Array[String] = ["kinetic", "energy", "explosive", "magic"]
+## Schema sentinel: an enum or key set resolved from the damage_type tags.
+const DYN_DAMAGE_TYPES := "@damage_types"
+static var _active_damage_types: Array[String] = DAMAGE_TYPES
 const SIMPL: Array[String] = ["stamina", "instinct", "morale", "prowess", "legend"]
 const BANDS: Array[String] = ["broken", "fraying", "neutral", "primed", "surging"]
 
@@ -229,7 +235,7 @@ const OBJECTS: Dictionary = {
 		"stat": {"type": "string"},
 		"mod": {"type": "string", "enum": MOD_KINDS},
 		"amount": {"type": "fixed"},
-		"damage_type": {"type": "string", "enum": DAMAGE_TYPES},
+		"damage_type": {"type": "string", "enum": DYN_DAMAGE_TYPES},
 		"pool": {"type": "string", "enum": SIMPL},
 		"bundle": {"type": "ref:bundle"},
 		"order": {"type": "string", "enum": ORDERS},
@@ -284,6 +290,11 @@ const OBJECTS: Dictionary = {
 		"lose_on": {"type": "list:string", "enum": LOSE_EVENTS},
 		"range": {"type": "fixed", "min": 0},
 		"targeting": {"type": "string", "enum": ["none", "self", "squad", "point"]},
+		## Point targeting: a burst. At the point, the bundle is applied to
+		## every active squad whose centre is within radius; affects picks
+		## which side (relative to the user), default all.
+		"radius": {"type": "fixed", "min": 0},
+		"affects": {"type": "string", "enum": ["all", "allies", "enemies"]},
 		"toggle": {"type": "bool"},
 	},
 }
@@ -296,6 +307,8 @@ const KINDS: Dictionary = {
 	"controller_profile": {
 		"name": {"type": "string"},
 		"text": {"type": "string"},
+		## Shown on the skirmish profile card (sw-kif); display only.
+		"difficulty": {"type": "string"},
 		"overworld": {"type": "obj:profile_process"},
 		"battle": {"type": "obj:profile_process"},
 		"mask": {"type": "dict"},
@@ -307,6 +320,10 @@ const KINDS: Dictionary = {
 	"tag": {
 		"name": {"type": "string"},
 		"description": {"type": "string"},
+		## Marks a damage type (O1Q10): the tag id is what a weapon's or
+		## effect's damage_type names. Each flagged tag gets a resistance stat
+		## (defense.resist_pct.<tag>) in the stat registry; see damage_types().
+		"damage_type": {"type": "bool"},
 	},
 	## A named group of effects: statuses, items, traits, features, zone
 	## conditions, Ruin effects (E1Q2).
@@ -331,6 +348,9 @@ const KINDS: Dictionary = {
 		"impassable": {"type": "bool"},
 		## Drawing only: the colour maps and the map editor show it in ("4a4840").
 		"color": {"type": "string"},
+		## Drawing only: other features this one joins to, besides itself, so
+		## walls and roads draw as straights, corners and tees (ConnectShape).
+		"connects": {"type": "list:ref:feature"},
 		"cover_evasion_pct": {"type": "int", "min": 0, "max": 100},
 		"concealment_pct": {"type": "int", "min": 0, "max": 100},
 	},
@@ -338,7 +358,7 @@ const KINDS: Dictionary = {
 		"name": {"type": "string"},
 		"range": {"type": "fixed", "required": true},
 		"min_range": {"type": "fixed"},
-		"damage_type": {"type": "string", "required": true, "enum": DAMAGE_TYPES},
+		"damage_type": {"type": "string", "required": true, "enum": DYN_DAMAGE_TYPES},
 		"modes": {"type": "map:obj:fire_mode", "required": true},
 		"magazine": {"type": "int", "min": 0},
 		"reload_ticks": {"type": "int", "min": 0},
@@ -347,11 +367,11 @@ const KINDS: Dictionary = {
 		"evasion_pct": {"type": "int", "min": 0, "max": 100},
 		"block_chance_pct": {"type": "int", "min": 0, "max": 100},
 		"block_amount_pct": {"type": "int", "min": 0, "max": 100},
-		"resist_pct": {"type": "map:int", "keys": DAMAGE_TYPES},
+		"resist_pct": {"type": "map:int", "keys": DYN_DAMAGE_TYPES},
 		"flat": {"type": "fixed", "min": 0},
 		"percent": {"type": "int", "min": 0, "max": 100},
-		"floor": {"type": "map:fixed", "keys": DAMAGE_TYPES, "min": 0},
-		"absorb": {"type": "map:obj:absorb", "keys": DAMAGE_TYPES},
+		"floor": {"type": "map:fixed", "keys": DYN_DAMAGE_TYPES, "min": 0},
+		"absorb": {"type": "map:obj:absorb", "keys": DYN_DAMAGE_TYPES},
 	},
 	"movement": {
 		"walk": {"type": "fixed", "required": true},
@@ -494,6 +514,14 @@ const KINDS: Dictionary = {
 		"max_fires": {"type": "int", "min": 0},
 		"text": {"type": "string"},
 	},
+	## A dialogue graph (GDD 03 §3.5, R3Q18): nodes of lines and choices whose
+	## effects are sim variables (dispositions). See Dialogue.
+	"dialogue": {
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"start": {"type": "string", "required": true},
+		"nodes": {"type": "dict", "required": true},
+	},
 	## A glossary term (GDD 07, R1Q3, R3Q10, R8Q10): the source of hoverable,
 	## context-aware tooltips. `name` and `text` are the English fallbacks of
 	## the translation keys "term.<id>.name" / "term.<id>.text". `aliases`
@@ -591,9 +619,43 @@ const KINDS: Dictionary = {
 }
 
 
+## The damage types a template table defines: tags flagged damage_type. The
+## core four come first in their fixed order, any others follow sorted, so a
+## type's index is stable and deterministic.
+static func damage_types(table: TemplateTable) -> Array[String]:
+	var flagged := {}
+	for tid in table.ids():
+		if not table.is_abstract(tid) and table.kind_of(tid) == "tag" and table.values_of(tid).get("damage_type", false):
+			flagged[tid] = true
+	var out: Array[String] = []
+	for dt in DAMAGE_TYPES:
+		if flagged.has(dt):
+			out.append(dt)
+	var extra: Array[String] = []
+	for tid: String in flagged:
+		if not DAMAGE_TYPES.has(tid):
+			extra.append(tid)
+	extra.sort()
+	out.append_array(extra)
+	return out
+
+
+## Allowed keys of a map spec: its list, or the damage types for the sentinel.
+static func keys_of(fs: Dictionary, types: Array[String] = _active_damage_types) -> Array:
+	var k: Variant = fs.get("keys", [])
+	return types if typeof(k) == TYPE_STRING and k == DYN_DAMAGE_TYPES else k
+
+
+## Allowed values of a string spec: its enum, or the damage types for the sentinel.
+static func enum_of(fs: Dictionary, types: Array[String] = _active_damage_types) -> Array:
+	var e: Variant = fs.get("enum", [])
+	return types if typeof(e) == TYPE_STRING and e == DYN_DAMAGE_TYPES else e
+
+
 ## Validates every non-abstract template. Returns error strings.
 static func validate(table: TemplateTable) -> PackedStringArray:
 	var errors := PackedStringArray()
+	_active_damage_types = damage_types(table)
 	for tid in table.ids():
 		if table.is_abstract(tid):
 			continue
@@ -602,6 +664,9 @@ static func validate(table: TemplateTable) -> PackedStringArray:
 			errors.append("%s: unknown kind '%s'" % [tid, kind])
 			continue
 		_check_object(table.values_of(tid), KINDS[kind], tid, "", table, errors)
+		if kind == "dialogue":
+			for e in Dialogue.problems(table.values_of(tid)):
+				errors.append("%s: %s" % [tid, e])
 	return errors
 
 
@@ -638,8 +703,9 @@ static func _check_value(v: Variant, fs: Dictionary, tid: String, path: String, 
 		inner["type"] = t.substr(4)
 		inner.erase("keys")
 		for key: Variant in v:
-			if fs.has("keys") and not (fs["keys"] as Array).has(key):
-				errors.append("%s: '%s' has unknown key '%s' (allowed: %s)" % [tid, path, key, fs["keys"]])
+			var allowed := keys_of(fs)
+			if fs.has("keys") and not allowed.has(key):
+				errors.append("%s: '%s' has unknown key '%s' (allowed: %s)" % [tid, path, key, allowed])
 			_check_value(v[key], inner, tid, _join(path, str(key)), table, errors)
 		return
 	if t.begins_with("obj:"):
@@ -681,8 +747,8 @@ static func _check_value(v: Variant, fs: Dictionary, tid: String, path: String, 
 		"string":
 			if typeof(v) != TYPE_STRING:
 				errors.append("%s: '%s' must be a string" % [tid, path])
-			elif fs.has("enum") and not (fs["enum"] as Array).has(v):
-				errors.append("%s: '%s' must be one of %s" % [tid, path, fs["enum"]])
+			elif fs.has("enum") and not enum_of(fs).has(v):
+				errors.append("%s: '%s' must be one of %s" % [tid, path, enum_of(fs)])
 		"dict":
 			if typeof(v) != TYPE_DICTIONARY:
 				errors.append("%s: '%s' must be an object" % [tid, path])

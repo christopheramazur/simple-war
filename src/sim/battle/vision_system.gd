@@ -61,6 +61,7 @@ func _compute(state: BattleState) -> void:
 				continue
 			if _sees(state, o, t, conceal[t]):
 				mask |= pbit
+		mask |= _revealed(state, t)
 		seen[t] = mask
 	sq.put_column(&"seen_by", seen)
 	for t in n:
@@ -73,6 +74,19 @@ func _compute(state: BattleState) -> void:
 				_scout_float(state, p, t)
 			if lost & b != 0 and sq.is_active(t):
 				state.events.push(&"squad_hidden", {"squad": sq.id_at(t), "player": p}, state.tick)
+
+
+## Bits of players whose scripted reveal covers squad row t (and who are not
+## its own side).
+func _revealed(state: BattleState, t: int) -> int:
+	var sq := state.squads
+	var bits := 0
+	for rv: Array in state.reveals:
+		if int(rv[4]) >= 0 and state.turn >= int(rv[4]) or int(rv[0]) == sq.player[t]:
+			continue
+		if Fixed.distance(sq.cx[t], sq.cy[t], int(rv[1]), int(rv[2])) <= int(rv[3]):
+			bits |= BattleSquads.bit(int(rv[0]))
+	return bits
 
 
 func _sees(state: BattleState, o: int, t: int, conceal: int) -> bool:

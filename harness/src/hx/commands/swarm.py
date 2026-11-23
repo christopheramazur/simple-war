@@ -50,6 +50,8 @@ def add_args(p) -> None:
             sp.add_argument("text")
         if name == "usage":
             sp.add_argument("--minutes", type=int, default=30)
+        if name == "stop":
+            sp.add_argument("--wait", type=float, default=180, help="seconds to wait for the supervisor to exit")
         if name == "verdict":
             sp.add_argument("verdict", choices=["PASS", "WARN", "FAIL"])
             sp.add_argument("reason")
@@ -71,8 +73,12 @@ def run(args) -> Result:
             r.data["pid"] = swarm.start()
             r.data["log"] = str(swarm.STATE / "supervisor.log")
         elif a == "stop":
-            r.data["was_running"] = swarm.stop()
-            r.data["note"] = "STOP file written; running turns finish, then the supervisor exits"
+            res = swarm.stop(args.wait)
+            r.data.update(res)
+            if not res["exited"]:
+                r.checks.append(Check("stop", FAIL, f"supervisor still running after {args.wait:.0f} s; run hx swarm stop again"))
+            else:
+                r.data["note"] = "running turns were ended (workers resume from their branch on the next start)"
         elif a == "run":
             swarm.Supervisor().run()
         elif a == "status":

@@ -108,3 +108,34 @@ func test_build_places_skips_and_keeps_the_rest() -> void:
 	assert_false(lay.regions["left"].visible)
 	lay.set_view("battle")
 	assert_true(lay.regions["left"].visible)
+
+
+func test_a_column_keeps_its_width_whatever_it_shows() -> void:
+	# sw-7m6: a wide panel must not widen its column, or the stage shifts
+	# under the cursor and a hover flickers on and off.
+	var host := Control.new()
+	add_child_autofree(host)
+	var panels := _panels(["a"])
+	var lay := UiLayout.build({"row": [
+		{"id": "left", "kind": "column", "width": 100, "scroll": ["a"]},
+		{"id": "stage", "kind": "stage", "layers": []}]}, panels, host)
+	var col: Control = lay.regions["left"]
+	var before := col.get_combined_minimum_size().x
+	(panels["a"] as Label).custom_minimum_size.x = 600
+	assert_eq(col.get_combined_minimum_size().x, before, "the column's width is the layout's, not its content's")
+
+
+func test_the_battle_column_does_not_grow_for_a_squad_card() -> void:
+	var w := _room()
+	var col: Control = w.layout.regions["battle"]
+	var before := col.get_combined_minimum_size().x
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var s := BattleSession.create(l.templates, l.data_hash, "duel_crossroads", 11)
+	var q: Dictionary = s.observe(1)["squads"][0]
+	w._battle_box.show_battle("T", s.observe(1), q, s.inspect(1, q["id"]), 1, 10)
+	assert_eq(col.get_combined_minimum_size().x, before, "showing a card keeps the column's width")
+	var widest := 0.0
+	for c: Node in w._battle_box.find_children("*", "Control", true, false):
+		widest = maxf(widest, (c as Control).get_combined_minimum_size().x)
+	var room := (w._battle_box as Control).get_parent_control().size.x
+	assert_true(room <= 0.0 or widest <= room + 0.5, "the card fits the column (widest %d, room %d)" % [widest, room])
