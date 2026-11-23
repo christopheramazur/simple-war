@@ -1,6 +1,6 @@
 # Swarm status
 
-Updated 2026-11-23 12:48 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 13:03 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
@@ -8,9 +8,9 @@ Updated 2026-11-23 12:48 UTC. Generation 1, audit alert streak 0. Supervisor run
 | Worker turns / research turns (24 h) | 4 / 0 |
 | Workers queued / running / awaiting review | - / sw-ll4.27.7 / - |
 | Merged / rejected (all time) | 19 / 1 |
-| Gateway calls last hour (rate-limited) | 42 (21) |
+| Gateway calls last hour (rate-limited) | 41 (18) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-23 12:31 UTC **PASS** (rules) |
+| Latest audit | 11-23 13:01 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-ll4.27.1 (2026-11-21T13:00)
@@ -25,6 +25,10 @@ Updated 2026-11-23 12:48 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-23 13:01 UTC **WARN** (rules)
+
+13 swarm calls (7 rate-limited), all nous/qwen4-max, cost 0 USD | health: 7/13 calls rate-limited (54%)
 
 ### 11-23 12:31 UTC **PASS** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-23 12:48 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-23 11:01 UTC **WARN** (rules)
 
 13 swarm calls (10 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-ll4.27.6 finished (partial) 270 min ago and awaits review | act: worker sw-ll4.27.7 has run 236 min, past its 130 min limit | act: sw-vld finished (partial) 246 min ago and awaits review | health: 10/13 calls rate-limited (77%)
-
-### 11-23 10:31 UTC **WARN** (rules)
-
-18 swarm calls (16 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-ll4.27.6 finished (partial) 240 min ago and awaits review | act: worker sw-ll4.27.7 has run 206 min, past its 130 min limit | act: sw-vld finished (partial) 216 min ago and awaits review | health: 16/18 calls rate-limited (89%)
 
