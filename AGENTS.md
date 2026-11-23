@@ -89,6 +89,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | Import + script check | `harness/bin/hx godot check` (errors only; `--no-import` to parse scripts only); parse plus a ClassDB lint for calls to methods a natively typed variable lacks, e.g. `to_global` on a `Control`; untyped receivers are still only caught by the test gate). `harness/` and `GD-Agentic-Skills/` carry a `.gdignore` |
 | Game tests | `harness/bin/hx godot test` (GUT summary and failures); a subset: `--dir tests/sim`, `--file <script>`, `--select <script name>`, `--test <test name>`; writing tests: see `testing-patterns` |
 | Search with context | `harness/bin/hx find <regex> [path ...] [-C N] [--max N] [--glob '*.gd']` (bounded `file:line: text` plus context; use instead of chaining `grep` and `sed -n`) |
+| List and find by name | `harness/bin/hx scan <dir> [--depth N] [--name GLOB]...` (entries plus case-insensitive name matches in one call; replaces `ls && find`) |
 | Check some scripts | `harness/bin/hx godot check src/a.gd src/b.gd` (parse only, no import) |
 | Run one scene or script headless | `harness/bin/hx godot run <scene.tscn \| script.gd> [--quit-after N] [-- args]` (errors plus the output tail; `--editor` loads editor plugins). Don't call the Godot exe directly |
 | UI mock to PNG | `harness/bin/hx godot mock res://src/presentation/mocks/<name>_mock.gd` (opens a window briefly; writes `Game Design Document/Mocks/<name>.png`) |
