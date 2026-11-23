@@ -274,3 +274,46 @@ def test_godot_tooling_changes_run_the_godot_check():
     names = [" ".join(c[-2:]) for c in ap.swarm._checks_for(["harness/godot/native_method_lint.gd"])]
     assert "godot check" in names and "-q -x" in names
     assert "godot check" not in [" ".join(c[-2:]) for c in ap.swarm._checks_for(["harness/src/hx/report.py"])]
+
+
+# ---------------------------------------------------------------- model tiers
+
+TIERED = {**C, "claude": {**C["claude"], "model": "haiku", "effort": "high",
+                          "large": {"model": "opus", "effort": "medium", "labels": ["large"], "min_description_chars": 50}}}
+
+
+def test_tier_by_label_description_and_escalation():
+    assert ap.tier(C, {"labels": ["large"]}, {}) == "default"  # no [claude.large]: one model for everything
+    assert ap.tier(TIERED, {"description": "short"}, {}) == "default"
+    assert ap.tier(TIERED, {"labels": ["large"]}, {}) == "large"
+    assert ap.tier(TIERED, {"description": "x" * 50}, {}) == "large"
+    assert ap.tier(TIERED, {}, {"tier": "large"}) == "large"
+
+
+def test_session_cfg_and_effort_flag():
+    cl = ap.session_cfg(TIERED, "large")["claude"]
+    assert (cl["model"], cl["effort"], cl["max_turns"], "large" in cl) == ("opus", "medium", 50, False)
+    cmd = ap.claude_cmd(ap.session_cfg(TIERED, "default")["claude"])
+    assert cmd[cmd.index("--model") + 1] == "haiku" and cmd[cmd.index("--effort") + 1] == "high"
+    assert "--effort" not in ap.claude_cmd(C["claude"])
+
+
+def test_prompt_offers_escalation_only_to_the_small_model():
+    small = ap.session_cfg(TIERED, "default")
+    small["claude"]["tiered"] = True
+    big = ap.session_cfg(TIERED, "large")
+    big["claude"]["tiered"] = True
+    assert "RESULT: escalate" in ap.prompt_for("sw-x", "", "b", Path("."), {}, small, "default")
+    p = ap.prompt_for("sw-x", "", "b", Path("."), {}, big, "large")
+    assert "RESULT: escalate" not in p and "subagents" in p
+    assert "escalate" not in ap.prompt_for("sw-x", "", "b", Path("."), {}, C, "default")
+
+
+def test_escalate_hands_the_bead_to_the_large_model_without_an_attempt(bead):
+    bead["st"]["session"].update(result="escalate", summary="touches six systems")
+    j = ap.run_bead(TIERED, {"id": "sw-x"})
+    assert (j["outcome"], j["attempts"], j["tier"]) == ("escalated", 0, "large") and not bead["merges"]
+    assert not labels(bead["calls"])
+    bead["st"]["session"].update(result="done", summary="fixed")
+    j = ap.run_bead(TIERED, {"id": "sw-x"})
+    assert (j["outcome"], j["model"]) == ("merged", "opus")

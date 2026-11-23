@@ -33,7 +33,7 @@ from hx.swarm import ROOT, file_lock, git
 CFG = ROOT / "harness" / "config" / "autopilot.toml"
 STATE = ROOT / "harness" / "data" / "autopilot"
 WEEK = 7 * 86400
-RESULT = re.compile(r"^\s*\**RESULT:?\**:?\s*(done|partial|blocked)\b[\s\-—–:]*(.*)$", re.I | re.M)
+RESULT = re.compile(r"^\s*\**RESULT:?\**:?\s*(done|partial|blocked|escalate)\b[\s\-—–:]*(.*)$", re.I | re.M)
 STOPPED, LIMITED, TIMED_OUT = "stopped", "limit", "timeout"
 
 
@@ -213,7 +213,36 @@ def pick(c: dict, skip: set[str]) -> dict | None:
 
 # ---------------------------------------------------------------- one bead
 
-def prompt_for(bead: str, show: str, branch: str, wt: Path, j: dict, c: dict) -> str:
+def tier(c: dict, b: dict, j: dict) -> str:
+    """"large" (the planning model) for beads labelled large, with a long description, or escalated by an earlier
+    attempt (the small model said so, or ran out of time); else "default"."""
+    lg = c["claude"].get("large")
+    if not lg:
+        return "default"
+    if j.get("tier") == "large" or set(b.get("labels") or []) & set(lg.get("labels", [])):
+        return "large"
+    return "large" if len(b.get("description") or "") >= lg.get("min_description_chars", 10**9) else "default"
+
+
+def session_cfg(c: dict, t: str) -> dict:
+    """The config with [claude] resolved for tier `t` ([claude.large] overrides model, effort, turns, timeout)."""
+    cl = {k: v for k, v in c["claude"].items() if k != "large"}
+    if t == "large":
+        cl.update({k: v for k, v in c["claude"].get("large", {}).items() if k in ("model", "effort", "max_turns", "timeout_s")})
+    return {**c, "claude": cl}
+
+
+TIER_RULES = {
+    "default": """- If after a first look the bead is too large or long-horizon to finish well in your turns (many files or
+  systems, a design to work out, several dependent steps), stop before editing and reply `RESULT: escalate - <why>`;
+  a planning model then takes it. Do not escalate work you can finish.""",
+    "large": """- You were given this bead because it is large or long-horizon: plan before editing, and coordinate. Hand
+  well-scoped, independent pieces to subagents (Agent tool, model "haiku") with exact files and done-criteria, then
+  review their diffs and run the tests yourself. Keep the design decisions and the integration for yourself.""",
+}
+
+
+def prompt_for(bead: str, show: str, branch: str, wt: Path, j: dict, c: dict, t: str = "default") -> str:
     earlier = ""
     if j.get("attempts"):
         earlier = (f"\n- This is attempt {j['attempts'] + 1}. The branch keeps the earlier attempts' commits "
@@ -239,18 +268,20 @@ so never ask one. Decide the way AGENTS.md §6 says, and record the decision in 
 - If the bead needs the user (a design decision the GDD and harness/DESIGN.md don't settle, an account, a login),
   append a note saying exactly what is needed and stop.
 - You have about {c['claude']['max_turns']} turns. Commit each working step, so a run that is cut off keeps its work.
+{TIER_RULES[t] if c["claude"].get("tiered") else ""}
 
 # The last line of your final reply must be exactly one of
 RESULT: done - <one sentence: what changed and which tests passed>
 RESULT: partial - <one sentence: what is left>
-RESULT: blocked - <one sentence: what a person must do>
-"""
+RESULT: blocked - <one sentence: what a person must do>""" + ("""
+RESULT: escalate - <one sentence: why this needs the planning model>""" if t == "default" and c["claude"].get("tiered") else "") + "\n"
 
 
 def claude_cmd(cl: dict) -> list[str]:
     if cl["permission_mode"] == "bypassPermissions":
         raise ValueError("autopilot never runs with bypassPermissions; use auto")
-    return [claude_exe(), "-p", "--model", cl["model"], "--permission-mode", cl["permission_mode"],
+    effort = ["--effort", cl["effort"]] if cl.get("effort") else []
+    return [claude_exe(), "-p", "--model", cl["model"], *effort, "--permission-mode", cl["permission_mode"],
             "--max-turns", str(cl["max_turns"]), "--output-format", "stream-json", "--verbose"]
 
 
@@ -366,11 +397,19 @@ def run_bead(c: dict, b: dict, stop_flag=lambda: False) -> dict:
     save_job(j)
     _state({"current": bead, "since": j["started"]})
     event("start", bead=bead, attempt=j["attempts"] + 1, continued=continued)
+    t = tier(c, b, j)
+    cs = session_cfg(c, t)
+    cs["claude"]["tiered"] = "large" in c["claude"]
+    j["tier"], j["model"] = t, cs["claude"]["model"]
+    event("tier", bead=bead, tier=t, model=cs["claude"]["model"], effort=cs["claude"].get("effort"))
     t0 = time.time()
-    res = run_claude(c, prompt_for(bead, show, branch, wt, j, c), wt, STATE / "logs" / bead / f"{stamp}.jsonl", stop_flag)
+    res = run_claude(cs, prompt_for(bead, show, branch, wt, j, cs, t), wt, STATE / "logs" / bead / f"{stamp}.jsonl", stop_flag)
     save_wip(wt, bead, f"autopilot session ended ({res['end']}, rc={res['rc']})")
     commits = int(git("rev-list", "--count", f"main..{branch}").stdout.strip() or 0)
-    counts = res["end"] not in (STOPPED, LIMITED)  # not the bead's fault: does not use up an attempt
+    if t == "default" and "large" in c["claude"] and (res["result"] == "escalate" or res["end"] == TIMED_OUT):
+        j["tier"] = "large"  # the next attempt runs on the planning model
+    # not the bead's fault (stop, plan limit) or a hand-up to the planning model: does not use up an attempt
+    counts = res["end"] not in (STOPPED, LIMITED) and res["result"] != "escalate"
     j.update(attempts=j["attempts"] + (1 if counts else 0), minutes=round((time.time() - t0) / 60),
              turns=res["turns"], cost_usd=res["cost_usd"], commits=commits, end=res["end"], status="idle")
     outcome = res["result"] or (res["end"] if res["end"] != "exit" else "no_result")
@@ -398,7 +437,9 @@ def run_bead(c: dict, b: dict, stop_flag=lambda: False) -> dict:
         swarm._bd("update", bead, "--add-label=" + ("autopilot-blocked" if res["result"] == "blocked" else "autopilot-partial"))
     else:
         swarm._bd("unclaim", bead)
-        if outcome == "blocked":
+        if res["result"] == "escalate":
+            outcome = "escalated"
+        elif outcome == "blocked":
             swarm._bd("update", bead, "--add-label=autopilot-blocked")
         elif j["attempts"] >= c["beads"]["max_attempts"]:
             swarm._bd("update", bead, "--add-label=autopilot-failed")
