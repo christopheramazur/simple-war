@@ -27,6 +27,8 @@ def add_args(p) -> None:
             sp.add_argument("--bead", help="work this bead once, skipping the picker")
         if name == "stop":
             sp.add_argument("--wait", type=float, default=120, help="seconds to wait for the loop to exit")
+            sp.add_argument("--after-bead", action="store_true",
+                            help="let the running bead finish, start no other, and return at once")
 
 
 def run(args) -> Result:
@@ -37,9 +39,9 @@ def run(args) -> Result:
         r.data["pid"] = ap.start()
         r.data["log"] = str(ap.STATE / "autopilot.log")
     elif a == "stop":
-        res = ap.stop(args.wait)
+        res = ap.stop(args.wait, after_bead=args.after_bead)
         r.data.update(res)
-        if not res["exited"]:
+        if not res["exited"] and not res.get("draining"):
             r.checks.append(Check("stop", FAIL, f"still running after {args.wait:.0f} s; run hx autopilot stop again"))
     elif a == "run":
         done = ap.run_loop(once=args.once or bool(args.bead), bead=args.bead)

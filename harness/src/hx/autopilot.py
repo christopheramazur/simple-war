@@ -466,6 +466,11 @@ def stop_requested() -> bool:
     return (STATE / "STOP").exists()
 
 
+def drain_requested() -> bool:
+    """`stop --after-bead`: let the running bead finish, start no other."""
+    return (STATE / "DRAIN").exists()
+
+
 def _sleep_until(t: float) -> None:
     while time.time() < t and not stop_requested():
         time.sleep(min(5.0, max(0.1, t - time.time())))
@@ -478,7 +483,7 @@ def run_loop(once: bool = False, bead: str | None = None) -> list[dict]:
     skip: set[str] = set()
     last_wait = ""
     log(f"autopilot started (pid {os.getpid()})")
-    while not stop_requested():
+    while not stop_requested() and not drain_requested():
         c = cfg()
         decision, why, until = gate(c, readings(), time.time())
         if decision == "probe":
@@ -512,6 +517,9 @@ def run_loop(once: bool = False, bead: str | None = None) -> list[dict]:
             skip.add(b["id"])
         if once or bead:
             break
+    if drain_requested():
+        (STATE / "DRAIN").unlink(missing_ok=True)
+        log("autopilot drained: stopped after the bead")
     log("autopilot stopped")
     return done
 
@@ -541,6 +549,7 @@ def start() -> int:
     if (n := pid()):
         return n
     (STATE / "STOP").unlink(missing_ok=True)
+    (STATE / "DRAIN").unlink(missing_ok=True)
     env = dict(os.environ, PYTHONPATH=str(ROOT / "harness" / "src"), PYTHONUTF8="1")
     proc = background.spawn([sys.executable, "-m", "hx.cli", "autopilot", "run"], ROOT / "harness", env,
                             STATE / "autopilot.out")
@@ -549,10 +558,14 @@ def start() -> int:
     return proc.pid
 
 
-def stop(wait_s: float = 120) -> dict:
-    """Asks the loop to stop: a running session is ended, its work kept as a WIP commit, the bead unclaimed."""
+def stop(wait_s: float = 120, after_bead: bool = False) -> dict:
+    """Asks the loop to stop: a running session is ended, its work kept as a WIP commit, the bead unclaimed.
+    `after_bead`: the running bead finishes first and no other starts; returns at once."""
     n = pid()
     STATE.mkdir(parents=True, exist_ok=True)
+    if after_bead and n:
+        (STATE / "DRAIN").write_text(now().isoformat(), encoding="utf-8")
+        return {"was_running": True, "exited": False, "draining": True}
     (STATE / "STOP").write_text(now().isoformat(), encoding="utf-8")
     deadline = time.time() + wait_s
     while n and pid() == n and time.time() < deadline:
