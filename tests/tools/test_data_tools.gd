@@ -142,3 +142,21 @@ func test_the_panel_runs_standalone() -> void:
 	p.show_dialogue("af_jeff_briefing")
 	await get_tree().process_frame
 	assert_eq(p.dialogue_node_count(), (DialogueGraph.build(p.model.templates, "af_jeff_briefing")["nodes"] as Dictionary).size())
+
+
+func test_the_trigger_graph_is_a_view() -> void:
+	# sw-ow6: a node drawn in the trigger graph is not saved; the graph is drawn
+	# again from the definition with a note.
+	var p := WarDataPanel.new()
+	p.package_dir = COPY
+	add_child_autofree(p)
+	p.show_triggers("trigger_vale")
+	await get_tree().process_frame
+	var before := JSON.stringify(p.model.templates.values_of("trigger_vale"))
+	var nodes := p.graph_node_count()
+	var g: CGEGraph = p._graph.get("graph")
+	g.create_node()
+	await get_tree().process_frame
+	assert_string_starts_with(p._tresult.text, "Not saved:")
+	assert_eq(JSON.stringify(p.model.templates.values_of("trigger_vale")), before, "nothing is written")
+	assert_eq(p.graph_node_count(), nodes, "the graph is drawn again from the definition")

@@ -34,6 +34,8 @@ var _owners: OptionButton
 var _graph_holder: Control
 var _graph: Control
 var _graph_data: Dictionary = {}
+var _graph_owner: String = ""
+var _tresult: Label
 var _dialogues: OptionButton
 var _dgraph_holder: Control
 var _dgraph: Control
@@ -138,10 +140,33 @@ func add_new() -> PackedStringArray:
 	return errs
 
 
-## Draws the triggers of a map or scenario.
+## Draws the triggers of a map or scenario. The graph is a view (GDD 04
+## §4.9): an edit drawn in it is not saved, and the graph is drawn again from
+## the definition with a note saying so.
 func show_triggers(owner: String) -> void:
-	_graph_data = TriggerGraph.build(model.templates, owner)
+	_graph_owner = owner
+	_tresult.text = ""
+	_draw_triggers()
+
+
+func _draw_triggers() -> void:
+	_graph_data = TriggerGraph.build(model.templates, _graph_owner)
 	_graph = _load_graph(_graph_holder, _graph, _graph_data)
+	var g: CGEGraph = _graph.get("graph")
+	g.node_created.connect(_on_trigger_graph_edited.unbind(1))
+	g.node_deleted.connect(_on_trigger_graph_edited.unbind(1))
+	g.link_created.connect(_on_trigger_graph_edited.unbind(3))
+	g.link_deleted.connect(_on_trigger_graph_edited.unbind(1))
+
+
+## The editor changed the trigger graph. Applied after the editor's command is done.
+func _on_trigger_graph_edited() -> void:
+	_refuse_trigger_edit.call_deferred()
+
+
+func _refuse_trigger_edit() -> void:
+	_draw_triggers()
+	_tresult.text = "Not saved: the trigger graph only shows the triggers. Edit them in the definition text (Template tab)."
 
 
 ## Draws one dialogue (DialogueGraph) on the Dialogues tab. Its graph is
@@ -313,6 +338,9 @@ func _build() -> void:
 	_graph_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_graph_holder.clip_contents = true
 	trig.add_child(_graph_holder)
+	_tresult = Label.new()
+	_tresult.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	trig.add_child(_tresult)
 	var dlg := VBoxContainer.new()
 	dlg.name = "Dialogues"
 	_tabs.add_child(dlg)
