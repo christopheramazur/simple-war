@@ -1,0 +1,149 @@
+target: res://.godot/u1_dps/dps_orders.gd
+exit: 0
+output: 
+  legend: per-second timeline char = F if most armed units fired that second, else the dominant hold reason;
+    . none  R reload  c cooldown  m no moving fire  n min range  o out of range  l no LOS  s not spotted  t no target
+  cols: scenario | dmg | DPS(300t) | DPS from 1st shot | shots | hits | hit% | 1st shot s | unit-ticks moving | unit fire events moving/standing | instinct end/min | end centroid dist m | holds (unit-ticks)
+  == Rifle squad (8 x rifle: aimed 1x0.6x3/1.0s standing; burst 3x0.3x3/1.5s moving) vs disarmed 1000-HP rifle squad on HOLD ==
+  R1 HOLD in range 35m                         |  483.0 | 16.10 | 16.10 |  240 |  145 |  60% |   0.0 |    0 | 0/240 | 52/52 |  35.0 | F:240 R:72 c:2088
+      FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  R2 HOLD out of range 44m                     |    0.0 |  0.00 |  0.00 |    0 |    0 |   0% |     - |    0 | 0/0 | 52/52 |  44.0 | t:2400
+      tttttttttttttttttttttttttttttt
+  R3 MOVE to enemy centre 44m                  |  429.0 | 14.30 | 15.00 |  336 |  129 |  38% |   1.4 | 1184 | 72/120 | 52/39 |   0.0 | F:192 R:152 c:1944 t:112
+      tFFcFFcFFcFFcFFFFRFFFFFFFFFFFF
+  R3b MOVE to 20m short of enemy               |  441.0 | 14.70 | 15.42 |  288 |  131 |  45% |   1.4 |  648 | 40/168 | 52/44 |  20.0 | F:208 R:152 c:1928 t:112
+      tFFcFFcFFFFFFFFFFFFFFFFRFFFFFF
+  R4 ATTACK_MOVE to enemy 44m                  |  453.0 | 15.10 | 15.84 |  240 |  135 |  56% |   1.4 |  128 | 8/216 | 52/44 |  39.5 | F:224 R:80 c:1984 t:112
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R5 ATTACK target 44m                         |  453.0 | 15.10 | 15.84 |  240 |  135 |  56% |   1.4 |  128 | 8/216 | 52/44 |  39.5 | F:224 R:80 c:1984 t:112
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R6 MOVE run 44m                              |  441.0 | 14.70 | 15.10 |  288 |  131 |  45% |   0.8 |  616 | 40/168 | 52/40 |   0.0 | F:208 R:152 c:1976 t:64
+      FcFFcFFcFFFFFFFFFFFFFFFRFFFFFF
+  R6b ATTACK_MOVE run 44m                      |  453.0 | 15.10 | 15.51 |  240 |  135 |  56% |   0.8 |   88 | 8/216 | 52/44 |  38.7 | F:224 R:128 c:1984 t:64
+      FcFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R6c ATTACK run 44m                           |  453.0 | 15.10 | 15.51 |  240 |  135 |  56% |   0.8 |   88 | 8/216 | 52/44 |  38.7 | F:224 R:128 c:1984 t:64
+      FcFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R7 MOVE 70m (unseen start)                   |  276.0 |  9.20 | 13.80 |  264 |   85 |  32% |  10.0 | 1872 | 72/48 | 52/39 |   0.1 | F:120 R:152 c:1328 t:800
+      ttttttttttFFcFFcFFcFFcFFFFRFFF
+  R7b ATTACK_MOVE 70m                          |  315.0 | 10.50 | 15.75 |  176 |   97 |  55% |  10.0 |  816 | 8/152 | 52/52 |  39.7 | F:160 c:1440 t:800
+      ttttttttttFFFFFFFFFFFFFFFFFFFF
+  R8 HOLD flank 35m @45deg                     |  459.0 | 15.30 | 15.30 |  240 |  145 |  60% |   0.0 |    0 | 0/240 | 52/52 |  35.4 | F:240 R:72 c:2088
+      FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  R8b ATTACK_MOVE flank 50m @45deg             |  378.0 | 12.60 | 14.32 |  226 |  123 |  54% |   3.6 |  338 | 9/199 | 52/44 |  38.4 | .:17 F:208 R:3 c:1901 t:271
+      tttFcFFFFFFFFFFFFFFFFFFFFFFFFF
+  R8c ATTACK flank 44m @45deg                  |  432.0 | 14.40 | 15.32 |  241 |  135 |  56% |   1.8 |  194 | 9/214 | 52/44 |  38.2 | .:24 F:223 R:61 c:1972 t:120
+      tFcFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  R8d ATTACK_MOVE vs column 44m                |  432.0 | 14.40 | 15.10 |  240 |  135 |  56% |   1.4 |  128 | 8/216 | 52/44 |  39.5 | F:224 R:80 c:1984 t:112
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R9 2 enemies: ATTACK A only                  |  453.0 | 15.10 | 15.84 |  240 |  135 |  56% |   1.4 |  128 | 8/216 | 52/44 |  39.5 | .:20 F:224 R:80 c:1984 t:92
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R9b 2 enemies: ATTACK B only                 |  432.0 | 14.40 | 15.21 |  240 |  135 |  56% |   1.6 |  162 | 8/216 | 52/44 |  38.8 | .:14 F:224 R:64 c:1984 t:114
+      tFcFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  R9c 2 enemies: ATTACK A, retarget B @t50     |  438.0 | 14.60 | 15.31 |  243 |  135 |  55% |   1.4 |  186 | 11/210 | 52/44 |  39.2 | .:20 F:221 R:107 c:1960 t:92
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R9d 2 enemies: ATTACK A, retarget B @t150    |  441.0 | 14.70 | 15.42 |  243 |  135 |  55% |   1.4 |  186 | 11/210 | 52/44 |  39.2 | .:20 F:221 R:107 c:1960 t:92
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  R9e 2 enemies: ATTACK_MOVE                   |  453.0 | 15.10 | 15.84 |  240 |  135 |  56% |   1.4 |  128 | 8/216 | 52/44 |  39.5 | .:20 F:224 R:80 c:1984 t:92
+      tFFFFFFFFFFFFFFFFFFFFFFFFFFFFR
+  == Rifle squad vs ARMED rifle squad on HOLD (real duel, 300 ticks) ==
+  R1 HOLD in range 35m [armed]                 |   82.0 |  2.73 |  2.73 |   56 |   32 |  57% |   0.0 |    0 | 0/48 | 44/43 |  35.0 | F:48 c:432 | my alive 0 | foe alive 0 | foe dmg 82 | first foe death s 6.0, first own death s 6.0
+      FFFFFF........................
+  R2 HOLD out of range 44m [armed]             |    0.0 |  0.00 |  0.00 |    0 |    0 |   0% |     - |    0 | 0/0 | 52/52 |  44.0 | t:2400 | my alive 8 | foe alive 8 | foe dmg 0 | first foe death s -, first own death s -
+      tttttttttttttttttttttttttttttt
+  R3 MOVE to enemy centre 44m [armed]          |   73.0 |  2.43 |  2.55 |  120 |   25 |  20% |   1.4 |  592 | 32/0 | 25/25 |  21.8 | F:32 c:448 t:112 | my alive 0 | foe alive 7 | foe dmg 82 | first foe death s 7.4, first own death s 7.4
+      tFFcFFcc......................
+  R3b MOVE to 20m short of enemy [armed]       |   73.0 |  2.43 |  2.55 |  120 |   25 |  20% |   1.4 |  592 | 32/0 | 25/25 |  21.8 | F:32 c:448 t:112 | my alive 0 | foe alive 7 | foe dmg 82 | first foe death s 7.4, first own death s 7.4
+      tFFcFFcc......................
+  R4 ATTACK_MOVE to enemy 44m [armed]          |   74.0 |  2.47 |  2.59 |   66 |   26 |  39% |   1.4 |  131 | 8/42 | 44/43 |  39.9 | F:50 c:450 t:112 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 6.9, first own death s 7.4
+      tFFFFFFcFc....................
+  R5 ATTACK target 44m [armed]                 |   74.0 |  2.47 |  2.59 |   66 |   26 |  39% |   1.4 |  131 | 8/42 | 44/43 |  39.9 | F:50 c:450 t:112 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 6.9, first own death s 7.4
+      tFFFFFFcFc....................
+  R6 MOVE run 44m [armed]                      |   73.0 |  2.43 |  2.50 |  120 |   25 |  20% |   0.8 |  544 | 32/0 | 21/21 |  12.6 | F:32 c:448 t:64 | my alive 0 | foe alive 7 | foe dmg 82 | first foe death s 6.8, first own death s 6.8
+      FcFFcFc.......................
+  R6b ATTACK_MOVE run 44m [armed]              |   74.0 |  2.47 |  2.53 |   66 |   26 |  39% |   0.8 |   88 | 8/42 | 44/43 |  39.7 | F:50 c:450 t:64 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 6.3, first own death s 6.8
+      FcFFFFFFF.....................
+  R6c ATTACK run 44m [armed]                   |   74.0 |  2.47 |  2.53 |   66 |   26 |  39% |   0.8 |   88 | 8/42 | 44/43 |  39.7 | F:50 c:450 t:64 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 6.3, first own death s 6.8
+      FcFFFFFFF.....................
+  R7 MOVE 70m (unseen start) [armed]           |   73.0 |  2.43 |  3.65 |  120 |   25 |  20% |  10.0 | 1280 | 32/0 | 27/27 |  22.0 | F:32 c:448 t:800 | my alive 0 | foe alive 7 | foe dmg 82 | first foe death s 16.0, first own death s 16.0
+      ttttttttttFFcFFc..............
+  R7b ATTACK_MOVE 70m [armed]                  |   74.0 |  2.47 |  3.70 |   68 |   26 |  38% |  10.0 |  820 | 9/40 | 43/42 |  39.8 | F:49 c:451 t:800 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 15.5, first own death s 16.0
+      ttttttttttFFFFFFFc............
+  == Mortar team (3 x mortar: 1x0.35x10 AoE5 / max(reload 30, cd 60) = 6 s, range 20-90, standing only) vs disarmed target; a disarmed friendly spotter holds 25 m from the target ==
+  M1 HOLD in range 60m                         |  120.0 |  4.00 |  4.00 |   15 |    3 |  20% |   0.0 |    0 | 0/15 | 52/52 |  60.0 | F:15 R:435 c:450
+      FRRcccFRRcccFRRcccFRRcccFRRccc
+  M2 HOLD out of range 100m                    |    0.0 |  0.00 |  0.00 |    0 |    0 |   0% |     - |    0 | 0/0 | 52/52 | 100.0 | t:900
+      tttttttttttttttttttttttttttttt
+  M3 MOVE to enemy centre 100m                 |    0.0 |  0.00 |  0.00 |    0 |    0 |   0% |     - |  900 | 0/0 | 52/52 |  25.3 | m:900
+      mmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+  M3b MOVE to 50m short                        |    0.0 |  0.00 |  0.00 |    6 |    0 |   0% |  20.1 |  603 | 0/6 | 52/52 |  50.0 | F:6 R:174 c:117 m:603
+      mmmmmmmmmmmmmmmmmmmmFRRcccFRRc
+  M4 ATTACK_MOVE to enemy 100m                 |  120.0 |  4.00 |  4.67 |   15 |    3 |  20% |   4.3 |  129 | 0/15 | 52/52 |  89.5 | F:15 R:396 c:360 m:129
+      mmmmFRRcccFRRcccFRRcccFRRcccFR
+  M5 ATTACK target 100m                        |  120.0 |  4.00 |  4.67 |   15 |    3 |  20% |   4.3 |  129 | 0/15 | 52/52 |  89.5 | F:15 R:396 c:360 m:129
+      mmmmFRRcccFRRcccFRRcccFRRcccFR
+  M5b ATTACK target 60m (in range)             |  120.0 |  4.00 |  4.03 |   15 |    3 |  20% |   0.2 |    6 | 0/15 | 52/52 |  59.8 | F:15 R:435 c:444 m:6
+      FRRcccFRRcccFRRcccFRRcccFRRccc
+  M6 ATTACK_MOVE run 100m                      |  120.0 |  4.00 |  4.41 |   15 |    3 |  20% |   2.8 |   84 | 0/15 | 52/52 |  88.9 | F:15 R:435 c:366 m:84
+      mmFRRRccFRRRccFRRRccFRRRccFRRR
+  == Mixed-range squads vs disarmed target (does the squad stop where only its longest weapon reaches?) ==
+  -- assault_squad (1 sgt rifle 40m + 4 breacher shotgun 15m)
+    HOLD at 12m (all in range)                 |  201.0 |  6.70 |  6.70 |  120 |   67 |  55% |   0.0 |    0 | 0/60 | 52/52 |  14.4 | F:60 R:299 c:541 o:600
+      FFcFRRFFcFRRFFcFRRFFcFRRFFcFRR
+    MOVE to enemy centre 60m                   |  198.0 |  6.60 |  8.80 |  131 |   66 |  50% |   7.5 | 1005 | 21/28 | 52/49 |   2.4 | .:8 F:49 R:251 c:483 o:342 t:367
+      ttttttttoooooooFFFFFRFFFcFRFFF
+    ATTACK_MOVE to enemy 60m                   |   45.0 |  1.50 |  2.00 |   24 |   14 |  58% |   7.5 |  385 | 1/21 | 52/51 |  39.6 | .:8 F:22 c:203 o:900 t:367
+      ttttttttoooooooooooooooooooooo
+    ATTACK target 44m                          |   60.0 |  2.00 |  2.16 |   30 |   18 |  60% |   2.2 |  120 | 1/27 | 52/51 |  39.5 | .:8 F:28 R:2 c:248 o:1112 t:102
+      ttoooooooooooooooooooooooooooo
+  -- heavy_weapons_team (2 lmg 50m + 2 rifle 40m)
+    HOLD at 12m (all in range)                 |  240.0 |  8.00 |  8.00 |  210 |   80 |  38% |   0.0 |    0 | 0/90 | 52/52 |  13.0 | F:90 R:18 c:1092
+      FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    MOVE to enemy centre 60m                   |  114.0 |  3.80 |  4.83 |  156 |   40 |  25% |   6.4 |  962 | 38/18 | 52/48 |   1.0 | F:56 R:38 c:804 o:46 s:46 t:210
+      tttttsFcFcFFFFFcFFFFFcFcFFFFFF
+    ATTACK_MOVE to enemy 60m                   |   96.0 |  3.20 |  4.07 |  116 |   32 |  27% |   6.4 |  262 | 2/22 | 52/50 |  44.8 | F:24 c:448 o:472 s:46 t:210
+      tttttsFcFcFcFcFcFcFcFcFcFcFcFc
+    ATTACK target 44m                          |  120.0 |  4.00 |  4.00 |  146 |   42 |  28% |   0.0 |    8 | 2/28 | 52/52 |  44.8 | F:30 c:570 o:600
+      FcFcFcFcFcFcFcFcFcFcFcFcFcFcFc
+  -- rocket_team (2 rocket 45m + 1 rifle 40m)
+    HOLD at 12m (all in range)                 |  229.8 |  7.66 |  7.66 |   42 |   24 |  57% |   0.0 |    0 | 0/42 | 52/52 |  12.0 | F:42 R:477 c:381
+      FRRRcFRRRcFRRRcFRRRcFRRRcFRRRc
+    MOVE to enemy centre 60m                   |   96.6 |  3.22 |  4.15 |   40 |   15 |  37% |   6.7 |  603 | 9/13 | 52/51 |   0.0 | F:22 R:175 c:234 m:402 o:17 t:50
+      mmmmmmmmmmmmmmmmmmmmFRRRcFRRRc
+    ATTACK_MOVE to enemy 60m                   |  115.2 |  3.84 |  4.65 |   10 |    4 |  40% |   5.2 |  156 | 0/10 | 52/52 |  44.7 | F:10 R:390 c:96 m:104 o:250 t:50
+      mmmmmFRRRcFRRRcFRRRcFRRRcFRRRc
+    ATTACK target 44m                          |  172.8 |  5.76 |  5.80 |   12 |    6 |  50% |   0.2 |    6 | 0/12 | 52/52 |  43.7 | F:12 R:468 c:116 m:4 o:300
+      FRRRcFRRRcFRRRcFRRRcFRRRcFRRRc
+  == Far second target and moving targets (rifle vs disarmed) ==
+  R10 A at 35m in range; ATTACK far B (55m, spotted) |  441.0 | 14.70 | 14.70 |  286 |  138 |  48% |   0.0 |  484 | 35/181 | 52/44 |  38.4 | F:216 R:152 c:2032
+      FFcFFcFFFFFFFFFFFFFFFFFFRFFFFF
+  R10b A at 35m; HOLD (fires at A)             |  483.0 | 16.10 | 16.10 |  240 |  145 |  60% |   0.0 |    0 | 0/240 | 52/52 |  35.0 | F:240 R:72 c:2088
+      FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+  R10c HOLD on A, retarget far B @t50          |  447.0 | 14.90 | 14.90 |  286 |  138 |  48% |   0.0 |  484 | 35/181 | 52/44 |  23.4 | F:216 R:152 c:2032
+      FFFFFFFcFFcFFFFFFFFFFFFFRFFFFF
+  R11 target walks north 40m: ATTACK           |  405.0 | 13.50 | 13.50 |  324 |  132 |  40% |   0.0 |  587 | 62/138 | 52/44 |  39.8 | .:12 F:200 R:152 c:2030 t:6
+      FFFFFFcFFcFFcFFFcFRFFFFFFFFFFF
+  R11b target walks north 40m: ATTACK_MOVE to its start |  213.0 |  7.10 |  7.10 |  176 |   69 |  39% |   0.0 | 1072 | 36/68 | 52/44 |  40.0 | .:330 F:104 c:1116 o:420 t:430
+      FFFFFFcFcFctttttt..FcFFFFFFFFF
+  R11c target walks north 40m: HOLD            |   72.0 |  2.40 |  2.40 |   40 |   24 |  60% |   0.0 |    0 | 0/40 | 52/52 |  55.2 | .:50 F:40 c:360 t:1950
+      FFFFFttttttttttttttttttttttttt
+  == Armed rifle duels, both sides acting (attacker order vs defender order), start 60 m (out of sight) ==
+  A: ATTACK_MOVE vs D: ATTACK_MOVE (mirror)    |   82.0 |  2.73 |  3.08 |   72 |   32 |  44% |   3.4 |  293 | 8/40 | 42/42 |  39.2 | F:48 c:472 t:272 | my alive 0 | foe alive 0 | foe dmg 82 | first foe death s 8.9, first own death s 8.9
+      tttFFFFFFcc...................
+  A: HOLD vs D: ATTACK_MOVE                    |   82.0 |  2.73 |  3.52 |   63 |   35 |  55% |   6.7 |    0 | 0/63 | 52/45 |  39.7 | F:63 c:557 o:20 t:1414 | my alive 6 | foe alive 0 | foe dmg 74 | first foe death s 12.7, first own death s 12.2
+      ttttttFFFFFFFFFttttttttttttttt
+  A: MOVE vs D: ATTACK_MOVE                    |   71.0 |  2.37 |  2.67 |  120 |   25 |  20% |   3.4 |  792 | 39/0 | 33/26 |  34.0 | F:39 c:481 t:272 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 9.4, first own death s 8.9
+      tttFFcFFcFc...................
+  A: MOVE vs D: MOVE (mirror)                  |   79.0 |  2.63 |  2.97 |  141 |   31 |  21% |   3.4 |  857 | 39/0 | 27/25 |  33.7 | F:39 c:546 t:272 | my alive 0 | foe alive 1 | foe dmg 82 | first foe death s 9.4, first own death s 9.4
+      tttFFcFFcFc...................
+  A: ATTACK_MOVE vs D: HOLD                    |   74.0 |  2.47 |  3.18 |   68 |   26 |  38% |   6.7 |  556 | 9/40 | 43/42 |  39.7 | F:49 c:451 t:536 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 12.2, first own death s 12.7
+      ttttttFcFFFFFFc...............
+        t=12.2 alive me 8 foe 7  my hp [3,1,1,1,1,1,1,1]  foe hp [3,1,1,1,1,1,1]
+        t=12.7 alive me 1 foe 7  my hp [3]  foe hp [3,1,1,1,1,1,1]
+        t=13.2 alive me 1 foe 6  my hp [3]  foe hp [3,1,1,1,1,1]
+        t=14.7 alive me 0 foe 6  my hp []  foe hp [1,3,1,1,1,1]
+  A: ATTACK_MOVE vs D: HOLD (deaths traced)    |   74.0 |  2.47 |  3.18 |   68 |   26 |  38% |   6.7 |  556 | 9/40 | 43/42 |  39.7 | F:49 c:451 t:536 | my alive 0 | foe alive 6 | foe dmg 82 | first foe death s 12.2, first own death s 12.7
+      ttttttFcFFFFFFc...............
+        t=6.0 alive me 0 foe 0  my hp []  foe hp []
+  A: HOLD 35m vs D: HOLD (deaths traced)       |   82.0 |  2.73 |  2.73 |   56 |   32 |  57% |   0.0 |    0 | 0/48 | 44/43 |  35.0 | F:48 c:432 | my alive 0 | foe alive 0 | foe dmg 82 | first foe death s 6.0, first own death s 6.0
+      FFFFFF........................
+checks: 1/1 ok
