@@ -75,7 +75,8 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 - **Experiments are cheap**, as long as there's a way to roll back.
 - **Stuck:** search the web to simplify the problem. If a web tool fails, don't retry the same query or URL. Try another source once, then use local docs (GDD, `GD-Agentic-Skills/`) or ask the user.
 - **Long sessions:** at each milestone, record goal, decisions, next step and blockers with `hx task note <id> "…"`.
-  - After about 4 compactions, or near the context limit, write that hand-off and continue in a fresh session that starts from the note.
+  - **Checkpoint before compaction:** when the context is about 70% full, or a compaction looks imminent, first write a short checkpoint to the claimed task with `hx task note <id> "CHECKPOINT: goal; files touched; failing tests; next step"`. After a compaction, read that note first (`hx task show <id>`) instead of re-deriving the context.
+  - After about 2 compactions in one session, or near the context limit, write that hand-off and continue in a fresh session that starts from the note.
   - A blocked task always gets its blocker written down.
 
 ## 7. Build & test (Git Bash, from the repo root)
