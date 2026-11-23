@@ -47,6 +47,14 @@ var _costs_flipped: Dictionary = {}
 var _regions_flipped: Dictionary = {}
 ## Plans made (cache misses), for tests and profiling.
 var plans: int = 0
+## Per route class and frame (key: class * 2 + flip): the gate graph baked
+## from the costs (RouteGates, sw-ll4.29).
+var _gates: Dictionary = {}
+## Cell-search buffers, reused by every plan (this instance is never shared
+## between threads: forecasts plan into their own copy).
+var _g := PackedInt32Array()
+var _from := PackedInt32Array()
+var _closed := PackedByteArray()
 
 
 ## [x, y, final] in fixed point. `final` is 1 when x, y is where the squad
@@ -83,7 +91,10 @@ func next_waypoint(r: BattleRules, route_class: int, from_x: int, from_y: int, t
 	if hit < 0:
 		if _cache.size() >= CACHE_MAX:
 			_cache.clear()
-		hit = _plan(costs, w, r.height, start, goal, _min_costs[route_class])
+		hit = _plan_hierarchical(r, route_class, flip, costs, start, goal)
+		if hit < 0:
+			# Unreachable (cannot happen within one region). Stop where we stand.
+			return PackedInt64Array([to_x, to_y, 1])
 		_cache[key] = hit
 		plans += 1
 	if hit & 1 == 1 and exact:
@@ -109,6 +120,51 @@ func warm(r: BattleRules) -> void:
 	for cls in r.rt_cost.size():
 		_costs_of(r, cls)
 		_costs_of(r, cls, true)
+		_gates_of(r, cls)
+		_gates_of(r, cls, true)
+
+
+## The gate graph for a route class in a frame, baked on first use.
+func _gates_of(r: BattleRules, route_class: int, flip: bool = false) -> RouteGates:
+	var key := route_class * 2 + (1 if flip else 0)
+	if not _gates.has(key):
+		_gates[key] = RouteGates.build(_costs_of(r, route_class, flip), r.width, r.height)
+	return _gates[key]
+
+
+## Plans start -> goal over the gate graph first (RouteGates.plan): the path
+## is stitched from baked in-sector trees, so no cell search runs over the
+## map. Falls back to the full cell search when the gate graph has no route
+## (same sector, or no gate path). Returns waypoint cell * 2 + (1 if it is
+## the goal), or -1 if the goal cannot be reached.
+func _plan_hierarchical(r: BattleRules, route_class: int, flip: bool, costs: PackedInt32Array, start: int, goal: int) -> int:
+	var path := _gates_of(r, route_class, flip).plan(costs, start, goal)
+	if not path.is_empty():
+		return _waypoint(costs, r.width, start, path)
+	return _plan(costs, r.width, r.height, start, goal, _min_costs[route_class])
+
+
+## The waypoint on a cell path (`path` runs start -> goal, start excluded):
+## the farthest cell the anchor can walk straight to within the path's cost.
+## Same rule as the cell search's answer.
+static func _waypoint(costs: PackedInt32Array, w: int, start: int, path: PackedInt32Array) -> int:
+	var last := path.size() - 1
+	var cum := PackedInt32Array()
+	cum.resize(path.size())
+	var acc := 0
+	var prev := start
+	for i in path.size():
+		var c := path[i]
+		var dx := absi(c % w - prev % w)
+		@warning_ignore("integer_division")
+		var dy := absi(c / w - prev / w)
+		acc += (DIAGONAL if dx == 1 and dy == 1 else STRAIGHT) * costs[c]
+		cum[i] = acc
+		prev = c
+	for i in range(last, -1, -1):
+		if _straight_ok(costs, w, start, path[i], cum[i]):
+			return path[i] * 2 + (1 if i == last else 0)
+	return path[0] * 2 + (1 if last == 0 else 0)
 
 
 func _costs_of(r: BattleRules, route_class: int, flip: bool = false) -> PackedInt32Array:
@@ -215,21 +271,20 @@ func _plan(costs: PackedInt32Array, w: int, h: int, start: int, goal: int, min_c
 	var gx := goal % w
 	@warning_ignore("integer_division")
 	var gy := goal / w
-	var g := PackedInt32Array()
-	g.resize(n)
-	g.fill(-1)
-	var from := PackedInt32Array()
-	from.resize(n)
-	var closed := PackedByteArray()
-	closed.resize(n)
+	if _g.size() != n:
+		_g.resize(n)
+		_from.resize(n)
+		_closed.resize(n)
+	_g.fill(-1)
+	_closed.fill(0)
 	var heap := PackedInt64Array()
-	g[start] = 0
+	_g[start] = 0
 	heap.append(start)
 	while not heap.is_empty():
 		var c := int(_pop(heap) % n)
-		if closed[c] == 1:
+		if _closed[c] == 1:
 			continue
-		closed[c] = 1
+		_closed[c] = 1
 		if c == goal:
 			break
 		var x := c % w
@@ -241,28 +296,30 @@ func _plan(costs: PackedInt32Array, w: int, h: int, start: int, goal: int, min_c
 			if nx < 0 or ny < 0 or nx >= w or ny >= h:
 				continue
 			var nc := ny * w + nx
-			if closed[nc] == 1 or costs[nc] == 0:
+			if _closed[nc] == 1 or costs[nc] == 0:
 				continue
 			# No cutting corners: a diagonal step needs both sides open.
 			if d >= 4 and (costs[y * w + nx] == 0 or costs[ny * w + x] == 0):
 				continue
-			var ng := g[c] + (DIAGONAL if d >= 4 else STRAIGHT) * costs[nc]
-			if g[nc] >= 0 and ng >= g[nc]:
+			var ng := _g[c] + (DIAGONAL if d >= 4 else STRAIGHT) * costs[nc]
+			if _g[nc] >= 0 and ng >= _g[nc]:
 				continue
-			g[nc] = ng
-			from[nc] = c
+			_g[nc] = ng
+			_from[nc] = c
 			var ax := absi(nx - gx)
 			var ay := absi(ny - gy)
 			var estimate := (STRAIGHT * maxi(ax, ay) + (DIAGONAL - STRAIGHT) * mini(ax, ay)) * min_cost
 			_push(heap, (ng + estimate) * n + nc)
+	if _g[goal] < 0:
+		return -1
 	var path := PackedInt32Array()
 	var at := goal
 	while at != start:
 		path.append(at)
-		at = from[at]
+		at = _from[at]
 	# path runs goal -> first step; walk it from the far end.
 	for i in path.size() - 1:
-		if _straight_ok(costs, w, start, path[i], g[path[i]]):
+		if _straight_ok(costs, w, start, path[i], _g[path[i]]):
 			return path[i] * 2 + (1 if i == 0 else 0)
 	return path[path.size() - 1] * 2 + (1 if path.size() == 1 else 0)
 

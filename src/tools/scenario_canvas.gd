@@ -2,9 +2,9 @@ class_name ScenarioCanvas
 extends RefCounted
 ## A `scenario`'s objects while the map editor works on them (GDD 04 §4.9,
 ## O1Q6, sw-ll4.7): its zones and its sides, each with a deployment area, a
-## facing and the squads it fields. No UI: MapPainter draws it over the map
-## and turns the mouse into these edits. Everything else the scenario says
-## (ruleset, victory, triggers) is kept as it was written.
+## facing and the squads it fields, and its victory settings. No UI: MapPainter
+## draws it over the map and turns the mouse and form into these edits.
+## Everything else the scenario says (ruleset, triggers) is kept as written.
 ##
 ## Positions are whole cells (metres). Saving writes the definition text in
 ## the layout the hand-written files use, through PackageEditor, so a
@@ -14,6 +14,10 @@ const UNDO_MAX: int = 64
 ## Facings a side can take: name -> binary angle (east is 0).
 const FACINGS: Dictionary = {"East": 0, "South": 16384, "West": 32768, "North": 49152}
 const ZONE_DEFAULTS: Dictionary = {"radius": 10, "decay": 10, "threshold": 10, "buffer": 10, "vp": 1}
+## The victory settings the form edits (Data Model 03 'victory'), with the
+## value battle_rules uses when nothing says otherwise.
+const VICTORY_DEFAULTS: Dictionary = {"turn_limit": 10, "primary": "influence", "score_target": 0, "annihilation": true, "withdrawal": true}
+const VICTORY_PRIMARIES: PackedStringArray = ["influence", "value"]
 
 var id: String = ""
 var name: String = ""
@@ -23,6 +27,10 @@ var map_id: String = ""
 var zones: Array[Dictionary] = []
 ## [{"player", "facing", "deploy": {"x", "y", "w", "h"}, "squads": [ids]}].
 var sides: Array[Dictionary] = []
+## The victory keys this scenario writes itself. Keys it inherits stay in
+## `flat_victory` (what the template gives once flattened) and are not written.
+var victory: Dictionary = {}
+var flat_victory: Dictionary = {}
 var dirty: bool = false
 ## Counts edits, so a view knows when to redraw.
 var revision: int = 0
@@ -49,6 +57,10 @@ static func open(t: TemplateTable, def: Dictionary) -> ScenarioCanvas:
 	for s: Variant in flat.get("sides", []):
 		if s is Dictionary:
 			c.sides.append(_side((s as Dictionary).duplicate(true)))
+	if own.get("victory") is Dictionary:
+		c.victory = _ints((own["victory"] as Dictionary).duplicate(true))
+	if flat.get("victory") is Dictionary:
+		c.flat_victory = _ints((flat["victory"] as Dictionary).duplicate(true))
 	return c
 
 
@@ -67,6 +79,7 @@ static func create(t: TemplateTable, new_id: String, map: String, w: int, h: int
 	c.id = new_id
 	c.name = v["name"]
 	c.map_id = map
+	c.victory = _ints((v.get("victory", {}) as Dictionary).duplicate(true)) if v.get("victory") is Dictionary else {}
 	@warning_ignore("integer_division")
 	var inset := clampi(w / 24, 1, 5)
 	@warning_ignore("integer_division")
@@ -121,13 +134,14 @@ func redo() -> void:
 
 
 func _snapshot() -> Array:
-	return [zones.duplicate(true), sides.duplicate(true), name]
+	return [zones.duplicate(true), sides.duplicate(true), name, victory.duplicate(true)]
 
 
 func _restore(snap: Array) -> void:
 	zones.assign((snap[0] as Array).duplicate(true))
 	sides.assign((snap[1] as Array).duplicate(true))
 	name = snap[2]
+	victory = (snap[3] as Dictionary).duplicate(true)
 	_touch()
 
 
@@ -260,6 +274,136 @@ func remove_squad(i: int, at: int) -> void:
 		_touch()
 
 
+## Repeats a zone or a side on the mirrored side of a battle map (GDD 04 §4.9,
+## sw-dn5a): a copy at the cell or area that `mirror` (MapCanvas.Mirror) maps
+## it to, with players 1 and 2 swapped, a side's facing turned the same way,
+## and a side's squads copied. The copy is written as its own object, like
+## terrain painted with a mirror; moving one later does not move the other.
+## Four ways and half turn both map to the half-turn partner. Returns "" or
+## why not; the copy is the last zone or side.
+func repeat_on_mirror(kind: String, index: int, mirror: int, w: int, h: int) -> String:
+	if mirror == MapCanvas.Mirror.NONE:
+		return "the map has no mirror: pick one in the map's settings first"
+	var flips := mirror_flips(mirror)
+	if kind == "zone":
+		if index < 0 or index >= zones.size():
+			return "no such zone"
+		var z: Dictionary = zones[index].duplicate(true)
+		var at := mirror_point(int(z["x"]), int(z["y"]), w, h, mirror)
+		if zones.any(func(o: Dictionary) -> bool: return int(o["x"]) == at.x and int(o["y"]) == at.y):
+			return "a zone is already there"
+		z["x"] = at.x
+		z["y"] = at.y
+		z["id"] = _free_id(str(z["id"]) + "_mirror", zones)
+		zones.append(z)
+		_touch()
+		return ""
+	if kind == "side":
+		if index < 0 or index >= sides.size():
+			return "no such side"
+		var s: Dictionary = sides[index].duplicate(true)
+		var player := int(s["player"])
+		if player != 1 and player != 2:
+			return "only players 1 and 2 have a mirror side"
+		var partner := 3 - player
+		if sides.any(func(o: Dictionary) -> bool: return int(o["player"]) == partner):
+			return "player %d already has a side" % partner
+		var r := area_rect(index)
+		var at := mirror_rect(r, w, h, mirror)
+		s["player"] = partner
+		s["facing"] = mirror_facing(int(s["facing"]), mirror)
+		s["deploy"] = {"x": at.position.x, "y": at.position.y, "w": at.size.x, "h": at.size.y}
+		sides.append(s)
+		_touch()
+		return ""
+	return "only a zone or a side repeats on the mirror"
+
+
+## Which axes a mirror flips: (1, 0) left and right, (0, 1) top and bottom,
+## (1, 1) for four ways and half turn, (0, 0) for none.
+static func mirror_flips(mirror: int) -> Vector2i:
+	match mirror:
+		MapCanvas.Mirror.LEFT_RIGHT:
+			return Vector2i(1, 0)
+		MapCanvas.Mirror.TOP_BOTTOM:
+			return Vector2i(0, 1)
+		MapCanvas.Mirror.FOUR, MapCanvas.Mirror.TURN:
+			return Vector2i(1, 1)
+	return Vector2i.ZERO
+
+
+## The cell a cell is mirrored to on a w x h map.
+static func mirror_point(x: int, y: int, w: int, h: int, mirror: int) -> Vector2i:
+	var f := mirror_flips(mirror)
+	return Vector2i(w - 1 - x if f.x == 1 else x, h - 1 - y if f.y == 1 else y)
+
+
+## The area a deployment area of the same size is mirrored to (it keeps its
+## size, so its far edge lands where the mirror of its near edge is).
+static func mirror_rect(r: Rect2i, w: int, h: int, mirror: int) -> Rect2i:
+	var f := mirror_flips(mirror)
+	var x := w - r.position.x - r.size.x if f.x == 1 else r.position.x
+	var y := h - r.position.y - r.size.y if f.y == 1 else r.position.y
+	return Rect2i(x, y, r.size.x, r.size.y)
+
+
+## A facing (binary angle, east 0, south 16384) turned by the mirror: a left
+## and right mirror turns it about the vertical axis (angle to 32768 - a), a
+## top and bottom mirror negates it, and a half turn adds 32768.
+static func mirror_facing(facing: int, mirror: int) -> int:
+	var f := mirror_flips(mirror)
+	var a := facing
+	if f.x == 1:
+		a = 32768 - a
+	if f.y == 1:
+		a = -a
+	return a & 65535
+
+
+## `base` with a number added if another entry already uses it.
+static func _free_id(base: String, entries: Array[Dictionary]) -> String:
+	var zid := base
+	var n := 2
+	while entries.any(func(o: Dictionary) -> bool: return o["id"] == zid):
+		zid = "%s_%d" % [base, n]
+		n += 1
+	return zid
+
+
+## What the victory setting `key` is now: the scenario's own value, else the
+## one its template gives, else the default.
+func victory_value(key: String) -> Variant:
+	if victory.has(key):
+		return victory[key]
+	return flat_victory.get(key, VICTORY_DEFAULTS.get(key))
+
+
+## Writes one victory setting of the scenario itself (turn limit, primary
+## score, score target, annihilation, withdrawal). Returns "" or why not.
+func set_victory(key: String, value: Variant) -> String:
+	match key:
+		"turn_limit":
+			value = int(value)
+			if value < 1:
+				return "the turn limit is at least 1"
+		"primary":
+			value = str(value)
+			if not VICTORY_PRIMARIES.has(value):
+				return "the primary score is influence or value"
+		"score_target":
+			value = int(value)
+			if value < 0:
+				return "the score target is 0 or more (0 is none)"
+		"annihilation", "withdrawal":
+			value = bool(value)
+		_:
+			return "no victory setting '%s'" % key
+	if not victory.has(key) or victory[key] != value:
+		victory[key] = value
+		_touch()
+	return ""
+
+
 func area_rect(i: int) -> Rect2i:
 	var d: Dictionary = sides[i]["deploy"]
 	return Rect2i(d["x"], d["y"], d["w"], d["h"])
@@ -309,6 +453,8 @@ func values() -> Dictionary:
 	v["map"] = map_id
 	v["zones"] = zones.duplicate(true)
 	v["sides"] = sides.duplicate(true)
+	if not victory.is_empty() or v.has("victory"):
+		v["victory"] = victory.duplicate(true)
 	return v
 
 

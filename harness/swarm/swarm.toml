@@ -25,7 +25,7 @@ timeout_s = 7200
 # sw-0zi.3: the supervisor's own pipeline steps (checked once a minute)
 auto_refill = true                 # spawn the top ready bead when a slot was idle refill_idle_min minutes
 refill_idle_min = 10               # the orchestrator gets the first pick after a worker finishes
-refill_exclude_labels = ["needs-human", "swarm-harness"]   # swarm-harness = guardrail work the swarm may not do
+refill_exclude_labels = ["needs-human", "swarm-harness", "no-swarm"]   # swarm-harness = guardrail work the swarm may not do; no-swarm = Opus-sized (U1)
 refill_exclude_parents = ["sw-p2q"]                        # the deferred design-interview epic (needs the user)
 review_timeout_min = 90            # a `done` worker unreviewed this long is merged through the gate and labelled swarm-unreviewed
 

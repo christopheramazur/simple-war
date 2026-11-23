@@ -61,7 +61,8 @@ func test_telegraph_damage_equals_the_sim_result() -> void:
 	for t: Dictionary in told:
 		assert_eq(mine.player[mine.row_of(t["target"])], found["player"], "only attacks on own squads")
 		assert_ne(mine.player[mine.row_of(t["attacker"])], found["player"], "only enemy attacks")
-		assert_gt(t["damage"], 0)
+		# A telegraph names an attack that lands; armour can leave it at 0 damage.
+		assert_gte(t["damage"], 0)
 	s.ready(1)
 	s.ready(2)
 	var real := _executed(s)

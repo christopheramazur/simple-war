@@ -112,6 +112,30 @@ func mark_saved() -> void:
 	revision += 1
 
 
+## A map-wide value as it will be saved (`elimination`, `mirror`, ...), or
+## `default` when the map doesn't set it.
+func value(key: String, default: Variant = null) -> Variant:
+	if key == "name":
+		return name
+	if key == "mirror":
+		return mirror
+	return (_def.get("values", {}) as Dictionary).get(key, _t.values_of(id).get(key, default) if _t != null and _t.has(id) else default)
+
+
+## Sets a map-wide value (`name`, `mirror`, `elimination`, ...); one undo
+## step is the caller's `begin`. Kept in the saved text with the rest.
+func set_value(key: String, v: Variant) -> void:
+	if key == "name":
+		name = str(v)
+	else:
+		if not _def.has("values"):
+			_def["values"] = {}
+		_def["values"][key] = v
+		if key == "mirror":
+			mirror = bool(v)
+	_changed()
+
+
 func in_bounds(col: int, row: int) -> bool:
 	return col >= 0 and row >= 0 and col < width and row < height
 
@@ -290,6 +314,13 @@ func move_start(index: int, col: int, row: int) -> String:
 	return ""
 
 
+## Changes a start's player and commander.
+func set_start(index: int, player: int, commander: String) -> void:
+	starts[index]["player"] = player
+	starts[index]["commander"] = commander
+	_changed()
+
+
 func remove_start(index: int) -> void:
 	starts.remove_at(index)
 	_changed()
@@ -449,7 +480,8 @@ func _changed() -> void:
 
 
 func _snapshot() -> Dictionary:
-	return {"ground": ground.duplicate(), "objects": objects.duplicate(true), "starts": starts.duplicate(true), "w": width, "h": height}
+	return {"ground": ground.duplicate(), "objects": objects.duplicate(true), "starts": starts.duplicate(true), "w": width, "h": height,
+		"name": name, "mirror": mirror, "values": (_def.get("values", {}) as Dictionary).duplicate(true)}
 
 
 func _restore(s: Dictionary) -> void:
@@ -458,4 +490,7 @@ func _restore(s: Dictionary) -> void:
 	starts.assign(s["starts"])
 	width = s["w"]
 	height = s["h"]
+	name = s["name"]
+	mirror = s["mirror"]
+	_def["values"] = s["values"]
 	_changed()

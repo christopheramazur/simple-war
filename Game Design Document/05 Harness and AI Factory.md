@@ -172,4 +172,80 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
 **Testing framework** (A1Q9-A1Q11):
 - Regression metric baselines run on demand only for now.
 - Per-system performance trends are recorded; budgets are set later.
-- Feel testing is human playtests for the foreseeable future.
+- Feel testing is human playtests for the foreseeable future (A1Q11), supported by the behaviour workshop (§5.7) and visual assessment (§5.6) (proposed, Round U1).
+
+## 5.6 Visual assessment (U1Q3, U1Q4)
+**Proposed (Round U1, awaiting review).** Battles must read clearly at every stage (U1Q3). The harness captures what the player would see at chosen moments and checks it against what the simulation knows.
+- **Stages** (proposed), found from a run's events, so every capture is deterministic for a scenario, variant and seed:
+  - **deploy:** turn 1, tick 0.
+  - **first contact:** `first_contact_tick`.
+  - **first blood:** `first_casualty_tick`.
+  - **mid-fight:** the tick with the most squads `ENGAGED` between first contact and the end.
+  - **rout:** `first_break_tick`, or else the first squad falling back.
+  - **end:** the last tick.
+
+  A stage that never happened is skipped and reported.
+- **Sources** (proposed): a harness run's replay (`hx sim run`), a match log's `match.sav`, a workshop scenario (§5.7), or a scenario plus seed played on the spot. The capture re-simulates through the Game API and checks the state hash, so the picture is always of the recorded battle.
+- **What is captured** (proposed):
+  - **Stills and frame strips:** a strip is 4–6 frames over a short window, each labelled with its tick.
+  - **Views:** a player's fog view, or omniscient.
+  - **Kinds:** the game render (what the player sees), a control render (the same frame with debug overlays and large labels: the most legible the frame can be), and colour-vision variants (greyscale, protan, deutan, as `hx godot mock` makes).
+
+  Drawing always goes through the game's own battle view, never a separate renderer.
+- **Ground truth** (proposed): one read-only truth snapshot per captured tick (`BattleProbe`):
+  - each squad's activity and target;
+  - each unit's hold reason and victim;
+  - the line-of-fire matrix;
+  - shots in the strip's window;
+  - pool bands and casualties.
+
+  It comes from the same functions the simulation uses, so it can't disagree with it.
+- **Rubric** (proposed): closed questions with checkable answers, asked per capture:
+  - who is shooting whom;
+  - which squads are out of range of their target;
+  - what each squad is doing;
+  - which squad is taking the most damage;
+  - which squads are breaking;
+  - which squad is selected and what its ring shows.
+
+  Answers are JSON over the squad labels drawn on screen. Open-ended remarks are recorded but never scored.
+- **Judges** (U1Q4: local Bonsai where it can be trusted; proposed otherwise): a vision model answers the rubric with the game's legend as its only briefing, as a player would have it.
+  - A question class is graded automatically only for a judge the vision bench rates `auto` on it (harness `hx bench`, vision suite).
+  - Classes rated `review` go to a stronger judge on a sample.
+  - Classes rated `no` aren't asked.
+- **Clarity score** (proposed): per question and stage, the judge's accuracy on the game render divided by its accuracy on the control render. A low score on a question the judge answers well on control frames means the picture is unclear, not the judge. Control accuracy under 0.9 marks the question judge-limited, and it is left out of the score.
+- **Checks without a model** (proposed):
+  - **Layout lint:** overlapping labels, labels over squads, text contrast against the ground.
+  - **Golden-image diffs:** against per-machine baselines with a perceptual tolerance.
+
+  These run without any model.
+- **Trust** (proposed): a judge's answers are evidence, never a verdict. They never gate a merge or close a task. They feed reports and filed proposals that name the capture, the truth and the answer.
+- **Not built:** everything in this section, including the planned harness verb `hx visual`.
+
+## 5.7 Behaviour workshop (U1Q5)
+**Proposed (Round U1, awaiting review).** One place to work through a single component of unit behaviour, such as targeting, attack-move positioning, separation, fire modes or retargeting, both by watching it and through the API (U1Q5).
+- **Scenarios are data** (proposed): `data/sim/workshop/<id>.json`. Each scenario holds:
+  - the rules package (`rules-fixture` for gated scenarios, `core` for feel work);
+  - a battle map, or open ground;
+  - squads placed exactly, each optionally a dummy (unarmed, unkillable, or stationary), with optional stat patches;
+  - scripted orders per turn;
+  - named variants (other orders or patches);
+  - probes: expectations at a tick or over a window, read from the truth snapshot (§5.6). Kinds: `duty`, `damage`, `dps`, `victims`, `overkill`, `kills`, `spacing` and `compare`;
+  - comparisons between variants.
+
+  One file serves both the visual check and the API check. It is the one scenario format for order, targeting and fire-distribution measurements.
+- **Status per scenario** (proposed):
+  - `gate`: its probes run in the game test suite and must pass.
+  - `pending`: describes behaviour the owner wants but the game doesn't do yet. It is reported, and never fails the suite; when it starts passing the report says so.
+  - `explore`: no probes; for watching only.
+- **Headless** (proposed): every scenario runs through the Game API at full speed. The game tests run every `gate` scenario. The harness verb `hx workshop` prints probe results and traces.
+- **The workshop scene** (proposed): a standalone (F6) scene.
+  - **Opening and controls:** it opens a scenario and variant. Play, pause, step one tick either way, step a turn and scrub; it re-simulates from the start, so every tick is exact.
+  - **Overlays** can be switched on and off: weapon ranges, lines of fire (shot, blocked, out of range), each unit's chosen victim, route legs, spacing violations, hold-fire reasons.
+  - **Probes** are listed with pass or fail; clicking one jumps to its tick.
+  - **Squad card:** the squad card of a clicked squad at the current tick.
+  - **Reload** re-reads the file after an edit.
+
+  The scene only reads a run's recorded frames. It never changes the battle; a tweak makes a new run.
+- **Determinism:** same file, same variant, same result. The run's state hash is reported, so a visual check and an API check are provably of the same battle.
+- **Not built:** everything in this section.

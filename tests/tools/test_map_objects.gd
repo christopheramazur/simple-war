@@ -230,3 +230,127 @@ func test_selecting_a_map_on_the_left_opens_it_for_play() -> void:
 	p.select("ow_field")
 	assert_eq([p.painter().canvas.id, p.painter().scenario.id], ["field_map", "ow_field"], "a scenario opens with its map")
 	assert_eq(MainMenu.play_map(screen, p, "profile_utility"), "")
+
+
+## Victory settings (Data Model 03 'victory', GDD 04 §4.9, sw-bel): read, set
+## with checks, and written as the scenario's own keys only.
+func test_victory_settings_are_read_set_and_written() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := ScenarioCanvas.open(m.templates, JSON.parse_string(m.definition_text("duel_crossroads")))
+	assert_eq([c.victory_value("turn_limit"), c.victory_value("primary"), c.victory_value("score_target")], [10, "influence", 10])
+	assert_eq(c.set_victory("turn_limit", 0), "the turn limit is at least 1")
+	assert_eq(c.set_victory("primary", "tempo"), "the primary score is influence or value")
+	assert_eq(c.set_victory("score_target", -1), "the score target is 0 or more (0 is none)")
+	assert_eq(c.set_victory("loot", 3), "no victory setting 'loot'")
+	assert_false(c.dirty, "refused changes change nothing")
+	c.mark_saved()
+	c.begin()
+	assert_eq(c.set_victory("turn_limit", 6), "")
+	assert_eq(c.set_victory("withdrawal", false), "")
+	assert_eq(c.set_victory("primary", "value"), "")
+	assert_true(c.dirty)
+	assert_eq(m.replace("duel_crossroads", c.definition_text()), PackedStringArray())
+	var after := BattleRules.compile(m.templates, "duel_crossroads")
+	assert_eq([after.turn_limit, after.primary_influence, after.withdrawal], [6, false, false])
+	c.undo()
+	assert_eq([c.victory_value("turn_limit"), c.victory_value("withdrawal")], [10, true])
+
+
+func test_an_inherited_victory_setting_writes_only_the_change() -> void:
+	var m := PackageEditor.open(COPY)
+	var drill := ScenarioCanvas.open(m.templates, JSON.parse_string(m.definition_text("hangar_drill")))
+	assert_eq(drill.victory_value("turn_limit"), 10, "inherited from duel_crossroads")
+	assert_false(drill.values().has("victory"), "nothing is written until a setting changes")
+	drill.begin()
+	assert_eq(drill.set_victory("turn_limit", 4), "")
+	assert_eq(drill.values()["victory"], {"turn_limit": 4}, "only the change is written")
+	assert_eq(m.replace("hangar_drill", drill.definition_text()), PackedStringArray())
+	assert_eq(BattleRules.compile(m.templates, "hangar_drill").turn_limit, 4)
+	assert_eq(BattleRules.compile(m.templates, "duel_crossroads").turn_limit, 10, "the parent keeps its own")
+
+
+func test_the_victory_form_edits_the_open_scenario() -> void:
+	var p := _panel()
+	var mp := p.painter()
+	assert_true(mp.open_map("crossroads_map"))
+	mp.set_tool(MapPainter.Tool.OBJECT)
+	assert_eq(mp.selected, {}, "the form shows with nothing selected")
+	var turns: SpinBox = mp._object_box.find_child("VictoryTurnLimit", true, false)
+	assert_eq(int(turns.value), 10)
+	turns.value = 6
+	assert_eq(mp.scenario.victory_value("turn_limit"), 6)
+	var primary: OptionButton = mp._object_box.find_child("VictoryPrimary", true, false)
+	primary.select(1)
+	primary.item_selected.emit(1)
+	assert_eq(mp.scenario.victory_value("primary"), "value")
+	var withdrawal: CheckBox = mp._object_box.find_child("Victory_withdrawal", true, false)
+	withdrawal.button_pressed = false
+	assert_eq(mp.scenario.victory_value("withdrawal"), false)
+	mp.undo()
+	assert_eq(mp.scenario.victory_value("withdrawal"), true, "undo acts on the form's change too")
+	assert_eq(mp.save(), PackedStringArray())
+	var saved: Dictionary = PackageEditor.open(COPY).templates.values_of("duel_crossroads")["victory"]
+	assert_eq([saved["turn_limit"], saved["primary"], saved["withdrawal"]], [6, "value", true])
+	assert_true(mp.open_scenario(""))
+	assert_null(mp._object_box.find_child("VictoryTurnLimit", true, false), "no form without a scenario")
+
+
+## Repeat on the mirror side (GDD 04 §4.9, sw-dn5a): a zone or side is copied
+## to its mirror cell or area with players 1 and 2 swapped, facing turned the
+## same way, and its squads copied.
+func test_a_zone_and_a_side_repeat_on_the_mirror_side() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := ScenarioCanvas.create(m.templates, "t_scn", "field_map", 120, 80)
+	c.begin()
+	assert_eq(c.repeat_on_mirror("zone", 0, MapCanvas.Mirror.NONE, 120, 80), "the map has no mirror: pick one in the map's settings first")
+	assert_eq(c.repeat_on_mirror("zone", 0, MapCanvas.Mirror.TURN, 120, 80), "")
+	assert_eq([c.zones[1]["id"], c.zones[1]["x"], c.zones[1]["y"], c.zones[1]["radius"]], ["centre_mirror", 59, 39, 12])
+	assert_eq(c.repeat_on_mirror("zone", 1, MapCanvas.Mirror.TURN, 120, 80), "a zone is already there", "the copy's own mirror is the original")
+	# A side: player 2's area is in the way until it is removed.
+	c.set_side(0, "facing", 16384)
+	c.add_squad(0, "rifle_squad")
+	assert_eq(c.repeat_on_mirror("side", 0, MapCanvas.Mirror.TURN, 120, 80), "player 2 already has a side")
+	c.remove_side(1)
+	assert_eq(c.repeat_on_mirror("side", 0, MapCanvas.Mirror.TURN, 120, 80), "")
+	var s: Dictionary = c.sides[1]
+	assert_eq([s["player"], s["facing"], s["squads"]], [2, 49152, ["rifle_squad"]], "player swapped, facing half turned, squads copied")
+	assert_eq(c.area_rect(1), Rect2i(95, 12, 20, 56), "the area's far edge lands on the mirror of its near edge")
+	c.add_side(50, 50)
+	assert_eq(c.repeat_on_mirror("side", 2, MapCanvas.Mirror.TURN, 120, 80), "only players 1 and 2 have a mirror side")
+	assert_eq(c.repeat_on_mirror("side", 9, MapCanvas.Mirror.TURN, 120, 80), "no such side")
+	c.remove_side(2)
+	# The copies are written like the rest, and the package takes them.
+	assert_eq(m.add(c.definition_text(), m.file_of("ow_field")), PackedStringArray())
+	assert_eq(BattleRules.compile(m.templates, "t_scn").errors, PackedStringArray())
+
+
+func test_facings_turn_with_the_mirror() -> void:
+	assert_eq(ScenarioCanvas.mirror_facing(0, MapCanvas.Mirror.LEFT_RIGHT), 32768, "east faces west")
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.LEFT_RIGHT), 16384, "south stays south")
+	assert_eq(ScenarioCanvas.mirror_facing(49152, MapCanvas.Mirror.LEFT_RIGHT), 49152, "north stays north")
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.TOP_BOTTOM), 49152, "south becomes north")
+	assert_eq(ScenarioCanvas.mirror_facing(0, MapCanvas.Mirror.TOP_BOTTOM), 0)
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.TURN), 49152)
+	assert_eq(ScenarioCanvas.mirror_facing(0, MapCanvas.Mirror.FOUR), 32768, "four ways repeats by the half turn")
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.NONE), 16384)
+
+
+func test_the_painter_repeats_the_selected_zone_and_undoes_it() -> void:
+	var p := _panel()
+	var mp := p.painter()
+	assert_true(mp.open_map("field_map"))
+	mp.set_tool(MapPainter.Tool.OBJECT)
+	mp.select_object({"kind": "zone", "index": 0})
+	mp.canvas.mirror = MapCanvas.Mirror.NONE
+	var n := mp.scenario.zones.size()
+	mp._repeat_on_mirror()
+	assert_eq(mp.scenario.zones.size(), n, "no mirror on the map, nothing is repeated")
+	mp.canvas.mirror = MapCanvas.Mirror.TURN
+	mp._repeat_on_mirror()
+	assert_eq(mp.scenario.zones.size(), n + 1)
+	assert_eq(mp.selected, {"kind": "zone", "index": n}, "the copy is selected")
+	var z0: Dictionary = mp.scenario.zones[0]
+	var z1: Dictionary = mp.scenario.zones[n]
+	assert_eq([z1["x"], z1["y"]], [119 - int(z0["x"]), 79 - int(z0["y"])])
+	mp.undo()
+	assert_eq(mp.scenario.zones.size(), n, "undo takes the copy back")

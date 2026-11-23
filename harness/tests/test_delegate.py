@@ -83,6 +83,78 @@ def test_escalate_is_logged(tmp_path):
     assert rows[-1]["escalate"] is True and "prompt" not in rows[-1]
 
 
+def _rate_limited(**kw):
+    return Reply(error="HTTPError: HTTP Error 429", status=429, **kw)
+
+
+def test_429_retried_honouring_retry_after(monkeypatch):
+    sleeps, calls = [], []
+    monkeypatch.setattr(delegate.time, "sleep", sleeps.append)
+
+    def fake(target, system, prompt, timeout):
+        calls.append((target["model"], target["retries"]))
+        if target["model"] == "bonsai/nothink" and len(calls) < 3:
+            return _rate_limited(retry_after=2.0)
+        return Reply(text="ok", output_tokens=3)
+    out = delegate.run("x", "L1", "csv", "s", table=TABLE, roster=ROSTER, call=fake)
+    assert sleeps == [2.0, 2.0]  # Retry-After honoured on each retry
+    assert [m for m, _ in calls] == ["bonsai/nothink"] * 3  # third try succeeds: no fall-through to haiku
+    assert all(r == 0 for _, r in calls)  # the adapter's own retry loop is off: delegate owns the policy
+    assert (out.target, out.escalate) == ("bonsai-nothink", False)
+
+
+def test_429_backoff_when_no_retry_after_then_next_candidate(monkeypatch):
+    sleeps, calls = [], []
+    monkeypatch.setattr(delegate.time, "sleep", sleeps.append)
+    fake = lambda t, *a: calls.append(t["model"]) or (_rate_limited() if t["model"] == "bonsai/nothink" else Reply(text="ok"))
+    out = delegate.run("x", "L1", "csv", "s", table=TABLE, roster=ROSTER, call=fake)
+    assert sleeps == [2.0, 5.0, 10.0]  # RETRIES_429 retries with backoff, then the next candidate
+    assert calls == ["bonsai/nothink"] * 4 + ["claude-haiku-5-5"] and out.target == "haiku"
+
+
+def test_429_wait_capped_by_timeout(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(delegate.time, "sleep", sleeps.append)
+    fake = lambda t, *a: _rate_limited(retry_after=60.0) if t["model"] == "bonsai/nothink" else Reply(text="ok")
+    out = delegate.run("x", "L1", "csv", "s", table=TABLE, roster=ROSTER, timeout=30, call=fake)
+    assert sleeps == [] and out.target == "haiku"  # a 60 s wait doesn't fit in 30 s: move on at once
+
+
+def test_gate_budget_refusal_not_retried(monkeypatch):
+    sleeps, calls = [], []
+    monkeypatch.setattr(delegate.time, "sleep", sleeps.append)
+
+    def fake(t, *a):
+        calls.append(t["model"])
+        if t["model"] == "bonsai/nothink":
+            return _rate_limited(body="bonsai: monthly budget $5 spent ($5.01); raising it needs the user's approval")
+        return Reply(text="ok")
+    out = delegate.run("x", "L1", "csv", "s", table=TABLE, roster=ROSTER, call=fake)
+    assert sleeps == [] and calls == ["bonsai/nothink", "claude-haiku-5-5"] and out.target == "haiku"
+
+
+def test_adapter_call_maps_http_429(monkeypatch):
+    import email.message
+    import io
+    import urllib.error
+    import urllib.request
+
+    from hx.bench import adapters
+
+    calls = []
+
+    def urlopen_429(req, timeout=None):
+        calls.append(req)
+        hdrs = email.message.Message()
+        hdrs["Retry-After"] = "3"
+        raise urllib.error.HTTPError("http://x", 429, "Too Many", hdrs, io.BytesIO(b'{"error": "slow down"}'))
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen_429)
+    target = {"adapter": "openai", "base_url": "http://x", "model": "m", "retries": 0}
+    r = adapters.call(target, "s", "p", 5)
+    assert len(calls) == 1  # retries=0: the adapter makes one attempt; delegate decides the rest
+    assert (r.status, r.retry_after, r.error[:10], "slow down" in r.body) == (429, 3.0, "HTTPError:", True)
+
+
 def test_guess_size():
     assert [delegate.guess_size("a" * n) for n in (100, 2000, 8000)] == ["s", "m", "l"]
 

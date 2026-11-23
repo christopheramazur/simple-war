@@ -25,7 +25,9 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 |---|---|
 | SIMPL pools | Stamina, Instinct, Morale, Prowess, Legend. Each has a starting value, neutral value, drift rate and sensitivity profile; band ranges can be bespoke (R5Q3) |
 | Total Hit Points | |
-| Formation Profile | Formation, coherence, stance or mode |
+| Formation Profile | Formation, coherence, stance or mode. Proposed (U1Q10): spacing, and a coherency radius (default half-width + 3 m) |
+| Behaviours | Proposed (U1Q12): per order, a behaviour ID (Rules Spec §2.15). Unset orders use the archetype default |
+| Fire discipline | Proposed (U1Q17): `fire.discipline_pct` (default 60) and `fire.coordination_pct` (default 70); squad stats `squad.fire.discipline_pct`, `squad.fire.coordination_pct` (Rules Spec §2.8 Prowess) |
 | Keywords | Static (R6Q9) |
 | Statuses | Transient, produced by the effect language (R6Q9) |
 | Value | Recruitment and scoring value; may later split battleforce value from purchase value (R6Q15) |
@@ -53,6 +55,8 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Reactions:** abilities with reaction timing. Their bundles use the `order` operation (hold, fall_back or attack).
   - **Readied state** (R7Q3, E3Q6): ready time; what the state does; how long it lasts; the conditions that lose it; Prowess Vacuum while readying.
   - **Auto-off defaults** (R8Q2): the band that breaks the effect (default Broken), plus player-overridable rules.
+- **Behaviour** (`kind: "behaviour"`, U1Q12; proposed, Round U1, awaiting review): `{"components": [{"c": "advance", "quorum_pct": 100, "margin_m": 1}, ...]}`. Components come from the closed vocabulary in Rules Spec §2.15; unknown components or parameters fail validation. They compile to packed per-template arrays with the rules.
+- **Ruleset `fire` block** (U1Q15; proposed): `"fire": {"policy": "nearest", "discipline_pct": 60, "coordination_pct": 70}` in the `standard` ruleset. The policy is `nearest` today and has no data field yet; the proposed ids are `nearest` (today's) and `prowess` (Rules Spec §2.8 Prowess). Squad templates override the two percentages. The per-unit accumulators `acc_focus` and `acc_coord` (beside `acc_hit`) are runtime state, not data.
 - **Tags:** a moddable registry with glossary entries.
 - **Banks:** per profile and namespaced; cross-campaign reads are declared in the manifest.
 
@@ -62,7 +66,16 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 - **Hex feature** (`hex_feature`): activities, production output and options, sight radius, controllability, garrison or guard, and interaction kind (stable or uncertain) (R4Q12, R5Q10, R6Q14).
   - **Fields:** `move_cost` (added to the map's base cost), `impassable`, `sight` (hexes), `controllable`, `interaction`, `activities` (refit, recruit, battle, convert, hire), `value_per_turn`, `cache_value` (picked up once, then removed), `guard` (neutral squads), `activity_cost` (Value per activity), `converts_to` (required by the convert activity), `recruits` (squad and Value cost per option; goes with the recruit activity), `hires` (commander template and Value cost per option; goes with the hire activity: the new commander arrives on the hex with its own squad and starting army, sw-kys.2), `refit_cost` (Value per unit restored), `produces` (a squad or an `item` with a `count`, `turns` per batch, Value `cost`; the owner selects one), `dispersal_turns` (a guard a commander with no battleforce disperses for this many turns; 0 = never), `choices` (answers to its offer), `items` (an item cache: item and `count` pairs, picked up once, then removed), `battlefield` (scenario its battles use), `bundles`.
   - **One of each per plot:** a plot holds any number of features but at most one instance of each template. Template IDs are global, so core hex features are prefixed `hex_`.
+  - **Proposed fields (Round U1, awaiting review):**
+    - **Drawing only** (U1Q20–U1Q22; the rules never read them): `layer` (`ground`, `path` or `site`; default `site`), `draw_order` (int, ground and path stacking; default 0), `layout_priority` (int; sites with higher values take the first slots; default 0), `connects` (hex features a path joins besides itself; empty = only itself), `color` (six hex digits; the war room's hex colours, new with the hex view).
+    - **Owner actions** (U1Q24): `owner_actions` (a closed list: `buy`, `rally`, `output`; default `["rally", "output"]` for features with `produces`, else empty), `sells` (item options: `item`, `count`, `cost`), `remote_markup` (percent added to a remote buy; default 25), `purchases_per_turn` (default 1).
+    - **Sight** (U1Q26): `sight` counts hexes beyond its own hex (default 0 = its own hex only). It counts only while the feature is owned.
 - **Commander** (`commander`): `movement_points` per turn (same units as move costs), `sight` (hexes), `squad` (its own squad in battles), `army` (starting squads besides its own), `army_cap` (squads besides its own, default 6), `tags`, `icon`. Abilities and battleforces arrive with sw-o1m.2.
+- **Band** (`band`, U1Q27; proposed, Round U1, awaiting review): the kinds of commander-less squad groups.
+  - **Fields:** `name`, `sight` (hexes), `movement_points` (per turn, the same units as move costs), `payload_stats` (which overworld stats its payload may raise: `sight`, `movement_points`), `caps` (stat → most its payload may add), `icon`.
+  - **Core kinds:** `band_garrison` (sight 1, 30 points, payload raises nothing) and `band_caravan` (sight 3, 30 points, payload raises `sight`, cap +2).
+  - **Overrides:** a map's `detachment_sight` and `convoy_movement` still override the garrison's sight and the caravan's movement points when set (older maps).
+- **Overworld contributions** (`overworld` on a squad or an item, U1Q27; proposed): stat → amount, e.g. `{"sight": 1}`. A band whose kind lists the stat in `payload_stats` adds the contributions of its squads and their equipped items, summed in squad-ID order and capped by its `caps`. Chest items carry nothing. Core data: `scout_team` and `marksman_team` carry `{"sight": 1}`.
 - **Item** (`item`, R3Q7, R4Q10): `name`, `text`, `icon`, `tags`, `value`, and one slot: `weapon` (replaces the unit's), `defense` (replaces the unit's) or neither (a kit). `bundles` apply to the carrying unit. `fits` lists unit template IDs, unit tags or squad factions that may carry it (empty = any).
 - **Term** (`term`, GDD 07): `name`, `text` (English fallbacks for `term.<id>.name` / `.text`), `category`, `aliases`, `see`, `decisions`, `context` (`stat:<id>`, `pool:<name>`, `bad_hit`, `band`, `units`) and `lower_is_better`. The source of glossary tooltips.
 - **Battleforce preset** (`battleforce_preset`): `name`, `prefer` and `avoid` lists of squad features (legend archetype, doctrine, keywords) for auto-fill (R2Q1).
@@ -73,6 +86,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Battles:** `battle_scenario` is the default battlefield. A scenario used this way supplies terrain, zones, victory and two deployment areas; its listed squads are ignored.
   - **Battleforce caps:** `battleforce` (`squads`, default 4; `value`, the most total strength, 0 = no limit).
   - **Detachments:** `detachment_sight`, a detachment's sight radius in hexes (default 1); `convoy_movement`, the points a convoy moves each turn (default 40).
+  - **Site placement** (U1Q21; proposed, Round U1, awaiting review): a `place` pass may carry `at`, `[x, y]` in thousandths of the hex radius from its centre (y down, each within −700..700). It pins that site there instead of its slot. On a mirror map the partner's `at` is negated (a half turn). Drawing only.
   - **Win condition:** `elimination` (default false) makes the map a skirmish. When every commander of all teams but one has been defeated, that team wins; if the last commanders of every team fall together, the game is a draw. The outcome reads from player 1's view (won, lost or drew) and names its `winner` (0 for a draw). Story maps end through their triggers' `end_mission` instead.
   - **Mirror maps:** `mirror` (default false) makes a fair two-player map. Every pass except `fill`, and every start, is repeated on the hex rotated 180°, with players 1 and 2 swapped, so authors write one half. A scatter's `count` is per side. The height must be even, which makes the rotation an exact hex symmetry (distances are preserved).
   - **Starts:** `starts` lists each player's starting commanders (`player`, `commander`, `col`, `row`). A match's players are those with a start or a pre-owned feature.
@@ -113,6 +127,11 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Examples in the data:** the `trigger_vale` map (Angels gather, the shrine's blessing, a capture reward) and the `hangar_drill` scenario.
 - **Dialogue:** Dialogic is presentation only. Disposition and relationship state live in the sim (R3Q18).
 - **Factions:** Humanity, with three splinters as a doctrine layer on a shared core roster (Humanity First, CHI, Enlightened); then Lawbringers (R5Q12, R5Q16, R1Q11).
+- **Hex layout table** (`data/ui/hex_layout.json`, U1Q21–U1Q22; proposed, Round U1, awaiting review): UI data like `styles.json`, not a package template.
+  - **Slots:** the slot points for 1–7 sites, in thousandths of the hex radius, and the site radius.
+  - **Roads:** the road half-width, the group shift and scale on a road hex, and the clearance a pushed site keeps.
+  - **Movers:** the lane where commanders and bands stand.
+  - **Labels:** the zoom bands where labels appear.
 
 ## 3.6 Controller profiles (AI) (R7Q15)
 A profile is data: a decision process + parameters + a fuzz seed.

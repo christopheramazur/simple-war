@@ -13,6 +13,8 @@ var dir: String = ""
 ## Load and parse problems (the package as it is on disk).
 var errors: PackedStringArray = PackedStringArray()
 var templates: TemplateTable
+## The loader the templates came from (its assets are the package's art, sw-8rk).
+var loader: PackageLoader
 ## Data files of the package (manifest "data", relative).
 var files: PackedStringArray = PackedStringArray()
 ## Template ID -> data file (relative).
@@ -33,6 +35,7 @@ func reload() -> void:
 	files = PackedStringArray()
 	_file_of = {}
 	_text = {}
+	loader = null
 	var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("manifest.json")))
 	if typeof(manifest) != TYPE_DICTIONARY:
 		errors.append("unreadable manifest.json")
@@ -43,7 +46,7 @@ func reload() -> void:
 		_text[rel] = text
 		for id: String in spans(text):
 			_file_of[id] = rel
-	var loader := PackageLoader.load_dirs(PackedStringArray([dir]))
+	loader = PackageLoader.load_dirs(PackedStringArray([dir]))
 	templates = loader.templates
 	errors.append_array(loader.errors)
 	if templates != null and loader.errors.is_empty():

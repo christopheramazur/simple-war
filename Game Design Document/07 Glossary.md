@@ -115,3 +115,26 @@ Format: **Term**: definition. *(decision IDs; former names)*
 - **Angelfall**: the planetary collapse Angels bring. *(R2Q10)*
 - **Lawbringer**: an agent of the organisation sustaining the Law. *(R3Q16)*
 - **EoAT**: The End of All Things, the era of the story. *(R1Q13)*
+
+## Proposed terms (Round U1, awaiting review)
+Not yet terms: each moves into the lists above, and into `glossary.json`, with the U1 task named here (U1 synthesis §4.5), so the glossary test keeps passing.
+
+| Term | Definition | Decisions | Moves in with |
+|---|---|---|---|
+| Fire quorum | The share of a squad's standing damage per second whose units must each have a shot before an attacking squad stops closing. Data; default 100%. | U1Q11 | A3 |
+| Closing to fire | The default for Attack-move and Attack: the squad keeps advancing until its fire quorum has a shot, then stands. | U1Q1, U1Q11 | A3 |
+| Step out | A unit's short step (default up to 3 m) off its slot, once the anchor stands, to gain range or a line. | U1Q11 | A7 |
+| Behaviour (squad) | What an order runs: an ordered list of components from a closed vocabulary, each with data parameters. | U1Q12 | A9a |
+| Separation | The push that keeps units of different squads from standing in one another, without blocking movement. | U1Q10 | A11 |
+| Coherency radius | How far a unit may stray from its squad's anchor before it heads back and the anchor slows. | U1Q10 | A12b |
+| Relation | One fact about what a squad is doing about another (in range, targeting, under fire, fleeing...), shown on hover and in the comparison menu. | U1Q8 | C6b |
+| Deployment | The step before a battle's first turn where each side places its squads, hidden, inside its deployment area. | U1Q9 | C11 |
+| Deployment area | The part of a battlefield where a side places its squads and where its reinforcements arrive. | U1Q9 | C11 |
+| Fire discipline | How well a squad focuses its fire (discipline) and avoids piling onto units already covered (coordination), scaled by Prowess. | U1Q15, U1Q17, U1Q18 | D5 |
+| Kill priority | The order a shooter considers enemy units in: lowest remaining HP first, then lowest unit ID. | U1Q14 | D5 |
+| Overkill | Damage spent on a unit beyond what killed it, including hits on a unit already killed that tick. | U1Q16 | D5 |
+| Covered | A unit whose queued damage this tick already kills it; coordinated shooters skip it. | U1Q16 | D5 |
+| Prowess (amended) | Battlefield presence, including fire discipline. | R6Q1, U1Q15 | D5 |
+| Band | A squad group on the overworld without a commander: a garrison or a caravan. | U1Q27 | E2 |
+| Caravan | A band made to travel, with its own sight and movement; the name for today's convoy, with "convoy" as an alias. | U1Q27 | E2 |
+| Owner action | Something a feature's owner does with it without a commander: buy, set its rally point, choose its output. | U1Q24 | E8 |

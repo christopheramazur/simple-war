@@ -27,6 +27,9 @@ class Reply:
     error: str | None = None
     raw_model: str | None = None
     extra: dict = field(default_factory=dict)
+    status: int | None = None  # HTTP status when the call failed with one (delegate retries a 429)
+    retry_after: float | None = None  # seconds the upstream asked us to wait (Retry-After header or body hint)
+    body: str = ""  # start of the HTTP error body (tells our gate's refusals from upstream limits)
 
 
 def load_targets() -> dict[str, dict]:
@@ -39,7 +42,9 @@ def call(target: dict, system: str, prompt: str, timeout: float) -> Reply:
     try:
         r = fn(target, system, prompt, timeout)
     except Exception as e:  # one failed call must not kill a run
-        r = Reply(error=f"{type(e).__name__}: {str(e)[:300]}")
+        http = isinstance(e, urllib.error.HTTPError)
+        r = Reply(error=f"{type(e).__name__}: {str(e)[:300]}", status=e.code if http else None,
+                  retry_after=getattr(e, "retry_after", None), body=getattr(e, "body", ""))
     r.latency_s = round(time.perf_counter() - t0, 2)
     return r
 
@@ -89,6 +94,14 @@ def retry_after(status: int, body: str) -> float | None:
     return min(90.0, float(m.group(1) or 0) * 60 + float(m.group(2)) + 1)
 
 
+def header_seconds(value: str | None) -> float | None:
+    """A Retry-After header as delta-seconds, capped like the body hint. HTTP-date form is ignored (None)."""
+    try:
+        return None if value is None else max(0.0, min(90.0, float(value)))
+    except ValueError:
+        return None
+
+
 def _openai(target, system, prompt, timeout) -> Reply:
     body = {"model": target["model"], "messages": [{"role": "system", "content": system},
                                                    {"role": "user", "content": prompt}],
@@ -96,14 +109,20 @@ def _openai(target, system, prompt, timeout) -> Reply:
     headers = {"Content-Type": "application/json", "x-hx-caller": "bench", **_auth(target)}
     req = urllib.request.Request(target["base_url"].rstrip("/") + "/chat/completions",
                                  data=json.dumps(body).encode(), headers=headers)
-    for attempt in range(RETRIES + 1):
+    retries = int(target.get("retries", RETRIES))  # delegate sets 0: it owns the 429 retry (deadline-capped)
+    for attempt in range(retries + 1):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 d = json.loads(resp.read())
             break
         except urllib.error.HTTPError as e:
-            wait = retry_after(e.code, e.read().decode("utf-8", "replace")) if attempt < RETRIES else None
-            if wait is None:
+            text = e.read().decode("utf-8", "replace")
+            hint = retry_after(e.code, text)
+            wait = hint if attempt < retries else None
+            if wait is None:  # give up: hand the caller what it needs to decide on a retry
+                e.body = text[:300]
+                header = header_seconds(e.headers.get("Retry-After"))
+                e.retry_after = header if header is not None else hint
                 raise
             time.sleep(wait)
     msg = d["choices"][0]["message"]

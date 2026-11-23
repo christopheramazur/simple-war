@@ -33,6 +33,8 @@ The simulation's rules. This document is authoritative over the code: if they di
    - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
    - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions are intended to exist only as upgrades or unit abilities (R2Q4).
 4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed, and while watching, the overworld is locked. Ranked may skip straight to results (R3Q2).
+   - **Watching a battle** (U1Q6, U1Q7; proposed, Round U1, awaiting review): playback only shows a turn that has already resolved, so watching never changes it. During playback the player can pan and zoom the battle camera as in Planning, hover squads, and select them. Selection made while watching carries into the next Planning. Orders and reactions are still refused until Planning.
+   - **What a squad is doing about another** (U1Q8; proposed): see §2.6 "Pair relations". During playback, the relations are those of the moment being shown.
 5. **Turn summary:** a brief per-turn change summary (R3Q2). After Intermission it collapses to a menu icon, and every past summary stays browsable (R4Q1).
 6. **Intermission** (R4Q1): its own step, without touching reserve. Configured for 30 s (10 s ranked) by default; when at least 50% of players are ready, it drops to 3 s if not already under 3 s. Legend consequence choices are offered here (R6Q4).
 
@@ -104,6 +106,9 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - T7+: rout and scoring.
 - A hard cap on simultaneous battles is found empirically through performance testing (R2Q1).
 
+### Deployment (U1Q9)
+A battle starts with a deployment step: each side places its squads inside its deployment area before battle turn 1 (U1Q9). How it works is proposed; see the U1 synthesis, open question OQ-3 (`docs/design/u1/00-synthesis.md`).
+
 ### Victory conditions (R7Q6)
 These are data. The starting set:
 - **Annihilation:** a side has no squads on the field and none in reinforcement.
@@ -163,6 +168,18 @@ Each hit passes through the target's **Defensive Profile** (R5Q7) in this order:
 8. **Hit Points.**
 9. **Absorption:** Diablo 2 style. After taking damage of a type, a flat or percentage amount of it is restored as health.
 
+### Fire distribution (U1Q14, U1Q16)
+How a squad's hits are spread across the units of the squad it engages.
+- **In play:** each unit fires at the nearest unit it can hit, skipping units its squad's queued damage this tick already covers (`nearest`). Kill priority below is proposed.
+- **Proposed (Round U1, awaiting review):**
+  - **Two levels:** the squad picks the enemy squad (attack target, else sticky, else nearest in reach); each ready unit then picks a victim within it. The victim rule is a **targeting policy**, data-selected by the ruleset (`fire.policy`).
+  - **What a shooter knows:** only enemy units its side sees; their current HP and Defensive Profile; and, when coordinated (§2.8 Prowess), the hits its own squad has already queued this tick. Never a target's evasion or block accumulators.
+  - **Remaining HP:** a unit's HP minus the *expected* effective damage queued on it this tick: each queued hit run through the Defensive Profile without evasion and block. A unit is **covered** when its remaining HP is 0 or less. Covered units are skipped while another victim is in reach.
+  - **Kill priority:** candidates in reach, lowest remaining HP first, then lowest unit ID. For mixed damage, a hit that can finish a unit prefers the unit it overshoots least.
+  - **Area of effect:** a fire mode with an area picks the victim whose radius holds the most units its hit would finish, then the most effective damage.
+  - **Simultaneous fire:** all hits of a tick apply together after fire. A hit on a unit already killed that tick is **wasted**; with the damage beyond the killing hit's need it makes up **overkill**. Damage granularity sets an unavoidable floor (a 3-damage hit needs 12 damage for a 10 HP unit).
+  - **Shown:** tracers show where a squad's fire goes; the inspection window shows the squad's focus width and coordination and their terms (§2.1 Transparency).
+
 ### Defined conditions
 Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
 - The tooltip shows "(5 HP)" on a 10 HP unit and "(Any Hit)" on a 1 HP unit.
@@ -174,8 +191,19 @@ Example: **Bad Hit** = a hit greater than 50% of the unit's HP (R3Q10).
 - **Range and vision** (2026-11-17): a squad engages enemies its *side* can see (shared spotting), within its weapon range.
   - **Direct fire:** each shooter also needs its own line of sight to the unit it hits.
   - **Indirect fire:** a fire mode flagged `indirect` (the mortar) needs no line of sight. A spotted target in range is enough, so spotters matter to artillery.
-  - **Attack orders:** an attacking squad stops to fight once it has a shot (target in reach, and an indirect weapon or a unit with a clear line). It keeps standing while its weapons reload or cool down. It closes in only when no unit has a shot, so slow weapons that can't fire on the move don't walk into the enemy.
-  - **Shown:** with one squad selected, each visible enemy is marked "in range" (it has a shot), "no line of fire" (in reach, but no unit has a line), and "spotted" when only allies see it. The marks come from the same rule (LineOfFire) the attack orders use.
+  - **Attack orders:** an attacking squad stops to fight once it has a shot (target in reach, and an indirect weapon or a unit with a clear line). It keeps standing while its weapons reload or cool down. It closes in only when no unit has a shot, so slow weapons that can't fire on the move don't walk into the enemy. Proposed (U1Q11): closing to fire, §2.15.
+  - **Shown:** with one squad selected, each visible enemy is marked "in range" (it has a shot), "no line of fire" (in reach, but no unit has a line), and "spotted" when only allies see it. The marks come from the same rule (LineOfFire) the attack orders use. They show in Planning, and during playback (U1Q8; proposed for playback).
+  - **Pair relations** (U1Q8; proposed, Round U1, awaiting review): with a squad selected (or inspected) and another hovered, a tooltip lists what each is doing about the other; the right-click comparison menu lists all of it. Each line is one *relation fact*, and each fact names the rule it comes from:
+    - **Range** (§2.6 Range and vision): in range, no line of fire, too close (inside a fire mode's minimum range), or out of range with the gap in metres; with how many of the selected squad's units have a shot. From the per-unit shot gate the fire pass uses.
+    - **Sight** (§2.7): sees it with its own eyes, or only through allies' spotting.
+    - **Targeting** (§2.6 Attack orders): firing at it, or aiming at it but not firing, with the hold-fire reason (reloading, cooling down, no line of fire, ...); or ordered to attack it and closing in; or, with no attack order, it is the enemy the squad would engage next (the same nearest-visible-in-reach rule the sim uses).
+    - **Under fire** (§2.6): the hovered squad fired at the selected one recently.
+    - **Fleeing** (§2.6, fall back): falling back or withdrawing away from it, when it is the enemy the fall-back runs from.
+    - **Moving toward / away** (behaviour only): which way it is moving relative to the other squad.
+    - **Coming contact** (§2.2 Forecast, Planning only): the forecast contact between the two, its time and outcome summary, with the forecast caveat beside it.
+    - **Reaction** (§2.2 reaction window only): the hovered enemy triggers a reaction of the selected squad, or a queued reaction targets it.
+  - **Same rules, not a copy** (U1Q8): relation facts are computed by the functions the simulation runs (shot gate, target pick, fall-back threat, LineOfFire, the forecast), never by a parallel formula. During playback they are computed on the battle state at the moment shown (proposed).
+  - **Fog** (proposed): relations exist only between squads the viewer can see. About an enemy squad, only what its behaviour shows: whether it fired at a squad, whether it is moving, which way, and what its public weapon range reaches. Never its orders, its chosen target before it fires, its hold-fire reasons or its reload. This is the rule `BattleActivity.squad_seen` already applies to activity.
 - **Readying** (R7Q3): a data-driven behaviour in which a squad needs some time before a separate behaviour becomes available, like a siege-mode transformation or building ammunition. While readying, a squad can create Prowess Vacuum, as data. Interrupting a readying squad floats the interrupter's Prowess.
 - **Scavenging** (R3Q7): free for now. Survivors pick up squad upgrades, and limited upgrades are re-equipped up to the maximum on the turn after casualties (R4Q10).
 
@@ -236,8 +264,17 @@ Reaction and precision.
 - **Sinks:** shooting on the move, being selected for a reaction, and running Detection or Concealment.
 - **Split later?** It stays one stat for now; a Precision split happens only if needed.
 
-### Prowess (R6Q1, R7Q2, R7Q3)
-Battlefield presence: a squad's effect on the shape and flow of battle beyond raw combat.
+### Prowess (R6Q1, R7Q2, R7Q3, U1Q15)
+Battlefield presence: a squad's effect on the shape and flow of battle beyond raw numbers, including how well it distributes its fire (U1Q15).
+- **Fire discipline** (U1Q15, U1Q17, U1Q18; proposed, Round U1, awaiting review; numbers are data):
+  - **Efficacy:** Prowess value / Neutral, from 0 up to capacity / Neutral (about 1.9 by default). Unlike Instinct it rises above 1.
+  - **Focus quality** q = discipline × efficacy, clamped to 0–1. A unit fires at the nearest of the first K units in kill priority (§2.6 Fire distribution), where K = 1 + (1 − q) × (candidates − 1). The fraction of K is carried by a per-unit accumulator, so the fuzz is deterministic (R2Q6). q = 1 is the kill-maximising distribution (U1Q14, U1Q15); q = 0 is plain nearest-target fire, spread thin (U1Q16).
+  - **Coordination** c = coordination × efficacy, clamped to 0–100%. Each volley adds c to a per-unit accumulator; when it reaches 100 the unit sees its squad's queued hits this tick and skips covered units. Otherwise it sees only HP already lost and may pile onto a unit that is about to die: overkill (U1Q16, U1Q18).
+  - **Arithmetic:** q, K and c are integer permille with defined rounding, like all sim maths (§2.1).
+  - **By band, with the defaults** (discipline 60%, coordination 70%): Neutral focuses on a few units with some fuzz (q ≈ 0.5–0.7, c ≈ 55–85%) (U1Q17); Surging approaches the optimum (q = 1, c = 100%) and swaps off covered units at once (U1Q18); Fraying spreads and overkills (q ≈ 0.2–0.45, c ≈ 20–50%); Broken is worse still.
+  - **Which way a squad fails is content:** a low-discipline squad (militia) spreads its fire; a high-discipline, low-coordination squad (zealots) piles on; a datalinked squad (CR-0 robots) keeps coordination at 100%.
+  - **No direct band multipliers (R5Q4):** discipline and coordination are squad stats that effects can modify; efficacy is continuous.
+- **Not a float** (proposed): kills and efficient volleys do not float Prowess, which would snowball (compare Morale's no-damage link).
 - **Sinks:** using magic, readying special attacks or abilities, and commander duels. General melee is not a sink.
 - **Floats:**
   - enemy squads reacting to your orders, such as a revealed charge turning their attack-move into a retreat
@@ -268,7 +305,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Battle tiles:** routing onto a battle tile ends all movement. To route elsewhere, that segment has to be removed.
 - **Interaction timing** (R6Q14):
   - **Uncertain outcomes** (negotiation, battle, interactive events) are presented at the start of a turn in which the player has a commander uncontested on the hex.
-  - **Stable outcomes** (production, pickups, setting up supply lines) are handled during planning, when routing through.
+  - **Stable outcomes** (pickups, captures) happen as a commander routes through. Settings an owner keeps on its features (production output, rally points) and owner actions are made during planning from anywhere, with no commander (U1Q24).
 - **Control** (R6Q14, R7Q8): only Commanders flip a controllable feature, by passing through it. A garrisoned feature needs an engagement first.
 - **Turn order:** a turn resolves as movement, then activities, then production; then uncertain features are offered for the next turn.
   - **Caches** are picked up automatically by any commander passing through or ending on an unguarded hex. Stable outcomes are configured while drafting the route and happen as the commander moves.
@@ -277,8 +314,26 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
     - **Battle** starts an engagement on the hex.
     - **Recruit** names one of the feature's `recruits`. The squad joins at full strength if the army has room, for `activity_cost` plus the option's cost.
     - **Refit** restores every squad of the army to full strength, for `activity_cost` plus `refit_cost` per unit restored. Planning checks the cost against the army's losses at the time; resolving charges for the losses then.
+  - **Owner actions** (U1Q24; proposed, Round U1, awaiting review): a feature's owner may use it without a commander. Actions are planned during Planning and resolved after activities. A feature lists which ones it allows in `owner_actions`; the vocabulary is closed:
+    - **Buy:** one option of its `recruits` (a squad) or its `sells` (items, `count` per purchase). It costs the option's cost plus the feature's `remote_markup` percent (default 25, rounded up). Buying in person stays the commander's `recruit` activity, at the plain price, straight into the army.
+    - **Rally point:** set or clear where the feature's output goes (its supply line; see Production and logistics). Already an owner setting; listed here so the UI offers it per feature.
+    - **Output:** choose which `produces` option it makes.
+    - **Limits:** each feature takes `purchases_per_turn` buys a turn (default 1). The Value is paid when the action resolves, not when planned.
+    - **Where a bought squad or item goes:** like produced output. Without a rally point it joins the owner's garrison on the feature's hex (a new garrison if none). With one, it leaves next turn as a caravan on that line. Items go into that garrison's or caravan's War Chest.
+    - **Cancelled, with nothing paid, when:** the feature is no longer the player's (captured during movement this turn); the hex is engaged (a battle is there); the hex is contested (a hostile commander, or a hostile garrison or caravan with squads, is on it when the action resolves); or the player lacks the Value. The owner sees the reason as an event.
+    - **Fog:** an owned feature always sees its own hex, so planning never acts blind. Enemies see a bought squad or item appear as a garrison or caravan, never what it holds.
+    - **Not remote:** hire, refit, convert, battle and answering offers still need a commander on the hex (U1 synthesis defaults 05-Q3, 05-Q4).
   - **Production:** every controlled feature pays its owner its `value_per_turn`, including one taken this turn.
   - **Offers:** after a turn resolves, each uncertain feature is offered to the one player whose free commanders stand on its hex. A hex with hostile commanders, or an engaged one, gets no offer. The player answers during planning with one of the feature's `choices`, once per offer; the map's triggers decide what the answer does.
+- **Hexes are places made of features** (U1Q20; proposed, Round U1, awaiting review): a hex shows the features it holds as separate things, not as one terrain colour. Each feature has a drawing `layer`:
+  - **Ground** (plains, forest, hills, lake): the hex's surface. The ground with the highest `draw_order` is drawn as the hex's tile.
+  - **Path** (roads): drawn as a strip from the hex centre to each side whose neighbour holds a feature it `connects` with.
+  - **Site** (village, mine, barracks, depot, caches, camps, shrines): an object drawn in a slot of the hex, selectable on its own.
+  - The layer and layout are drawing only: the rules never read them. Movement cost, sight, control and activities are unchanged.
+- **Arrangement** (U1Q21, U1Q22; proposed numbers): sites take slots from a fixed table by how many sites the hex has (1–7). They are ordered by `layout_priority` (higher first), then template ID. An eighth or later site shares the last slot with a "+n" badge.
+  - **Roads:** on a hex with a path, the arrangement keeps its shape and moves as a group out of the road's way, towards the middle of the widest gap between road directions, and shrinks slightly to fit. Any site still on the road is pushed off it.
+  - **Map overrides:** a map may place any site at an exact point in its hex (`at` on its `place` pass). Play never changes the arrangement.
+- **Selecting a feature** (U1Q23; proposed): any known site can be selected by itself, on the map or in the hex's panel; both highlight it. Selecting a feature also selects its hex. What the player can do with it depends on owning it (Owner actions).
 
 ### Guards and movement
 - **Guards** (R4Q14, R5Q9, R6Q11, R6Q12): entering a guarded hex triggers an engagement. What overworld forces will do is never revealed before engagement.
@@ -292,7 +347,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Control:** a commander that passes through or ends on an unguarded hex takes its controllable features.
   - **Pathfinding** for route drafting is the cheapest path, with ties broken by plot index. It doesn't avoid guards, because the player sees the feature but never what its forces will do, and it never continues through a battle tile.
 - **Fog of war** (R8Q4):
-  - **Sight sources:** commanders, convoys, controlled features and detachments each have a sight radius in hexes.
+  - **Sight sources:** commanders, convoys, controlled features and detachments each have a sight radius in hexes. A source always sees its own hex, so every controlled hex gives at least self-vision (U1Q26).
   - **Allies:** vision is shared with allies.
   - **Memory:** explored hexes keep their last-seen state.
   - **Battle hexes:** their contents are hidden without sight.
@@ -318,6 +373,12 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Steering:** a player selects any of its garrisons or convoys and moves it like a commander. It follows a route of hexes, through waypoints, at the map's `convoy_movement` points a turn. A route may take several turns, and it is used up as the convoy walks. A steered convoy takes the player's way, guards and all. Right-clicking one of the player's commanders sends the convoy to join its army.
   - **What convoys can't do:** convoys and garrisons never take controllable features, pick up caches or perform hex activities (recruit, hire, refit, convert, battle). Only commanders do. A convoy still fights what it meets.
   - **Convoy movement:** a convoy is a detachment with a destination. Each turn it walks the cheapest path it knows, around hexes it knows are guarded, for the map's `convoy_movement` points. It moves on the commanders' timeline, after commanders at equal times.
+  - **Caravans** (U1Q27; proposed, Round U1, awaiting review; the convoy bullet above stays until it lands): a squad group without a commander is a **band**. A band is either a **garrison** (holding a hex) or a **caravan** (made to travel; "convoy" is an alias). The kind is data (`band` templates) and gives the band its base sight and movement points.
+    - **Becoming a caravan:** a garrison sent somewhere (rally, steering, a supply line) becomes a caravan. A caravan that halts stays a caravan: it keeps its sight and can be steered again.
+    - **Becoming a garrison:** a caravan that reaches its plot joins the player's garrison there, or becomes that garrison if there is none.
+    - **Walking:** each turn a caravan walks the cheapest path it knows, around hexes it knows are guarded, for its movement points. It moves on the commanders' timeline, after commanders at equal times.
+    - **Payload:** what a band carries are components: its squads, their equipped items, and its War Chest. Each squad (and each item it equips) may add to the band's overworld stats (`overworld` contributions). A scout team adds 1 sight to a caravan, up to the band kind's cap.
+    - **Effective stats:** systems read a band's effective sight and movement (base + payload, capped), never the raw data. Its tooltip shows each term.
   - **Meeting a commander:** a convoy sent to a commander walks to where that commander's planned route ends this turn, not to where it stood. A commander that enters the hex of a convoy sent to it picks the convoy up there and carries on.
   - **Interception:** like any detachment, a convoy entering a hex with hostile forces or guards, or entered by a hostile commander, is pulled into an engagement and stops. Survivors of a battle it wins carry on.
   - **Arrival:** at its plot, a convoy holds the hex, joining the player's detachment there. At its commander's hex, its squads join the army up to the cap, and the rest halt there. A convoy whose commander is gone halts where it is.
@@ -476,5 +537,76 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
 - **Coherency:** a unit whose formation slot lies on a cell it can't enter heads for the squad's anchor instead, which routes keep on passable ground. There is no separate leash distance: slots are at most a formation's width from the anchor.
 - **Not built:** unit-vs-unit collision, and unit pathfinding. A unit stuck in a concave wall pocket waits until the anchor moves on. Revisit if playtests show it reads badly.
 
+### Separation and coherency (U1Q10)
+**Proposed (Round U1, awaiting review).** "What v1 leaves out → Collision" (O1Q8) and "Unit movement → Coherency" above stay in play until this lands.
+- **No body blocking.** Units and squads never block movement or routes. Routes stay static and cached (§2.14 Routing).
+- **Separation:** after units steer to their slots, a unit closer than its separation radius (by size class: small 0.4 m, medium 0.6 m, large 1.2 m) to a unit of *another* squad is pushed apart along the line between them.
+  - **Pushes:** computed from start-of-tick positions, summed per unit, capped at the unit's speed, and applied together, so row order doesn't matter. Integer math.
+  - **Walls:** a push never enters a cell the unit can't (the terrain-collision slide rule applies).
+  - **Tie-breaks:** units on the same point push along the lower unit ID's facing.
+- **Squad footprints:** two friendly squads ordered to the same point are given points one footprint apart: the nearest free ring position, then the lowest cell index. A footprint is the formation's width.
+- **Coherency:** a unit more than its squad's **coherency radius** (data; default the formation's half-width + 3 m) from the anchor heads straight for the anchor (this exists, §2.14 Unit movement). The anchor also slows to half speed while any unit is out of coherency, so squads don't string out around corners.
+- **Clusters:** squads given one shared order (a multi-select move) share one route plan and keep their offsets from the cluster's lead squad, which is the lowest row. A cluster's leg is the lead squad's leg.
+- **Budget:** separation uses a uniform 2 m spatial hash rebuilt each tick, at about one bucket pass per unit. The target is ≤ 0.2 ms per tick at 200 units on desktop, measured before the rule ships, so a 100-tick forecast stays ≤ 20 ms on top of today's.
+
 ### Charges
 A **charge** is an Attack order while the squad is still closing on its target. This is the meaning Intercept (§2.7) already uses. Melee has no rules of its own in v1: a short-range weapon is a weapon with a short range.
+
+## 2.15 Orders and squad behaviours (U1Q1, U1Q2, U1Q10–U1Q13)
+**Status:** U1Q11–U1Q13 settled the intent; the rules below are proposed (Round U1, awaiting review). Measurements: `docs/design/u1/01-battle-orders-and-behaviour.md` §1, until the U1 workshop scenarios for orders and damage output replace them. Whether attack-move stops by squad quorum plus step-out (below) or per unit is open question OQ-2 (`docs/design/u1/00-synthesis.md` §3).
+
+### Orders and their trade-offs (proposed)
+Every order is a promise about movement. Damage output follows from it; no order has a hidden damage penalty.
+
+| Order | Moves | Fires | Trade-off (intended) |
+|---|---|---|---|
+| **Hold** | Never. Units may turn. | At anything in reach, standing modes. | Best accuracy and first volley; does nothing out of range. |
+| **Move** | To the point, ignoring enemies. | On the move at anything in reach, with moving modes only. Weapons without one stay silent. | Fastest arrival; accuracy × Instinct efficacy, and it sinks Instinct. |
+| **Attack-move** | Toward the point; stops to fight (Closing to fire, below). | Standing modes once stopped. It never opens with a moving volley while it is stopping. | Gives up ground for damage. Stops chasing past its leash. |
+| **Attack** | Follows the target squad and stops to fight it (Closing to fire). | The target first. Other enemies only while the target is out of reach. | Focus over efficiency. |
+| **Run** (a modifier of Move, Attack-move, Attack) | At run speed scaled by Stamina (R4Q5). | As its order; moving modes while running. | Speed for Stamina. Attack-move and Attack still stop to fight. |
+| **Fall back / Withdraw** | Away / off the edge. | Never. | Survival. |
+
+- **Reactions keep the modifier:** a Retarget reaction keeps the squad's run flag (U1Q2). Halt is a hold, where running means nothing, and fall back always runs.
+
+### Closing to fire (U1Q11; mechanics proposed)
+The default for Attack-move and Attack. A squad with an engaged enemy and time left in the turn keeps advancing until it can use its firepower.
+- **Quorum:** the anchor stops once units carrying at least the squad's **fire quorum** (data; default 100% of its standing damage per second) each have a shot. Indirect weapons and units with no weapon don't count against the quorum when nothing can improve them.
+- **Infeasible quorum:** the quorum counts only units that can get a shot at a stand-off of at least every waiting unit's `min_range` + 2 m. With none, the squad stops at the best share it can reach.
+- **Hysteresis:** it stops at the quorum or above, and moves again only after its share has been below the quorum − 10% for at least 1 s.
+- **Fog:** only enemy units the side sees count.
+- **Stand-off:** it never closes nearer than the largest `min_range` among the units it is waiting for, plus 2 m.
+- **Leash:** it never closes more than its **chase leash** (data; default 15 m) past an Attack-move point. An Attack order has no leash.
+- **Step out** (pending OQ-2): once the anchor stands, a unit with no shot may step up to its **step-out distance** (data; default 3 m) from its slot toward its nearest target. It does this only to gain range or a line, and returns when its shot is gone. This is the marine arc of U1Q11; it never moves the anchor.
+- **Blocked lines:** if no unit gains a shot by standing, the squad keeps closing, as before (§2.6, LineOfFire).
+- **Firing while stopping:** a unit whose squad meets its quorum this tick uses its standing mode on the next tick it can fire. It doesn't spend a moving volley on the arrival tick.
+- **Shown:** the forecast ghost shows where the squad will stop, and the hold reasons show who is stepping out ("moving to fire").
+
+### Volley phase
+- Volley phase (lockstep volleys, or staggered by formation slot): open question (synthesis OQ-1). Lockstep stays until it is answered.
+
+### Squad behaviours (U1Q12; vocabulary proposed)
+An order runs a **behaviour**: an ordered list of **components** from a closed, engine-provided vocabulary, each with data parameters. Mods compose components; they never add code (Data Model §3.7). Each squad template names a behaviour per order, falling back to its archetype's default.
+
+| Component | Phase | Parameters | What it does |
+|---|---|---|---|
+| `advance` | move | `quorum_pct`, `margin_m` | Closing to fire (above). |
+| `leash` | move | `chase_m` | Limits how far past the order point the squad pursues. |
+| `keep_distance` | move | `min_m`, `max_m` | Stands off, or backs away, to keep enemies in a band (mortars, snipers). |
+| `step_out` | unit | `max_m` | Per-unit step to gain range or a line. |
+| `fire_on_move` | fire | `allow` | Whether moving modes may fire under this order. |
+| `stand_while` | move | `firing`, `reloading` | Today's "keep standing while weapons cycle". |
+| `separate` | unit | `radius_m` | Separation (§2.14). |
+
+Archetype defaults (proposed):
+
+| Archetype | Attack-move / Attack |
+|---|---|
+| Infantry (line) | `advance(quorum 100%)`, `leash(15)`, `step_out(3)`, `stand_while(firing)` |
+| Indirect (mortar) | `advance(quorum 100%)`, `keep_distance(min_range + 5, —)`, `fire_on_move(false)`, `stand_while(firing, reloading)` |
+| Short-range / melee (assault) | `advance(quorum 75%)`, `leash(25)`, `step_out(4)` |
+| Marksman | `advance(quorum 100%)`, `keep_distance(—, range − 5)`, `step_out(2)` |
+
+- **Order of evaluation:** components run in vocabulary order in their phase, squads in row order, units in row order. Arithmetic is integer and fixed-point.
+- **Forecasts:** they run the same behaviours, so the ghosts show them.
+- **Target choice:** which enemy unit each shooter picks is not a behaviour component; it is §2.6 Fire distribution.

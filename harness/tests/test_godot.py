@@ -85,3 +85,60 @@ def test_check_reports_native_method_lint(fake_repo, monkeypatch):
     assert r.data["errors"] == 1
     assert "to_global()" in r.data["shown"]
     assert any(godot_cmd.NATIVE_LINT in a for a in calls)
+
+
+# GUT's output for a file with one passing, one pending and one failing test (sw-lzg).
+GUT_MIXED = [
+    "res://tests/t.gd",
+    "* test_passes",
+    "* test_pending_one",
+    "    [Pending]:  not written yet",
+    "* test_fails_one",
+    "    [Failed]:  [1] expected to equal [2]:  deliberate failure",
+    "      at line 10",
+    "3 tests",
+    "= Run Summary",
+    "res://tests/t.gd",
+    "- test_pending_one",
+    "    [Pending]:  not written yet",
+    "- test_fails_one",
+    "    [Failed]:  [1] expected to equal [2]:  deliberate failure",
+    "          at line 10",
+    "Totals",
+    "Passing Tests         1",
+    "Failing Tests         1",
+    "Risky/Pending         1",
+    "Asserts             1/2",
+]
+
+
+def _gut_check(monkeypatch, tmp_path, lines, code):
+    monkeypatch.setattr(godot_cmd, "_console", lambda: (tmp_path, tmp_path / "godot.exe"))
+    monkeypatch.setattr(godot_cmd, "_run", lambda *a, **k: (code, lines))
+    r = godot_cmd._test(_parse("test", "--file", "tests/t.gd"))
+    return r, r.checks[0]
+
+
+def test_gut_pending_only_is_not_ok_even_though_gut_exits_0(monkeypatch, tmp_path):
+    lines = ["- test_pending_one", "    [Pending]:  not written yet", "Passing Tests      none",
+             "Risky/Pending         1", "Tests                 1"]
+    r, check = _gut_check(monkeypatch, tmp_path, lines, 0)
+    assert check.status == godot_cmd.FAIL
+    assert check.detail == "1 pending"
+    assert r.data["not_passing"] == "\n  test_pending_one: [Pending]:  not written yet"
+
+
+def test_gut_failing_and_pending_names_both_tests(monkeypatch, tmp_path):
+    r, check = _gut_check(monkeypatch, tmp_path, GUT_MIXED, 1)
+    assert check.status == godot_cmd.FAIL
+    assert check.detail == "exit 1, 1 failing, 1 pending"
+    assert "test_pending_one: [Pending]:  not written yet" in r.data["not_passing"]
+    assert "test_fails_one: [Failed]:  [1] expected to equal [2]:  deliberate failure" in r.data["not_passing"]
+    assert "Risky/Pending         1" in r.data["summary"]
+
+
+def test_gut_all_passing_is_ok(monkeypatch, tmp_path):
+    lines = ["* test_a", "Passing Tests         2", "Tests                 2", "Asserts             3"]
+    r, check = _gut_check(monkeypatch, tmp_path, lines, 0)
+    assert check.status == godot_cmd.OK
+    assert "not_passing" not in r.data

@@ -1,0 +1,104 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+=== passive target (disarmed), attacker HOLD; ticks at 10/s ===
+matchup | policy | first_kill_t | mean_kill_t | kills@10s | kills@20s | wipe_t | raw_dmg | removed | waste% | kills/100raw
+rifle_squad>rifle_squad(no_armour) | nearest(current) | 60 | 60 | 8 | 8 | 60 | 96 | 82 | 14.6 | 8.33
+rifle_squad>rifle_squad(no_armour) | optimal q1 c100 | 10 | 35 | 8 | 8 | 60 | 96 | 82 | 14.6 | 8.33
+rifle_squad>rifle_squad(no_armour) | surging q.9 c100 | 10 | 38 | 8 | 8 | 60 | 96 | 82 | 14.6 | 8.33
+rifle_squad>rifle_squad(no_armour) | neutral q.6 c70 | 10 | 46 | 8 | 8 | 80 | 120 | 82 | 31.7 | 6.67
+rifle_squad>rifle_squad(no_armour) | fraying q.3 c35 | 30 | 51 | 8 | 8 | 80 | 120 | 82 | 31.7 | 6.67
+rifle_squad>rifle_squad(no_armour) | broken q.1 c10 | 40 | 60 | 8 | 8 | 80 | 120 | 82 | 31.7 | 6.67
+rifle_squad>rifle_squad(no_armour) | bad-overkill q1 c0 | 10 | 69 | 6 | 8 | 130 | 219 | 82 | 62.6 | 3.65
+rifle_squad>rifle_squad(no_armour) | bad-spread | 60 | 60 | 8 | 8 | 60 | 96 | 82 | 14.6 | 8.33
+hf_militia>rifle_squad(no_armour) | nearest(current) | 30 | 43 | 8 | 8 | 60 | 120 | 82 | 31.7 | 6.67
+hf_militia>rifle_squad(no_armour) | optimal q1 c100 | 10 | 31 | 8 | 8 | 60 | 120 | 82 | 31.7 | 6.67
+hf_militia>rifle_squad(no_armour) | surging q.9 c100 | 10 | 34 | 8 | 8 | 60 | 120 | 82 | 31.7 | 6.67
+hf_militia>rifle_squad(no_armour) | neutral q.6 c70 | 10 | 41 | 8 | 8 | 80 | 150 | 82 | 45.3 | 5.33
+hf_militia>rifle_squad(no_armour) | fraying q.3 c35 | 30 | 50 | 8 | 8 | 80 | 150 | 82 | 45.3 | 5.33
+hf_militia>rifle_squad(no_armour) | broken q.1 c10 | 30 | 45 | 8 | 8 | 60 | 120 | 82 | 31.7 | 6.67
+hf_militia>rifle_squad(no_armour) | bad-overkill q1 c0 | 10 | 69 | 6 | 8 | 130 | 270 | 82 | 69.6 | 2.96
+hf_militia>rifle_squad(no_armour) | bad-spread | 40 | 45 | 8 | 8 | 60 | 120 | 82 | 31.7 | 6.67
+heavy_weapons_team>rifle_squad(no_armour) | nearest(current) | 20 | 68 | 6 | 8 | 110 | 96 | 82 | 14.6 | 8.33
+heavy_weapons_team>rifle_squad(no_armour) | optimal q1 c100 | 10 | 60 | 6 | 8 | 110 | 96 | 82 | 14.6 | 8.33
+heavy_weapons_team>rifle_squad(no_armour) | surging q.9 c100 | 20 | 63 | 6 | 8 | 110 | 96 | 82 | 14.6 | 8.33
+heavy_weapons_team>rifle_squad(no_armour) | neutral q.6 c70 | 20 | 76 | 4 | 8 | 130 | 114 | 82 | 28.1 | 7.02
+heavy_weapons_team>rifle_squad(no_armour) | fraying q.3 c35 | 20 | 76 | 4 | 8 | 130 | 114 | 82 | 28.1 | 7.02
+heavy_weapons_team>rifle_squad(no_armour) | broken q.1 c10 | 20 | 78 | 4 | 8 | 130 | 114 | 82 | 28.1 | 7.02
+heavy_weapons_team>rifle_squad(no_armour) | bad-overkill q1 c0 | 10 | 70 | 5 | 8 | 130 | 114 | 82 | 28.1 | 7.02
+heavy_weapons_team>rifle_squad(no_armour) | bad-spread | 90 | 100 | 2 | 8 | 110 | 96 | 82 | 14.6 | 8.33
+marksman_team>scout_team(no_armour) | nearest(current) | 25 | 38 | 4 | 4 | 50 | 32 | 32 | 0.0 | 12.50
+marksman_team>scout_team(no_armour) | optimal q1 c100 | 25 | 38 | 4 | 4 | 50 | 32 | 32 | 0.0 | 12.50
+marksman_team>scout_team(no_armour) | surging q.9 c100 | 25 | 38 | 4 | 4 | 50 | 32 | 32 | 0.0 | 12.50
+marksman_team>scout_team(no_armour) | neutral q.6 c70 | 25 | 38 | 4 | 4 | 50 | 32 | 32 | 0.0 | 12.50
+marksman_team>scout_team(no_armour) | fraying q.3 c35 | 25 | 50 | 4 | 4 | 75 | 48 | 32 | 33.3 | 8.33
+marksman_team>scout_team(no_armour) | broken q.1 c10 | 25 | 50 | 4 | 4 | 75 | 48 | 32 | 33.3 | 8.33
+marksman_team>scout_team(no_armour) | bad-overkill q1 c0 | 25 | 63 | 3 | 4 | 100 | 80 | 32 | 60.0 | 5.00
+marksman_team>scout_team(no_armour) | bad-spread | 25 | 38 | 4 | 4 | 50 | 32 | 32 | 0.0 | 12.50
+mortar_team>rifle_squad(no_armour) | nearest(current) | 120 | 120 | 0 | 8 | 120 | 130 | 82 | 36.9 | 6.15
+mortar_team>rifle_squad(no_armour) | optimal q1 c100 | 120 | 143 | 0 | 7 | 300 | 150 | 82 | 45.3 | 5.33
+mortar_team>rifle_squad(no_armour) | surging q.9 c100 | 120 | 120 | 0 | 8 | 120 | 130 | 82 | 36.9 | 6.15
+mortar_team>rifle_squad(no_armour) | neutral q.6 c70 | 120 | 143 | 0 | 7 | 300 | 150 | 82 | 45.3 | 5.33
+mortar_team>rifle_squad(no_armour) | fraying q.3 c35 | 120 | 120 | 0 | 8 | 120 | 130 | 82 | 36.9 | 6.15
+mortar_team>rifle_squad(no_armour) | broken q.1 c10 | 120 | 143 | 0 | 7 | 300 | 180 | 82 | 54.4 | 4.44
+mortar_team>rifle_squad(no_armour) | bad-overkill q1 c0 | 120 | 233 | 0 | 4 | 480 | 240 | 82 | 65.8 | 3.33
+mortar_team>rifle_squad(no_armour) | bad-spread | 120 | 143 | 0 | 7 | 300 | 150 | 82 | 45.3 | 5.33
+rocket_team>rifle_squad(no_armour) | nearest(current) | 50 | 83 | 5 | 8 | 150 | 150 | 82 | 45.3 | 5.33
+rocket_team>rifle_squad(no_armour) | optimal q1 c100 | 50 | 83 | 5 | 8 | 150 | 150 | 82 | 45.3 | 5.33
+rocket_team>rifle_squad(no_armour) | surging q.9 c100 | 50 | 83 | 5 | 8 | 150 | 126 | 82 | 34.9 | 6.35
+rocket_team>rifle_squad(no_armour) | neutral q.6 c70 | 50 | 90 | 5 | 7 | 210 | 138 | 82 | 40.6 | 5.80
+rocket_team>rifle_squad(no_armour) | fraying q.3 c35 | 50 | 96 | 4 | 8 | 160 | 153 | 82 | 46.4 | 5.23
+rocket_team>rifle_squad(no_armour) | broken q.1 c10 | 50 | 100 | 4 | 8 | 190 | 159 | 82 | 48.4 | 5.03
+rocket_team>rifle_squad(no_armour) | bad-overkill q1 c0 | 50 | 128 | 3 | 6 | 250 | 192 | 82 | 57.3 | 4.17
+rocket_team>rifle_squad(no_armour) | bad-spread | 50 | 73 | 6 | 8 | 150 | 126 | 82 | 34.9 | 6.35
+rifle_squad>chi_operatives(own) | nearest(current) | 30 | 72 | 6 | 6 | 90 | 144 | 62 | 56.9 | 4.17
+rifle_squad>chi_operatives(own) | optimal q1 c100 | 40 | 62 | 6 | 6 | 80 | 120 | 62 | 48.3 | 5.00
+rifle_squad>chi_operatives(own) | surging q.9 c100 | 40 | 62 | 6 | 6 | 80 | 120 | 62 | 48.3 | 5.00
+rifle_squad>chi_operatives(own) | neutral q.6 c70 | 30 | 65 | 6 | 6 | 90 | 144 | 62 | 56.9 | 4.17
+rifle_squad>chi_operatives(own) | fraying q.3 c35 | 40 | 70 | 6 | 6 | 90 | 144 | 62 | 56.9 | 4.17
+rifle_squad>chi_operatives(own) | broken q.1 c10 | 30 | 67 | 6 | 6 | 90 | 144 | 62 | 56.9 | 4.17
+rifle_squad>chi_operatives(own) | bad-overkill q1 c0 | 10 | 52 | 6 | 6 | 90 | 144 | 62 | 56.9 | 4.17
+rifle_squad>chi_operatives(own) | bad-spread | 40 | 73 | 6 | 6 | 80 | 120 | 62 | 48.3 | 5.00
+rifle_squad>chi_operatives(own) | optimal+def-aware | 10 | 50 | 6 | 6 | 80 | 120 | 62 | 48.3 | 5.00
+=== duels: rifle_squad vs rifle_squad, both armed, 30 m, B = nearest(current) ===
+policy A | side | winner | A_alive | B_alive | end_t
+nearest(current) | west | draw | 0 | 0 | 60
+nearest(current) | east | draw | 0 | 0 | 60
+optimal q1 c100 | west | A | 6 | 0 | 60
+optimal q1 c100 | east | A | 6 | 0 | 60
+surging q.9 c100 | west | A | 6 | 0 | 60
+surging q.9 c100 | east | A | 6 | 0 | 60
+neutral q.6 c70 | west | A | 3 | 0 | 90
+neutral q.6 c70 | east | A | 4 | 0 | 90
+fraying q.3 c35 | west | A | 3 | 0 | 90
+fraying q.3 c35 | east | A | 3 | 0 | 90
+broken q.1 c10 | west | B | 0 | 1 | 70
+broken q.1 c10 | east | B | 0 | 1 | 70
+bad-overkill q1 c0 | west | B | 0 | 3 | 90
+bad-overkill q1 c0 | east | B | 0 | 3 | 90
+bad-spread | west | draw | 0 | 0 | 60
+bad-spread | east | draw | 0 | 0 | 60
+=== duels with staggered hit accumulators (acc_hit = (37*uid mod 100)%) ===
+nearest(current) | west | B | 0 | 1 | 60
+nearest(current) | east | A | 1 | 0 | 60
+optimal q1 c100 | west | A | 7 | 0 | 60
+optimal q1 c100 | east | A | 7 | 0 | 60
+surging q.9 c100 | west | A | 7 | 0 | 60
+surging q.9 c100 | east | A | 7 | 0 | 60
+neutral q.6 c70 | west | A | 5 | 0 | 70
+neutral q.6 c70 | east | A | 5 | 0 | 60
+fraying q.3 c35 | west | A | 4 | 0 | 70
+fraying q.3 c35 | east | A | 5 | 0 | 60
+broken q.1 c10 | west | A | 1 | 0 | 80
+broken q.1 c10 | east | A | 3 | 0 | 70
+bad-overkill q1 c0 | west | A | 5 | 0 | 70
+bad-overkill q1 c0 | east | A | 5 | 0 | 70
+bad-spread | west | B | 0 | 1 | 60
+bad-spread | east | A | 1 | 0 | 60
+=== duels: A = hf_militia (10x trooper, value 75) vs B = rifle_squad nearest (value 100) ===
+nearest(current) | west | A | 8 | 0 | 60
+optimal q1 c100 | west | A | 9 | 0 | 60
+surging q.9 c100 | west | A | 9 | 0 | 60
+neutral q.6 c70 | west | A | 8 | 0 | 80
+fraying q.3 c35 | west | A | 6 | 0 | 80
+broken q.1 c10 | west | A | 7 | 0 | 60
+bad-overkill q1 c0 | west | B | 0 | 1 | 150
+bad-spread | west | A | 8 | 0 | 60
