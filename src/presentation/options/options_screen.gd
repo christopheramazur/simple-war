@@ -10,6 +10,7 @@ signal setting_changed(key: String)
 var _mode: OptionButton
 var _size: OptionButton
 var _vsync: CheckBox
+var _fps: OptionButton
 var _scale: OptionButton
 var _theme: OptionButton
 var _palette: OptionButton
@@ -60,6 +61,15 @@ func _ready() -> void:
 	_vsync.button_pressed = bool(GameSettings.value("vsync"))
 	_vsync.toggled.connect(func(on: bool) -> void: _change("vsync", on))
 	col.add_child(_row("VSync", _vsync))
+	_fps = OptionButton.new()
+	_fps.name = "MaxFps"
+	for i in GameSettings.MAX_FPS.size():
+		var f := GameSettings.MAX_FPS[i]
+		_fps.add_item("Unlimited" if f <= 0 else "%d fps" % f)
+		if f == int(GameSettings.value("max_fps")):
+			_fps.select(i)
+	_fps.item_selected.connect(func(i: int) -> void: _change("max_fps", GameSettings.MAX_FPS[i]))
+	col.add_child(_row("Frame rate limit", _fps))
 	_scale = OptionButton.new()
 	_scale.name = "Scale"
 	for i in GameSettings.UI_SCALES.size():
@@ -110,6 +120,15 @@ func _ready() -> void:
 			_alert.select(i)
 	_alert.item_selected.connect(func(i: int) -> void: _change("alert_seconds", GameSettings.ALERT_SECONDS[i]))
 	col.add_child(_row("Battle alerts stay new for", _alert))
+	var detail := OptionButton.new()
+	detail.name = "ForecastDetail"
+	for i in GameSettings.FORECAST_DETAILS.size():
+		var d := GameSettings.FORECAST_DETAILS[i]
+		detail.add_item(GameSettings.FORECAST_DETAIL_NAMES[d])
+		if d == str(GameSettings.value("forecast_detail")):
+			detail.select(i)
+	detail.item_selected.connect(func(i: int) -> void: _change("forecast_detail", GameSettings.FORECAST_DETAILS[i]))
+	col.add_child(_row("Forecast detail", detail))
 	_said = UiTheme.label("", "DimLabel", true)
 	_said.custom_minimum_size = Vector2(390, 0)
 	col.add_child(_said)

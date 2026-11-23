@@ -83,3 +83,8 @@ func test_telegraph_label_shares_playback_damage_text() -> void:
 	assert_eq(Telegraph.label({"damage": 12 * one}), "▶ 12")
 	assert_eq(Telegraph.label({"damage": one / 2}), "▶ " + BattleFx.damage_text(one / 2))
 	assert_eq(Telegraph.label({"damage": 30 * one, "kills": 2}), "▶ 30 · 2 down")
+	var ct := {"tick": 7, "reactions": ["a", "b"]}
+	assert_eq(Telegraph.contact_label(ct), "⚔")
+	assert_eq(Telegraph.contact_label(ct, true), "⚔ t7 · 2 reactions")
+	assert_eq(Telegraph.contact_label({"tick": 3}, true), "⚔ t3")
+	assert_eq(GameSettings.DEFAULTS["forecast_detail"], "summary")

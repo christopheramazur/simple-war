@@ -44,3 +44,8 @@
 - found: only `_title()` headings and the Events log are hoverable; squad card, battle panel, hex card, phase text are plain Labels; no keyboard/controller path to any tooltip; Ruin term clashes with the ruins terrain; "Reserve" meaning clash. Glossary card definition is 13 px (native tooltip 14 px).
 - decided: audit only, no beads filed, sw-dqj and sw-vld referenced not re-reported. Nothing was run in-engine.
 - tests: docs-only, none.
+
+## 2026-11-22 turn (autopilot, sw-eo8.7)
+- did: per-player auto-off rules (R8Q2). BattleState.auto_off_rules (saved, hashed); Abilities.set_auto_off/auto_off_rule; Abilities.tick ends a toggle after `turns` battle turns or at/below a `band` override (data band stays default); BattleSession.set_auto_off logged as input "auto_off" and replayed. 3 GUT tests.
+- decided: "turns" counts from the `since` tick, ending on the last tick of turn X; band override is at-or-below, same as the data band. Sim + API only, no UI.
+- tests: hx godot check 0 errors; hx godot test 518/518.

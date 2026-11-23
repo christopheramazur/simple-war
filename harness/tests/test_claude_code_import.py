@@ -112,3 +112,8 @@ def test_ingest_session_summary(env, capsys):
     assert row == ("Harness work", 2, "sw-lbm.3", 1)
     assert con.execute("SELECT provider FROM call WHERE call_id='msg_B'").fetchone()[0] == "anthropic"
     con.close()
+
+
+def test_first_line_signature():
+    assert cc._first_line([{"type": "text", "text": "\n  bash: -c: line 4: unexpected EOF\nmore"}]) == "bash: -c: line 4: unexpected EOF"
+    assert cc._first_line(None) is None

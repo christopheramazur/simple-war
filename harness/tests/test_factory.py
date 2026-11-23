@@ -152,17 +152,50 @@ def test_hall_of_fame_rate_turns_lambda_off(tmp_path: Path):
     assert scores["h"]["matches"] == 2
 
 
+UNIT = {"aggression": (0.0, 1.0), "expansion": (0.0, 1.0)}
+
+
+def test_archive_calibrated_ranges_spread_cells():
+    scores = {f"p{i}": {"aggression": 0.05 + 0.04 * i, "expansion": 0.15 + 0.10 * i, "fitness": 1.0}
+              for i in range(5)}
+    arc = factory.archive_update({}, scores, 5, 0)
+    assert sorted(arc) == [(i, i) for i in range(5)]
+
+
 def test_archive_and_gain_rate(tmp_path: Path):
     arc = factory.archive_update({}, {"a": {"aggression": 0.1, "expansion": 0.9, "fitness": 1.0},
                                       "b": {"aggression": 0.15, "expansion": 0.95, "fitness": 1.2},
-                                      "c": {"aggression": 1.0, "expansion": 0.0, "fitness": 0.1}}, 5, 3)
+                                      "c": {"aggression": 1.0, "expansion": 0.0, "fitness": 0.1}}, 5, 3, UNIT)
     assert arc[(0, 4)] == ("b", 1.2, 3) and arc[(4, 0)] == ("c", 0.1, 3)
-    assert factory.archive_update(arc, {"d": {"aggression": 0.1, "expansion": 0.9, "fitness": 0.5}}, 5, 4)[(0, 4)][0] == "b"
+    assert factory.archive_update(arc, {"d": {"aggression": 0.1, "expansion": 0.9, "fitness": 0.5}}, 5, 4, UNIT)[(0, 4)][0] == "b"
     con = factory.connect(tmp_path / "s.duckdb")
     for g, bench in ((0, None), (1, 0.2), (2, 0.5)):
         con.execute("INSERT INTO factory_gen VALUES ('r', ?, 'b', 0.3, NULL, 1, 1, 1800, 4, 0, ?)", [g, bench])
     rate = factory.gain_rate(con, "r")
-    assert rate["hours"] == 1.5 and rate["gain_per_hour"] == pytest.approx(0.2)
+    assert rate["hours"] == 1.5 and rate["gain_per_hour"] == pytest.approx(0.6)  # 0.3 over 0.5 h
+
+
+def test_gain_rate_is_a_fitted_slope(tmp_path: Path):
+    con = factory.connect(tmp_path / "s.duckdb")
+    # one hour per generation; the noisy last point must not decide the rate alone
+    for g, bench in enumerate((0.5, 0.56, 0.57, 0.41, 0.90, 0.61)):
+        con.execute("INSERT INTO factory_gen VALUES ('r', ?, 'b', 0.3, NULL, 1, 1, 3600, 4, 0, ?)", [g, bench])
+    rate = factory.gain_rate(con, "r")
+    assert rate["bench_points"] == 6
+    assert rate["gain_per_hour"] == pytest.approx(0.0403, abs=1e-4)
+    assert factory.slope([(1.0, 1.0)]) is None
+
+
+def test_champion_record(tmp_path: Path):
+    con = factory.connect(tmp_path / "s.duckdb")
+    rows = [("r1", "bencha", 1, "won"), ("r2", "bencha", 1, "lost"), ("r3", "benchb", 2, "won"),
+            ("r4", "benchb", 2, "drew")]
+    for run_id, variant, player, flag in rows:
+        con.execute("INSERT INTO sim_run (run_id, batch_id, variant, status) VALUES (?, 'x-bench', ?, 'ok')",
+                    [run_id, variant])
+        con.execute("INSERT INTO sim_metric VALUES (?, ?, ?, 1)", [run_id, flag, player])
+    assert factory.champion_record(con, "x-bench") == (2, 1, 1)
+    assert factory.champion_record(con, "none") is None
 
 
 def test_intensity_levels():

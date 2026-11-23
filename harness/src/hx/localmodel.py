@@ -96,8 +96,25 @@ def required_free_mib(pid: str = "bonsai", ctx: int | None = None) -> int:
     return mib + MARGIN_MIB if mib else FALLBACK_FREE_MIB
 
 
+PROBE_TTL_S = 60
+_probe_cache: dict[str, tuple[float, str | None]] = {}
+
+
 def can_start(pid: str = "bonsai") -> str | None:
-    """None if there's room to start the server now, else why not."""
+    """None if there's room to start the server now, else why not.
+
+    A refusal is cached for PROBE_TTL_S so repeated delegate calls don't re-run nvidia-smi;
+    the cache is per process, so it only helps long-lived callers (the worker, tests).
+    """
+    hit = _probe_cache.get(pid)
+    if hit and hit[1] and time.monotonic() - hit[0] < PROBE_TTL_S:
+        return hit[1]
+    why = _can_start(pid)
+    _probe_cache[pid] = (time.monotonic(), why)
+    return why
+
+
+def _can_start(pid: str) -> str | None:
     used, total = vram_used_mib(), vram_total_mib()
     need = required_free_mib(pid)
     if used is None or total is None:

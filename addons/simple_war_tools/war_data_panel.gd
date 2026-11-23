@@ -5,7 +5,8 @@ extends VBoxContainer
 ## kind; for the selected one, its flattened values with the template that
 ## set each, and its definition to edit, validated against the whole
 ## package before it is written (PackageEditor). The Triggers tab draws a
-## map's or scenario's triggers with custom_graph_editor (TriggerGraph);
+## map's or scenario's triggers with custom_graph_editor (TriggerGraph), the
+## Dialogues tab a dialogue's nodes (DialogueGraph);
 ## selecting a trigger node opens its template. The Maps tab paints battle
 ## maps (MapPainter). Problems lists everything
 ## the package would fail to load with. Runs in the editor's main screen
@@ -32,6 +33,10 @@ var _owners: OptionButton
 var _graph_holder: Control
 var _graph: Control
 var _graph_data: Dictionary = {}
+var _dialogues: OptionButton
+var _dgraph_holder: Control
+var _dgraph: Control
+var _dgraph_data: Dictionary = {}
 var _problems: ItemList
 var _maps: MapPainter
 
@@ -49,6 +54,7 @@ func open(dir: String) -> void:
 	model = PackageEditor.open(dir)
 	_fill_tree()
 	_fill_owners()
+	_fill_dialogues()
 	_fill_problems()
 	_maps.set_model(model)
 	if not selected_id.is_empty() and model.file_of(selected_id) != "":
@@ -132,20 +138,36 @@ func add_new() -> PackedStringArray:
 ## Draws the triggers of a map or scenario.
 func show_triggers(owner: String) -> void:
 	_graph_data = TriggerGraph.build(model.templates, owner)
-	if _graph != null:
-		_graph_holder.remove_child(_graph)
-		_graph.queue_free()
-	_graph = (load(GRAPH_SCENE) as PackedScene).instantiate()
-	_graph.set("graph_node_ui_scene", load(NODE_UI_SCENE))
-	_graph.set("node_class", WarGraphNode)
-	_graph.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_graph_holder.add_child(_graph)
-	_graph.call("deserialize", {"nodes": _graph_data["nodes"], "links": _graph_data["links"]})
-	_graph.connect("graph_element_selected", _on_graph_selected)
+	_graph = _load_graph(_graph_holder, _graph, _graph_data)
+
+
+## Draws one dialogue (DialogueGraph) on the Dialogues tab.
+func show_dialogue(id: String) -> void:
+	_dgraph_data = DialogueGraph.build(model.templates, id)
+	_dgraph = _load_graph(_dgraph_holder, _dgraph, _dgraph_data)
+
+
+## Replaces the graph editor in `holder` with one showing `data`.
+func _load_graph(holder: Control, old: Control, data: Dictionary) -> Control:
+	if old != null:
+		holder.remove_child(old)
+		old.queue_free()
+	var g := (load(GRAPH_SCENE) as PackedScene).instantiate() as Control
+	g.set("graph_node_ui_scene", load(NODE_UI_SCENE))
+	g.set("node_class", WarGraphNode)
+	g.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(g)
+	g.call("deserialize", {"nodes": data["nodes"], "links": data["links"]})
+	g.connect("graph_element_selected", _on_graph_selected)
+	return g
 
 
 func graph_node_count() -> int:
 	return (_graph_data.get("nodes", {}) as Dictionary).size()
+
+
+func dialogue_node_count() -> int:
+	return (_dgraph_data.get("nodes", {}) as Dictionary).size()
 
 
 # --- building ------------------------------------------------------------------
@@ -214,6 +236,16 @@ func _build() -> void:
 	_graph_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_graph_holder.clip_contents = true
 	trig.add_child(_graph_holder)
+	var dlg := VBoxContainer.new()
+	dlg.name = "Dialogues"
+	_tabs.add_child(dlg)
+	_dialogues = OptionButton.new()
+	_dialogues.item_selected.connect(func(i: int) -> void: show_dialogue(_dialogues.get_item_text(i)))
+	dlg.add_child(_dialogues)
+	_dgraph_holder = Control.new()
+	_dgraph_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dgraph_holder.clip_contents = true
+	dlg.add_child(_dgraph_holder)
 	_maps = MapPainter.new()
 	_maps.saved.connect(_on_map_saved)
 	_tabs.add_child(_maps)
@@ -247,6 +279,12 @@ func _fill_owners() -> void:
 				_owners.add_item(id)
 
 
+func _fill_dialogues() -> void:
+	_dialogues.clear()
+	for id in model.ids_of("dialogue"):
+		_dialogues.add_item(id)
+
+
 func _fill_problems() -> void:
 	_problems.clear()
 	for e in model.errors:
@@ -263,6 +301,7 @@ func _show(errs: PackedStringArray, ok_text: String) -> void:
 func _on_map_saved(_id: String) -> void:
 	_fill_tree()
 	_fill_owners()
+	_fill_dialogues()
 	_fill_problems()
 
 
