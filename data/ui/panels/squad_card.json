@@ -1,0 +1,15 @@
+{
+	"gap": "CardGap",
+	"sections": [
+		{"kind": "list", "bind": "items", "each": [
+			{"kind": "label", "bind": "head", "style": "CardHeadLabel", "show": "head"},
+			{"kind": "label", "bind": "text", "style_bind": "style", "tip": "tip", "show": "text"},
+			{"kind": "label", "bind": "wrapped", "style_bind": "style", "wrap": true, "show": "wrapped"},
+			{"kind": "bar", "bind": "bar", "show": "bar"},
+			{"kind": "meter", "bind": "meter", "show": "meter"},
+			{"kind": "kv", "bind": "kv", "key_style": "SmallDimLabel", "show": "kv",
+			 "styles": {"SmallGoodLabel": "SmallGoodLabel", "SmallBadLabel": "SmallBadLabel", "SmallLabel": "SmallLabel"}},
+			{"kind": "progress", "bind": "progress", "show": "progress"}
+		]}
+	]
+}

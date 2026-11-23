@@ -14,15 +14,28 @@ extends VBoxContainer
 ##   button  bind (the text key) or text, disabled (a key), action (an id), args (keys), wrap
 ##   list    bind (a list), each (sections, run once per item with the item as the model)
 ##   row     sections (laid out side by side)
+##   bar     bind (a {name, frac, tone, text} dict): a named stat bar
+##   meter   bind (a {pool, label, label_style, tone, pct, floors, text, tip,
+##           label_tip} dict): a segmented meter, segment edges and ticks at
+##           the band floors (percent), text beside it, tips on hover
+##   kv      bind (a {key, values: [{text, tone}]} dict), styles (tone -> style),
+##           key_style: a dim key followed by values side by side
+##   progress bind (a {frac} dict, 0..1): a thin progress bar
+## A label also takes style_bind (a key holding its style) and tip (a key
+## holding its tooltip).
 ## Every section also takes "show" (a key: drawn only when it is truthy).
 ## The top level is {"gap", "min_width", "sections"}.
 
 signal action_invoked(action: String, args: Array)
 
 const SHIPPED_DIR := "res://data/ui/panels"
-const KINDS: Array[String] = ["label", "lines", "button", "list", "row"]
+const KINDS: Array[String] = ["label", "lines", "button", "list", "row", "bar", "meter", "kv", "progress"]
 const KEYS: Dictionary = {
-	"label": ["kind", "bind", "text", "style", "wrap", "show"],
+	"label": ["kind", "bind", "text", "style", "style_bind", "tip", "wrap", "show"],
+	"bar": ["kind", "bind", "show"],
+	"meter": ["kind", "bind", "show"],
+	"kv": ["kind", "bind", "styles", "key_style", "show"],
+	"progress": ["kind", "bind", "show"],
 	"lines": ["kind", "bind", "styles", "default_style", "wrap", "show"],
 	"button": ["kind", "bind", "text", "disabled", "action", "args", "wrap", "show"],
 	"list": ["kind", "bind", "each", "show"],
@@ -89,9 +102,9 @@ static func _check(sections: Array, out: PackedStringArray, where: String) -> vo
 			"button":
 				if str(s.get("action", "")).is_empty():
 					out.append("%s: a button needs an action id" % at)
-			"lines":
+			"lines", "bar", "meter", "kv", "progress":
 				if str(s.get("bind", "")).is_empty():
-					out.append("%s: lines need bind" % at)
+					out.append("%s: %s needs bind" % [at, kind])
 
 
 ## A panel for the spec `id` filled from `model`.
@@ -122,7 +135,34 @@ func _fill(into: Container, sections: Array, model: Dictionary) -> void:
 		match str(s["kind"]):
 			"label":
 				var text := str(lookup(model, str(s["bind"]))) if s.has("bind") else str(s.get("text", ""))
-				into.add_child(UiTheme.label(text, str(s.get("style", "")), bool(s.get("wrap", false))))
+				var style := str(lookup(model, str(s["style_bind"]))) if s.has("style_bind") else str(s.get("style", ""))
+				var l := UiTheme.label(text, style, bool(s.get("wrap", false)))
+				var tip := str(lookup(model, str(s["tip"]))) if s.has("tip") else ""
+				if not tip.is_empty() and tip != "<null>":
+					l.mouse_filter = Control.MOUSE_FILTER_STOP
+					l.tooltip_text = tip
+				into.add_child(l)
+			"bar":
+				var d: Variant = lookup(model, str(s["bind"]))
+				if d is Dictionary:
+					into.add_child(_bar(d))
+			"meter":
+				var d: Variant = lookup(model, str(s["bind"]))
+				if d is Dictionary:
+					into.add_child(_meter(d))
+			"kv":
+				var d: Variant = lookup(model, str(s["bind"]))
+				if d is Dictionary:
+					var styles: Dictionary = s.get("styles", {})
+					var kr := HBoxContainer.new()
+					kr.add_child(UiTheme.label(str(d.get("key", "")), str(s.get("key_style", ""))))
+					for v: Dictionary in d.get("values", []):
+						kr.add_child(UiTheme.label(str(v.get("text", "")), str(styles.get(str(v.get("tone", "")), ""))))
+					into.add_child(kr)
+			"progress":
+				var f: Variant = lookup(model, str(s["bind"]))
+				if f is Dictionary:
+					into.add_child(_progress(float(f.get("frac", 0.0))))
 			"lines":
 				var styles: Dictionary = s.get("styles", {})
 				var fallback := str(s.get("default_style", ""))
@@ -150,6 +190,101 @@ func _fill(into: Container, sections: Array, model: Dictionary) -> void:
 				var row := HBoxContainer.new()
 				_fill(row, s["sections"], model)
 				into.add_child(row)
+
+
+static func _tone_ok(tone: String) -> String:
+	return tone if (UiTheme.styles().get("tones", {}) as Dictionary).has(tone) else "Text"
+
+
+static func _bar(d: Dictionary) -> Control:
+	var tone := _tone_ok(str(d.get("tone", "Text")))
+	var row := HBoxContainer.new()
+	var l := UiTheme.label(str(d.get("name", "")), "Caption%sLabel" % tone)
+	l.custom_minimum_size = Vector2(62, 0)
+	row.add_child(l)
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(70, 6)
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.add_child(UiTheme.backdrop("LineBar"))
+	var fill := Panel.new()
+	fill.theme_type_variation = "%sBar" % tone
+	fill.anchor_right = clampf(float(d.get("frac", 0.0)), 0.0, 1.0)
+	fill.anchor_bottom = 1.0
+	c.add_child(fill)
+	row.add_child(c)
+	var text := str(d.get("text", ""))
+	if not text.is_empty():
+		row.add_child(UiTheme.label(text, "CaptionDimLabel"))
+	return row
+
+
+static func _progress(frac: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(120, 5)
+	c.add_child(UiTheme.backdrop("LineBar"))
+	var f := Panel.new()
+	f.theme_type_variation = "%sBar" % ("Accent" if (UiTheme.styles().get("tones", {}) as Dictionary).has("Accent") else "Text")
+	f.anchor_right = clampf(frac, 0.0, 1.0)
+	f.anchor_bottom = 1.0
+	c.add_child(f)
+	return c
+
+
+static func _meter(d: Dictionary) -> Control:
+	var tone := _tone_ok(str(d.get("tone", "Text")))
+	var floors: Array = d.get("floors", [])
+	var pct := float(d.get("pct", 0.0))
+	var row := HBoxContainer.new()
+	var l := UiTheme.label(str(d.get("label", "")), str(d.get("label_style", "")))
+	l.custom_minimum_size = Vector2(80, 0)
+	l.set_meta(&"pool", str(d.get("pool", "")))
+	if not str(d.get("label_tip", "")).is_empty():
+		l.mouse_filter = Control.MOUSE_FILTER_STOP
+		l.tooltip_text = str(d["label_tip"])
+	row.add_child(l)
+	var c := Control.new()
+	# Narrow minimum, fills the room there is: the card fits its column (sw-7m6).
+	c.custom_minimum_size = Vector2(60, 8)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	c.add_child(UiTheme.backdrop("ScreenBackgroundPanel"))
+	for b in floors.size():
+		var lo := 0.0 if b == 0 else float(floors[b])
+		var hi := float(floors[b + 1]) if b + 1 < floors.size() else 100.0
+		var seg := Panel.new()
+		seg.theme_type_variation = "LineBar"
+		seg.set_meta(&"band", b)
+		seg.anchor_left = lo / 100.0
+		seg.anchor_right = hi / 100.0
+		seg.anchor_bottom = 1.0
+		seg.offset_left = 1.0
+		seg.offset_right = -1.0
+		c.add_child(seg)
+		var fill := clampf((pct - lo) / (hi - lo), 0.0, 1.0) if hi > lo else 0.0
+		if fill > 0.0:
+			var f := Panel.new()
+			f.theme_type_variation = "%sBar" % tone
+			f.anchor_right = fill
+			f.anchor_bottom = 1.0
+			seg.add_child(f)
+	# Ticks at every inner floor, a little taller than the bar.
+	for b in range(1, floors.size()):
+		var tick := Panel.new()
+		tick.theme_type_variation = "DimBar"
+		tick.set_meta(&"tick", int(floors[b]))
+		tick.anchor_left = float(floors[b]) / 100.0
+		tick.anchor_right = tick.anchor_left
+		tick.anchor_bottom = 1.0
+		tick.offset_left = -1.0
+		tick.offset_top = -2.0
+		tick.offset_bottom = 2.0
+		c.add_child(tick)
+	row.add_child(c)
+	row.add_child(UiTheme.label(str(d.get("text", "")), "CaptionDimLabel"))
+	row.tooltip_text = str(d.get("tip", ""))
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.focus_mode = Control.FOCUS_ALL  # reachable by keyboard (sw-1jy.6)
+	return row
 
 
 ## The value at a dotted path in `model` (null if absent).
