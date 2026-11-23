@@ -83,6 +83,24 @@ def lookup(table: dict, level: str, task_class: str | None, size: str) -> tuple[
     return (f"{level}/*", "level", cands) if cands else (None, "none", [])
 
 
+def pin(table: dict, cands: list[dict], route: str | None, match: str, level: str,
+        model: str) -> tuple[str | None, str, list[dict]]:
+    """Keep only `model`: from the looked-up candidates, else its best usable entry on any route of
+    the level, else on any route (the caller chose the model and reviews its work)."""
+    hit = [c for c in cands if c["model"] == model]
+    if hit:
+        return route, match, hit
+    routes = table.get("route", {})
+    for want_level in (True, False):
+        for key, r in routes.items():
+            if want_level and r.get("level") != level:
+                continue
+            for c in r.get("candidates", []):
+                if c["model"] == model and c.get("verdict") in ("auto", "review"):
+                    return key, "pinned", [c]
+    return None, "none", []
+
+
 def _call_target(cand: dict, roster: dict[str, providers.Provider]) -> dict:
     """An adapters target for a routing candidate: gateway for api/local, claude CLI for the subscription."""
     p = roster.get(cand.get("provider", ""))
@@ -135,12 +153,15 @@ def _hand_to_worker(pid: str) -> None:
 
 def run(prompt: str, level: str, task_class: str | None = None, size: str | None = None,
         system: str = SYSTEM, start_local: bool = True, timeout: float = 900,
-        table: dict | None = None, roster: dict | None = None, call=adapters.call) -> Outcome:
+        table: dict | None = None, roster: dict | None = None, call=adapters.call,
+        model: str | None = None) -> Outcome:
     table = load_table() if table is None else table
     roster = providers.load() if roster is None else roster
     size = size or guess_size(prompt)
     out = Outcome()
     out.route, out.match, cands = lookup(table, level, task_class, size)
+    if model:
+        out.route, out.match, cands = pin(table, cands, out.route, out.match, level, model)
     t0 = time.perf_counter()
     down: dict[str, str] = {}  # provider -> why it can't serve; checked once per call, not per target
     for c in cands:
@@ -187,7 +208,7 @@ def opencode_models(path: Path | None = None) -> set[str]:
 
 def run_agent(prompt: str, level: str, task_class: str | None = None, size: str | None = None,
               start_local: bool = True, timeout: float = 1800, table: dict | None = None,
-              roster: dict | None = None) -> Outcome:
+              roster: dict | None = None, model: str | None = None) -> Outcome:
     """Tool-using handoff: headless `opencode run` on the first routed model OpenCode can drive.
     It edits the working tree; the caller reviews the diff."""
     import subprocess
@@ -196,6 +217,8 @@ def run_agent(prompt: str, level: str, task_class: str | None = None, size: str 
     size = size or guess_size(prompt)
     out = Outcome()
     out.route, out.match, cands = lookup(table, level, task_class, size)
+    if model:
+        out.route, out.match, cands = pin(table, cands, out.route, out.match, level, model)
     allowed = opencode_models()
     oc = roster.get("opencode-zen")
     exe = providers.find_cli(oc) if oc else None

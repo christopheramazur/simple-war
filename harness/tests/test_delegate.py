@@ -110,3 +110,17 @@ def test_provider_checked_once_per_call(monkeypatch):
                                                              cand("b2", "bonsai/think", "bonsai")]}}}
     out = delegate.run("x", "L1", "x", "s", table=t, roster=ROSTER, call=lambda *a: Reply(text="never"))
     assert checks == ["b1"] and [x["skipped"] for x in out.tried] == ["no VRAM"]  # one reason per provider per call
+
+
+def test_model_pin_filters_or_finds_route():
+    key, match, cands = delegate.lookup(TABLE, "L1", "csv", "s")
+    assert delegate.pin(TABLE, cands, key, match, "L1", "claude-haiku-5-5")[2][0]["target"] == "haiku"
+    # not on the looked-up route: taken from another route of the level
+    assert delegate.pin(TABLE, cands, key, match, "L1", "groq/x")[:2] == ("L1/tbl/m", "pinned")
+    # falls back to any level; a model with no usable entry anywhere escalates
+    assert delegate.pin(TABLE, [], None, "none", "L2", "bonsai/nothink")[:2] == ("L1/csv/s", "pinned")
+    assert delegate.pin(TABLE, [], None, "none", "L1", "nope") == (None, "none", [])
+    calls = []
+    out = delegate.run("x", "L1", "csv", "s", table=TABLE, roster=ROSTER, model="claude-haiku-5-5",
+                       call=lambda t, *a: calls.append(t["model"]) or Reply(text="ok"))
+    assert calls == ["claude-haiku-5-5"] and out.target == "haiku"

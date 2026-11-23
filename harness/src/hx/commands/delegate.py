@@ -3,6 +3,7 @@
   hx delegate --level L1 --class csv_to_json --input data.csv "Convert to a JSON array ..."
   echo "..." | hx delegate --level L3 --class log_triage
   hx delegate --level L5 --agent "Rename X to Y in src/"   (headless OpenCode, edits the tree)
+  hx delegate --level L5 --agent --model nous/qwen4-max "..."   (pin the model)
 
 Prints the model's output to stdout and one status line to stderr.
 Exit codes: 0 handed off, 2 escalate (no trusted model available: do it yourself), 1 error.
@@ -25,6 +26,7 @@ def add_args(p) -> None:
     p.add_argument("--size", choices=["s", "m", "l"], help="default: guessed from prompt length")
     p.add_argument("--input", action="append", default=[], help="file appended to the prompt (repeatable)")
     p.add_argument("--agent", action="store_true", help="tool-using run via headless OpenCode")
+    p.add_argument("--model", help="pin a routed gateway model, e.g. nous/qwen4-max (exit 2 if no route has it)")
     p.add_argument("--no-start", action="store_true", help="don't start the local model if it is down")
     p.add_argument("--timeout", type=float, default=900)
 
@@ -43,7 +45,8 @@ def run(args) -> Result:
         r.checks.append(Check("prompt", FAIL, "empty prompt"))
         return r
     fn = delegate.run_agent if args.agent else delegate.run
-    out = fn(prompt, args.level, args.task_class, args.size, start_local=not args.no_start, timeout=args.timeout)
+    out = fn(prompt, args.level, args.task_class, args.size, start_local=not args.no_start, timeout=args.timeout,
+             model=args.model)
     r.data.update({"route": out.route, "match": out.match, "target": out.target, "model": out.model,
                    "verdict": out.verdict, "needs_review": out.needs_review, "escalate": out.escalate,
                    "latency_s": out.latency_s, "output_tokens": out.output_tokens, "tried": out.tried})

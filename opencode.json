@@ -24,6 +24,13 @@
             "context": 131072,
             "output": 16384
           }
+        },
+        "nous/qwen4-max": {
+          "name": "Qwen4 Max (Nous, free)",
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          }
         }
       }
     }
