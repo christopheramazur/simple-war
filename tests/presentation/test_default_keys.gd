@@ -48,3 +48,23 @@ func test_controls_help_lists_the_bound_keys() -> void:
 	assert_string_contains(text, "Space: end the turn")
 	assert_string_contains(text, "Shift+Tab")
 	assert_string_contains(text, "Backspace: deselect")
+
+
+func test_every_planning_order_action_has_a_tooltip() -> void:
+	var p := PlanningInput.new()
+	for id in OrderTips.ids():
+		var a := OrderTips.action_of(id)
+		if a != &"":
+			assert_true(p.actions.has(a), "%s action exists" % id)
+		for k in OrderTips.keys_of(id):
+			assert_true(OrderTips.EN.has(k) and not String(OrderTips.EN[k]).is_empty(), "key %s has text" % k)
+		assert_string_contains(OrderTips.tip(id, p), OrderTips.name_of(id))
+	for a: StringName in [&"hold", &"attack_move", &"fall_back", &"withdraw", &"run", &"abilities"]:
+		var found := false
+		for o: Dictionary in OrderTips.ORDERS:
+			found = found or o["action"] == a
+		assert_true(found, "%s has an order tip" % a)
+	assert_string_contains(OrderTips.tip("hold", p), "Key: H")
+	assert_string_contains(OrderTips.tip("withdraw", p), "Shift+W")
+	assert_string_contains(OrderTips.reaction_tip("halt"), "Hold")
+	p.free()

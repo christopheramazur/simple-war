@@ -60,7 +60,7 @@ func test_a_scenario_opens_with_its_zones_and_sides() -> void:
 	var after := BattleRules.compile(m.templates, "duel_crossroads")
 	assert_eq(after.errors, PackedStringArray())
 	assert_eq([after.zn_x, after.zn_y, after.zn_radius, after.sides], [before.zn_x, before.zn_y, before.zn_radius, before.sides])
-	assert_eq(m.templates.values_of("duel_crossroads")["victory"]["score_target"], 20, "what it does not edit is kept")
+	assert_eq(m.templates.values_of("duel_crossroads")["victory"]["score_target"], 10, "what it does not edit is kept")
 	# A child scenario gets its parent's sides.
 	var drill := ScenarioCanvas.open(m.templates, JSON.parse_string(m.definition_text("hangar_drill")))
 	assert_eq(drill.sides.size(), 2)

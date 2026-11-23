@@ -153,7 +153,7 @@ static func _ctx(s: BattleSession, t: TemplateTable) -> Dictionary:
 	var names := {}
 	for wid: String in s.state.rules.weapon_index:
 		names[wid] = String(t.values_of(wid).get("name", wid))
-	return {"rules": s.state.rules, "weapon_names": names}
+	return {"rules": s.state.rules, "weapon_names": names, "glossary": Glossary.from_templates(t)}
 
 
 static func _squad(s: BattleSession, mine: int) -> Dictionary:

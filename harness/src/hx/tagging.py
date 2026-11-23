@@ -217,7 +217,9 @@ def tag_session(session_id: str, con=None, tax: dict | None = None, delegate_run
         tag, problem = parse(out.text, tax) if not out.escalate else ({}, "escalated: no tagger available")
         rows.append({**base, **tag, "role": "tagger", "model": out.model, "valid": problem is None,
                      "problem": problem, "ts": datetime.now(timezone.utc).isoformat(timespec="seconds")})
-    if is_audited(session_id, tax["audit_share"]) and (session_id, "audit") not in done:
+    tagger_tag = rows[0] if rows and rows[0]["valid"] else {}
+    priority = tagger_tag.get("outcome") == "partial" or base["friction"]["score"] >= tax.get("audit_friction", 0.3)
+    if (priority or is_audited(session_id, tax["audit_share"])) and (session_id, "audit") not in done:
         from hx.bench import adapters
         call = audit_call or adapters.call
         reply = call({"adapter": "claude-cli", "model": tax["audit_model"]}, delegate.SYSTEM, text, 300)
@@ -235,17 +237,49 @@ def untagged_sessions(con) -> list[str]:
     return [s for s in ids if s not in done]
 
 
+UNTAGGED_MIN_CALLS = 20   # a session with more calls than this and no kind tag is a coverage gap
+UNTAGGED_GRACE_S = 12 * 3600  # sessions active more recently than this may still be running
+
+
+def untagged_busy(con, since=None, min_calls: int = UNTAGGED_MIN_CALLS, grace_s: float = UNTAGGED_GRACE_S,
+                  now: float | None = None) -> list[dict]:
+    """Finished-looking sessions (idle for grace_s) with more than min_calls calls and no valid tagger row.
+
+    This is the loud check for sw-j41: a week of calls with an empty sessions_by_kind means the tag path
+    (session_end -> tag_session job -> tags jsonl) is dropping sessions."""
+    import time
+    now = time.time() if now is None else now
+    done = {sid for sid, role in tagged_ids() if role == "tagger"}
+    sql = "SELECT session_id, count(*), epoch(max(ts)) FROM call GROUP BY 1"
+    args: list = []
+    if since is not None:
+        sql += " HAVING max(ts) >= ?"
+        args = [since.replace(tzinfo=None)]
+    return [{"session": sid[:14], "calls": n} for sid, n, last in
+            sorted(con.execute(sql, args).fetchall(), key=lambda r: -r[1])
+            if n > min_calls and sid not in done and now - last >= grace_s]
+
+
+MIN_AUDIT_PAIRS = 8  # fewer pairs than this and an agreement figure says little
+
+
 def accuracy(rows: list[dict]) -> dict:
-    """Agreement between tagger and audit on sessions that have both (valid) tags."""
+    """Agreement between tagger and audit on sessions that have both (valid) tags.
+
+    Adds `insufficient_sample` when pairs < MIN_AUDIT_PAIRS and lists the disagreeing sessions."""
     by: dict[str, dict] = {}
     for r in rows:
         if r.get("valid"):
             by.setdefault(r["session_id"], {})[r["role"]] = r
     pairs = [(v["tagger"], v["audit"]) for v in by.values() if "tagger" in v and "audit" in v]
     if not pairs:
-        return {"pairs": 0}
+        return {"pairs": 0, "insufficient_sample": True}
     n = len(pairs)
-    return {"pairs": n,
+    off = [{"session": t["session_id"][:14], "tagger": [t["kind"], t["outcome"], t["complexity"]],
+            "audit": [a["kind"], a["outcome"], a["complexity"]]}
+           for t, a in pairs if t["kind"] != a["kind"] or t["outcome"] != a["outcome"]
+           or abs(t["complexity"] - a["complexity"]) > 1]
+    return {"pairs": n, "insufficient_sample": n < MIN_AUDIT_PAIRS, "disagreements": off,
             "kind_agree": round(sum(t["kind"] == a["kind"] for t, a in pairs) / n, 3),
             "outcome_agree": round(sum(t["outcome"] == a["outcome"] for t, a in pairs) / n, 3),
             "complexity_within_1": round(sum(abs(t["complexity"] - a["complexity"]) <= 1 for t, a in pairs) / n, 3)}

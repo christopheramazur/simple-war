@@ -143,6 +143,18 @@ def _status(args) -> Result:
         failed = con.execute("SELECT count(*) FROM job WHERE status = 'failed'").fetchone()[0]
     finally:
         con.close()
+    try:
+        from hx import ledger, tagging
+        lc = ledger.read_only()
+        try:
+            gap = tagging.untagged_busy(lc)
+        finally:
+            lc.close()
+        if gap:
+            r.checks.append(Check("untagged sessions", WARN, f"{len(gap)} idle sessions with >"
+                                  f"{tagging.UNTAGGED_MIN_CALLS} calls have no kind tag; run hx tag --untagged"))
+    except Exception as e:  # the ledger may be locked or absent; status must still print
+        r.checks.append(Check("untagged sessions", WARN, f"could not check: {str(e)[:80]}"))
     if failed:
         r.checks.append(Check("failed jobs", WARN, f"{failed} failed; see the table"))
     return r

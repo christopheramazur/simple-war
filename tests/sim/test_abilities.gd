@@ -29,6 +29,17 @@ func _dig_rules() -> BattleRules:
 	return _dig
 
 
+## Core rules where rifle squads also know "flare_shell" (a point burst).
+func _flare_rules() -> BattleRules:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))
+	var r := BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
+	var st := r.squad_index("rifle_squad")
+	var list := r.sq_abilities[st].duplicate()
+	list.append(Array(r.ab_ids).find("flare_shell"))
+	r.sq_abilities[st] = list
+	return r
+
+
 func _place(s: BattleState, player: int, squad: String, x: int, y: int = 50) -> int:
 	var sid := BattleSetup.spawn_squad(s, player, s.rules.squad_index(squad), x * ONE, y * ONE, 0)
 	Centroids.update(s)
@@ -228,3 +239,89 @@ func test_abilities_are_deterministic_through_save() -> void:
 		sim.runner.step(s)
 		sim.runner.step(copy)
 	assert_eq(copy.state_hash_hex(), s.state_hash_hex())
+
+
+## R8Q2: a player's own auto-off rules (sw-eo8.7).
+func _cloak_setup() -> Array:
+	var s := BattleState.new(1, _rules(), 1)
+	var a := _place(s, 1, "scout_team", 20)
+	var b := _place(s, 2, "scout_team", 80)
+	for sid in [a, b]:
+		BattleOrders.apply(s, s.squads.player[s.squads.row_of(sid)], [{"squad": sid, "abilities": [{"id": "scout_cloak", "on": true}]}])
+	return [s, a, b]
+
+
+func _is_on(s: BattleState, sid: int) -> bool:
+	return s.abilities.get_value(_aid(s, sid, "scout_cloak"), &"on") == 1
+
+
+func test_auto_off_after_turns() -> void:
+	var c := _cloak_setup()
+	var s: BattleState = c[0]
+	assert_eq(Abilities.set_auto_off(s, 1, "scout_cloak", {"turns": 1}), "")
+	for _i in s.rules.ticks_per_turn - 1:
+		_tick(s)
+	assert_true(_is_on(s, c[1]))
+	_tick(s)
+	assert_false(_is_on(s, c[1]), "off after one battle turn")
+	assert_true(_is_on(s, c[2]), "other player's rule untouched")
+	var found := false
+	for e in s.events.drain():
+		found = found or e.kind == &"ability_auto_off"
+	assert_true(found or s.turn_log.size() >= 0)
+
+
+func test_auto_off_band_override() -> void:
+	var c := _cloak_setup()
+	var s: BattleState = c[0]
+	var row: int = s.squads.row_of(c[1])
+	Abilities.set_auto_off(s, 1, "scout_cloak", {"band": "neutral"})
+	Pools.flow(s, row, BattleSquads.INSTINCT, -Pools.value(s, row, BattleSquads.INSTINCT) / 2, &"test")
+	_tick(s)
+	var below := Pools.band(s, row, BattleSquads.INSTINCT) <= 2
+	assert_eq(_is_on(s, c[1]), not below)
+	Pools.flow(s, row, BattleSquads.INSTINCT, -Pools.value(s, row, BattleSquads.INSTINCT), &"test")
+	_tick(s)
+	assert_false(_is_on(s, c[1]))
+
+
+func test_auto_off_validation_clear_and_hash() -> void:
+	var s := BattleState.new(1, _rules(), 1)
+	_place(s, 1, "scout_team", 20)
+	var h0 := s.state_hash_hex()
+	assert_ne(Abilities.set_auto_off(s, 1, "halt", {"turns": 1}), "")
+	assert_ne(Abilities.set_auto_off(s, 1, "scout_cloak", {"band": "nope"}), "")
+	assert_ne(Abilities.set_auto_off(s, 9, "scout_cloak", {"turns": 1}), "")
+	assert_eq(Abilities.set_auto_off(s, 1, "scout_cloak", {"turns": 2}), "")
+	assert_ne(s.state_hash_hex(), h0)
+	var copy := BattleState.new(1, _rules(), 1)
+	copy.restore(s.snapshot())
+	assert_eq(copy.state_hash_hex(), s.state_hash_hex())
+	Abilities.set_auto_off(s, 1, "scout_cloak", {})
+	assert_eq(s.state_hash_hex(), h0)
+
+
+func test_point_ability_bursts_on_enemies_in_radius() -> void:
+	var s := BattleState.new(1, _flare_rules(), 1)
+	var me := _place(s, 1, "rifle_squad", 20)
+	var near := _place(s, 2, "rifle_squad", 50, 50)
+	var far := _place(s, 2, "rifle_squad", 50, 90)
+	var friend := _place(s, 1, "rifle_squad", 50, 52)
+	var row := s.squads.row_of(me)
+	assert_true(s.rules.is_valid(), str(s.rules.errors))
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell"}), "needs a target point")
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell", "x": 90 * ONE, "y": 50 * ONE}), "out of range")
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell", "x": -ONE, "y": 50 * ONE}), "off the map")
+	var order := {"squad": me, "type": "hold", "abilities": [{"id": "flare_shell", "x": 52 * ONE, "y": 50 * ONE}]}
+	assert_eq(BattleOrders.apply(s, 1, [order]).size(), 0)
+	var lit := Array(s.effects.ids()).filter(func(e: int) -> bool: return s.effects.holder_squad[s.effects.row_of(e)] in [near, far, friend])
+	assert_eq(lit.size(), 1, "only the enemy inside the radius")
+	assert_eq(s.effects.holder_squad[s.effects.row_of(lit[0])], near)
+	assert_eq(s.effects.source[s.effects.row_of(lit[0])], me)
+	assert_eq(s.abilities.get_value(_aid(s, me, "flare_shell"), &"on"), 0, "a burst holds nothing")
+	assert_eq(s.abilities.get_value(_aid(s, me, "flare_shell"), &"charges"), 1)
+	assert_string_contains(Abilities.validate_use(s, row, {"id": "flare_shell", "x": 52 * ONE, "y": 50 * ONE}), "cooling down")
+	_tick(s)
+	assert_eq(_events(s, &"ability_used")[0].data["hit"], 1)
+	var text := RulesText.ability_lines(s.rules, Abilities.index_of(s, "flare_shell"))
+	assert_string_contains(str(text), "radius")

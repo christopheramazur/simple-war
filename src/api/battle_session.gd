@@ -27,6 +27,8 @@ var sim: BattleSim
 var clock: PulseClock
 var bus: PulseBus
 ## [{"turn", "phase", "player", "kind", "payload"}]
+## Seeded deployment jitter in cells (0 = the standard deployment); harness runs only.
+var deploy_jitter: int = 0
 var input_log: Array = []
 var initial_snapshot: Dictionary = {}
 
@@ -38,25 +40,26 @@ var _replaying: bool = false
 
 
 ## Creates a session at turn 1, Planning. Returns null if the data is invalid.
-static func create(templates: TemplateTable, hash_hex: String, scenario: String, seed_in: int, clock_config: ClockConfig = null) -> BattleSession:
+static func create(templates: TemplateTable, hash_hex: String, scenario: String, seed_in: int, clock_config: ClockConfig = null, jitter: int = 0) -> BattleSession:
 	var r := BattleRules.compile(templates, scenario, hash_hex)
 	if not r.is_valid():
 		push_error("BattleSession: %s" % "; ".join(r.errors))
 		return null
 	var s := BattleSession.new()
-	s._setup(r, scenario, seed_in, hash_hex, clock_config)
+	s._setup(r, scenario, seed_in, hash_hex, clock_config, jitter)
 	s.clock.start()
 	s._pump()
 	return s
 
 
-func _setup(r: BattleRules, scenario: String, seed_in: int, hash_hex: String, clock_config: ClockConfig) -> void:
+func _setup(r: BattleRules, scenario: String, seed_in: int, hash_hex: String, clock_config: ClockConfig, jitter: int = 0) -> void:
+	deploy_jitter = jitter
 	rules = r
 	scenario_id = scenario
 	seed_value = seed_in
 	data_hash = hash_hex
 	sim = BattleSim.new()
-	state = BattleSetup.create(1, rules, seed_in)
+	state = BattleSetup.create(1, rules, seed_in, jitter)
 	bus = PulseBus.new()
 	bus.register_context(state)
 	TransferSystem.new().attach(bus)
@@ -105,6 +108,18 @@ func submit_orders(player: int, orders: Array) -> PackedStringArray:
 	_orders[player] = kept
 	_log(player, "orders", kept)
 	return errors
+
+
+## Sets a player's auto-off rule for a toggle ability (R8Q2); see
+## Abilities.set_auto_off. A match input: logged and replayed. Returns an
+## error text, "" if accepted.
+func set_auto_off(player: int, ability_id: String, rule: Dictionary) -> String:
+	if is_over():
+		return "match is over"
+	var err := Abilities.set_auto_off(state, player, ability_id, rule)
+	if err.is_empty():
+		_log(player, "auto_off", {"ability": ability_id, "rule": rule})
+	return err
 
 
 func ready(player: int) -> void:
@@ -224,14 +239,15 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 	var rules := state.rules
 	var sq := state.squads
 	var u := state.units
-	var me := BattleSquads.bit(player)
+	var all_seeing := player <= 0  # player 0 sees every active squad (replays)
+	var me := 0 if all_seeing else BattleSquads.bit(player)
 	var squads := []
 	var visible := {}
 	var by_id := {}
 	for row in sq.count():
 		var sid := sq.id_at(row)
 		var own := sq.player[row] == player
-		if not own and (sq.seen_by[row] & me == 0 or not sq.is_active(row)):
+		if not own and (not sq.is_active(row) or (not all_seeing and sq.seen_by[row] & me == 0)):
 			continue
 		visible[sid] = true
 		var d := {
@@ -265,7 +281,7 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 			var et := sq.engaged[row]
 			var trow := sq.row_of(et)
 			if d["activity"] == BattleActivity.Squad.ENGAGED and trow >= 0 \
-					and sq.is_active(trow) and sq.seen_by[trow] & me != 0:
+					and sq.is_active(trow) and (all_seeing or sq.seen_by[trow] & me != 0):
 				d["target"] = et
 		squads.append(d)
 	var units := []
@@ -378,7 +394,7 @@ static func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> boo
 func save() -> PackedByteArray:
 	assert(clock.phase != PulseClock.Phase.EXECUTE, "BattleSession.save: not during execute")
 	var data := {
-		"version": SAVE_VERSION, "scenario": scenario_id, "seed": seed_value, "data_hash": data_hash,
+		"version": SAVE_VERSION, "scenario": scenario_id, "seed": seed_value, "jitter": deploy_jitter, "data_hash": data_hash,
 		"clock_config": _config_dict(clock.config), "initial": initial_snapshot, "inputs": input_log.duplicate(true),
 		"state": state.snapshot(), "clock": clock.snapshot(), "orders": _orders.duplicate(true),
 		"opportunities": _opportunities.duplicate(true), "telegraphs": _telegraphs.duplicate(true), "hash": state.state_hash().hex_encode(),
@@ -398,7 +414,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 		return null
 	var r := BattleRules.compile(templates, data["scenario"], hash_hex)
 	var s := BattleSession.new()
-	s._setup(r, data["scenario"], data["seed"], hash_hex, _config_from(data["clock_config"]))
+	s._setup(r, data["scenario"], data["seed"], hash_hex, _config_from(data["clock_config"]), int(data.get("jitter", 0)))
 	s.initial_snapshot = data["initial"]
 	s.state.restore(data["state"])
 	Centroids.update(s.state)
@@ -419,7 +435,7 @@ static func rebuild(bytes: PackedByteArray, templates: TemplateTable, hash_hex: 
 	if typeof(data) != TYPE_DICTIONARY or data.get("data_hash") != hash_hex:
 		last_error = "unreadable save or different content"
 		return null
-	var s := create(templates, hash_hex, data["scenario"], data["seed"], _config_from(data["clock_config"]))
+	var s := create(templates, hash_hex, data["scenario"], data["seed"], _config_from(data["clock_config"]), int(data.get("jitter", 0)))
 	s.replay_inputs(data["inputs"])
 	if s.state.state_hash().hex_encode() != data["hash"]:
 		last_error = "inputs did not reproduce the saved state"
@@ -438,6 +454,8 @@ func replay_inputs(inputs: Array) -> void:
 				ready(i["player"])
 			"advance":
 				advance(i["payload"])
+			"auto_off":
+				set_auto_off(i["player"], i["payload"]["ability"], i["payload"]["rule"])
 			"reaction":
 				var p: Dictionary = i["payload"]
 				submit_reaction(i["player"], p["squad"], p["reaction"], p["trigger"])

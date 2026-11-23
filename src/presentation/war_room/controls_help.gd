@@ -95,6 +95,15 @@ static func window() -> UiWindow:
 		body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		bodies.append(body)
 		col.add_child(body)
+	col.add_child(UiTheme.label("Battle orders (hover for details)", "AccentLabel"))
+	var pi := PlanningInput.new()
+	for id in OrderTips.ids():
+		var k := OrderTips.key_of(id, pi)
+		var row := UiTheme.label("%s%s" % [OrderTips.name_of(id), (" (%s)" % k) if k != "" else ""], "SmallLabel")
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.tooltip_text = OrderTips.tip(id, pi)
+		col.add_child(row)
+	pi.free()
 	var close := Button.new()
 	close.text = "Close"
 	close.focus_mode = Control.FOCUS_NONE  # Space stays "end turn"

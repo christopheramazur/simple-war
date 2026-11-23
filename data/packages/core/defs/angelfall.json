@@ -132,6 +132,23 @@
 				{"do": "end_mission", "outcome": "lost", "key": "angelfall.jeff_lost", "text": "Jeff has fallen. Without him, the evacuation fails."}
 			]}},
 
+		{"id": "af_jeff_briefing", "kind": "dialogue", "values": {
+			"name": "Jeff's briefing",
+			"text": "Jeff asks the player how hard to push; the answer moves his disposition (R3Q18).",
+			"start": "greet",
+			"nodes": {
+				"greet": {"speaker": "jeff", "key": "angelfall.briefing.greet",
+					"text": "The robots are with us. The angels are not. How hard do we push?",
+					"choices": [
+						{"key": "angelfall.briefing.fast", "text": "Fast. Leave no one behind.", "next": "fast", "do": [{"do": "add_var", "name": "disp.jeff", "value": 1}]},
+						{"key": "angelfall.briefing.careful", "text": "Carefully. Keep the army whole.", "next": "careful"},
+						{"key": "angelfall.briefing.trust", "text": "I trust you, Jeff.", "next": "fast", "if": [{"check": "var", "name": "disp.jeff", "op": ">=", "value": 1}]}
+					]},
+				"fast": {"speaker": "jeff", "key": "angelfall.briefing.fast_reply", "text": "Then we move now.", "next": "end"},
+				"careful": {"speaker": "jeff", "key": "angelfall.briefing.careful_reply", "text": "Slow and steady, then.", "do": [{"do": "set_var", "name": "briefed_careful", "value": 1}], "next": "end"},
+				"end": {"speaker": "jeff", "key": "angelfall.briefing.end", "text": "Good luck."}
+			}}},
+
 		{"id": "angelfall_spaceport", "kind": "scenario", "values": {
 			"name": "Angelfall: the spaceport",
 			"ruleset": "standard",
