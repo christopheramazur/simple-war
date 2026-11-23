@@ -371,6 +371,27 @@ func selection_text(area: Rect2i, new_id: String) -> String:
 	return c.definition_text()
 
 
+## The piece of a wall or road to draw at a cell, from its neighbours
+## (ConnectShape): joins the cell's own feature and the ones its `connects`
+## lists (a feature with no `connects` field draws no pieces). {} if so, else {"shape", "turn"}. Drawing
+## only.
+func shape_at(x: int, y: int) -> Dictionary:
+	var comp := composite()
+	var fid := features[comp["feature"][y * width + x]]
+	var v := _t.values_of(fid)
+	if not v.has("connects"):
+		return {}
+	var links: Array = v["connects"]
+	var joins := func(dx: int, dy: int) -> bool:
+		var nx := x + dx
+		var ny := y + dy
+		if nx < 0 or ny < 0 or nx >= width or ny >= height:
+			return false
+		var other := features[comp["feature"][ny * width + nx]]
+		return other == fid or links.has(other)
+	return ConnectShape.of(ConnectShape.mask_of(joins))
+
+
 ## The template's definition text, laid out like the hand-written data files
 ## (one shape per line), ready for PackageEditor.replace or add.
 func definition_text() -> String:

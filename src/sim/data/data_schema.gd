@@ -342,6 +342,9 @@ const KINDS: Dictionary = {
 		"impassable": {"type": "bool"},
 		## Drawing only: the colour maps and the map editor show it in ("4a4840").
 		"color": {"type": "string"},
+		## Drawing only: other features this one joins to, besides itself, so
+		## walls and roads draw as straights, corners and tees (ConnectShape).
+		"connects": {"type": "list:ref:feature"},
 		"cover_evasion_pct": {"type": "int", "min": 0, "max": 100},
 		"concealment_pct": {"type": "int", "min": 0, "max": 100},
 	},
