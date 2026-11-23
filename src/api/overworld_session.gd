@@ -75,6 +75,10 @@ var locked: bool = false
 ## Presentation opt-in: keep every battle's last turn tick by tick
 ## (`playback`). Read-only; it never changes a result.
 var keep_playback: bool = false
+## Whether the reaction window forecasts enemy attack telegraphs (UI only).
+## Off for headless runs: a battle with no reaction ability then skips the
+## forecast's scratch turn (sw-kd5).
+var want_telegraphs: bool = true
 ## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
 var _playback: Dictionary = {}
 ## Engagement ID -> player -> worst own SIMPL band index last recorded (at
@@ -550,7 +554,7 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 			var ids: Array = battles.keys()
 			ids.sort()
 			for eid: int in ids:
-				var fc := Reactions.forecast_all((battles[eid] as OverworldBattle).state, _battle_sim)
+				var fc := Reactions.forecast_all((battles[eid] as OverworldBattle).state, _battle_sim, want_telegraphs)
 				_opportunities[eid] = fc["opportunities"]
 				_telegraphs[eid] = fc["telegraphs"]
 			_auto_ready = true
@@ -716,10 +720,11 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 func playback(player: int) -> Dictionary:
 	PerfRecorder.begin(&"playback_build")
 	var out := {}
-	var me := BattleSquads.bit(player)
+	var all_seeing := player <= 0  # the replay's all-seeing view
+	var me := 0 if all_seeing else BattleSquads.bit(player)
 	for eid: int in _playback:
 		var rec: Dictionary = _playback[eid]
-		if not (rec["players"] as PackedInt64Array).has(player):
+		if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
 			continue
 		var r: BattleRules = rec["rules"]
 		var frames := []
@@ -729,7 +734,7 @@ func playback(player: int) -> Dictionary:
 			var squads := {}
 			var units := {}
 			for o in range(0, f.size(), PLAYBACK_STRIDE):
-				if f[o + 2] != player and f[o + 6] & me == 0:
+				if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
 					continue
 				var own_unit := f[o + 2] == player
 				if not squads.has(f[o + 1]):
@@ -836,7 +841,7 @@ func observe(player: int) -> Dictionary:
 ## overworld squad ID, own squads only).
 func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	var b: OverworldBattle = battles.get(engagement_id)
-	if b == null or not b.state.players.has(player):
+	if b == null or (player > 0 and not b.state.players.has(player)):
 		return {}
 	var o := BattleSession.observe_state(b.state, player)
 	o["engagement"] = engagement_id

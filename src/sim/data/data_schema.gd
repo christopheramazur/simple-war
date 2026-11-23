@@ -284,6 +284,11 @@ const OBJECTS: Dictionary = {
 		"lose_on": {"type": "list:string", "enum": LOSE_EVENTS},
 		"range": {"type": "fixed", "min": 0},
 		"targeting": {"type": "string", "enum": ["none", "self", "squad", "point"]},
+		## Point targeting: a burst. At the point, the bundle is applied to
+		## every active squad whose centre is within radius; affects picks
+		## which side (relative to the user), default all.
+		"radius": {"type": "fixed", "min": 0},
+		"affects": {"type": "string", "enum": ["all", "allies", "enemies"]},
 		"toggle": {"type": "bool"},
 	},
 }
@@ -309,6 +314,10 @@ const KINDS: Dictionary = {
 	"tag": {
 		"name": {"type": "string"},
 		"description": {"type": "string"},
+		## Marks a damage type (O1Q10): the tag id is what a weapon's or
+		## effect's damage_type names. The engine still has a resistance stat
+		## per type in DAMAGE_TYPES; BattleRules checks the two agree.
+		"damage_type": {"type": "bool"},
 	},
 	## A named group of effects: statuses, items, traits, features, zone
 	## conditions, Ruin effects (E1Q2).

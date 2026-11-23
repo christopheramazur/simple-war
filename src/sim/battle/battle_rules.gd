@@ -123,6 +123,8 @@ var ab_ready_prowess: PackedInt64Array = PackedInt64Array()  ## Prowess Vacuum p
 var ab_lose_on: Array[PackedStringArray] = []
 var ab_range: PackedInt64Array = PackedInt64Array()        ## fixed, -1 = unlimited
 var ab_targeting: PackedInt64Array = PackedInt64Array()    ## TARGETING index
+var ab_radius: PackedInt64Array = PackedInt64Array()       ## point burst radius, fixed
+var ab_affects: PackedStringArray = PackedStringArray()    ## point burst sides: all / allies / enemies
 ## True when some ability is lost on damage or casualties (HealthSystem
 ## only reports to Abilities then).
 var ab_lost_on_hits: bool = false
@@ -389,6 +391,7 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	_compile_features(t, by_kind.get("feature", PackedStringArray()))
 	fx = EffectRules.compile(t, stats, tps, feature_ids)
 	errors.append_array(fx.errors)
+	_check_damage_tags(t)
 	var mv_index := _compile_movement(t, by_kind.get("movement", PackedStringArray()))
 	var df_index := _compile_defense(t, by_kind.get("defense", PackedStringArray()))
 	var wp_index := _compile_weapons(t, by_kind.get("weapon", PackedStringArray()))
@@ -606,6 +609,21 @@ func _compile_movement(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 	return index
 
 
+## Damage types are tags flagged damage_type (O1Q10). Each engine type needs
+## its tag, and a flagged tag the engine has no resistance stat for is an error.
+func _check_damage_tags(t: TemplateTable) -> void:
+	var flagged := {}
+	for tid in t.ids():
+		if not t.is_abstract(tid) and t.kind_of(tid) == "tag" and t.values_of(tid).get("damage_type", false):
+			flagged[tid] = true
+	for dt in DAMAGE_TYPES:
+		if not flagged.has(dt):
+			errors.append("damage type '%s' has no tag with damage_type: true" % dt)
+	for tid: String in flagged:
+		if not DAMAGE_TYPES.has(tid):
+			errors.append("tag '%s' is a damage type the engine has no resistance stat for" % tid)
+
+
 func _compile_defense(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 	var index := {}
 	for tid in ids:
@@ -701,6 +719,10 @@ func _compile_abilities(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 		ab_range.append(DataSchema.to_fixed(act["range"]) if act.has("range") else -1)
 		var targeting := TARGETING.find(act.get("targeting", "none"))
 		ab_targeting.append(targeting)
+		ab_radius.append(DataSchema.to_fixed(act.get("radius", 0)))
+		ab_affects.append(String(act.get("affects", "all")))
+		if TARGETING[targeting] == "point" and (toggle or reaction or DataSchema.to_fixed(act.get("radius", 0)) <= 0):
+			errors.append("%s: a point ability is not a toggle or reaction and needs a radius" % tid)
 		if reaction and (toggle or ready > 0):
 			errors.append("%s: a reaction acts at once (no toggle, no ready_s)" % tid)
 		if TARGETING[targeting] == "squad" and toggle:

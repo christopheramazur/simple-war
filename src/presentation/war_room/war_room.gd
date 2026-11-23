@@ -89,6 +89,9 @@ var replay: MatchReplay
 ## Replay: play the next turn as soon as one has been shown.
 var auto_play: bool = false
 var _end_button: Button
+## Replay: the side watched before the all-seeing view (player 0).
+var _watched: int = 1
+var _turn_slider: HSlider
 ## Write a match log (MatchLog) for sessions this room makes from a map.
 @export var record_match: bool = true
 var match_log: MatchLog
@@ -376,6 +379,33 @@ func _build_ui() -> void:
 		side_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		side_pick.pressed.connect(view_next_player)
 		watch.add_child(side_pick)
+		var all_seeing := Button.new()
+		all_seeing.name = "AllSeeing"
+		all_seeing.text = "No fog"
+		all_seeing.tooltip_text = "See everything, as no player does"
+		all_seeing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		all_seeing.pressed.connect(toggle_all_seeing)
+		watch.add_child(all_seeing)
+		var back := Button.new()
+		back.name = "StepBack"
+		back.text = "Back a turn"
+		back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		back.pressed.connect(step_back)
+		watch.add_child(back)
+		var slider := HSlider.new()
+		slider.name = "TurnSlider"
+		slider.min_value = 1
+		slider.max_value = replay.turns() + 1
+		slider.step = 1
+		slider.value = 1
+		slider.custom_minimum_size = Vector2(120, 0)
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.tooltip_text = "Jump to the start of a turn"
+		slider.value_changed.connect(func(v: float) -> void:
+			if int(v) != session.turns_resolved() + 1:
+				go_to_turn(int(v)))
+		_turn_slider = slider
+		watch.add_child(slider)
 		panels["replay_controls"] = watch
 	var tools := HBoxContainer.new()
 	var controls := Button.new()
@@ -397,8 +427,13 @@ func _build_ui() -> void:
 	save.text = "Save"
 	save.tooltip_text = "Save the game as it is now. Load it from the main menu."
 	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save.pressed.connect(save_game)
+	var save_name := LineEdit.new()
+	save_name.name = "SaveName"
+	save_name.placeholder_text = "Save name (optional)"
+	save_name.editable = replay == null
+	save.pressed.connect(func() -> void: save_game(save_name.text))
 	save.disabled = replay != null
+	tools.add_child(save_name)
 	tools.add_child(save)
 	panels["tools"] = tools
 	panels["main_menu"] = null
@@ -529,6 +564,8 @@ func _show_main() -> void:
 
 ## The status line and what the mouse and keys do right now.
 func _refresh_hud() -> void:
+	if _turn_slider != null:
+		_turn_slider.set_value_no_signal(session.turns_resolved() + 1)
 	var where := "Overworld" if contexts.focus == ViewContexts.OVERWORLD else battle_name(contexts.focus)
 	var status := "%s  ·  %s  ·  turn %d" % [where, session.phase_name().capitalize(), session.turns_resolved() + 1]
 	if contexts.followed >= 0:
@@ -540,9 +577,48 @@ func _refresh_hud() -> void:
 
 ## Watches as another player: that player's fog, battles and armies.
 func view_as(p: int) -> void:
-	if not session.players().has(p) or p == player:
+	if (p != 0 or replay == null) and not session.players().has(p) or p == player:
 		return
 	player = p
+	_reset_view()
+
+
+## Replay: the all-seeing view (player 0, no fog) on and off; off goes back
+## to the player watched before.
+func toggle_all_seeing() -> void:
+	if replay == null:
+		return
+	if player == 0:
+		view_as(_watched if session.players().has(_watched) else int(session.players()[0]))
+	else:
+		_watched = player
+		view_as(0)
+
+
+## Replay: goes to the start of turn `n` (1 = the beginning), going back by
+## running the recording again from the start.
+func go_to_turn(n: int) -> void:
+	if replay == null:
+		return
+	if not _play.is_empty():
+		skip_playback()
+	var replaced := replay.seek(n - 1)
+	if replaced:
+		session = replay.session
+		driver.session = session
+		driver.stats = {"turns": 0, "battles": 0, "players": {}}
+		_results_shown = false
+	_turn_seen = session.turns_resolved()
+	auto_play = false
+	_hud_note = ""
+	_reset_view()
+
+
+func step_back() -> void:
+	go_to_turn(session.turns_resolved())
+
+
+func _reset_view() -> void:
 	if contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
 		contexts.camera_changed.disconnect(_on_camera_changed)
@@ -573,7 +649,7 @@ func hints() -> String:
 	if replay != null:
 		var where := "the recording has ended" if replay.at_end() else "turn %d of %d" % [session.turns_resolved() + 1, replay.turns()]
 		var odd := "" if replay.diverged_turn < 0 else "  ·  WARNING: turn %d did not match the recording" % replay.diverged_turn
-		return "Replay, watching as player %d (%s)%s  ·  Space: next turn  ·  V: the other side  ·  Tab: go to a battle  ·  click a squad, a commander or a hex to inspect it" % [player, where, odd]
+		return "Replay, watching %s (%s)%s  ·  Space: next turn  ·  V: the other side  ·  Tab: go to a battle  ·  click a squad, a commander or a hex to inspect it" % ["with no fog" if player == 0 else "as player %d" % player, where, odd]
 	if not _target.is_empty():
 		return "Click the hex or one of your commanders to send %s there.  Right click or Esc: cancel" % _target["what"]
 	if contexts.focus == ViewContexts.OVERWORLD:
@@ -668,7 +744,15 @@ func _refresh_battle_panel() -> void:
 			if r == null:
 				r = rec["rules"]
 	var ctx := {"rules": r, "weapon_names": _weapon_names(r), "glossary": glossary}
-	_battle_box.show_battle(battle_name(eid), session.observe_battle(player, eid), squad, insp, player,
+	var bobs := session.observe_battle(player, eid)
+	if id >= 0 and _play.is_empty() and int(squad.get("player", -1)) == player:
+		for p: int in (bobs.get("scores", {}) as Dictionary):
+			if p != player:  # what an opponent that can see this squad is shown (E2Q12)
+				var theirs := session.inspect_battle(p, eid, id)
+				if not theirs.is_empty():
+					ctx["opponent_insp"] = theirs
+				break
+	_battle_box.show_battle(battle_name(eid), bobs, squad, insp, player,
 		r.tps if r != null else 10, false, ctx)
 
 
@@ -1152,25 +1236,37 @@ func reserves_ready(eid: int) -> int:
 ## The reserves of each of the player's commanders in the battle: a button to
 ## send each in, or what stops it (sw-dek).
 func _add_reserves(eid: int) -> void:
+	var panel := UiPanel.build("reserves", reserves_model(eid))
+	panel.action_invoked.connect(_on_panel_action)
+	_orders_box.add_child(panel)
+
+
+## The reserves panel's view model (read-only): per commander a title and a
+## row per squad with its text, whether it is disabled and the ids to send.
+func reserves_model(eid: int) -> Dictionary:
+	var groups := []
 	for g: Dictionary in session.reserves(player, eid):
 		var cid: int = g["commander"]
 		var open: int = g["open"]
-		_orders_box.add_child(_title("%s: reserves (%s)" % [EventText.commander(cid),
-			"battleforce full" if open == 0 else "room for %d more" % open]))
+		var squads := []
 		for q: Dictionary in g["squads"]:
 			var what := "%s  %d/%d" % [EventText.squad_name(session.rules.squad_ids[int(q["tmpl"])]), int(q["alive"]), int(q["size"])]
 			var why := String(q["why"])
-			var b := Button.new()
-			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			b.disabled = q["sent"] or not why.is_empty()
+			var text := "%s: %s" % [what, why]
 			if q["sent"]:
-				b.text = "✓ %s: joins next battle turn" % what
+				text = "✓ %s: joins next battle turn" % what
 			elif why.is_empty():
-				b.text = "Send in %s" % what
-				b.pressed.connect(send_reserve.bind(cid, int(q["squad"])))
-			else:
-				b.text = "%s: %s" % [what, why]
-			_orders_box.add_child(b)
+				text = "Send in %s" % what
+			squads.append({"text": text, "disabled": q["sent"] or not why.is_empty(), "commander": cid, "squad": int(q["squad"])})
+		groups.append({"title": "%s: reserves (%s)" % [EventText.commander(cid),
+			"battleforce full" if open == 0 else "room for %d more" % open], "squads": squads})
+	return {"groups": groups}
+
+
+## Actions by id from data-driven panels.
+func _on_panel_action(action: String, args: Array) -> void:
+	if action == "send_reserve":
+		send_reserve(int(args[0]), int(args[1]))
 
 
 ## Sends a squad from the commander's army into its battle.
@@ -1354,6 +1450,11 @@ func _bind_keys() -> void:
 	keys.on(&"next_player", func() -> void: _key_command(_on_next_player_key))
 	keys.on(&"deselect_all", func() -> void: _key_command(contexts.deselect_all))
 	keys.on(&"end_turn", func() -> void: _hotkey_free(_on_end_turn_key))
+	keys.on(&"zoom_in", func() -> void: _key_command(func() -> void: contexts.zoom_by(1.25)))
+	keys.on(&"zoom_out", func() -> void: _key_command(func() -> void: contexts.zoom_by(0.8)))
+	keys.on(&"next_squad", func() -> void: _hotkey_free(_cycle_squad.bind(1)))
+	keys.on(&"previous_squad", func() -> void: _hotkey_free(_cycle_squad.bind(-1)))
+	keys.on(&"inspect_squad", func() -> void: _hotkey_free(_toggle_inspect))
 	keys.enable(self)
 
 
@@ -1393,6 +1494,38 @@ func _focus_first_control() -> void:
 func _on_pan(dir: Vector2) -> void:
 	if contexts != null and _keys_free() and contexts.focus != ViewContexts.OVERWORLD:
 		_main.pan_camera(dir * PAN_STEP)
+
+
+## Gamepad / key squad selection (sw-dqq): steps through the focused
+## battle's own squads and shows the card of the one reached. Selection
+## itself needs the planning or reaction phase; during playback it only
+## inspects.
+func _cycle_squad(dir: int) -> void:
+	var pl := _focused_planner()
+	if pl == null:
+		return
+	var ids := pl.own_squads()
+	if ids.is_empty():
+		return
+	var cur: int = _inspected if ids.has(_inspected) else (pl.selection[0] if not pl.selection.is_empty() else -1)
+	var i := ids.find(cur)
+	var next: int = ids[posmod(i + dir, ids.size())] if i >= 0 else ids[0 if dir > 0 else ids.size() - 1]
+	_inspected = next
+	if _play.is_empty() and session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
+		pl.select([next])
+	_queue_refresh()
+
+
+## The card button: shows the selected squad's card, or hides it again.
+func _toggle_inspect() -> void:
+	var pl := _focused_planner()
+	if pl == null:
+		return
+	if _inspected >= 0:
+		_inspected = -1
+	elif not pl.selection.is_empty():
+		_inspected = pl.selection[0]
+	_queue_refresh()
 
 
 func _on_cancel_key() -> void:
@@ -1632,14 +1765,14 @@ func play_again() -> void:
 	queue_free()
 
 
-## Saves the game to a new slot (MatchDriver.save_game). Returns the path
-## or "".
-func save_game() -> String:
+## Saves the game to a slot (MatchDriver.save_game; a blank name makes one
+## from the map and the turn). Returns the path or "".
+func save_game(slot: String = "") -> String:
 	if replay != null:
 		_hud_note = "a replay can't be saved"
 		_queue_refresh()
 		return ""
-	var path := driver.save_game()
+	var path := driver.save_game(slot.strip_edges())
 	_hud_note = "could not save: " + MatchDriver.last_error if path.is_empty() else "saved as " + path.get_file().get_basename()
 	_note(_hud_note)
 	_queue_refresh()

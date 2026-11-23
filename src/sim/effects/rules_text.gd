@@ -37,6 +37,7 @@ const EN: Dictionary = {
 	"ab.lose.damaged": "taking damage",
 	"ab.lose.casualty": "a casualty",
 	"ab.range": "Range {range} m.",
+	"ab.radius": "Area: radius {radius} m around the target point.",
 	"ab.or": " or ",
 	"fx.when.apply": "On application: {text}",
 	"fx.when.expire": "When it ends: {text}",
@@ -205,6 +206,8 @@ static func ability_lines(r: BattleRules, ab: int) -> PackedStringArray:
 		out.append(_f("ab.charges", {"n": r.ab_charges[ab]}))
 	if r.ab_range[ab] >= 0:
 		out.append(_f("ab.range", {"range": _num(r.ab_range[ab])}))
+	if r.ab_radius[ab] > 0 and BattleRules.TARGETING[r.ab_targeting[ab]] == "point":
+		out.append(_f("ab.radius", {"radius": _num(r.ab_radius[ab])}))
 	if r.ab_ready_s[ab] > 0:
 		out.append(_f("ab.ready", {"seconds": _num(r.ab_ready_s[ab]), "prowess": _num(r.ab_ready_prowess[ab])}))
 	var lose := r.ab_lose_on[ab]

@@ -77,6 +77,8 @@ def _config(args) -> dict:
     cfg = {"scenario": args.scenario, "pairings": args.pairings, "seeds": args.seeds,
            "population": args.population, "intensity": args.intensity, "target": args.generations,
            "jobs": args.jobs or factory.intensity_jobs(args.intensity, os.cpu_count())}
+    if args.intensity == "background":
+        cfg["bench_every"] = 1  # games are cheap at background intensity: a benchmark point per generation
     for kv in args.set:
         k, _, v = kv.partition("=")
         if k not in factory.DEFAULTS:

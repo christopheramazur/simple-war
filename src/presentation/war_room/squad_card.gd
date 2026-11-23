@@ -12,7 +12,7 @@ extends RefCounted
 ## exact percent and the points to the next lower band only at higher
 ## verbosity (sw-1jy.4); never colour alone.
 ## A first, one-page form of the inspection window (Mocks/
-## inspection_window.png); the tabs and per-stat traces are not built.
+## inspection_window.png); tabs and traces are InspectionTabs (sw-ll4.20).
 
 const ORDER_NAMES: Dictionary = {
 	"hold": "Holding", "move": "Moving", "attack_move": "Attack-moving", "attack": "Attacking",
@@ -26,9 +26,6 @@ const ORDER_NAMES: Dictionary = {
 ## art-direction interview replaces them. Overridable by "pool_icon.<id>".
 const POOL_ICONS: Dictionary = {
 	"stamina": "■", "instinct": "◉", "morale": "♥", "prowess": "✚", "legend": "★",
-}
-const BAND_ICONS: Dictionary = {
-	"broken": "×", "fraying": "▽", "neutral": "◇", "primed": "△", "surging": "▲",
 }
 
 
@@ -474,9 +471,7 @@ static func _band_word(band: String) -> String:
 
 
 static func _band_icon(band: String) -> String:
-	var key := "band_icon." + band
-	var s := String(TranslationServer.translate(key))
-	return s if s != key else String(BAND_ICONS.get(band, "·"))
+	return BandGlyphs.icon(band)
 
 
 static func _fmt(e: Dictionary) -> String:

@@ -76,6 +76,7 @@ def build(con, since: datetime, offset: timedelta | None = None) -> dict:
                        [CHARS_PER_TOKEN, CHARS_PER_TOKEN, since]),
         "commands": _commands(con, since),
         "friction": _friction(con, since),
+        "shell": _shell(con, since),
         "time": _time(con, since),
         "quota": _quota(con, offset),
         "pending": ["delegation acceptance (sw-lbm.15)", "tagged outcome rate (sw-lbm.17)"],
@@ -190,6 +191,37 @@ def _commands(con, since) -> list[dict]:
         a[1] += chars or 0
     out = [{"command": k, "uses": u, "output_tokens_est": c // CHARS_PER_TOKEN} for k, (u, c) in agg.items()]
     return sorted(out, key=lambda r: (-r["uses"], -r["output_tokens_est"]))
+
+
+LONG_COMMAND_CHARS = 6000  # Claude Code's Bash tool on Windows truncates near 7.5K (sw-2xq)
+
+
+def _signature(line: str | None) -> str:
+    """Collapse digits so 'line 12' and 'line 40' group together."""
+    return re.sub(r"\d+", "N", line or "(no message stored)")[:120]
+
+
+def _shell(con, since) -> dict:
+    """Shell (Bash/PowerShell) error rate per client, top error signatures, over-long commands."""
+    rows = con.execute("""
+        SELECT coalesce(s.client, '?'), u.command, coalesce(r.is_error, false), r.error_line
+        FROM tool_use u LEFT JOIN tool_result r USING (tool_use_id) LEFT JOIN session s ON s.session_id = u.session_id
+        WHERE u.command IS NOT NULL AND u.ts >= ?""", [since]).fetchall()
+    per: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0])
+    sigs: dict[tuple, int] = defaultdict(int)
+    for client, cmd, err, line in rows:
+        a = per[client]
+        a[0] += 1
+        a[1] += bool(err)
+        a[2] += len(cmd) > LONG_COMMAND_CHARS
+        if err:
+            sigs[(client, _signature(line))] += 1
+    by_client = [{"client": c, "commands": n, "errors": e, "error_rate": round(e / n, 3), "over_limit": o}
+                 for c, (n, e, o) in sorted(per.items())]
+    top = [{"client": c, "signature": s, "count": n}
+           for (c, s), n in sorted(sigs.items(), key=lambda kv: -kv[1])[:20]]
+    return {"by_client": by_client, "signatures": top,
+            "long_commands": sum(a[2] for a in per.values()), "long_limit": LONG_COMMAND_CHARS}
 
 
 def _friction(con, since) -> dict:
