@@ -129,6 +129,14 @@ func _ready() -> void:
 			detail.select(i)
 	detail.item_selected.connect(func(i: int) -> void: _change("forecast_detail", GameSettings.FORECAST_DETAILS[i]))
 	col.add_child(_row("Forecast detail", detail))
+	col.add_child(_heading("Privacy"))
+	var telem := CheckBox.new()
+	telem.name = "Telemetry"
+	telem.text = "Share anonymous usage data"
+	telem.tooltip_text = "Off by default. Sends only allowlisted match statistics, never a player id."
+	telem.button_pressed = bool(GameSettings.value("telemetry_opt_in"))
+	telem.toggled.connect(func(on: bool) -> void: _change("telemetry_opt_in", on))
+	col.add_child(_row("Telemetry", telem))
 	_said = UiTheme.label("", "DimLabel", true)
 	_said.custom_minimum_size = Vector2(390, 0)
 	col.add_child(_said)

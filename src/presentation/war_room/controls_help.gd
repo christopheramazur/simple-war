@@ -33,11 +33,36 @@ Right click: move the selection there (Alt: in a new line). Right click an enemy
 %s
 %s
 %s" % [_planning_line(), "1-9: recall a control group · Ctrl+1-9: make one · Shift+1-9: add to one", "F1-F4: go to a camera bookmark · Ctrl+F1-F4: set one"]],
+		["Controller", _controller_text(k)],
 		["Reaction window", "Marked squads can react to an enemy: click one, or use the Reactions list on the right. Moves are locked until the turn has played"],
 		["Playback", "While a turn plays out: %s or %s skips to its end
 Left click a squad (yours or a visible enemy): its card shows for the moment being shown
 Clicks issue no orders — the turn has already resolved" % [end, cancel]],
 	]
+
+
+## The gamepad bindings of the same actions, by device-neutral names. The
+## pad has no free cursor yet: squads are picked by cycling, and orders that
+## need a target point (move, attack) still use the mouse (sw-dqq).
+static func _controller_text(k: GuideKeys) -> String:
+	var p := PlanningInput.new()
+	var orders: PackedStringArray = []
+	for a: Array in [[&"hold", "hold"], [&"attack_move", "attack-move"], [&"fall_back", "fall back"], [&"run", "run"], [&"withdraw", "withdraw"], [&"abilities", "abilities"]]:
+		orders.append("%s %s" % [" / ".join(p.pad_names.get(a[0], [])), a[1]])
+	p.free()
+	return "Pan: %s, %s, %s, %s (left stick)
+Zoom: %s / %s
+%s: end the turn or skip playback · %s / %s: next / previous battle · %s: leave a battle · %s: follow commander
+%s / %s: select next / previous own squad (battle) · %s: show or hide its card
+%s: focus the buttons and the Reactions list, then the Dpad walks them and %s presses one
+%s: deselect everything · Hold %s: route via the planned route
+Orders: %s" % [k.pad_text_of(&"pan_up"), k.pad_text_of(&"pan_down"), k.pad_text_of(&"pan_left"), k.pad_text_of(&"pan_right"),
+		k.pad_text_of(&"zoom_in"), k.pad_text_of(&"zoom_out"),
+		k.pad_text_of(&"end_turn"), k.pad_text_of(&"next_battle"), k.pad_text_of(&"previous_battle"), k.pad_text_of(&"cancel"), k.pad_text_of(&"follow"),
+		k.pad_text_of(&"next_squad"), k.pad_text_of(&"previous_squad"), k.pad_text_of(&"inspect_squad"),
+		k.pad_text_of(&"focus_controls"), k.pad_text_of(&"inspect_squad"),
+		k.pad_text_of(&"deselect_all"), k.pad_text_of(&"route_via"),
+		" · ".join(orders)]
 
 
 ## "H hold · A attack-move ..." from the planning context's own keys.
@@ -49,7 +74,8 @@ static func _planning_line() -> String:
 		for m: GUIDEActionMapping in p.context.mappings:
 			if m.action.name == a[0]:
 				for im: GUIDEInputMapping in m.input_mappings:
-					ims.append(GuideKeys.key_text(im.input))
+					if im.input is GUIDEInputKey:
+						ims.append(GuideKeys.key_text(im.input))
 		parts.append("%s %s" % [" / ".join(ims), a[1]])
 	p.free()
 	return " · ".join(parts)

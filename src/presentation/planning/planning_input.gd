@@ -19,17 +19,19 @@ const _BOOKMARK_KEYS: Array = [KEY_F1, KEY_F2, KEY_F3, KEY_F4]
 var context: GUIDEMappingContext
 ## Action name -> GUIDEAction (for remapping UIs and tests).
 var actions: Dictionary = {}
+## Action name -> device-neutral gamepad input names (help text).
+var pad_names: Dictionary = {}
 
 
 func _init() -> void:
 	context = GUIDEMappingContext.new()
 	context.display_name = "Planning"
-	_bind(&"hold", "Hold", 0, [_key(KEY_H)])
-	_bind(&"attack_move", "Attack-move", 0, [_key(KEY_A)])
-	_bind(&"fall_back", "Fall back", 0, [_key(KEY_B)])
-	_bind(&"withdraw", "Withdraw", 0, [_key(KEY_W, false, true)])
-	_bind(&"run", "Run", 0, [_key(KEY_R)])
-	_bind(&"abilities", "Ability menu", 0, [_key(KEY_Q)])
+	_bind(&"hold", "Hold", 0, [_key(KEY_H), GuideKeys.pad(JOY_BUTTON_DPAD_UP)])
+	_bind(&"attack_move", "Attack-move", 0, [_key(KEY_A), GuideKeys.stick(JOY_AXIS_TRIGGER_RIGHT, true)])
+	_bind(&"fall_back", "Fall back", 0, [_key(KEY_B), GuideKeys.pad(JOY_BUTTON_DPAD_DOWN)])
+	_bind(&"withdraw", "Withdraw", 0, [_key(KEY_W, false, true), GuideKeys.pad(JOY_BUTTON_RIGHT_STICK)])
+	_bind(&"run", "Run", 0, [_key(KEY_R), GuideKeys.pad(JOY_BUTTON_LEFT_STICK)])
+	_bind(&"abilities", "Ability menu", 0, [_key(KEY_Q), GuideKeys.pad(JOY_BUTTON_X)])
 	for n in 10:
 		_bind(StringName("recall_group_%d" % n), "Recall group %d" % n, n, [_key(_KEYS[n])])
 		_bind(StringName("assign_group_%d" % n), "Assign group %d" % n, n, [_key(_KEYS[n], true)])
@@ -80,6 +82,11 @@ func _bind(name: StringName, display: String, arg: int, inputs: Array) -> void:
 	ms.append(m)
 	context.mappings = ms
 	actions[name] = a
+	var pads: Array = []
+	for input: GUIDEInput in inputs:
+		if not input is GUIDEInputKey:
+			pads.append(GuideKeys.pad_text(input))
+	pad_names[name] = pads
 	var cmd := command_of(name)
 	a.triggered.connect(func() -> void: command.emit(cmd, arg))
 

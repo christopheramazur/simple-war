@@ -12,7 +12,7 @@ extends RefCounted
 ## exact percent and the points to the next lower band only at higher
 ## verbosity (sw-1jy.4); never colour alone.
 ## A first, one-page form of the inspection window (Mocks/
-## inspection_window.png); the tabs and per-stat traces are not built.
+## inspection_window.png); tabs and traces are InspectionTabs (sw-ll4.20).
 
 const ORDER_NAMES: Dictionary = {
 	"hold": "Holding", "move": "Moving", "attack_move": "Attack-moving", "attack": "Attacking",

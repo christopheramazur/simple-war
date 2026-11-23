@@ -205,3 +205,13 @@ func test_sizes_include_the_deck_native_1280x800() -> void:
 	assert_true(GameSettings.SIZES.has(Vector2i(1280, 800)), "SIZES offers the Deck native size")
 	assert_true(GameSettings.sizes_for(Vector2i(1280, 800)).has(Vector2i(1280, 800)),
 		"windowed mode can pick 1280x800 on a Deck screen")
+
+
+func test_telemetry_opt_in_defaults_off_and_saves() -> void:
+	assert_false(bool(GameSettings.value("telemetry_opt_in")), "off until the player opts in")
+	var o := OptionsScreen.open_over(_screen())
+	var box := o.find_child("Telemetry", true, false) as CheckBox
+	assert_not_null(box)
+	box.button_pressed = true
+	assert_true(bool(GameSettings.value("telemetry_opt_in")))
+	o.close()

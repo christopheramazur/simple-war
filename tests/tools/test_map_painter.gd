@@ -282,3 +282,29 @@ func test_a_map_that_breaks_the_package_is_not_saved() -> void:
 	assert_gt(errs.size(), 0, "crossroads stamps ruin_block, so this is a loop")
 	assert_true(mp.canvas.dirty)
 	assert_eq((PackageEditor.open(COPY).templates.values_of("ruin_block")["cells"] as Array).size(), 1)
+
+
+func test_moving_a_stamp_undoes() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := _open(m, "crossroads_map")
+	var before: Dictionary = c.stamps[0].duplicate()
+	c.begin()
+	c.move_stamp(0, int(before["x"]) + 3, int(before["y"]) - 2)
+	assert_eq([c.stamps[0]["x"], c.stamps[0]["y"]], [int(before["x"]) + 3, int(before["y"]) - 2])
+	assert_true(c.dirty)
+	c.undo()
+	assert_eq(c.stamps[0], before)
+
+
+func test_a_selection_becomes_a_stamp_map() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_src", 20, 10, "open")
+	var wall := c.features.find("wall")
+	c.begin()
+	c.rect(4, 2, 7, 3, wall, 0)
+	var text := c.selection_text(Rect2i(3, 2, 6, 4), "t_piece")
+	assert_eq(c.selection_text(Rect2i(30, 30, 2, 2), "t_x"), "", "outside the map")
+	assert_eq(m.add(text, m.file_of("crossroads_map")), PackedStringArray())
+	var piece := _open(m, "t_piece")
+	assert_eq([piece.width, piece.height], [6, 4])
+	assert_eq(piece.cells(), [{"feature": "wall", "x": 1, "y": 0, "w": 4, "h": 2}] as Array[Dictionary])

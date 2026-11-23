@@ -314,6 +314,10 @@ const KINDS: Dictionary = {
 	"tag": {
 		"name": {"type": "string"},
 		"description": {"type": "string"},
+		## Marks a damage type (O1Q10): the tag id is what a weapon's or
+		## effect's damage_type names. The engine still has a resistance stat
+		## per type in DAMAGE_TYPES; BattleRules checks the two agree.
+		"damage_type": {"type": "bool"},
 	},
 	## A named group of effects: statuses, items, traits, features, zone
 	## conditions, Ruin effects (E1Q2).

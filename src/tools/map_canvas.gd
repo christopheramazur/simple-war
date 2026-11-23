@@ -238,6 +238,15 @@ func remove_stamp(index: int) -> void:
 	_changed()
 
 
+## Moves a stamp so its top-left corner is at x, y.
+func move_stamp(index: int, x: int, y: int) -> void:
+	if int(stamps[index]["x"]) == x and int(stamps[index]["y"]) == y:
+		return
+	stamps[index]["x"] = x
+	stamps[index]["y"] = y
+	_changed()
+
+
 func stamp_rect(index: int) -> Rect2i:
 	var s := stamps[index]
 	return Rect2i(Vector2i(s["x"], s["y"]), stamp_size(s["stamp"], s["rotate"]))
@@ -342,6 +351,24 @@ func cells() -> Array[Dictionary]:
 			e["rotate"] = s["rotate"]
 		out.append(e)
 	return out
+
+
+## The cells inside `area` (clipped to the map) as a new map's definition
+## text, stamps drawn in: what "Save selection as a map" writes. Empty if the
+## area has no cells.
+func selection_text(area: Rect2i, new_id: String) -> String:
+	var r := area.intersection(Rect2i(0, 0, width, height))
+	if r.size.x <= 0 or r.size.y <= 0:
+		return ""
+	var c := MapCanvas.create(_t, new_id, r.size.x, r.size.y, features[base])
+	var comp := composite()
+	var cf: PackedInt32Array = comp["feature"]
+	var cface: PackedByteArray = comp["facing"]
+	for y in r.size.y:
+		for x in r.size.x:
+			c.feat[y * r.size.x + x] = cf[(r.position.y + y) * width + r.position.x + x]
+			c.face[y * r.size.x + x] = cface[(r.position.y + y) * width + r.position.x + x]
+	return c.definition_text()
 
 
 ## The template's definition text, laid out like the hand-written data files

@@ -17,6 +17,7 @@ extends RefCounted
 
 ## Plays until `turns` overworld turns have resolved. Returns the session.
 static func play(session: OverworldSession, controllers: Dictionary, turns: int) -> OverworldSession:
+	session.want_telegraphs = false  # no UI: skip the forecast turn when nothing can react (sw-kd5)
 	var guard := 0
 	while session.turns_resolved() < turns and guard < turns * 5:
 		guard += 1
