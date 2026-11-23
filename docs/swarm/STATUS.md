@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-23 15:18 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 15:34 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
 | Turns per role | auditor: 56, craft-researcher: 12, games-researcher: 14, lead-designer: 15, orchestrator: 84, retro: 1, tech-lead: 9, ux-art-director: 12 |
-| Worker turns / research turns (24 h) | 15 / 0 |
+| Worker turns / research turns (24 h) | 16 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
 | Merged / rejected (all time) | 19 / 1 |
-| Gateway calls last hour (rate-limited) | 10 (0) |
+| Gateway calls last hour (rate-limited) | 7 (0) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-23 15:01 UTC **WARN** (rules) |
+| Latest audit | 11-23 15:31 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-ll4.27.1 (2026-11-21T13:00)
@@ -25,6 +25,10 @@ Updated 2026-11-23 15:18 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-23 15:31 UTC **WARN** (rules)
+
+5 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 85 min ago and awaits review | act: sw-1jy.6 finished (failed) 63 min ago and awaits review | act: sw-68b finished (failed) 74 min ago and awaits review | act: sw-abk finished (failed) 176 min ago and awaits review | act: sw-dqj finished (failed) 107 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 129 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 118 min ago and awaits review | act: sw-wqc finished (failed) 96 min ago and awaits review | health: 5/5 turns failed or timed out | health: no merge in 2 h while workers ran
 
 ### 11-23 15:01 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-23 15:18 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-23 13:31 UTC **PASS** (rules)
 
 15 swarm calls (4 rate-limited), all nous/qwen4-max, cost 0 USD
-
-### 11-23 13:01 UTC **WARN** (rules)
-
-13 swarm calls (7 rate-limited), all nous/qwen4-max, cost 0 USD | health: 7/13 calls rate-limited (54%)
 
