@@ -513,3 +513,13 @@
   - `$ cat >> docs/swarm/journals/orchestrator.md <<'EOF'`
 - commits this turn: 353dcf3 swarm: docs and status; 37c0537 swarm: docs and status; 5d55ffe swarm: docs and status; 8735f7a swarm: docs and status; 9059e72 swarm: docs and status; 5f7ac22 swarm: docs and status
 - next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
+
+## 2026-11-23T08:58Z turn killed at its time limit after 120 min (supervisor note)
+- last actions:
+  - `$ harness/bin/hx swarm workers -v 2>&1 | head -30 && git -C ../simple-war-worktrees/sw-ll4.27.6 log --stat main..HEAD | head -30 && git -C ../simple-war-worktre`
+  - `$ git -C ../simple-war-worktrees/sw-vld diff main...HEAD | head -230 && bd show sw-vld | head -30`
+  - `$ grep -n "_tone\|_delta\|func moment" ../simple-war-worktrees/sw-vld/src/presentation/war_room/squad_card.gd && bd show sw-ll4.27.6 | head -45`
+  - `$ bd update sw-vld --append-notes='merge checks: test-edit eyeball clean (tests only added: all-themes direction test + Health numbers asserts, nothing weakened`
+  - `$ git -C ../simple-war-worktrees/sw-vld status --short | head -8 && git log --oneline -4 main -- src/presentation/war_room/squad_card.gd && git -C ../simple-war`
+- commits this turn: 0b31666 Merge main into autopilot/sw-ow6; d49c264 sw-ow6: the trigger graph is a view; an edit drawn in it is not saved and is redrawn from the definition; 2462aa7 swarm: docs and status; 18be0af swarm: docs and status; 435d287 Merge main into autopilot/sw-7wt; 7aaf21b sw-7wt: refuse graph edits to a dialogue whose nodes are inherited; 762320d swarm: docs and status; 54077ec swarm: docs and status
+- next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
