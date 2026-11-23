@@ -29,6 +29,11 @@ data                  (immutable template tables from packages)
 - **Sim-owned PRNG:** used only for content generation.
 - **State hash:** computed per tick and per turn.
 - **Language:** GDScript first. Native code (a GDExtension) comes only when measurement says so (R5Q17, R7Q18). The `step(orders) -> events` / `snapshot()` interface lets a native core swap in.
+- **Relationships and derived stats** (U1Q27; proposed, Round U1, awaiting review): a payload is rows pointing at their holder (`ow_squad.detachment`, `ow_item.detachment`), not a component bag. Capabilities are derived: `OverworldStats` is the one reader of a commander's, band's or feature's effective overworld `sight` and `movement_points`.
+  - **What it adds up:** the template base, then payload contributions in ID order, capped.
+  - **What it returns:** the value with its terms, for tooltips.
+  - **Rules:** integer only and deterministic. Vision, convoy planning and glimpses call it, never the raw columns.
+  - **New store state:** `ow_detachment.band` (band template index; −1 in older saves means "derive it: caravan if it has a destination") and `OverworldState.owner_orders` (feature ID → {"action", "option", "player"}, saved and hashed like `activities`).
 
 ## 4.3 Events (R6Q19, R7Q12, R7Q13)
 - **State objects never talk to each other.** Systems read state and write events.
@@ -53,6 +58,10 @@ data                  (immutable template tables from packages)
   - **Battles:** every engagement's battle runs in the same session, one battle turn per overworld turn. The inputs are `submit_battle_orders`, `reinforce` and `leave_battle`. `observe_battle` shows a battle to the players fighting in it. `forecast_battle(player, engagement, orders)` (and `BattleSession.forecast(player, orders)`) previews drafted orders for intent ghosts during planning, changing nothing. The turn hash combines the overworld's and every battle's.
   - **Records:** every input is logged, and the state hash after every turn is kept. `rebuild` replays a save from its inputs and names the first turn whose hash differs.
   - **Headless play:** `HeadlessOverworld` plays turns with any controllers. `ExpandController` is the first rule-based profile: it takes features and caches, converts ore it can afford, and explores.
+  - **Owner actions** (U1Q24; proposed, Round U1, awaiting review): `set_owner_action(player, feature, action, option)` (Planning only; "" clears; `buy` names a `recruits` squad or `sells` item). `observe` adds the player's `owner_orders`.
+  - **Features** (U1Q23; proposed): `inspect_feature(player, feature)` returns one feature as `inspect_plot` lists it, plus `actions`: each owner action it allows, with its cost and why not. It is read-only, any phase, and works from memory for features out of sight. `inspect_plot` builds its feature list from it.
+  - **Bands** (U1Q27; proposed): `observe` gives each own or allied band its `band` kind, and its effective `sight` and `movement` with terms. Enemies see the kind but not the payload.
+- **Relations** (U1Q8; proposed, Round U1, awaiting review): `BattleSession.relation(player, a, b)` and `OverworldSession.battle_relation(player, engagement, a, b)` return the relation facts between two squads the player sees (Rules Spec §2.6 "Pair relations"): `[{kind, value, from, to, rule, data}]`, fog-filtered for `player`. `OverworldSession.playback_relation(player, engagement, frame, a, b)` answers the same for a moment of the last turn's playback: the session keeps the turn's start state and re-runs the battle to that frame on a private copy through the one shared `BattleCursor` (`src/api/battle_cursor.gd`; deterministic, so it is the state that was), then asks the same function. The UI, the AI and the harness all use these calls.
 
 ## 4.5 Client/server split (R3Q11)
 - **Always split:** the client and server are separate even in single-player. A client only receives and simulates what its server tells it.
@@ -104,6 +113,18 @@ data                  (immutable template tables from packages)
   - **Battle terrain** is drawn in the battle view, with a legend. A move order draws a line to where the squad was sent; the ghost shows how far it gets this turn.
   - **Reaction window:** a banner says moves are locked and what can be done. Moves drawn then are kept, marked queued, and sent when Planning returns (they used to be dropped silently).
   - **Match log:** every game played from a map writes `user://matches/<started>-<map>-s<seed>/`: `log.md` (per turn: the player's clicks and their results, every player's accepted orders, everything that happened), `match.json` and the replayable `match.sav`. The newest 30 are kept.
+- **Hex view (U1Q20–U1Q23; proposed, Round U1, awaiting review; proposed numbers).** Until it is built, the zoom transition above (3x enters the battle, which opens at 1x) stands.
+  - **Scale:** a hex is 64 px in circumradius at zoom 1 (111 × 128 px; was 26). Zoom runs 0.25–3.0, and entering a battle moves to 2.5 (s = 160 px).
+  - **Detail bands** by on-screen radius s:
+    - s < 24: one glyph per hex (its first site and a count), owner marks only.
+    - 24–48: every site in its slot, no names.
+    - s ≥ 48: sites with owner rings and progress pips.
+    - s ≥ 96: the names of owned sites.
+    - At any scale the hovered and selected hex show their names on a plate. That is at most one label per hex.
+  - **Layout:** `HexLayout` (presentation, static, no state) turns a hex's known features, its known road neighbours and the map's `at` overrides into site points and a mover lane. Both the war room and the World maps tab use it. Points are cached per plot until its features or its neighbours' roads change.
+  - **Selection:** `ViewContexts.selected_feature` (−1 = none) sits beside `selected_plot`. Clicking a site selects it and its hex; clicking open ground selects the hex only. Selecting a commander or band, or deselecting all, clears it. `ContextView.feature_at(pos)` hit-tests the sites of the hexes in view. The hex panel lists sites as selectable rows, and hovering or selecting either highlights both.
+  - **Right click:** with an owned producing site selected, a right click on a hex or on one of the player's commanders sets that site's rally point (like steering a caravan).
+  - **Movers:** commanders and bands stand in the mover lane: along the hex's lower edge, or on the road when the hex has one. Up to 3 tokens, then "+n".
 - **UI pass (sw-ll4.19)**, from the second skirmish playtest:
   - **Squads on the battlefield:** every unit is drawn where it stands, on a tinted footprint that follows the formation, with an arrow for the squad's facing, its name and strength (`7/8`), and a health bar for the player's own. Zones are drawn with who holds them. The battle observation carries what this needs: each squad's `name`, `size`, `facing`, `range` (its longest weapon among living units) and `sight`.
   - **Ranges:** a selected, hovered or inspected squad shows a ring at its weapon range. A single selected squad also shows its sight ring.
@@ -111,10 +132,10 @@ data                  (immutable template tables from packages)
   - **What does what:** two lines under the view give the status and what the mouse and keys do in the present context (overworld, commander selected, battle, selection, reaction window, playback). A **Controls** button lists every control.
   - **Overworld movement:** with a commander selected, the hexes it can enter this turn are lit and numbered with their movement cost (`OverworldSession.reach`), the rest are dimmed, and hovering a hex previews the route and its cost. Right click moves there. Shift + right click adds a waypoint: the route continues from where it ended (`path` with `via`). Right click on the commander clears the route.
   - **Garrisons, convoys and rally points:** a selected hex offers "Send this garrison/convoy to" for the player's detachments there and "Set rally point" for a producing feature. The next hex clicked is the destination, or one of the player's commanders if it stands there. A selected commander lists the player's other detachments with "Call here".
-  - **Turn playback:** a resolved turn is played out before the next Planning is shown, over 5 seconds by default (Options: instant, 2, 5 or 10). Commanders and convoys walk the hexes they moved through. Battles replay tick by tick as the player saw them (`OverworldSession.playback`, kept only when asked through `keep_playback`), with a line for each volley. Space or a click skips it. The game has already resolved by then: playback only delays what is drawn, and it never changes a result. A battle that ended that turn is still shown to its end.
+  - **Turn playback:** a resolved turn is played out before the next Planning is shown, over 5 seconds by default (Options: instant, 2, 5 or 10). Commanders and convoys walk the hexes they moved through. Battles replay tick by tick as the player saw them (`OverworldSession.playback`, kept only when asked through `keep_playback`), with a line for each volley. Space or Esc skips it; a click inspects the squad under it (sw-ll4.27.4). The game has already resolved by then: playback only delays what is drawn, and it never changes a result. A battle that ended that turn is still shown to its end.
   - **Options** (`OptionsScreen`, `GameSettings`; the display part of sw-ll4.10): window mode (windowed, borderless fullscreen, exclusive fullscreen), window size, vsync, UI scale and the playback time, saved in `user://settings.cfg` and applied when the main menu opens. Reached from the main menu and the war room.
   - **Layout:** the side panel scrolls, so its buttons never fall off a 720-pixel window.
-  - **Not built:** panning and zooming inside a battle, unit facings (only the squad has one), damage numbers during playback, playback in the Story scene (it still resolves at once).
+  - **Not built:** mouse panning, zooming and hovering during playback (U1Q6–U1Q8; planning has them), unit facings (only the squad has one), damage numbers during playback, playback in the Story scene (it still resolves at once).
 - **Skirmish flow (sw-ll4.11):**
   - **Setup** is the main menu's skirmish block: opponent profile, map and seed.
   - **Saving:** `MatchDriver.save_game` writes the session's own save with what is being played (map, seed, opponent profile, the human's seat) and the tallies so far to `user://saves/<slot>.sav`. The war room has a **Save** button (a new slot each time), and a game started or loaded from the menu also writes the `autosave` slot after every resolved turn. A save can be taken in any phase but Execute, including mid-planning with orders given: events an order pushed at once are kept in the snapshot (sw-007).
@@ -150,6 +171,7 @@ data                  (immutable template tables from packages)
       - **Tools:** Brush (a hex and its neighbours out to a radius), Rectangle, Line (a hex line), Fill and Pick paint the ground; the right button clears the painted feature, leaving the fills. Place puts the chosen feature on a hex with the chosen owner; Start adds the chosen player's starting commander. Click an object or start to select it, drag to move it, right-click or Delete to remove it; the owner and commander lists change the selected one.
       - **Map settings:** name, `elimination` (the skirmish win condition) and `mirror`, each one undo step. A mirror map needs an even height. On a mirror map painting the ground paints both halves, so the view shows what the game makes; objects and starts are made on one half and their partners drawn as ghosts.
       - **Saving:** like battle maps: new maps go to a chosen data file, and a map that would break the package is refused.
+      - **Layout** (U1Q21; proposed, Round U1, awaiting review): the Layout tool (Y) drags a placed site inside its hex and writes the `place` pass's `at`. Right-click resets it to its slot. The hex shows the same `HexLayout` as the game. Roads are a second painted layer (path), so a road can cross forest.
     - **Wall shapes:** `MapCanvas.shape_at` names the piece to draw (end, straight, corner, tee, cross, with quarter turns) from a feature's `connects` field (`ConnectShape`); drawing only. **Drawn (sw-bgd):** the Maps tab draws the piece in each cell from zoom 9 (where the facing arrows start), as bars from the centre to each joined side, or a post when it joins none.
   - **Objects, in play (sw-ll4.7):** a `scenario` played on the open map is open with it (`ScenarioCanvas`, the model, no UI). A map opens with the first scenario that names it; the Scenario list picks another or none, and New starts one with the core field scenario's rules, a deployment strip inside each short edge and a centre zone.
     - **Drawn over the terrain:** each side's deployment area in its player's colour, with its facing as an arrow and how many squads it lists, and each zone with its id and points.
@@ -165,6 +187,7 @@ data                  (immutable template tables from packages)
     - **Limits:** two players only, and the button is on the in-game screen only, not in the Godot editor plugin.
   - **Order of work:** the map format and its loader first, then the terrain painter, then objects, then the trigger form. The panel already runs standalone, which is the path to the later in-game editor (R8Q7).
   - **Tiled:** an importer from Tiled's format is optional and comes after our own painter. Tiled is never the stored format.
+- **Behaviour workshop** (U1Q5; proposed, Round U1, awaiting review): `src/presentation/workshop/behaviour_workshop.tscn`, F6. It plays one workshop scenario (Harness and AI Factory §5.7) with debug overlays, stepping and scrubbing. It reads `WorkshopRun` frames from the API layer (`src/api/workshop/`), re-simulated through the shared `BattleCursor`. The truth behind its overlays and probes is `BattleProbe` (`src/sim/battle/battle_probe.gd`), a read-only snapshot that combines `BattleActivity`, `LineOfFire` and the recent shots.
 
 ## 4.10 Addons (R8Q13)
 - **Keep:** dialogic (presentation only), gut (tests), guide (input).

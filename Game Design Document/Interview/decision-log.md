@@ -288,3 +288,58 @@ The owner reviewed the proposals, changed the map format and said to start build
   - Overworld maps need no new format: their passes are already a shape list.
 - O1Q6 stands, with the editor saving painted cells as merged rectangles and placing stamps as objects.
 - O1Q8 settled and built (sw-ll4.4): squads route on the 1-metre cells, one straight leg at a time. An attacker aims at where its target was until the target has moved 8 m (`route_replan_m`), where it used to follow it every tick.
+
+## Round U1: owner brief (2026-11-23)
+The owner's brief (`docs/design/u1/brief.md`) asked for features to be fleshed out for the swarm and the autopilot, with research and review delegated. Five drafts and an integration plan (`docs/design/u1/00-synthesis.md`) turned it into proposals, now labelled in the documents. "Settled" entries are the owner's statements; the proposals and open questions await review. Answers get the next IDs after U1Q27, in the order answered, with the question's label beside them.
+
+### Settled (Round U1)
+- U1Q1 Whether attack-move, run or hold change damage output is unclear. Anything but walking straight at the enemy seems to lower it sharply. Confirm it.
+- U1Q2 Picking a target and retargeting also seem to lower damage output. Confirm it.
+- U1Q3 A framework for judging battles' visual clarity at several stages is a priority.
+- U1Q4 Use the local Bonsai model to judge stills or short recordings where it can, because there will be a lot of visual work.
+- U1Q5 A workshop for single components of unit behaviour is wanted, usable both visually and through the API.
+- U1Q6 During execution the player can still zoom and move the map.
+- U1Q7 During execution the player can select squads.
+- U1Q8 With one squad selected and another hovered, a tooltip or a right-click comparison menu shows their current and possible interactions (in or out of range, targeting, fleeing), from what is actually going on.
+- U1Q9 Battles get a deployment step at the start.
+- U1Q10 Movement and commands need refining. Flesh out coherency and collision rules for pathfinding and clustering.
+- U1Q11 An infantry squad on attack-move that sees an enemy it can't yet attack, and has movement left, uses that movement to reach a position it can attack from, like marines on attack-move in StarCraft II.
+- U1Q12 Other squads may have other default behaviours per command. Build behaviours to be composable where possible.
+- U1Q13 Getting U1Q11's feel right comes before building the rest.
+- U1Q14 For a squad firing at an enemy squad, there is an optimal spread of its attacks that kills the most units.
+- U1Q15 Under optimal Prowess conditions the attacker fires in that optimal way.
+- U1Q16 The worse arrangements are overkill and fire spread so thin that nothing dies.
+- U1Q17 At Neutral Prowess a squad focuses on a few units with some fuzz, scaled by its base Prowess: high is better, low is worse.
+- U1Q18 A Surging squad overkills less (it swaps targets faster). A Fraying one overkills more.
+- U1Q19 Long-term and hard, but worth it for distinct gameplay modes and feel.
+- U1Q20 Hexes are much larger: composable entities that hold and show the feature entities they are made of.
+- U1Q21 Features have a default arrangement in a hex. Map creation can override it; play cannot.
+- U1Q22 On a hex with a road, the arrangement keeps its shape, offset out of the road's way by the road's direction.
+- U1Q23 Each of several features on a hex is selectable on the map and in the hex's sidebar, and is highlighted in both.
+- U1Q24 Some owned features can be used without a commander present: buying items and squads, and updating rally points.
+- U1Q25 Overworld movement comes down a bit, caravans especially. Overworld vision goes up a bit.
+- U1Q26 Controlled hexes give at least self-vision. Features add more by kind (mine 1, barracks 2, village or caravan 3, more with scouts in a caravan), with sensible configurable defaults per entity.
+- U1Q27 A caravan is an entity. Its payload is components that systems read to grant behaviours and capabilities.
+
+### Proposed (Round U1, awaiting review)
+- Closing to fire: attack-move and attack close until units carrying the squad's fire quorum (100% of standing damage per second) each have a shot, with a stand-off, a 15 m attack-move leash, hysteresis and a 3 m per-unit step-out; no moving volley on arrival; a Retarget keeps the run flag (Rules Spec §2.15).
+- Separation and coherency: separation between squads without body blocking, friendly destination spacing, a coherency radius with anchor slow-down, and shared routes for multi-select orders (Rules Spec §2.14).
+- The behaviour vocabulary: orders run behaviours composed from a closed set of components, with archetype defaults, as a `behaviour` template kind (Rules Spec §2.15, Data Model §3.4).
+- Visual assessment and the behaviour workshop: staged captures checked against a truth snapshot, a rubric and judges (Bonsai where the vision bench trusts it), and workshop scenarios as data with gate, pending and explore status, plus an F6 scene (Harness §5.6, §5.7; Systems Architecture §4.9).
+- Pair relations and playback relations: relation facts from the simulation's own functions, fog-filtered, shown on hover and in a comparison menu, in Planning and during playback; camera, hover and selection during playback (Rules Spec §2.2, §2.6; Systems Architecture §4.4).
+- The deployment model: hidden, simultaneous placement in the Planning that drafts battle turn 1 (Rules Spec §2.4; open question OQ-3).
+- Fire distribution via discipline and coordination: kill priority, covered units, and Prowess-scaled focus quality and coordination, with `nearest` kept as today's policy (Rules Spec §2.6, §2.8; Data Model §3.3, §3.4).
+- Hex composition and layout: features drawn by layer in slots, road offsets, map `at` overrides, per-feature selection, and a larger hex view with detail bands (Rules Spec §2.9; Data Model §3.5; Systems Architecture §4.8, §4.9).
+- Owner actions: remote buy (with a markup), rally point and output, from anywhere during Planning (Rules Spec §2.9; Systems Architecture §4.4).
+- Bands and caravans: garrison and caravan band templates, payload contributions such as scouts adding caravan sight, and one reader of effective overworld stats (Rules Spec §2.9; Data Model §3.5; Systems Architecture §4.2).
+- The tuning numbers: slower overworld movement (caravans 30 points) and more sight by kind (features, bands, commanders), measured on `skirmish_mirror` (U1 draft 05).
+- The non-blocking defaults in the synthesis §3b (fire quorum by standing damage per second, separation only, frame strips, local golden images, the remote-buy markup and the rest) apply unless the owner says otherwise.
+
+### Open questions (Round U1)
+Each blocks the U1 tasks named in the synthesis §3a. The recommended default follows each.
+- OQ-1 Volley phase: keep lockstep volleys, or stagger each unit's hit accumulator by formation slot? Default: keep lockstep for now; decide after a spike measures both with focus fire in place.
+- OQ-2 Attack-move feel: squad anchor quorum (100% of standing damage per second) plus a 3 m step-out and a 15 m leash, or true per-unit stopping that leaves formation? Default: the quorum model, judged in the workshop scene once closing to fire lands.
+- OQ-3 Deployment model: deploy in the same Planning that drafts battle turn 1, hidden and simultaneous, anywhere in the side's area, with every side's area shown (turn-1 orders can't target enemy squads)? Default: yes; a separate deployment pulse can become a clock option later.
+- OQ-4 Placed squads (sw-tdz): accept that task's six suggested answers, plus "placed entries are deployment defaults; `locked: true` pins them"? Default: yes to all.
+- OQ-5 Overworld camera during playback: may it pan and zoom while a turn plays (no selection, no orders)? This amends R3Q2. Default: allow the camera only.
+- OQ-6 Switch the default fire policy from `nearest` to `prowess`, a global balance change? Default: accept after the Pressure Lab sweep, in one commit with a new baseline era.
