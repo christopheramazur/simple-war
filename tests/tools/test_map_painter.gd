@@ -308,3 +308,42 @@ func test_a_selection_becomes_a_stamp_map() -> void:
 	var piece := _open(m, "t_piece")
 	assert_eq([piece.width, piece.height], [6, 4])
 	assert_eq(piece.cells(), [{"feature": "wall", "x": 1, "y": 0, "w": 4, "h": 2}] as Array[Dictionary])
+
+
+func test_ground_is_textured_where_the_package_has_art() -> void:
+	# sw-8rk: the editor draws the war room's ground. "open" and "wall" have
+	# textures in core; "nope" has none and is a flat block of its colour.
+	var art := ArtSet.core()
+	var blue := Color.BLUE
+	var red := Color.RED
+	var img := ArtSet.ground_image(art, 2, 1, PackedInt32Array([0, 1]), PackedStringArray(["open", "wall"]), [red, blue])
+	assert_eq(img.get_size(), Vector2i(2 * ArtSet.GROUND_PX, ArtSet.GROUND_PX))
+	var src := art.image("wall", "texture")
+	var sx := ArtSet.GROUND_PX % maxi(src.get_width() - ArtSet.GROUND_PX + 1, 1)
+	assert_eq(img.get_pixel(ArtSet.GROUND_PX, 0), src.get_pixel(sx, 0), "a wall cell is cut from the wall texture")
+	assert_ne(img.get_pixel(ArtSet.GROUND_PX, 0), blue, "not the flat colour")
+	var flat := ArtSet.ground_image(art, 1, 1, PackedInt32Array([1]), PackedStringArray(["open", "nope"]), [red, blue])
+	assert_eq(flat.get_pixel(0, 0), blue, "a feature without art is its colour")
+	assert_eq(flat.get_pixel(ArtSet.GROUND_PX - 1, ArtSet.GROUND_PX - 1), blue)
+	var none := ArtSet.ground_image(null, 2, 1, PackedInt32Array([0, 1]), PackedStringArray(["open", "wall"]), [red, blue])
+	assert_eq(none.get_size(), Vector2i(2, 1), "no art: a pixel a cell")
+	assert_eq(none.get_pixel(1, 0), blue)
+
+
+func test_the_maps_tab_draws_the_package_art() -> void:
+	var p := WarDataPanel.new()
+	p.package_dir = COPY
+	add_child_autofree(p)
+	var mp: MapPainter = p._maps
+	assert_not_null(mp.art, "the edited package's art")
+	assert_true(mp.art.has_art("open", "texture"))
+	assert_true(mp.open_map("field_map"))
+	var i := mp.feature_ids.find("open")
+	assert_eq(mp._features.get_item_icon(i).get_size(), Vector2(14, 14), "a texture swatch in the feature list")
+	var c := mp.canvas
+	mp.view._rebuild(c)
+	assert_eq(mp.view._tex.get_size(), Vector2(c.width, c.height) * ArtSet.GROUND_PX, "the canvas is textured")
+	mp.art = null
+	mp.view._tex = null
+	mp.view._rebuild(c)
+	assert_eq(mp.view._tex.get_size(), Vector2(c.width, c.height), "no art: a pixel a cell")

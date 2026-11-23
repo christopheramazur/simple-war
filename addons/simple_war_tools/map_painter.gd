@@ -61,6 +61,9 @@ var selected_stamp: int = -1
 ## One colour per feature of `feature_ids`.
 var feature_ids: PackedStringArray = PackedStringArray()
 var colors: Array[Color] = []
+## The edited package's art (sw-8rk): ground textures on the canvas and in the
+## feature list, colours where a feature has none. Null without a package.
+var art: ArtSet
 
 var view: MapView
 var _maps: OptionButton
@@ -95,6 +98,7 @@ func set_model(m: PackageEditor) -> void:
 	model = m
 	if model.templates == null:
 		return
+	art = ArtSet.from_loader(model.loader) if model.loader != null else null
 	feature_ids = PackedStringArray()
 	colors = []
 	for id in model.templates.ids():
@@ -427,6 +431,20 @@ func show_cell(cell: Vector2i) -> void:
 	_status.text = text + ("    (unsaved)" if canvas.dirty else "")
 
 
+## A feature's list swatch (sw-8rk): its ground texture when the package has
+## one (scaled to the swatch), else its colour.
+func _swatch(id: String, color: Color) -> Texture2D:
+	var src: Image = art.image(id, "texture") if art != null else null
+	var img: Image
+	if src != null:
+		img = src.duplicate()
+		img.resize(14, 14, Image.INTERPOLATE_NEAREST)
+	else:
+		img = Image.create(14, 14, false, Image.FORMAT_RGB8)
+		img.fill(color)
+	return ImageTexture.create_from_image(img)
+
+
 ## A feature's `color`, or a steady made-up one for features without it.
 static func feature_color(id: String, values: Dictionary) -> Color:
 	return ContextView.feature_color(id, values)
@@ -621,10 +639,8 @@ func _fill_lists() -> void:
 		stamp_id = _stamps.get_item_text(at)
 	_features.clear()
 	for i in feature_ids.size():
-		var img := Image.create(14, 14, false, Image.FORMAT_RGB8)
-		img.fill(colors[i])
 		var label := str(model.templates.values_of(feature_ids[i]).get("name", feature_ids[i]))
-		_features.add_item("%s  (%s)" % [label, feature_ids[i]], ImageTexture.create_from_image(img))
+		_features.add_item("%s  (%s)" % [label, feature_ids[i]], _swatch(feature_ids[i], colors[i]))
 	set_feature(feature)
 	var keep := _file.get_item_text(_file.selected) if _file.selected >= 0 else ""
 	if keep.is_empty() and _maps.item_count > 0:
@@ -1268,18 +1284,6 @@ class MapView:
 
 	func _rebuild(c: MapCanvas) -> void:
 		var f: PackedInt32Array = c.composite()["feature"]
-		var palette := PackedByteArray()
-		for col in painter.colors:
-			palette.append_array(PackedByteArray([col.r8, col.g8, col.b8]))
-		var data := PackedByteArray()
-		data.resize(c.width * c.height * 3)
-		var known := painter.colors.size()
-		for i in f.size():
-			var p := f[i] * 3
-			if f[i] >= 0 and f[i] < known:
-				data[i * 3] = palette[p]
-				data[i * 3 + 1] = palette[p + 1]
-				data[i * 3 + 2] = palette[p + 2]
-		_tex = ImageTexture.create_from_image(Image.create_from_data(c.width, c.height, false, Image.FORMAT_RGB8, data))
+		_tex = ImageTexture.create_from_image(ArtSet.ground_image(painter.art, c.width, c.height, f, painter.feature_ids, painter.colors))
 		_tex_of = c
 		_tex_rev = c.revision

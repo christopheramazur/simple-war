@@ -20,8 +20,8 @@ signal zoomed(factor: float)
 signal battle_camera(zoom: float, centre: Vector2)
 
 const HEX_SIZE: float = 26.0
-## Pixels per battlefield metre when the ground is drawn from textures.
-const GROUND_PX: int = 4
+## Pixels per battlefield metre when the ground is drawn from textures (ArtSet).
+const GROUND_PX: int = ArtSet.GROUND_PX
 const ONE: float = 65536.0
 const BG: Color = Color("12151a")
 const FOG: Color = Color("1b1f26")
@@ -1041,34 +1041,19 @@ func _terrain_texture(rules: Variant) -> ImageTexture:
 	_terrain_names = PackedStringArray()
 	if r.width <= 0 or r.height <= 0 or r.terrain.size() < r.width * r.height:
 		return null
-	# With ground textures, each metre is GROUND_PX pixels cut from its
-	# feature's texture (tiled), drawn with nearest filtering.
-	var srcs := {}
-	if art != null:
-		for f in r.feature_ids:
-			var src := art.image(f, "texture")
-			if src != null:
-				srcs[f] = src
-	var px := GROUND_PX if not srcs.is_empty() else 1
-	var img := Image.create(r.width * px, r.height * px, false, Image.FORMAT_RGBA8)
-	var seen := {}
-	for y in r.height:
-		for x in r.width:
-			var f: String = r.feature_ids[r.terrain[y * r.width + x]]
-			seen[f] = true
-			if px == 1:
-				img.set_pixel(x, y, _terrain_color(f))
-			elif srcs.has(f):
-				var src: Image = srcs[f]
-				var sx := (x * px) % maxi(src.get_width() - px + 1, 1)
-				var sy := (y * px) % maxi(src.get_height() - px + 1, 1)
-				img.blit_rect(src, Rect2i(sx, sy, px, px), Vector2i(x * px, y * px))
-			else:
-				img.fill_rect(Rect2i(x * px, y * px, px, px), _terrain_color(f))
-	_terrain_tex = ImageTexture.create_from_image(img)
+	var cells := PackedInt32Array()
+	cells.resize(r.width * r.height)
+	var colors: Array[Color] = []
 	for f in r.feature_ids:
-		if seen.has(f):
-			_terrain_names.append(f)
+		colors.append(_terrain_color(f))
+	var seen := {}
+	for i in cells.size():
+		cells[i] = r.terrain[i]
+		seen[cells[i]] = true
+	_terrain_tex = ImageTexture.create_from_image(ArtSet.ground_image(art, r.width, r.height, cells, r.feature_ids, colors))
+	for i in r.feature_ids.size():
+		if seen.has(i):
+			_terrain_names.append(r.feature_ids[i])
 	return _terrain_tex
 
 
