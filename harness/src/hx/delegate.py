@@ -13,6 +13,7 @@ No candidate left = escalate: the caller does the task itself.
 from __future__ import annotations
 
 import json
+import re
 import time
 import tomllib
 from dataclasses import dataclass, field
@@ -26,6 +27,10 @@ from hx.bench.routing import ROUTING_FILE
 SIZES = ["s", "m", "l"]
 MAX_TOKENS = 16384
 SYSTEM = "You are a precise assistant. Do exactly what the task asks and output only the result."
+RETRIES_429 = 3  # extra tries on an upstream 429 before the next candidate (sw-etl)
+BACKOFF_429 = (2.0, 5.0, 10.0)  # seconds, used when the 429 carries no Retry-After
+# Our own gate's refusals that won't clear within a call's wait: monthly budget, free-tier day caps (gateway/budget.py)
+GATE_REFUSAL = re.compile(r"monthly budget|free-tier (?:rpd|tpd)", re.I)
 
 
 @dataclass
@@ -108,7 +113,8 @@ def _call_target(cand: dict, roster: dict[str, providers.Provider]) -> dict:
         return {"adapter": "claude-cli", "model": cand["model"]}
     from hx.gateway import process
     return {"adapter": "openai", "base_url": process.base_url() + "/v1", "model": cand["model"],
-            "api_key_secret": "HX_GATEWAY_KEY", "params": {"temperature": 0.0, "max_tokens": MAX_TOKENS}}
+            "api_key_secret": "HX_GATEWAY_KEY", "params": {"temperature": 0.0, "max_tokens": MAX_TOKENS},
+            "retries": 0}  # no adapter-level retry: _call_retrying owns the 429 policy (deadline-capped)
 
 
 def _ready(cand: dict, roster: dict[str, providers.Provider], start_local: bool) -> str | None:
@@ -151,6 +157,21 @@ def _hand_to_worker(pid: str) -> None:
     worker_cmd.run(argparse.Namespace(action="start"))
 
 
+def _call_retrying(target: dict, call, system: str, prompt: str, timeout: float, deadline: float) -> adapters.Reply:
+    """One candidate's call. An upstream 429 is retried after its Retry-After (else backoff) while the wait
+    still ends before `deadline` (the --timeout budget); the next candidate is tried after that."""
+    attempt = 0
+    while True:
+        reply = call(target, system, prompt, timeout)
+        if reply.status != 429 or attempt == RETRIES_429 or GATE_REFUSAL.search(reply.body or ""):
+            return reply
+        wait = reply.retry_after if reply.retry_after is not None else BACKOFF_429[attempt]
+        if time.perf_counter() + wait >= deadline:
+            return reply
+        time.sleep(wait)
+        attempt += 1
+
+
 def run(prompt: str, level: str, task_class: str | None = None, size: str | None = None,
         system: str = SYSTEM, start_local: bool = True, timeout: float = 900,
         table: dict | None = None, roster: dict | None = None, call=adapters.call,
@@ -177,7 +198,7 @@ def run(prompt: str, level: str, task_class: str | None = None, size: str | None
             from hx import worker
             worker.delegate_lock().write_text(c["target"])
         try:
-            reply = call(_call_target(c, roster), system, prompt, timeout)
+            reply = _call_retrying(_call_target(c, roster), call, system, prompt, timeout, t0 + timeout)
         finally:
             if local:
                 worker.delegate_lock().unlink(missing_ok=True)
