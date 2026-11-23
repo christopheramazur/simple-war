@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-23 09:17 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 09:32 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 50, craft-researcher: 12, games-researcher: 13, lead-designer: 15, orchestrator: 75, retro: 1, tech-lead: 9, ux-art-director: 11 |
+| Turns per role | auditor: 51, craft-researcher: 12, games-researcher: 13, lead-designer: 15, orchestrator: 76, retro: 1, tech-lead: 9, ux-art-director: 11 |
 | Worker turns / research turns (24 h) | 2 / 0 |
 | Workers queued / running / awaiting review | - / sw-ll4.27.7 / sw-ll4.27.6, sw-vld |
 | Merged / rejected (all time) | 18 / 0 |
-| Gateway calls last hour (rate-limited) | 43 (35) |
+| Gateway calls last hour (rate-limited) | 42 (33) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-23 09:01 UTC **WARN** (rules) |
+| Latest audit | 11-23 09:31 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-23 09:17 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-23 09:31 UTC **WARN** (rules)
+
+17 swarm calls (14 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-ll4.27.6 finished (partial) 180 min ago and awaits review | act: worker sw-ll4.27.7 has run 146 min, past its 130 min limit | act: sw-vld finished (partial) 156 min ago and awaits review | health: 14/17 calls rate-limited (82%)
 
 ### 11-23 09:01 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-23 09:17 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-23 07:31 UTC **WARN** (rules)
 
 19 swarm calls (11 rate-limited), all nous/qwen4-max, cost 0 USD | health: 11/19 calls rate-limited (58%) | health: no merge in 2 h while workers ran
-
-### 11-23 07:01 UTC **WARN** (rules)
-
-24 swarm calls (14 rate-limited), all nous/qwen4-max, cost 0 USD | health: 14/24 calls rate-limited (58%) | health: 4/4 turns failed or timed out | health: no merge in 2 h while workers ran
 
