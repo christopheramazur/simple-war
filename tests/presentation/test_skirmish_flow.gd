@@ -125,9 +125,45 @@ func test_the_main_menu_lists_saved_games() -> void:
 	var over := m.open_saves()
 	var list := over.find_child("List", true, false)
 	assert_eq(list.get_child_count(), 1)
-	var text: String = (list.get_child(0) as Button).text
+	var text: String = (list.get_child(0).get_child(0) as Button).text
 	assert_string_contains(text, "Autosave")
 	assert_string_contains(text, "turn 1 vs Turtle")
+
+
+func test_saves_can_be_renamed_and_deleted() -> void:
+	var d := MatchDriver.new(MatchDriver.play_session("skirmish_mirror", 3), 1)
+	d.meta = {"map": "skirmish_mirror", "seed": 3, "profile": "profile_turtle", "human": 1}
+	var a := d.save_game("first")
+	var b := d.save_game("second")
+	assert_eq(MatchDriver.rename_save(a, "second"), "", "a taken name is refused")
+	assert_eq(MatchDriver.rename_save(a, "  fresh  "), SAVES + "/fresh.sav")
+	assert_false(FileAccess.file_exists(a))
+	assert_false(MatchDriver.delete_save(SAVES + "/../escape.sav"))
+	assert_true(MatchDriver.delete_save(b))
+	assert_eq(MatchDriver.saves().map(func(x: Dictionary) -> String: return x["slot"]), ["fresh"])
+
+
+func test_the_ai_memory_is_saved_so_a_loaded_game_plays_on_the_same() -> void:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var s := MatchDriver.play_session("skirmish_mirror", 3)
+	var d := MatchDriver.new(s, 1)
+	d.meta = {"map": "skirmish_mirror", "seed": 3, "profile": "profile_utility", "human": 1}
+	d.ai = MatchDriver.opponents(s, 1, "profile_utility", 3)
+	for i in 3:
+		d.end_turn()
+	var pc: ProfileController = d.ai[2]
+	pc._rng.next_u32()
+	pc.fault = "crash"
+	var back := MatchDriver.load_game(d.save_game("mem"))
+	var bc: ProfileController = back.ai[2]
+	assert_eq(bc._rng.get_state(), pc._rng.get_state(), "the random stream carries on")
+	assert_eq(bc.fault, "crash")
+	assert_eq(back._ai_step, d._ai_step)
+	for i in 3:
+		d.end_turn()
+		back.end_turn()
+	assert_eq(back.session.state_hash_hex(), d.session.state_hash_hex())
+	assert_not_null(l)
 
 
 func test_the_results_screen_opens_when_the_match_ends() -> void:

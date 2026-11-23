@@ -68,3 +68,20 @@ def test_mock_default_out():
 def test_mock_variant_paths():
     assert godot_cmd.mock_variant_paths("a/b/x.png") == [
         "a/b/x_greyscale.png", "a/b/x_protan.png", "a/b/x_deutan.png"]
+
+
+def test_check_reports_native_method_lint(fake_repo, monkeypatch):
+    (fake_repo / "src").mkdir()
+    (fake_repo / "src" / "a.gd").write_text("extends Node\n")
+    calls = []
+
+    def fake_run(exe, root, args, timeout, headless=True):
+        calls.append(args)
+        if "--check-only" in args:
+            return 0, []
+        return 0, ["noise", "NMLINT res://src/a.gd:3: c is Control, which has no method to_global()"]
+    monkeypatch.setattr(godot_cmd, "_run", fake_run)
+    r = godot_cmd._check(_parse("check", "src/a.gd"))
+    assert r.data["errors"] == 1
+    assert "to_global()" in r.data["shown"]
+    assert any(godot_cmd.NATIVE_LINT in a for a in calls)

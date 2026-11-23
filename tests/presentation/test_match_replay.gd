@@ -91,6 +91,51 @@ func test_the_war_room_watches_a_replay_from_either_side() -> void:
 	assert_string_contains(w.hints(), "the recording has ended")
 
 
+func test_a_replay_jumps_to_a_turn_steps_back_and_sees_everything() -> void:
+	var made := _record()
+	var played: OverworldSession = made[1]
+	var r := MatchReplay.open(made[0])
+	assert_false(r.seek(2), "going forward keeps the session")
+	assert_eq(r.session.turns_resolved(), 2)
+	var old := r.session
+	assert_true(r.seek(1), "going back starts a fresh session")
+	assert_ne(r.session, old)
+	assert_eq(r.session.turns_resolved(), 1)
+	assert_eq(r.session.turn_hashes[0], played.turn_hashes[0])
+	r.seek(99)
+	assert_true(r.at_end())
+	assert_eq(r.session.turn_hashes[2], played.turn_hashes[2], "the same state again")
+	assert_eq(r.diverged_turn, -1)
+	# Player 0 sees the whole map and every commander.
+	var all := r.session.observe(0)
+	var fog := r.session.observe(1)
+	assert_eq(all["plots"].size(), r.session.rules.plot_count())
+	assert_true(all["commanders"].size() >= fog["commanders"].size())
+	assert_eq(all["commanders"].size(), r.session.state.commanders.count())
+
+
+func test_the_war_room_replay_goes_back_and_drops_the_fog() -> void:
+	var made := _record()
+	var w := MainMenu.replay_room(made[0])
+	add_child_autofree(w)
+	w.go_to_turn(3)
+	assert_eq(w.session.turns_resolved(), 2)
+	w.step_back()
+	assert_eq(w.session.turns_resolved(), 1)
+	assert_eq(w.session, w.replay.session)
+	assert_eq(w.driver.session, w.session)
+	w.toggle_all_seeing()
+	assert_eq(w.player, 0)
+	assert_string_contains(w.hints(), "with no fog")
+	assert_eq(w.session.observe(w.player)["commanders"].size(), w.session.state.commanders.count())
+	w.end_turn_requested.emit()
+	assert_eq(w.session.turns_resolved(), 2)
+	w.toggle_all_seeing()
+	assert_eq(w.player, 1)
+	w.go_to_turn(1)
+	assert_eq(w.session.turns_resolved(), 0)
+
+
 func test_the_main_menu_lists_replays() -> void:
 	var made := _record(1)
 	var m: MainMenu = load("res://src/presentation/main_menu/main_menu.tscn").instantiate()

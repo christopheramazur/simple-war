@@ -239,14 +239,15 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 	var rules := state.rules
 	var sq := state.squads
 	var u := state.units
-	var me := BattleSquads.bit(player)
+	var all_seeing := player <= 0  # player 0 sees every active squad (replays)
+	var me := 0 if all_seeing else BattleSquads.bit(player)
 	var squads := []
 	var visible := {}
 	var by_id := {}
 	for row in sq.count():
 		var sid := sq.id_at(row)
 		var own := sq.player[row] == player
-		if not own and (sq.seen_by[row] & me == 0 or not sq.is_active(row)):
+		if not own and (not sq.is_active(row) or (not all_seeing and sq.seen_by[row] & me == 0)):
 			continue
 		visible[sid] = true
 		var d := {
@@ -280,7 +281,7 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 			var et := sq.engaged[row]
 			var trow := sq.row_of(et)
 			if d["activity"] == BattleActivity.Squad.ENGAGED and trow >= 0 \
-					and sq.is_active(trow) and sq.seen_by[trow] & me != 0:
+					and sq.is_active(trow) and (all_seeing or sq.seen_by[trow] & me != 0):
 				d["target"] = et
 		squads.append(d)
 	var units := []

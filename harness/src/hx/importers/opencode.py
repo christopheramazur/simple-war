@@ -73,6 +73,17 @@ def _ts(ms) -> datetime | None:
     return datetime.fromtimestamp(ms / 1000, timezone.utc).replace(tzinfo=None) if ms else None
 
 
+def _first_line(content, limit: int = 200) -> str | None:
+    if isinstance(content, list):
+        content = "\n".join(b.get("text", "") for b in content if isinstance(b, dict))
+    if not isinstance(content, str):
+        return None
+    for line in content.splitlines():
+        if line.strip():
+            return line.strip()[:limit]
+    return None
+
+
 def _text_len(content) -> int:
     return sum(len(b.get("text", "")) for b in content or [] if isinstance(b, dict))
 
@@ -129,9 +140,11 @@ def _assistant(out: Parsed, sid: str, mid: str, ts, d: dict) -> None:
                               "ts": tts, "tool": b.get("name"), "input_chars": len(json.dumps(inp)),
                               "command": inp.get("command") if isinstance(inp.get("command"), str) else None})
         if st.get("status") in ("completed", "error", "denied"):
+            is_err = st.get("status") == "error" or (meta.get("exit") not in (None, 0))
             out.tool_results.append({
                 "tool_use_id": b.get("id"), "session_id": sid,
                 "ts": _ts((b.get("time") or {}).get("completed")) or tts,
                 "result_chars": _text_len(st.get("content")),
-                "is_error": st.get("status") == "error" or (meta.get("exit") not in (None, 0)),
-                "denied": "denied" if st.get("status") == "denied" else None})
+                "is_error": is_err,
+                "denied": "denied" if st.get("status") == "denied" else None,
+                "error_line": _first_line(st.get("content")) if is_err else None})

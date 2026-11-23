@@ -27,9 +27,6 @@ const ORDER_NAMES: Dictionary = {
 const POOL_ICONS: Dictionary = {
 	"stamina": "■", "instinct": "◉", "morale": "♥", "prowess": "✚", "legend": "★",
 }
-const BAND_ICONS: Dictionary = {
-	"broken": "×", "fraying": "▽", "neutral": "◇", "primed": "△", "surging": "▲",
-}
 
 
 ## `squad`: its entry in observe_battle's "squads". `insp`: inspect_battle's
@@ -474,9 +471,7 @@ static func _band_word(band: String) -> String:
 
 
 static func _band_icon(band: String) -> String:
-	var key := "band_icon." + band
-	var s := String(TranslationServer.translate(key))
-	return s if s != key else String(BAND_ICONS.get(band, "·"))
+	return BandGlyphs.icon(band)
 
 
 static func _fmt(e: Dictionary) -> String:
