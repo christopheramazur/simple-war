@@ -1,18 +1,19 @@
 # Swarm status
 
-Updated 2026-11-23 16:04 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 16:19 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 57, craft-researcher: 12, games-researcher: 14, lead-designer: 15, orchestrator: 85, retro: 1, tech-lead: 10, ux-art-director: 12 |
-| Worker turns / research turns (24 h) | 19 / 0 |
+| Turns per role | auditor: 57, craft-researcher: 12, games-researcher: 14, lead-designer: 15, orchestrator: 86, retro: 1, tech-lead: 10, ux-art-director: 12 |
+| Worker turns / research turns (24 h) | 20 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
-| Merged / rejected (all time) | 19 / 1 |
+| Merged / rejected (all time) | 18 / 1 |
 | Gateway calls last hour (rate-limited) | 9 (0) |
 | Incidents | 0 postmortem(s) |
 | Latest audit | 11-23 16:01 UTC **WARN** (rules) |
 
 ## Recently merged
+- sw-1jy.5 (2026-11-21T12:33)
 - sw-ll4.27.1 (2026-11-21T13:00)
 - sw-ll4.27.4 (2026-11-21T13:19)
 - sw-ll4.27.2 (2026-11-21T13:40)
@@ -20,7 +21,6 @@ Updated 2026-11-23 16:04 UTC. Generation 1, audit alert streak 0. Supervisor run
 - sw-luo (2026-11-21T14:26)
 - sw-opt (2026-11-21T20:42)
 - sw-ll4.27.3 (2026-11-22T01:18)
-- sw-ll4.27.6 (2026-11-23T12:03)
 
 <!-- details: agents see only the summary above -->
 
