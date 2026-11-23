@@ -317,3 +317,17 @@ def test_escalate_hands_the_bead_to_the_large_model_without_an_attempt(bead):
     bead["st"]["session"].update(result="done", summary="fixed")
     j = ap.run_bead(TIERED, {"id": "sw-x"})
     assert (j["outcome"], j["model"]) == ("merged", "opus")
+
+
+def test_drain_finishes_the_running_bead_then_stops(env, monkeypatch):
+    monkeypatch.setattr(ap, "cfg", lambda: C)
+    monkeypatch.setattr(ap, "readings", lambda: both(week=0))
+    monkeypatch.setattr(ap, "pick", lambda c, skip: b("sw-ok"))
+
+    def run(c, bead, stop):
+        assert not stop()  # the running bead is not cut off
+        (ap.STATE / "DRAIN").write_text("x")  # `stop --after-bead` arrives mid-bead
+        return {"bead": bead["id"], "outcome": "merged"}
+    monkeypatch.setattr(ap, "run_bead", run)
+    assert ap.run_loop() == [{"bead": "sw-ok", "outcome": "merged"}]  # one bead, then the loop ends
+    assert not (ap.STATE / "DRAIN").exists()
