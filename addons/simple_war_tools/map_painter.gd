@@ -691,13 +691,49 @@ func _add_side() -> void:
 	changed()
 
 
-## The panel for the selected object.
+## The panel for the selected object, and under it the scenario's victory
+## settings.
 func _fill_object_box() -> void:
 	if _object_box == null:
 		return
 	for c in _object_box.get_children():
 		_object_box.remove_child(c)
 		c.queue_free()
+	_add_selection_box()
+	if scenario != null:
+		_add_victory_form()
+
+
+## The victory settings of the open scenario (Data Model 03 'victory'). A value
+## the scenario inherits shows as it is; a change writes the scenario's own.
+func _add_victory_form() -> void:
+	_object_box.add_child(_heading("Victory"))
+	var tl := _spin(1, 999, int(scenario.victory_value("turn_limit")))
+	tl.name = "VictoryTurnLimit"
+	tl.tooltip_text = "The battle ends on this turn; the side in the lead wins"
+	tl.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_victory("turn_limit", int(v))))
+	_object_box.add_child(_field("Turn limit", tl))
+	var pr := _options(PackedStringArray(["Influence", "Value"]), func(at: int) -> void:
+		_edit(func() -> String: return scenario.set_victory("primary", ScenarioCanvas.VICTORY_PRIMARIES[at])))
+	pr.name = "VictoryPrimary"
+	pr.tooltip_text = "The score the target and the turn limit count"
+	pr.select(maxi(ScenarioCanvas.VICTORY_PRIMARIES.find(str(scenario.victory_value("primary"))), 0))
+	_object_box.add_child(_field("Primary score", pr))
+	var st := _spin(0, 9999, int(scenario.victory_value("score_target")))
+	st.name = "VictoryScoreTarget"
+	st.tooltip_text = "A side that reaches this primary score wins at once; 0 means no score win"
+	st.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_victory("score_target", int(v))))
+	_object_box.add_child(_field("Score target", st))
+	for key: String in ["annihilation", "withdrawal"]:
+		var cb := CheckBox.new()
+		cb.name = "Victory_" + key
+		cb.text = {"annihilation": "A side with no squads fielded loses", "withdrawal": "A side that withdraws its last squads loses"}[key]
+		cb.button_pressed = bool(scenario.victory_value(key))
+		cb.toggled.connect(func(on: bool) -> void: _edit(func() -> String: return scenario.set_victory(key, on)))
+		_object_box.add_child(cb)
+
+
+func _add_selection_box() -> void:
 	if scenario == null:
 		_object_box.add_child(_hint("Pick a scenario above, or give a new one an id and press New, to place zones and deployment areas."))
 		return
