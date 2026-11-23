@@ -870,6 +870,8 @@ class MapView:
 	const INK := Color("e6b450")
 	const GRID_FROM := 6.0
 	const ARROWS_FROM := 9.0
+	## Wall pieces (ConnectShape) are drawn from the zoom the arrows are.
+	const SHAPES_FROM := 9.0
 
 	var painter: MapPainter
 	## Pixels per cell, and where the map's top-left corner is drawn.
@@ -880,6 +882,10 @@ class MapView:
 	var _tex: ImageTexture
 	var _tex_rev: int = -1
 	var _tex_of: MapCanvas
+	## The wall piece at each cell (pieces_for): the sides it joins, -1 for none.
+	var _pieces: PackedInt32Array = PackedInt32Array()
+	var _pieces_rev: int = -1
+	var _pieces_of: MapCanvas
 	## The view shows the whole map until the user zooms or drags it.
 	var _auto_fit: bool = true
 	var _panning: bool = false
@@ -1186,6 +1192,13 @@ class MapView:
 				draw_line(origin + Vector2(x, y0) * zoom, origin + Vector2(x, y1) * zoom, GRID)
 			for y in range(y0, y1 + 1):
 				draw_line(origin + Vector2(x0, y) * zoom, origin + Vector2(x1, y) * zoom, GRID)
+		if zoom >= SHAPES_FROM:
+			var pieces := pieces_for(c)
+			for y in range(y0, y1):
+				for x in range(x0, x1):
+					var sides := pieces[y * c.width + x]
+					if sides >= 0:
+						_piece(origin + (Vector2(x, y) + Vector2(0.5, 0.5)) * zoom, sides)
 		if zoom >= ARROWS_FROM:
 			var face: PackedByteArray = c.composite()["facing"]
 			for y in range(y0, y1):
@@ -1272,6 +1285,35 @@ class MapView:
 		var lo := Vector2(mini(from.x, to.x), mini(from.y, to.y))
 		var hi := Vector2(maxi(from.x, to.x) + 1, maxi(from.y, to.y) + 1)
 		draw_rect(Rect2(origin + lo * zoom, (hi - lo) * zoom), INK, false, 1.0)
+
+	## The wall piece at each cell, as the sides it joins (-1: no piece), from
+	## MapCanvas.shape_at. Kept until the canvas changes.
+	func pieces_for(c: MapCanvas) -> PackedInt32Array:
+		if _pieces_of == c and _pieces_rev == c.revision:
+			return _pieces
+		_pieces = PackedInt32Array()
+		_pieces.resize(c.width * c.height)
+		for y in c.height:
+			for x in c.width:
+				var p := c.shape_at(x, y)
+				_pieces[y * c.width + x] = -1 if p.is_empty() else ConnectShape.sides_of(p["shape"], p["turn"])
+		_pieces_of = c
+		_pieces_rev = c.revision
+		return _pieces
+
+	## A wall piece at a cell's centre: a bar from the centre to the edge of
+	## each side it joins, or a post when it joins none.
+	func _piece(at: Vector2, sides: int) -> void:
+		var ink := Color(1, 1, 1, 0.55)
+		if sides == 0:
+			draw_circle(at, zoom * 0.14, ink)
+			return
+		var half := zoom * 0.5
+		var width := maxf(zoom * 0.2, 1.0)
+		var dirs: Array[Vector2] = [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
+		for side in 4:
+			if sides & (1 << side):
+				draw_line(at, at + dirs[side] * half, ink, width)
 
 	func _arrow(at: Vector2, fc: int) -> void:
 		var d: Vector2 = [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT][fc - 1]

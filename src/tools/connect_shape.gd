@@ -60,3 +60,23 @@ static func _turn(m: int, base: int) -> int:
 			return t
 		cur = ((cur << 1) | (cur >> 3)) & 15
 	return 0
+
+
+## The inverse of `of`: the sides (a mask) of the piece `shape` turned `turn`
+## quarter turns clockwise from its base drawing. Isolated joins no side.
+static func sides_of(shape: String, turn: int) -> int:
+	var base := 0
+	match shape:
+		END:
+			base = N
+		STRAIGHT:
+			base = N | S
+		CORNER:
+			base = N | E
+		TEE:
+			base = N | E | S
+		CROSS:
+			base = 15
+	for _q in posmod(turn, 4):
+		base = ((base << 1) | (base >> 3)) & 15
+	return base

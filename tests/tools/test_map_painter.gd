@@ -347,3 +347,29 @@ func test_the_maps_tab_draws_the_package_art() -> void:
 	mp.view._tex = null
 	mp.view._rebuild(c)
 	assert_eq(mp.view._tex.get_size(), Vector2(c.width, c.height), "no art: a pixel a cell")
+
+
+func test_wall_pieces_round_trip_their_sides() -> void:
+	# sw-bgd: sides_of is the inverse of ConnectShape.of for every mask.
+	for mask in 16:
+		var p := ConnectShape.of(mask)
+		assert_eq(ConnectShape.sides_of(p["shape"], p["turn"]), mask, "mask %d" % mask)
+
+
+func test_the_maps_tab_draws_a_wall_piece_per_cell() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_wall_pieces", 5, 5, "open")
+	var wall := c.features.find("wall")
+	c.begin()
+	c.rect(1, 2, 3, 2, wall, 0)
+	c.paint(2, 3, wall, 0)
+	var view := MapPainter.MapView.new()
+	var pieces := view.pieces_for(c)
+	assert_eq(pieces.size(), 25)
+	assert_eq(pieces[2 * 5 + 1], ConnectShape.E, "(1, 2) is an end pointing east")
+	assert_eq(pieces[2 * 5 + 2], ConnectShape.E | ConnectShape.S | ConnectShape.W, "(2, 2) is a tee")
+	assert_eq(pieces[3 * 5 + 2], ConnectShape.N, "(2, 3) is an end pointing north")
+	assert_eq(pieces[0], -1, "open ground draws no piece")
+	c.paint(0, 0, wall, 0)
+	assert_eq(view.pieces_for(c)[0], 0, "a wall with no neighbours is a post")
+	view.free()
