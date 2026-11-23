@@ -251,3 +251,21 @@ func test_the_inspector_renames_and_edits_a_node() -> void:
 	assert_ne(p.edit_dialogue_node("fast", "end", "jeff", "x").size(), 0)
 	assert_string_starts_with(p._dresult.text, "Not saved:")
 	assert_true(_nodes(p).has("fast"))
+
+
+func test_selecting_a_dialogue_node_in_the_graph_opens_the_inspector() -> void:
+	var p := WarDataPanel.new()
+	p.package_dir = COPY
+	add_child_autofree(p)
+	p.show_dialogue("af_jeff_briefing")
+	await get_tree().process_frame
+	var n := WarGraphNode.new(1)
+	n.kind = "line"
+	n.node_name = "careful"
+	p._on_graph_selected({"graph_element": n})
+	assert_true(p._dinspect.visible, "a line node opens the inspector")
+	assert_eq(p._dname.text, "careful")
+	n.kind = "trigger"
+	n.node_name = "careful"
+	p._on_graph_selected({"graph_element": n})
+	assert_eq(p._dname.text, "careful", "a trigger node does not change the inspector")
