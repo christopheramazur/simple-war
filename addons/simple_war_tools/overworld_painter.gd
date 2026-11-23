@@ -239,6 +239,7 @@ func set_map_value(key: String, v: Variant) -> bool:
 		return false
 	canvas.begin()
 	canvas.set_value(key, v)
+	_sync_map_fields()
 	changed()
 	return true
 
