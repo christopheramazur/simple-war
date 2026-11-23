@@ -58,11 +58,19 @@ func test_own_squad_has_four_tabs() -> void:
 
 
 func test_opponent_view_has_no_abilities_tab() -> void:
-	var p := _pair(2)
-	if p[1].is_empty():
-		pending("enemy not inspectable at start")
-		return
-	assert_false(InspectionTabs.tabs_for(p[1]).has("abilities"))
+	# At battle start player 1 has seen no enemy squad, so observe(1) lists none and
+	# inspect(1, ...) is {}. Read the squad id from player 2's own observation and build
+	# the views straight from the simulation: abilities are owner-only.
+	var own_id := -1
+	for q: Dictionary in _session.observe(2)["squads"]:
+		if q["player"] == 2:
+			own_id = q["id"]
+			break
+	assert_ne(own_id, -1, "player 2 has a squad")
+	assert_false(InspectionTabs.tabs_for(Inspection.squad(_session.state, own_id, 1)).has("abilities"),
+			"the opponent's view has no abilities tab")
+	assert_true(InspectionTabs.tabs_for(Inspection.squad(_session.state, own_id, 2)).has("abilities"),
+			"the owner's view has the abilities tab")
 
 
 func test_squad_tab_has_unit_cards_that_open_units() -> void:
