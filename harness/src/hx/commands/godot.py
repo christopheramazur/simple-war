@@ -157,8 +157,22 @@ def _check(args) -> Result:
     return r
 
 
-SUMMARY = re.compile(r"^\s*(Tests|Passing( Tests)?|Failing( Tests)?|Pending|Asserts|Scripts|Time)\b.*\d", re.I)
+SUMMARY = re.compile(r"^\s*(Tests|Passing( Tests)?|Failing( Tests)?|Risky/Pending|Pending|Asserts|Scripts|Time)\b.*\d", re.I)
 FAILED = re.compile(r"\[Failed\]|^\s*FAILED|- test_\w+.*fail", re.I)
+FAILING_N = re.compile(r"Failing Tests\s+(\d+)")
+PENDING_N = re.compile(r"Risky/Pending\s+(\d+)")
+NOT_PASSING = re.compile(r"^- (test_\w+)\s*$")  # GUT's run summary lists only the failing and pending tests
+
+
+def not_passing(lines: list[str]) -> list[str]:
+    """'test_name: message' for each failing or pending test in GUT's run summary."""
+    out = []
+    for i, line in enumerate(lines):
+        m = NOT_PASSING.match(line.strip())
+        if m:
+            msg = next((x.strip() for x in lines[i + 1:i + 3] if x.strip()), "")
+            out.append(f"{m.group(1)}: {msg}".rstrip(": "))
+    return list(dict.fromkeys(out))
 
 
 def _test(args) -> Result:
@@ -187,13 +201,33 @@ def _test(args) -> Result:
     fails = [x.strip() for x in lines if FAILED.search(x)] + errors(lines)
     if fails:
         r.data["failures"] = "\n  " + "\n  ".join(dict.fromkeys(fails[:MAX_SHOWN]))
+    # A pending test exits 0 in GUT, so the status also reads GUT's failing and pending counts and names the tests.
+    failing = _count(FAILING_N, r.data["summary"])
+    pending = _count(PENDING_N, r.data["summary"])
+    named = not_passing(lines)
+    if named:
+        r.data["not_passing"] = "\n  " + "\n  ".join(named[:MAX_SHOWN])
     ran = re.search(r"Tests\s+(\d+)", r.data["summary"])
-    if code == 0 and not fails and (not ran or int(ran.group(1)) == 0):
+    if code == 0 and not fails and not failing and not pending and (not ran or int(ran.group(1)) == 0):
         r.checks.append(Check("gut", WARN, "no tests matched"))
         return r
-    r.checks.append(Check("gut", OK if code == 0 and not fails else FAIL,
-                          "timed out" if code == TIMED_OUT else f"exit {code}"))
+    problems = []
+    if code == TIMED_OUT:
+        problems.append("timed out")
+    elif code != 0:
+        problems.append(f"exit {code}")
+    if failing:
+        problems.append(f"{failing} failing")
+    if pending:
+        problems.append(f"{pending} pending")
+    ok = not problems and not fails
+    r.checks.append(Check("gut", OK if ok else FAIL, ", ".join(problems) or "failure output"))
     return r
+
+
+def _count(pattern: re.Pattern, text: str) -> int:
+    m = pattern.search(text)
+    return int(m.group(1)) if m else 0
 
 
 def gut_args(dirs: list[str], files: list[str], select: str | None, unit: str | None) -> list[str]:
