@@ -103,6 +103,9 @@ func test_panel_keeps_tab_across_refresh() -> void:
 	add_child_autofree(panel)
 	panel.show_battle("T", _session.observe(1), p[0], p[1], 1, 10)
 	panel._pick("effects", -1)
+	# show_battle queue_free()s the previous build; wait a frame so those nodes are
+	# freed before GUT counts orphans (sw-xng).
+	await get_tree().process_frame
 	var tabs := _find(panel, func(n: Node) -> bool: return n is Button and n.has_meta(&"tab") and (n as Button).button_pressed)
 	assert_eq((tabs[0] as Button).get_meta(&"tab"), "effects")
 
