@@ -11,14 +11,13 @@ extends RefCounted
 ## the terrain cover evasion at the target's position.
 ## Returns {evaded, blocked, resisted, flat, percent, floored, to_temp, to_hp,
 ##          absorbed, killed, terms: Array[[step, value]]}.
-const RESIST_STATS: Array[StringName] = [&"defense.resist_pct.kinetic", &"defense.resist_pct.energy", &"defense.resist_pct.explosive", &"defense.resist_pct.magic"]
 
 
 static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_pct: int) -> Dictionary:
 	var r := state.rules
 	var u := state.units
 	var prof := u.defense[row]
-	var nt := BattleRules.DAMAGE_TYPES.size()
+	var nt := r.damage_types.size()
 	var out := {"evaded": false, "blocked": 0, "resisted": 0, "flat": 0, "percent": 0,
 		"floored": 0, "to_temp": 0, "to_hp": 0, "absorbed": 0, "killed": false, "terms": []}
 	var terms: Array = out["terms"]
@@ -52,7 +51,7 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 			out["blocked"] = b
 			terms.append(["block", -b])
 
-	var res := Fixed.to_int_round(Stats.unit(state, row, RESIST_STATS[dtype], Fixed.from_int(r.df_resist[prof * nt + dtype])))
+	var res := Fixed.to_int_round(Stats.unit(state, row, r.resist_stats[dtype], Fixed.from_int(r.df_resist[prof * nt + dtype])))
 	if res != 0:
 		var rv := Fixed.round_div(d * res, 100)
 		d -= rv

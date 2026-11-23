@@ -198,7 +198,7 @@ static func _weapons(items: Array, insp: Dictionary, ctx: Dictionary, tps: int, 
 		var reload_total := 0
 		var cool_total := 0
 		if w >= 0:
-			title += " · %s" % String(DataSchema.DAMAGE_TYPES[rules.wp_type[w]]).capitalize()
+			title += " · %s" % String(rules.damage_types[rules.wp_type[w]]).capitalize()
 			reload_total = rules.wp_reload[w]
 			for m in range(rules.wp_mode_start[w], rules.wp_mode_start[w] + rules.wp_mode_count[w]):
 				cool_total = maxi(cool_total, rules.md_cooldown[m])

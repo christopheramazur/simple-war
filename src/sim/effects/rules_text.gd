@@ -138,7 +138,7 @@ static func effect(fx: EffectRules, bd: Dictionary, e: Dictionary, registry: Sta
 				_:
 					text = _f("fx.override", {"stat": stat, "amount": _num(amount), "unit": unit})
 		"damage":
-			text = _f("fx.damage", {"amount": _num(amount), "damage_type": _t("damage." + DataSchema.DAMAGE_TYPES[e["dtype"]], DataSchema.DAMAGE_TYPES[e["dtype"]])})
+			text = _f("fx.damage", {"amount": _num(amount), "damage_type": _t("damage." + fx.damage_types[e["dtype"]], fx.damage_types[e["dtype"]])})
 		"heal":
 			text = _f("fx.heal", {"amount": _num(amount)})
 		"pool_flow":
@@ -230,6 +230,8 @@ static func stat_name(id: String) -> String:
 		if leaf in ["capacity", "start_pct", "neutral_pct", "drift_pct_per_s", "instinct_cost"] and parts.size() >= 2:
 			leaf = parts[parts.size() - 2] + " " + leaf
 		fallback = leaf.replace("_pct", "").replace("_", " ").capitalize()
+		if id.begins_with("defense.resist_pct."):
+			fallback += " Resistance"
 	return _t("stat." + id, fallback)
 
 

@@ -87,6 +87,19 @@ func test_schema_rejects_undeclared_map_keys() -> void:
 	assert_string_contains(errs[0], "unknown key 'psychic'")
 
 
+func test_flagged_tag_is_a_damage_type_with_its_own_resist_stat() -> void:
+	var t := TemplateTable.build([
+		{"id": "kinetic", "kind": "tag", "values": {"damage_type": true}},
+		{"id": "psychic", "kind": "tag", "values": {"damage_type": true}},
+		{"id": "d", "kind": "defense", "values": {"resist_pct": {"psychic": 10}}},
+	])
+	assert_eq(DataSchema.damage_types(t), ["kinetic", "psychic"] as Array[String], "core types first, then extras sorted")
+	assert_eq(DataSchema.validate(t), PackedStringArray())
+	var reg := StatRegistry.from_schema(DataSchema.damage_types(t))
+	assert_true(reg.has("defense.resist_pct.psychic"))
+	assert_false(reg.has("defense.resist_pct.magic"), "an unflagged core type has no stat")
+
+
 # --- Modifier engine ---------------------------------------------------------
 
 func test_designer_hp_example() -> void:

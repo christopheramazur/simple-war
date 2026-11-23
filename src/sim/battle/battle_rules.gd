@@ -5,7 +5,6 @@ extends RefCounted
 ## All distances are fixed (Fixed.ONE per battlefield unit); all rates are per
 ## tick. GDD 03 §3.2-3.5.
 
-const DAMAGE_TYPES: Array[String] = DataSchema.DAMAGE_TYPES
 const SYSTEMS: Array[String] = DataSchema.SIMPL
 const BANDS: Array[String] = DataSchema.BANDS
 const SHAPES: Array[String] = ["line", "column", "wedge", "blob"]
@@ -15,9 +14,14 @@ const TARGETING: Array[String] = ["none", "self", "squad", "point"]
 var errors: PackedStringArray = PackedStringArray()
 ## Stat registry (shared, derived from the schema) and compiled bundles.
 var stats: StatRegistry
+## Damage types are data: the tags flagged damage_type (O1Q10), in
+## DataSchema.damage_types order. A weapon's or effect's type is an index here.
+var damage_types: Array[String] = []
+## Stat id of each type's resistance, parallel to damage_types.
+var resist_stats: Array[StringName] = []
 var fx: EffectRules
 
-static var _registry: StatRegistry
+static var _registries: Dictionary = {}  # damage types joined -> StatRegistry
 var scenario_id: String
 var data_hash: String
 
@@ -74,7 +78,7 @@ var df_block_chance: PackedInt64Array = PackedInt64Array()
 var df_block_amount: PackedInt64Array = PackedInt64Array()
 var df_flat: PackedInt64Array = PackedInt64Array()
 var df_percent: PackedInt64Array = PackedInt64Array()
-## [profile * DAMAGE_TYPES.size() + type]
+## [profile * damage_types.size() + type]
 var df_resist: PackedInt64Array = PackedInt64Array()
 var df_floor: PackedInt64Array = PackedInt64Array()
 var df_absorb_flat: PackedInt64Array = PackedInt64Array()
@@ -385,13 +389,19 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 		var sorted_list: PackedStringArray = by_kind[k]
 		sorted_list.sort()
 		by_kind[k] = sorted_list
-	if _registry == null:
-		_registry = StatRegistry.from_schema()
-	stats = _registry
+	damage_types = DataSchema.damage_types(t)
+	resist_stats.clear()
+	for dt in damage_types:
+		resist_stats.append(StringName("defense.resist_pct." + dt))
+	var reg_key := ",".join(damage_types)
+	if not _registries.has(reg_key):
+		_registries[reg_key] = StatRegistry.from_schema(damage_types)
+	stats = _registries[reg_key]
 	_compile_features(t, by_kind.get("feature", PackedStringArray()))
 	fx = EffectRules.compile(t, stats, tps, feature_ids)
 	errors.append_array(fx.errors)
-	_check_damage_tags(t)
+	if damage_types.is_empty():
+		errors.append("no damage types: tag at least one tag with damage_type: true")
 	var mv_index := _compile_movement(t, by_kind.get("movement", PackedStringArray()))
 	var df_index := _compile_defense(t, by_kind.get("defense", PackedStringArray()))
 	var wp_index := _compile_weapons(t, by_kind.get("weapon", PackedStringArray()))
@@ -609,21 +619,6 @@ func _compile_movement(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 	return index
 
 
-## Damage types are tags flagged damage_type (O1Q10). Each engine type needs
-## its tag, and a flagged tag the engine has no resistance stat for is an error.
-func _check_damage_tags(t: TemplateTable) -> void:
-	var flagged := {}
-	for tid in t.ids():
-		if not t.is_abstract(tid) and t.kind_of(tid) == "tag" and t.values_of(tid).get("damage_type", false):
-			flagged[tid] = true
-	for dt in DAMAGE_TYPES:
-		if not flagged.has(dt):
-			errors.append("damage type '%s' has no tag with damage_type: true" % dt)
-	for tid: String in flagged:
-		if not DAMAGE_TYPES.has(tid):
-			errors.append("tag '%s' is a damage type the engine has no resistance stat for" % tid)
-
-
 func _compile_defense(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 	var index := {}
 	for tid in ids:
@@ -637,7 +632,7 @@ func _compile_defense(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 		var res: Dictionary = v.get("resist_pct", {})
 		var flo: Dictionary = v.get("floor", {})
 		var ab: Dictionary = v.get("absorb", {})
-		for dt in DAMAGE_TYPES:
+		for dt in damage_types:
 			df_resist.append(int(res.get(dt, 0)))
 			df_floor.append(DataSchema.to_fixed(flo.get(dt, 0)))
 			var a: Dictionary = ab.get(dt, {})
@@ -653,7 +648,7 @@ func _compile_weapons(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 		index[tid] = wp_range.size()
 		wp_range.append(DataSchema.to_fixed(v["range"]))
 		wp_min_range.append(DataSchema.to_fixed(v.get("min_range", 0)))
-		wp_type.append(DAMAGE_TYPES.find(v["damage_type"]))
+		wp_type.append(damage_types.find(v["damage_type"]))
 		wp_magazine.append(int(v.get("magazine", 0)))
 		wp_reload.append(int(v.get("reload_ticks", 0)))
 		var modes: Dictionary = v["modes"]

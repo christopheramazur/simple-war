@@ -22,6 +22,8 @@ const OP_DEFAULT_WHEN: Dictionary = {"modify": "while"}
 
 var bundles: Array[Dictionary] = []
 var errors: PackedStringArray = PackedStringArray()
+## Damage types of the compiled table (DataSchema.damage_types); a damage effect's dtype indexes this.
+var damage_types: Array[String] = []
 var _index: Dictionary = {}  # bundle template id -> index
 var _features: PackedStringArray = PackedStringArray()
 
@@ -30,6 +32,7 @@ var _features: PackedStringArray = PackedStringArray()
 static func compile(t: TemplateTable, registry: StatRegistry, tps: int, features: PackedStringArray = PackedStringArray()) -> EffectRules:
 	var fx := EffectRules.new()
 	fx._features = features
+	fx.damage_types = DataSchema.damage_types(t)
 	var ids: PackedStringArray = PackedStringArray()
 	var tags := {}
 	for tid in t.ids():
@@ -127,7 +130,7 @@ func _compile_effect(src: String, v: Dictionary, b: Dictionary, registry: StatRe
 			if e["when"] != "while":
 				errors.append("%s: modify effects act 'while' the bundle is active" % src)
 		"damage":
-			e["dtype"] = DataSchema.DAMAGE_TYPES.find(str(v.get("damage_type", "")))
+			e["dtype"] = damage_types.find(str(v.get("damage_type", "")))
 			if e["dtype"] < 0:
 				errors.append("%s: damage needs a damage_type" % src)
 		"pool_flow":

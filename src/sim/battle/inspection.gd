@@ -81,9 +81,9 @@ static func _unit(state: BattleState, srow: int, urow: int, hidden: Dictionary, 
 		_entry(state, srow, urow, &"defense.evasion_pct", Fixed.from_int(r.df_evasion[df]), hidden),
 		_entry(state, srow, urow, &"defense.flat", r.df_flat[df], hidden),
 	]
-	var nt := DataSchema.DAMAGE_TYPES.size()
+	var nt := r.damage_types.size()
 	for d in nt:
-		stats.append(_entry(state, srow, urow, DamagePipeline.RESIST_STATS[d], Fixed.from_int(r.df_resist[df * nt + d]), hidden))
+		stats.append(_entry(state, srow, urow, r.resist_stats[d], Fixed.from_int(r.df_resist[df * nt + d]), hidden))
 	stats.append(_entry(state, srow, urow, &"movement.walk", r.mv_walk_s[mv], hidden))
 	stats.append(_entry(state, srow, urow, &"movement.run", r.mv_run_s[mv], hidden))
 	var w := u.weapon[urow]
