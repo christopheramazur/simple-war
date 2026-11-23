@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-23 21:50 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 22:06 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 62, craft-researcher: 14, games-researcher: 15, lead-designer: 17, orchestrator: 95, retro: 2, tech-lead: 11, ux-art-director: 13 |
+| Turns per role | auditor: 63, craft-researcher: 14, games-researcher: 15, lead-designer: 17, orchestrator: 96, retro: 2, tech-lead: 11, ux-art-director: 13 |
 | Worker turns / research turns (24 h) | 43 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
 | Merged / rejected (all time) | 18 / 1 |
-| Gateway calls last hour (rate-limited) | 3 (0) |
+| Gateway calls last hour (rate-limited) | 4 (0) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-23 21:31 UTC **WARN** (rules) |
+| Latest audit | 11-23 22:01 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-23 21:50 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-23 22:01 UTC **WARN** (rules)
+
+1 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 475 min ago and awaits review | act: sw-1jy.6 finished (failed) 453 min ago and awaits review | act: sw-5x6.2 finished (failed) 308 min ago and awaits review | act: sw-5x6.4 finished (failed) 297 min ago and awaits review | act: sw-5x6.7 finished (failed) 141 min ago and awaits review | act: sw-62i finished (failed) 175 min ago and awaits review | act: sw-68b finished (failed) 464 min ago and awaits review | act: sw-68h finished (failed) 253 min ago and awaits review | act: sw-7ii finished (failed) 119 min ago and awaits review | act: sw-884.11 finished (failed) 286 min ago and awaits review | act: sw-96x finished (failed) 164 min ago and awaits review | act: sw-a82 finished (failed) 186 min ago and awaits review | act: sw-abk finished (failed) 566 min ago and awaits review | act: sw-c9l finished (failed) 442 min ago and awaits review | act: sw-dqj finished (failed) 497 min ago and awaits review | act: sw-dqq finished (failed) 342 min ago and awaits review | act: sw-e0a finished (failed) 242 min ago and awaits review | act: sw-ijp.4 finished (failed) 397 min ago and awaits review | act: sw-kd5 finished (failed) 386 min ago and awaits review | act: sw-l4d finished (failed) 97 min ago and awaits review | act: sw-ll4.12 finished (failed) 275 min ago and awaits review | act: sw-ll4.14 finished (failed) 264 min ago and awaits review | act: sw-ll4.17 finished (failed) 419 min ago and awaits review | act: sw-ll4.20 finished (failed) 408 min ago and awaits review | act: sw-ll4.26.6 finished (failed) 364 min ago and awaits review | act: sw-ll4.27.6 finished (failed) 353 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 519 min ago and awaits review | act: sw-ll4.5 finished (failed) 430 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 508 min ago and awaits review | act: sw-mun finished (failed) 319 min ago and awaits review | act: sw-pcl finished (failed)
 
 ### 11-23 21:31 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-23 21:50 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-23 20:01 UTC **WARN** (rules)
 
 3 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 355 min ago and awaits review | act: sw-1jy.6 finished (failed) 333 min ago and awaits review | act: sw-5x6.2 finished (failed) 188 min ago and awaits review | act: sw-5x6.4 finished (failed) 177 min ago and awaits review | act: sw-68b finished (failed) 344 min ago and awaits review | act: sw-68h finished (failed) 133 min ago and awaits review | act: sw-884.11 finished (failed) 166 min ago and awaits review | act: sw-a82 finished (failed) 66 min ago and awaits review | act: sw-abk finished (failed) 446 min ago and awaits review | act: sw-c9l finished (failed) 322 min ago and awaits review | act: sw-dqj finished (failed) 377 min ago and awaits review | act: sw-dqq finished (failed) 222 min ago and awaits review | act: sw-e0a finished (failed) 122 min ago and awaits review | act: sw-ijp.4 finished (failed) 277 min ago and awaits review | act: sw-kd5 finished (failed) 266 min ago and awaits review | act: sw-ll4.12 finished (failed) 155 min ago and awaits review | act: sw-ll4.14 finished (failed) 144 min ago and awaits review | act: sw-ll4.17 finished (failed) 299 min ago and awaits review | act: sw-ll4.20 finished (failed) 288 min ago and awaits review | act: sw-ll4.26.6 finished (failed) 244 min ago and awaits review | act: sw-ll4.27.6 finished (failed) 233 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 399 min ago and awaits review | act: sw-ll4.5 finished (failed) 310 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 388 min ago and awaits review | act: sw-mun finished (failed) 199 min ago and awaits review | act: sw-qx2 finished (failed) 77 min ago and awaits review | act: sw-ryx finished (failed) 88 min ago and awaits review | act: sw-swo finished (failed) 99 min ago and awaits review | act: sw-tp9 finished (failed) 110 min ago and awaits review | act: sw-w8x finished (failed) 255 min ago and awaits review | act: sw-wqc finished (failed) 366
-
-### 11-23 19:31 UTC **WARN** (rules)
-
-7 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 325 min ago and awaits review | act: sw-1jy.6 finished (failed) 303 min ago and awaits review | act: sw-5x6.2 finished (failed) 158 min ago and awaits review | act: sw-5x6.4 finished (failed) 147 min ago and awaits review | act: sw-68b finished (failed) 314 min ago and awaits review | act: sw-68h finished (failed) 103 min ago and awaits review | act: sw-884.11 finished (failed) 136 min ago and awaits review | act: sw-abk finished (failed) 416 min ago and awaits review | act: sw-c9l finished (failed) 292 min ago and awaits review | act: sw-dqj finished (failed) 347 min ago and awaits review | act: sw-dqq finished (failed) 192 min ago and awaits review | act: sw-e0a finished (failed) 92 min ago and awaits review | act: sw-ijp.4 finished (failed) 247 min ago and awaits review | act: sw-kd5 finished (failed) 236 min ago and awaits review | act: sw-ll4.12 finished (failed) 125 min ago and awaits review | act: sw-ll4.14 finished (failed) 114 min ago and awaits review | act: sw-ll4.17 finished (failed) 269 min ago and awaits review | act: sw-ll4.20 finished (failed) 258 min ago and awaits review | act: sw-ll4.26.6 finished (failed) 214 min ago and awaits review | act: sw-ll4.27.6 finished (failed) 203 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 369 min ago and awaits review | act: sw-ll4.5 finished (failed) 280 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 358 min ago and awaits review | act: sw-mun finished (failed) 169 min ago and awaits review | act: sw-swo finished (failed) 69 min ago and awaits review | act: sw-tp9 finished (failed) 80 min ago and awaits review | act: sw-w8x finished (failed) 225 min ago and awaits review | act: sw-wqc finished (failed) 336 min ago and awaits review | act: sw-wut finished (failed) 181 min ago and awaits review | health: 6/6 turns failed or timed out | health: no merge in 2 h while workers ran
 
