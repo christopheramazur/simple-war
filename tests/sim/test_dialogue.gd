@@ -61,3 +61,24 @@ func test_start_dialogue_action() -> void:
 	var found := s.events.drain().filter(func(e: SimEvent) -> bool: return e.type == &"dialogue_started")
 	assert_eq(found.size(), 1)
 	assert_eq(found[0].data["dialogue"], "d")
+
+
+func test_session_plays_dialogue_and_saves_progress() -> void:
+	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
+	var s := OverworldSession.create(l.templates, l.data_hash, "angelfall_frontier", 7)
+	var id := "af_jeff_briefing"
+	var v := s.dialogue_view(id)
+	assert_eq(v["node"], "greet")
+	assert_eq(v["choices"].size(), 2, "the trust choice needs warmth")
+	assert_eq(s.dialogue_pick(1, id, 0), "the dialogue has not begun")
+	assert_eq(s.dialogue_begin(1, id), "")
+	assert_eq(s.dialogue_pick(1, id, 2), "that choice is not available")
+	assert_eq(s.dialogue_pick(1, id, 0), "")
+	assert_eq(s.state.vars["disp.jeff"], 1)
+	assert_eq(s.dialogue_view(id)["node"], "fast")
+	assert_eq(s.dialogue_pick(1, id, -1), "")
+	assert_eq(s.dialogue_pick(1, id, -1), "")
+	assert_true(s.dialogue_view(id)["ended"])
+	var back := OverworldSession.load_save(s.save(), l.templates, l.data_hash)
+	assert_true(back.dialogue_view(id)["ended"], "progress survives a save")
+	assert_eq(back.state_hash_hex(), s.state_hash_hex())

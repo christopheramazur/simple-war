@@ -96,7 +96,8 @@
 			"text": "Jeff sets the scene on the first turn.",
 			"on": "turn_resolved",
 			"do": [{"do": "message", "key": "angelfall.intro",
-				"text": "Jeff: The sky's wrong. Get everyone to the spaceport. The robots are with us; the angels are not."}]}},
+				"text": "Jeff: The sky's wrong. Get everyone to the spaceport. The robots are with us; the angels are not."},
+				{"do": "start_dialogue", "dialogue": "af_jeff_briefing", "player": 1}]}},
 		{"id": "af_dispersed", "kind": "trigger", "values": {
 			"text": "Every dispersed Angel is one to face later (R3Q17): counted for the campaign.",
 			"on": "guard_dispersed", "max_fires": 0,

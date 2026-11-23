@@ -16,6 +16,8 @@ extends RefCounted
 ## `dialogue_started` event; the presentation then walks the graph with
 ## `enter` and `choose`.
 
+## Progress value of a dialogue that has ended.
+const END := "@end"
 const ACTIONS: Array[String] = ["set_var", "add_var"]
 const NODE_KEYS: Array[String] = ["speaker", "key", "text", "do", "choices", "next"]
 const CHOICE_KEYS: Array[String] = ["key", "text", "next", "if", "do"]

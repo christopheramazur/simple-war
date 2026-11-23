@@ -153,6 +153,79 @@ func turns_resolved() -> int:
 
 # --- inputs ----------------------------------------------------------------
 
+## Where a dialogue stands (sw-62i): {"dialogue", "node", "speaker", "key",
+## "text", "choices" [{"index", "key", "text"} of the available ones], "ended"}.
+## {} for an
+## unknown dialogue. A dialogue not yet begun shows its start node. Progress
+## lives in the state, so it is saved and hashed.
+func dialogue_view(id: String) -> Dictionary:
+	if not templates.has(id) or templates.kind_of(id) != "dialogue":
+		return {}
+	var v := templates.values_of(id)
+	var at: String = state.dialogues.get(id, String(v["start"]))
+	var out := {"dialogue": id, "node": at, "ended": at == Dialogue.END, "speaker": "", "key": "", "text": "", "choices": []}
+	if out["ended"]:
+		return out
+	var node: Dictionary = (v["nodes"] as Dictionary)[at]
+	out["speaker"] = String(node.get("speaker", ""))
+	out["key"] = String(node.get("key", ""))
+	out["text"] = String(node.get("text", ""))
+	var list: Array = node.get("choices", [])
+	for i in Dialogue.available(state, v, at):
+		var c: Dictionary = list[i]
+		out["choices"].append({"index": i, "key": String(c.get("key", "")), "text": String(c.get("text", ""))})
+	return out
+
+
+## Begins a dialogue at its start node (its `do` runs). A no-op once begun.
+## "" or why not.
+func dialogue_begin(player: int, id: String) -> String:
+	var err := _planning(player)
+	if not err.is_empty():
+		return err
+	if not templates.has(id) or templates.kind_of(id) != "dialogue":
+		return "unknown dialogue"
+	if not state.dialogues.has(id):
+		var v := templates.values_of(id)
+		state.dialogues[id] = String(v["start"])
+		Dialogue.enter(state, v, String(v["start"]))
+		_log(player, "dialogue_begin", id)
+	return ""
+
+
+## Moves a dialogue on: picks choice `choice` of its node, or (-1) follows a
+## node without choices. "" or why not.
+func dialogue_pick(player: int, id: String, choice: int) -> String:
+	var err := _planning(player)
+	if not err.is_empty():
+		return err
+	var view := dialogue_view(id)
+	if view.is_empty():
+		return "unknown dialogue"
+	if not state.dialogues.has(id):
+		return "the dialogue has not begun"
+	if view["ended"]:
+		return "the dialogue has ended"
+	var v := templates.values_of(id)
+	var node: Dictionary = (v["nodes"] as Dictionary)[view["node"]]
+	var nxt := ""
+	if node.has("choices"):
+		if choice < 0 or not view["choices"].any(func(c: Dictionary) -> bool: return c["index"] == choice):
+			return "that choice is not available"
+		nxt = Dialogue.choose(state, v, view["node"], choice)
+	elif choice != -1:
+		return "this line has no choices"
+	else:
+		nxt = String(node.get("next", ""))
+	if nxt.is_empty():
+		state.dialogues[id] = Dialogue.END
+	else:
+		state.dialogues[id] = nxt
+		Dialogue.enter(state, v, nxt)
+	_log(player, "dialogue", {"dialogue": id, "choice": choice})
+	return ""
+
+
 ## Sets (or, with an empty route, clears) a commander's route. "" or why not.
 func set_route(player: int, commander_id: int, plots: PackedInt64Array) -> String:
 	var err := _planning(player)
@@ -1185,6 +1258,10 @@ func _replay(inputs: Array) -> void:
 				submit_reaction(i["player"], p["engagement"], p["squad"], p["reaction"], p["trigger"])
 			"preset":
 				save_preset(i["player"], p["name"], p["prefer"], p["avoid"])
+			"dialogue_begin":
+				dialogue_begin(i["player"], p)
+			"dialogue":
+				dialogue_pick(i["player"], p["dialogue"], p["choice"])
 			"ready":
 				ready(i["player"])
 			"advance":

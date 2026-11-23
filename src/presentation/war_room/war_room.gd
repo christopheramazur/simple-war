@@ -139,6 +139,9 @@ var _banner_text: Label
 ## Messages from triggers, newest last: [translated text].
 var messages: PackedStringArray = PackedStringArray()
 var _log_turn: int = -1
+## Dialogues a trigger started and not yet played (sw-62i): dialogue IDs.
+var _dialogues: PackedStringArray = PackedStringArray()
+var _dialogue_panel: DialoguePanel
 ## The left column shown in a battle: scores and the squad card.
 ## Where the panels are (data/ui/layouts/war_room.json).
 var layout: UiLayout
@@ -447,6 +450,13 @@ func _build_ui() -> void:
 		panels["main_menu"] = back
 	layout = UiLayout.build(UiLayout.spec("war_room", panels.keys()), panels, self, use_settings)
 	var stage: Control = layout.regions.get("stage", self)
+	_dialogue_panel = DialoguePanel.new()
+	_dialogue_panel.visible = false
+	_dialogue_panel.z_index = 100
+	_dialogue_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	_dialogue_panel.picked.connect(_on_dialogue_picked)
+	_dialogue_panel.closed.connect(_next_dialogue)
+	add_child(_dialogue_panel)
 	ui = UiRoot.new()  # its own, last, so it draws and hears keys first
 	add_child(ui)
 	ui.open(_hover_win, stage)
@@ -460,6 +470,46 @@ func _build_ui() -> void:
 	_blocker.gui_input.connect(_on_playback_clicked)
 	ui.open(_blocker)
 	_sync_ui_context()
+
+
+## The dialogue on screen, "" when none.
+func current_dialogue() -> String:
+	return _dialogues[0] if _dialogue_panel != null and _dialogue_panel.visible and not _dialogues.is_empty() else ""
+
+
+## Queues a started dialogue and shows it if none is open.
+func queue_dialogue(id: String) -> void:
+	if replay != null or session.locked or id in _dialogues or session.state.dialogues.get(id, "") == Dialogue.END:
+		return
+	_dialogues.append(id)
+	if _dialogues.size() == 1:
+		_show_dialogue()
+
+
+func _show_dialogue() -> void:
+	if _dialogues.is_empty():
+		return
+	var err := session.dialogue_begin(player, _dialogues[0])
+	if not err.is_empty():
+		_note(err)
+		_dialogues.remove_at(0)
+		_show_dialogue()
+		return
+	_dialogue_panel.show_view(session.dialogue_view(_dialogues[0]))
+
+
+func _on_dialogue_picked(choice: int) -> void:
+	var id := _dialogues[0]
+	var err := session.dialogue_pick(player, id, choice)
+	if not err.is_empty():
+		_note(err)
+	_dialogue_panel.show_view(session.dialogue_view(id))
+
+
+func _next_dialogue() -> void:
+	if not _dialogues.is_empty():
+		_dialogues.remove_at(0)
+	_show_dialogue()
 
 
 ## Opens or closes the controls list.
@@ -1740,7 +1790,10 @@ func _refresh_log() -> void:
 		var obs := _obs()
 		for e: Dictionary in obs.get("events", []):
 			var d: Dictionary = e["data"] if e.has("data") else e
-			if e["type"] in [&"trigger_message", &"mission_ended"]:
+			if e["type"] == &"dialogue_started":
+				if int(d.get("player", 0)) in [0, player]:
+					queue_dialogue(String(d.get("dialogue", "")))
+			elif e["type"] in [&"trigger_message", &"mission_ended"]:
 				messages.append(_say(String(d.get("key", "")), String(d.get("text", ""))))
 			elif EventText.in_feed(e["type"]):
 				_name_feature(d, obs)
