@@ -523,3 +523,6 @@
   - `$ git -C ../simple-war-worktrees/sw-vld status --short | head -8 && git log --oneline -4 main -- src/presentation/war_room/squad_card.gd && git -C ../simple-war`
 - commits this turn: 0b31666 Merge main into autopilot/sw-ow6; d49c264 sw-ow6: the trigger graph is a view; an edit drawn in it is not saved and is redrawn from the definition; 2462aa7 swarm: docs and status; 18be0af swarm: docs and status; 435d287 Merge main into autopilot/sw-7wt; 7aaf21b sw-7wt: refuse graph edits to a dialogue whose nodes are inherited; 762320d swarm: docs and status; 54077ec swarm: docs and status
 - next: check what the last actions finished (files, beads, merges) before repeating them; journal and commit earlier this time.
+## 2026-11-23T09:42Z turn
+- woke: 2 AUDIT WARN (compliance clean): sw-ll4.27.6 + sw-vld partials await review; sw-ll4.27.7 running past its 130m limit. 33/42 (~79%) rate-limited -> LEAN turn: merge before spawn, journal after each step.
+- plan: verify state left by killed 08:58 turn (vld merge-check note appended; did ow6/7wt merges land?), then merge the longest-waiting partial, refill slots only if budget allows.
