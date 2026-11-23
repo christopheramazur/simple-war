@@ -71,3 +71,16 @@ func receive(from_peer: int, bytes: PackedByteArray, now_msec: int) -> bool:
 			ls.report_hash(from_peer, b["turn"], b["hash"])
 			return true
 	return false
+
+
+## Binds a NetTransport (loopback, Steam) as the backend: every other slot
+## becomes a link over `net`, and packets it receives feed `receive`. `clock`
+## is a Callable returning the current msec (defaults to engine ticks).
+## Call `net.poll()` each frame to deliver.
+func attach(net: NetTransport, clock: Callable = Callable()) -> void:
+	for p: int in driver.lockstep.slots:
+		if p != driver.lockstep.local_peer:
+			links[p] = func(bytes: PackedByteArray) -> void: net.send(p, bytes)
+	net.packet_received.connect(func(from_peer: int, data: PackedByteArray) -> void:
+		var now: int = clock.call() if clock.is_valid() else Time.get_ticks_msec()
+		receive(from_peer, data, now))

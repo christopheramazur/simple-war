@@ -40,3 +40,26 @@ func test_foreign_orders_are_flagged() -> void:
 	var fake := [{"turn": 1, "phase": 0, "player": 1, "kind": "route", "payload": {}}]
 	host.apply_orders({1: [], 2: fake})
 	assert_eq(host.lockstep.flags.size(), 1)
+
+
+func test_two_peers_over_loopback_transport() -> void:
+	var ps := _pair()
+	if ps[0].match_driver.session == null:
+		pending("map unavailable")
+		return
+	var nets := LoopbackTransport.hub(PackedInt32Array([1, 2]))
+	var ts: Array = []
+	for i in 2:
+		var t := LockstepTransport.new(ps[i])
+		t.attach(nets[i], func() -> int: return 1)
+		ts.append(t)
+		ps[i].begin_turn(0)
+	ts[0].send_local_orders(1)
+	ts[1].send_local_orders(1)
+	nets[0].poll()
+	nets[1].poll()
+	nets[0].poll()
+	nets[1].poll()
+	assert_eq(ps[0].match_driver.session.turns_resolved(), ps[1].match_driver.session.turns_resolved())
+	assert_eq(ps[0].match_driver.session.state_hash_hex(), ps[1].match_driver.session.state_hash_hex())
+	assert_gt(ps[0].match_driver.session.turns_resolved(), 0)
