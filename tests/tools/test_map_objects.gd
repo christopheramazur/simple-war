@@ -293,3 +293,64 @@ func test_the_victory_form_edits_the_open_scenario() -> void:
 	assert_eq([saved["turn_limit"], saved["primary"], saved["withdrawal"]], [6, "value", true])
 	assert_true(mp.open_scenario(""))
 	assert_null(mp._object_box.find_child("VictoryTurnLimit", true, false), "no form without a scenario")
+
+
+## Repeat on the mirror side (GDD 04 §4.9, sw-dn5a): a zone or side is copied
+## to its mirror cell or area with players 1 and 2 swapped, facing turned the
+## same way, and its squads copied.
+func test_a_zone_and_a_side_repeat_on_the_mirror_side() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := ScenarioCanvas.create(m.templates, "t_scn", "field_map", 120, 80)
+	c.begin()
+	assert_eq(c.repeat_on_mirror("zone", 0, MapCanvas.Mirror.NONE, 120, 80), "the map has no mirror: pick one in the map's settings first")
+	assert_eq(c.repeat_on_mirror("zone", 0, MapCanvas.Mirror.TURN, 120, 80), "")
+	assert_eq([c.zones[1]["id"], c.zones[1]["x"], c.zones[1]["y"], c.zones[1]["radius"]], ["centre_mirror", 59, 39, 12])
+	assert_eq(c.repeat_on_mirror("zone", 1, MapCanvas.Mirror.TURN, 120, 80), "a zone is already there", "the copy's own mirror is the original")
+	# A side: player 2's area is in the way until it is removed.
+	c.set_side(0, "facing", 16384)
+	c.add_squad(0, "rifle_squad")
+	assert_eq(c.repeat_on_mirror("side", 0, MapCanvas.Mirror.TURN, 120, 80), "player 2 already has a side")
+	c.remove_side(1)
+	assert_eq(c.repeat_on_mirror("side", 0, MapCanvas.Mirror.TURN, 120, 80), "")
+	var s: Dictionary = c.sides[1]
+	assert_eq([s["player"], s["facing"], s["squads"]], [2, 49152, ["rifle_squad"]], "player swapped, facing half turned, squads copied")
+	assert_eq(c.area_rect(1), Rect2i(95, 12, 20, 56), "the area's far edge lands on the mirror of its near edge")
+	c.add_side(50, 50)
+	assert_eq(c.repeat_on_mirror("side", 2, MapCanvas.Mirror.TURN, 120, 80), "only players 1 and 2 have a mirror side")
+	assert_eq(c.repeat_on_mirror("side", 9, MapCanvas.Mirror.TURN, 120, 80), "no such side")
+	c.remove_side(2)
+	# The copies are written like the rest, and the package takes them.
+	assert_eq(m.add(c.definition_text(), m.file_of("ow_field")), PackedStringArray())
+	assert_eq(BattleRules.compile(m.templates, "t_scn").errors, PackedStringArray())
+
+
+func test_facings_turn_with_the_mirror() -> void:
+	assert_eq(ScenarioCanvas.mirror_facing(0, MapCanvas.Mirror.LEFT_RIGHT), 32768, "east faces west")
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.LEFT_RIGHT), 16384, "south stays south")
+	assert_eq(ScenarioCanvas.mirror_facing(49152, MapCanvas.Mirror.LEFT_RIGHT), 49152, "north stays north")
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.TOP_BOTTOM), 49152, "south becomes north")
+	assert_eq(ScenarioCanvas.mirror_facing(0, MapCanvas.Mirror.TOP_BOTTOM), 0)
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.TURN), 49152)
+	assert_eq(ScenarioCanvas.mirror_facing(0, MapCanvas.Mirror.FOUR), 32768, "four ways repeats by the half turn")
+	assert_eq(ScenarioCanvas.mirror_facing(16384, MapCanvas.Mirror.NONE), 16384)
+
+
+func test_the_painter_repeats_the_selected_zone_and_undoes_it() -> void:
+	var p := _panel()
+	var mp := p.painter()
+	assert_true(mp.open_map("field_map"))
+	mp.set_tool(MapPainter.Tool.OBJECT)
+	mp.select_object({"kind": "zone", "index": 0})
+	mp.canvas.mirror = MapCanvas.Mirror.NONE
+	var n := mp.scenario.zones.size()
+	mp._repeat_on_mirror()
+	assert_eq(mp.scenario.zones.size(), n, "no mirror on the map, nothing is repeated")
+	mp.canvas.mirror = MapCanvas.Mirror.TURN
+	mp._repeat_on_mirror()
+	assert_eq(mp.scenario.zones.size(), n + 1)
+	assert_eq(mp.selected, {"kind": "zone", "index": n}, "the copy is selected")
+	var z0: Dictionary = mp.scenario.zones[0]
+	var z1: Dictionary = mp.scenario.zones[n]
+	assert_eq([z1["x"], z1["y"]], [119 - int(z0["x"]), 79 - int(z0["y"])])
+	mp.undo()
+	assert_eq(mp.scenario.zones.size(), n, "undo takes the copy back")

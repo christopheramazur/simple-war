@@ -756,6 +756,7 @@ func _add_selection_box() -> void:
 			sp.name = "Zone_" + key
 			sp.value_changed.connect(func(v: float) -> void: _edit(func() -> String: return scenario.set_zone(i, key, int(v))))
 			_object_box.add_child(_field({"radius": "Radius (m)", "vp": "Points", "threshold": "Threshold", "decay": "Decay", "buffer": "Buffer"}[key], sp))
+		_object_box.add_child(_button("Repeat on mirror side", _repeat_on_mirror, "Copy this zone to the mirrored cell, players 1 and 2 swapped (needs a mirror on the map)"))
 		_object_box.add_child(_button("Delete zone", remove_selected, "Delete key"))
 	elif selected["kind"] == "side" and i < scenario.sides.size():
 		var sd: Dictionary = scenario.sides[i]
@@ -801,7 +802,27 @@ func _add_selection_box() -> void:
 			_fill_object_box()
 			changed(), "Add the chosen squad to this side"))
 		_object_box.add_child(add_row)
+		_object_box.add_child(_button("Repeat on mirror side", _repeat_on_mirror, "Copy this side to the mirrored area for the other player, facing turned the same way (needs a mirror on the map)"))
 		_object_box.add_child(_button("Delete side", remove_selected, "Delete key"))
+
+
+## Repeats the selected zone or side on the mirrored side of the map, and
+## selects the copy. Refused, with why, if the map has no mirror or the copy
+## would clash.
+func _repeat_on_mirror() -> void:
+	if scenario == null or selected.is_empty() or canvas == null:
+		return
+	var kind: String = selected["kind"]
+	scenario.begin()
+	var why := scenario.repeat_on_mirror(kind, selected["index"], canvas.mirror, canvas.width, canvas.height)
+	if not why.is_empty():
+		scenario.undo()
+		_say(why)
+		return
+	var n := scenario.zones.size() if kind == "zone" else scenario.sides.size()
+	select_object({"kind": kind, "index": n - 1})
+	changed()
+	_say("Repeated on the mirror side. The copy is selected; it is its own object, so moving one does not move the other.")
 
 
 ## One edit from the panel: an undo step, the edit, and its refusal if any.
