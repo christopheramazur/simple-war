@@ -44,6 +44,7 @@ def run(args) -> Result:
         "cache_hit": t["cache_hit"],
         "closed_tasks": f"{t['tasks_closed']} at ${t['usd_per_closed_task']}/task" if t["tasks_closed"] else 0,
         "friction": ", ".join(f"{k} {v}" for k, v in f.items()),
+        "long_commands": f"{d['shell']['long_commands']} over {d['shell']['long_limit']} chars",
         "time": f"agent {tm['agent_work_h']}h / waiting on you {tm['human_wait_h']}h / away {tm['away_h']}h",
         "quota": "; ".join(
             f"{q['provider']} {q['window']} {q['used_pct']}% (resets {q['resets']}"
@@ -57,6 +58,8 @@ def run(args) -> Result:
         "by task": d["by_task"][:n],
         "tools by output": [{k: v for k, v in row.items() if k != "denied"} for row in d["tools"][:n]],
         "top commands": d["commands"][:n],
+        "shell errors by client": d["shell"]["by_client"],
+        "shell error signatures": d["shell"]["signatures"][:n],
     }
     if args.html or args.open:
         from hx import report_html
@@ -66,6 +69,8 @@ def run(args) -> Result:
             webbrowser.open(out.as_uri())
     if args.json:  # machine readers get everything, untrimmed
         r.tables = {k: v for k, v in d.items() if isinstance(v, list) and k != "pending"}
+        r.tables["shell_by_client"] = d["shell"]["by_client"]
+        r.tables["shell_signatures"] = d["shell"]["signatures"]
         r.data.update({"totals": t, "friction_counts": f, "time_detail": tm, "pending": d["pending"]})
     return r
 

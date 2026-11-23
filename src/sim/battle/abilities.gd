@@ -92,7 +92,8 @@ static func can_use(state: BattleState, aid: int) -> String:
 
 ## Validates one entry of an order's "abilities" list for squad row `srow`:
 ## {"id": ability, "on": bool} for toggles, {"id": ability, "target": squad}
-## for others ("target" only when the ability targets a squad).
+## for others ("target" only when the ability targets a squad; "x", "y" in
+## fixed point when it targets a point).
 static func validate_use(state: BattleState, srow: int, a: Variant) -> String:
 	if typeof(a) != TYPE_DICTIONARY or typeof((a as Dictionary).get("id")) != TYPE_STRING:
 		return "ability entry needs an id"
@@ -128,7 +129,15 @@ static func validate_use(state: BattleState, srow: int, a: Variant) -> String:
 			if reach >= 0 and Fixed.distance(sq.cx[srow], sq.cy[srow], sq.cx[trow], sq.cy[trow]) > reach:
 				return "target out of range"
 		"point":
-			return "'%s': point targeting is not supported yet" % a["id"]
+			var px: Variant = a.get("x")
+			var py: Variant = a.get("y")
+			if typeof(px) != TYPE_INT or typeof(py) != TYPE_INT:
+				return "'%s' needs a target point (x, y)" % a["id"]
+			if px < 0 or py < 0 or px > Fixed.from_int(r.width) or py > Fixed.from_int(r.height):
+				return "target point off the map"
+			var preach := Stats.squad(state, srow, RANGE_STAT, r.ab_range[ab]) if r.ab_range[ab] >= 0 else -1
+			if preach >= 0 and Fixed.distance(sq.cx[srow], sq.cy[srow], px, py) > preach:
+				return "target out of range"
 	return ""
 
 
@@ -138,7 +147,7 @@ static func apply_use(state: BattleState, srow: int, a: Dictionary) -> void:
 	if state.rules.ab_toggle[state.abilities.ability[state.abilities.row_of(aid)]] == 1:
 		set_toggle(state, aid, a["on"])
 	else:
-		use(state, aid, int(a.get("target", -1)))
+		use(state, aid, int(a.get("target", -1)), int(a.get("x", 0)), int(a.get("y", 0)))
 
 
 ## Switches a toggle on (paying its costs, readying if it has a ready time)
@@ -155,8 +164,11 @@ static func set_toggle(state: BattleState, aid: int, turn_on: bool) -> void:
 	_begin(state, aid, -1)
 
 
-## Uses a non-toggle ability on `target_id` (-1 = its own squad).
-static func use(state: BattleState, aid: int, target_id: int) -> void:
+## Uses a non-toggle ability on `target_id` (-1 = its own squad), or at the
+## fixed-point (x, y) when it targets a point.
+static func use(state: BattleState, aid: int, target_id: int, x: int = 0, y: int = 0) -> void:
+	_put(state.abilities, aid, &"tx", x)
+	_put(state.abilities, aid, &"ty", y)
 	_pay(state, aid, StringName("ability_" + state.rules.ab_ids[state.abilities.ability[state.abilities.row_of(aid)]]))
 	_begin(state, aid, target_id)
 
@@ -346,9 +358,42 @@ static func _fire(state: BattleState, aid: int) -> void:
 	var me := t.squad[row]
 	var tgt := t.target[row]
 	var b := state.rules.ab_bundle[t.ability[row]]
+	if BattleRules.TARGETING[state.rules.ab_targeting[t.ability[row]]] == "point":
+		_burst(state, aid)
+		return
 	var eid := Effects.apply(state, b, tgt, -1, me) if tgt >= 0 and tgt != me else Effects.apply(state, b, me)
 	state.events.push(&"ability_used", {"squad": me, "ability": state.rules.ab_ids[t.ability[row]], "target": tgt}, state.tick)
 	_hold(state, aid, eid)
+
+
+## Point abilities (sw-ps1.8): a burst. The bundle is applied, sourced from
+## the user, to every active squad whose centre lies within the radius of the
+## aimed point when the ability fires (after any readying), ascending by squad
+## ID. Squads then carry their own instances, so nothing is held by the
+## ability and the ability is finished at once.
+static func _burst(state: BattleState, aid: int) -> void:
+	var t := state.abilities
+	var row := t.row_of(aid)
+	var ab := t.ability[row]
+	var r := state.rules
+	var me := t.squad[row]
+	var sq := state.squads
+	var mrow := sq.row_of(me)
+	var hit: Array = []
+	for s in sq.count():
+		if not sq.is_active(s) or sq.alive[s] <= 0:
+			continue
+		var same := mrow >= 0 and sq.player[s] == sq.player[mrow]
+		if (r.ab_affects[ab] == "allies" and not same) or (r.ab_affects[ab] == "enemies" and same):
+			continue
+		if Fixed.distance(sq.cx[s], sq.cy[s], t.tx[row], t.ty[row]) <= r.ab_radius[ab]:
+			hit.append(sq.id_at(s))
+	hit.sort()
+	for sid: int in hit:
+		Effects.apply(state, r.ab_bundle[ab], sid, -1, me)
+	state.events.push(&"ability_used", {"squad": me, "ability": r.ab_ids[ab], "target": -1, "x": t.tx[row], "y": t.ty[row], "hit": hit.size()}, state.tick)
+	_put(t, aid, &"effect", -1)
+	_put(t, aid, &"on", 0)
 
 
 ## Keeps the bundle instance as the ability's held state, unless it is

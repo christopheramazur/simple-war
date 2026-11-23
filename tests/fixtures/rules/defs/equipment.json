@@ -80,6 +80,12 @@
 		{"id": "dig_in", "kind": "ability", "values": {
 			"name": "Dig in", "bundle": "dug_in",
 			"activation": {"ready_s": 3, "readying_prowess_per_s": 2, "lose_on": ["move", "damaged"], "cooldown_s": 10}}},
+		{"id": "flare_shell", "kind": "ability", "values": {
+			"name": "Flare shell", "bundle": "lit_up",
+			"activation": {"targeting": "point", "range": 40, "radius": 10, "affects": "enemies", "cooldown_s": 5, "charges": 2}}},
+		{"id": "lit_up", "kind": "bundle", "values": {
+			"name": "Lit up", "tags": ["debuff"], "duration": {"turns": 1},
+			"effects": [{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": -10}]}},
 		{"id": "dug_in", "kind": "bundle", "values": {
 			"name": "Dug in", "tags": ["buff"], "duration": {"turns": 2},
 			"effects": [{"op": "modify", "stat": "defense.evasion_pct", "mod": "flat", "amount": 15}]}},

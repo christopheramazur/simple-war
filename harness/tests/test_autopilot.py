@@ -187,8 +187,32 @@ def test_failed_merge_returns_the_bead(bead):
 
 def test_blocked_is_labelled(bead):
     bead["st"]["session"].update(result="blocked", summary="needs a design call")
+    bead["st"]["commits"] = "0"
     j = ap.run_bead(C, {"id": "sw-x"})
     assert j["outcome"] == "blocked" and labels(bead["calls"]) == ["--add-label=autopilot-blocked"]
+
+
+def test_blocked_work_is_merged_and_labelled(bead):
+    bead["st"]["session"].update(result="blocked", summary="needs a design call")
+    j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == "merged_blocked" and bead["merges"] == ["autopilot/sw-x"]
+    assert labels(bead["calls"]) == ["--add-label=autopilot-blocked"]
+    assert not [c for c in bead["calls"] if c[0] == "close"]
+
+
+def test_partial_work_is_merged_and_the_bead_left_open(bead):
+    bead["st"]["session"].update(result="partial", summary="the setting waits on sw-y")
+    j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == "merged_partial" and bead["merges"] == ["autopilot/sw-x"]
+    assert ("unclaim", "sw-x") in bead["calls"] and labels(bead["calls"]) == ["--add-label=autopilot-partial"]
+    assert not [c for c in bead["calls"] if c[0] == "close"]
+
+
+def test_partial_that_fails_the_gate_stays_on_its_branch(bead):
+    bead["st"]["session"].update(result="partial", summary="half")
+    bead["st"]["merge_error"] = "tests failed on the merged branch (godot test)"
+    j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == "merge_failed" and labels(bead["calls"]) == []
 
 
 def test_done_without_commits_is_not_merged(bead):

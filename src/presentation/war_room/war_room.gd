@@ -89,6 +89,9 @@ var replay: MatchReplay
 ## Replay: play the next turn as soon as one has been shown.
 var auto_play: bool = false
 var _end_button: Button
+## Replay: the side watched before the all-seeing view (player 0).
+var _watched: int = 1
+var _turn_slider: HSlider
 ## Write a match log (MatchLog) for sessions this room makes from a map.
 @export var record_match: bool = true
 var match_log: MatchLog
@@ -376,6 +379,33 @@ func _build_ui() -> void:
 		side_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		side_pick.pressed.connect(view_next_player)
 		watch.add_child(side_pick)
+		var all_seeing := Button.new()
+		all_seeing.name = "AllSeeing"
+		all_seeing.text = "No fog"
+		all_seeing.tooltip_text = "See everything, as no player does"
+		all_seeing.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		all_seeing.pressed.connect(toggle_all_seeing)
+		watch.add_child(all_seeing)
+		var back := Button.new()
+		back.name = "StepBack"
+		back.text = "Back a turn"
+		back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		back.pressed.connect(step_back)
+		watch.add_child(back)
+		var slider := HSlider.new()
+		slider.name = "TurnSlider"
+		slider.min_value = 1
+		slider.max_value = replay.turns() + 1
+		slider.step = 1
+		slider.value = 1
+		slider.custom_minimum_size = Vector2(120, 0)
+		slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		slider.tooltip_text = "Jump to the start of a turn"
+		slider.value_changed.connect(func(v: float) -> void:
+			if int(v) != session.turns_resolved() + 1:
+				go_to_turn(int(v)))
+		_turn_slider = slider
+		watch.add_child(slider)
 		panels["replay_controls"] = watch
 	var tools := HBoxContainer.new()
 	var controls := Button.new()
@@ -397,8 +427,13 @@ func _build_ui() -> void:
 	save.text = "Save"
 	save.tooltip_text = "Save the game as it is now. Load it from the main menu."
 	save.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save.pressed.connect(save_game)
+	var save_name := LineEdit.new()
+	save_name.name = "SaveName"
+	save_name.placeholder_text = "Save name (optional)"
+	save_name.editable = replay == null
+	save.pressed.connect(func() -> void: save_game(save_name.text))
 	save.disabled = replay != null
+	tools.add_child(save_name)
 	tools.add_child(save)
 	panels["tools"] = tools
 	panels["main_menu"] = null
@@ -529,6 +564,8 @@ func _show_main() -> void:
 
 ## The status line and what the mouse and keys do right now.
 func _refresh_hud() -> void:
+	if _turn_slider != null:
+		_turn_slider.set_value_no_signal(session.turns_resolved() + 1)
 	var where := "Overworld" if contexts.focus == ViewContexts.OVERWORLD else battle_name(contexts.focus)
 	var status := "%s  ·  %s  ·  turn %d" % [where, session.phase_name().capitalize(), session.turns_resolved() + 1]
 	if contexts.followed >= 0:
@@ -540,9 +577,48 @@ func _refresh_hud() -> void:
 
 ## Watches as another player: that player's fog, battles and armies.
 func view_as(p: int) -> void:
-	if not session.players().has(p) or p == player:
+	if (p != 0 or replay == null) and not session.players().has(p) or p == player:
 		return
 	player = p
+	_reset_view()
+
+
+## Replay: the all-seeing view (player 0, no fog) on and off; off goes back
+## to the player watched before.
+func toggle_all_seeing() -> void:
+	if replay == null:
+		return
+	if player == 0:
+		view_as(_watched if session.players().has(_watched) else int(session.players()[0]))
+	else:
+		_watched = player
+		view_as(0)
+
+
+## Replay: goes to the start of turn `n` (1 = the beginning), going back by
+## running the recording again from the start.
+func go_to_turn(n: int) -> void:
+	if replay == null:
+		return
+	if not _play.is_empty():
+		skip_playback()
+	var replaced := replay.seek(n - 1)
+	if replaced:
+		session = replay.session
+		driver.session = session
+		driver.stats = {"turns": 0, "battles": 0, "players": {}}
+		_results_shown = false
+	_turn_seen = session.turns_resolved()
+	auto_play = false
+	_hud_note = ""
+	_reset_view()
+
+
+func step_back() -> void:
+	go_to_turn(session.turns_resolved())
+
+
+func _reset_view() -> void:
 	if contexts.changed.is_connected(_queue_refresh):
 		contexts.changed.disconnect(_queue_refresh)
 		contexts.camera_changed.disconnect(_on_camera_changed)
@@ -573,7 +649,7 @@ func hints() -> String:
 	if replay != null:
 		var where := "the recording has ended" if replay.at_end() else "turn %d of %d" % [session.turns_resolved() + 1, replay.turns()]
 		var odd := "" if replay.diverged_turn < 0 else "  ·  WARNING: turn %d did not match the recording" % replay.diverged_turn
-		return "Replay, watching as player %d (%s)%s  ·  Space: next turn  ·  V: the other side  ·  Tab: go to a battle  ·  click a squad, a commander or a hex to inspect it" % [player, where, odd]
+		return "Replay, watching %s (%s)%s  ·  Space: next turn  ·  V: the other side  ·  Tab: go to a battle  ·  click a squad, a commander or a hex to inspect it" % ["with no fog" if player == 0 else "as player %d" % player, where, odd]
 	if not _target.is_empty():
 		return "Click the hex or one of your commanders to send %s there.  Right click or Esc: cancel" % _target["what"]
 	if contexts.focus == ViewContexts.OVERWORLD:
@@ -1632,14 +1708,14 @@ func play_again() -> void:
 	queue_free()
 
 
-## Saves the game to a new slot (MatchDriver.save_game). Returns the path
-## or "".
-func save_game() -> String:
+## Saves the game to a slot (MatchDriver.save_game; a blank name makes one
+## from the map and the turn). Returns the path or "".
+func save_game(slot: String = "") -> String:
 	if replay != null:
 		_hud_note = "a replay can't be saved"
 		_queue_refresh()
 		return ""
-	var path := driver.save_game()
+	var path := driver.save_game(slot.strip_edges())
 	_hud_note = "could not save: " + MatchDriver.last_error if path.is_empty() else "saved as " + path.get_file().get_basename()
 	_note(_hud_note)
 	_queue_refresh()

@@ -18,6 +18,17 @@ def test_hx_verb_only_real_verbs():
     assert mining.hx_verb('python -c "from hx import mining"') is None
 
 
+def test_covered_shapes_are_not_candidates(tmp_path, monkeypatch):
+    monkeypatch.setenv("HX_DATA_DIR", str(tmp_path))
+    c = duckdb.connect()
+    c.execute("CREATE TABLE tool_use (tool_use_id TEXT, session_id TEXT, command TEXT, input_chars BIGINT)")
+    c.execute("CREATE TABLE tool_result (tool_use_id TEXT, result_chars BIGINT)")
+    for s in range(4):
+        for i, cmd in enumerate(["git status --short", "bd update x --claim", "git diff && git status"]):
+            c.execute("INSERT INTO tool_use VALUES (?,?,?,?)", [f"{s}-{i}", f"s{s}", cmd, 10])
+    assert mining.candidates(c, min_sessions=1, min_uses=1) == []
+
+
 @pytest.fixture
 def con(tmp_path, monkeypatch):
     monkeypatch.setenv("HX_DATA_DIR", str(tmp_path))
