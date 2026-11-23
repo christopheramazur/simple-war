@@ -63,3 +63,7 @@ func test_two_peers_over_loopback_transport() -> void:
 	assert_eq(ps[0].match_driver.session.turns_resolved(), ps[1].match_driver.session.turns_resolved())
 	assert_eq(ps[0].match_driver.session.state_hash_hex(), ps[1].match_driver.session.state_hash_hex())
 	assert_gt(ps[0].match_driver.session.turns_resolved(), 0)
+	for t: LockstepTransport in ts:
+		t.detach()
+	for n: LoopbackTransport in nets:
+		n.close()

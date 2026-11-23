@@ -7,6 +7,8 @@ extends RefCounted
 var driver: LockstepDriver
 ## Peer id -> Callable(bytes: PackedByteArray); how to reach each remote peer.
 var links: Dictionary = {}
+var _net: NetTransport
+var _on_packet: Callable
 
 
 func _init(lock_driver: LockstepDriver) -> void:
@@ -78,9 +80,21 @@ func receive(from_peer: int, bytes: PackedByteArray, now_msec: int) -> bool:
 ## is a Callable returning the current msec (defaults to engine ticks).
 ## Call `net.poll()` each frame to deliver.
 func attach(net: NetTransport, clock: Callable = Callable()) -> void:
+	detach()
 	for p: int in driver.lockstep.slots:
 		if p != driver.lockstep.local_peer:
 			links[p] = func(bytes: PackedByteArray) -> void: net.send(p, bytes)
-	net.packet_received.connect(func(from_peer: int, data: PackedByteArray) -> void:
+	_on_packet = func(from_peer: int, data: PackedByteArray) -> void:
 		var now: int = clock.call() if clock.is_valid() else Time.get_ticks_msec()
-		receive(from_peer, data, now))
+		receive(from_peer, data, now)
+	_net = net
+	net.packet_received.connect(_on_packet)
+
+
+## Unbinds from the NetTransport and drops the links (breaks the reference cycle).
+func detach() -> void:
+	if _net != null and _net.packet_received.is_connected(_on_packet):
+		_net.packet_received.disconnect(_on_packet)
+	_net = null
+	_on_packet = Callable()
+	links.clear()
