@@ -306,7 +306,9 @@ def spawn_worker(bead: str, note: str = "", fresh: bool = False) -> dict:
 
 def _checks_for(changed: list[str]) -> list[list[str]]:
     checks = []
-    if any(not f.startswith(("harness/", "docs/", ".beads/")) for f in changed):
+    # the Godot check's own tooling counts as game code: a lint change that only ran pytest turned main red (sw-iqv)
+    if any(not f.startswith(("harness/", "docs/", ".beads/")) or f.startswith("harness/godot/")
+           or f == "harness/src/hx/commands/godot.py" for f in changed):
         # not ["bash", "harness/bin/hx", ...]: Windows resolves a bare "bash" in System32 (WSL) before PATH
         # a fresh worktree has no .godot import cache: GUT cannot see class_names until an import runs
         checks.append(["uv", "run", "--project", "harness", "--quiet", "hx", "godot", "check"])
@@ -358,8 +360,24 @@ def merge_branch(branch: str, wt: Path, timeout: int, protected: frozenset[str] 
             p = git("push", "-q", "origin", "HEAD")
             git("worktree", "remove", "--force", str(wt))
             git("branch", "-D", branch)
+        if any(c[-2:] == ["godot", "check"] for c in checks):
+            refresh_import(env, timeout)
         return [" ".join(c[-2:]) for c in checks], ("" if not p.returncode else p.stderr[-200:])
     raise ValueError("main kept moving during the tests; run the merge again")
+
+
+def refresh_import(env: dict[str, str], timeout: int) -> None:
+    """Re-import the main checkout after a merge fast-forwarded it. Only the worktree was imported by the gate, so a
+    class_name or asset the merge added is missing from main's .godot cache until something imports it: the game
+    run from this checkout then fails to compile scripts that use it (a skirmish wouldn't start). Best effort."""
+    try:
+        r = subprocess.run(["uv", "run", "--project", "harness", "--quiet", "hx", "godot", "check"], cwd=ROOT,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, timeout=timeout, env=env)
+        if r.returncode:
+            event("import_failed", tail=(r.stdout + r.stderr)[-300:])
+    except (OSError, subprocess.TimeoutExpired) as e:
+        event("import_failed", tail=str(e)[-300:])
 
 
 def merge_worker(bead: str) -> str:
