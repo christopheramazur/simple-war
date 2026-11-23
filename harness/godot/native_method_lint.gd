@@ -4,6 +4,11 @@ extends SceneTree
 ## GDScript's own analyzer only fails these at runtime. Heuristic, per function; prints `NMLINT <res>:<line>: msg`.
 ## Usage: godot --headless --script harness/godot/native_method_lint.gd -- res://a.gd res://b.gd
 
+## Types whose calls dispatch at runtime to the instance's script (duck typing), so ClassDB can't judge them,
+## and Object methods ClassDB doesn't list. Without these the lint failed every merge (sw-q2c, 2026-11-23).
+const DYNAMIC := ["Object", "Script", "GDScript"]
+const ALWAYS := ["new", "free"]
+
 var _decl := RegEx.new()
 var _decl_new := RegEx.new()
 var _call := RegEx.new()
@@ -46,5 +51,5 @@ func _lint(path: String) -> void:
 		for m in _call.search_all(code):
 			var v := m.get_string(1)
 			var meth := m.get_string(2)
-			if types.has(v) and not ClassDB.class_has_method(types[v], meth, false) and meth != "new":
+			if types.has(v) and not types[v] in DYNAMIC and not meth in ALWAYS 					and not ClassDB.class_has_method(types[v], meth, false):
 				print("NMLINT %s:%d: %s is %s, which has no method %s()" % [path, n, v, types[v], meth])

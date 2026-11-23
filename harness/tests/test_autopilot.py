@@ -268,3 +268,9 @@ def test_stop_file_stops_the_loop(env, monkeypatch):
     Path(ap.STATE).mkdir(parents=True)
     (ap.STATE / "STOP").write_text("x")
     assert ap.run_loop() == []
+
+
+def test_godot_tooling_changes_run_the_godot_check():
+    names = [" ".join(c[-2:]) for c in ap.swarm._checks_for(["harness/godot/native_method_lint.gd"])]
+    assert "godot check" in names and "-q -x" in names
+    assert "godot check" not in [" ".join(c[-2:]) for c in ap.swarm._checks_for(["harness/src/hx/report.py"])]

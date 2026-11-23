@@ -306,7 +306,9 @@ def spawn_worker(bead: str, note: str = "", fresh: bool = False) -> dict:
 
 def _checks_for(changed: list[str]) -> list[list[str]]:
     checks = []
-    if any(not f.startswith(("harness/", "docs/", ".beads/")) for f in changed):
+    # the Godot check's own tooling counts as game code: a lint change that only ran pytest turned main red (sw-iqv)
+    if any(not f.startswith(("harness/", "docs/", ".beads/")) or f.startswith("harness/godot/")
+           or f == "harness/src/hx/commands/godot.py" for f in changed):
         # not ["bash", "harness/bin/hx", ...]: Windows resolves a bare "bash" in System32 (WSL) before PATH
         # a fresh worktree has no .godot import cache: GUT cannot see class_names until an import runs
         checks.append(["uv", "run", "--project", "harness", "--quiet", "hx", "godot", "check"])
