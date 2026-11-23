@@ -284,6 +284,11 @@ const OBJECTS: Dictionary = {
 		"lose_on": {"type": "list:string", "enum": LOSE_EVENTS},
 		"range": {"type": "fixed", "min": 0},
 		"targeting": {"type": "string", "enum": ["none", "self", "squad", "point"]},
+		## Point targeting: a burst. At the point, the bundle is applied to
+		## every active squad whose centre is within radius; affects picks
+		## which side (relative to the user), default all.
+		"radius": {"type": "fixed", "min": 0},
+		"affects": {"type": "string", "enum": ["all", "allies", "enemies"]},
 		"toggle": {"type": "bool"},
 	},
 }

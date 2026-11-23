@@ -27,9 +27,6 @@ const ORDER_NAMES: Dictionary = {
 const POOL_ICONS: Dictionary = {
 	"stamina": "■", "instinct": "◉", "morale": "♥", "prowess": "✚", "legend": "★",
 }
-const BAND_ICONS: Dictionary = {
-	"broken": "×", "fraying": "▽", "neutral": "◇", "primed": "△", "surging": "▲",
-}
 
 
 ## `squad`: its entry in observe_battle's "squads". `insp`: inspect_battle's
@@ -59,7 +56,10 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 		col.add_child(_lbl(Glossary.activity_text(act, tname), "SmallAccentLabel"))
 	if own:
 		var order := String(squad.get("order", "hold"))
-		col.add_child(_lbl("Order: %s" % ORDER_NAMES.get(order, order.capitalize()), "SmallDimLabel"))
+		var order_lbl := _lbl("Order: %s" % ORDER_NAMES.get(order, order.capitalize()), "SmallDimLabel")
+		order_lbl.mouse_filter = Control.MOUSE_FILTER_STOP
+		order_lbl.tooltip_text = OrderTips.tip(order)
+		col.add_child(order_lbl)
 		var hp_max := float(squad.get("hp_max", 0))
 		if hp_max > 0.0:
 			col.add_child(_stat_bar("Health", 1.0 - float(squad.get("hp_lost", 0)) / hp_max, "Good", ""))
@@ -471,9 +471,7 @@ static func _band_word(band: String) -> String:
 
 
 static func _band_icon(band: String) -> String:
-	var key := "band_icon." + band
-	var s := String(TranslationServer.translate(key))
-	return s if s != key else String(BAND_ICONS.get(band, "·"))
+	return BandGlyphs.icon(band)
 
 
 static func _fmt(e: Dictionary) -> String:

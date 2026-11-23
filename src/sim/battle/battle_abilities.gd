@@ -13,11 +13,13 @@ var ready_at := PackedInt64Array()       ## tick readying ends, -1 = not readyin
 var cooldown_until := PackedInt64Array() ## tick it may be used again
 var charges := PackedInt64Array()        ## uses left, -1 = unlimited
 var target := PackedInt64Array()         ## squad ID it was used on, -1 none
+var tx := PackedInt64Array()             ## point it was aimed at (fixed), point abilities
+var ty := PackedInt64Array()
 
 
 func _init() -> void:
 	super(&"ability")
-	for c: StringName in [&"squad", &"ability", &"on", &"since", &"cooldown_until"]:
+	for c: StringName in [&"squad", &"ability", &"on", &"since", &"cooldown_until", &"tx", &"ty"]:
 		declare(c, 0)
 	for c: StringName in [&"effect", &"ready_at", &"charges", &"target"]:
 		declare(c, -1)

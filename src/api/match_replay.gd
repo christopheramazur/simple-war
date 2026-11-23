@@ -21,6 +21,12 @@ var dir: String = ""
 var diverged_turn: int = -1
 
 var _inputs: Array = []
+## What a fresh session is built from (rewind).
+var _templates: Variant
+var _data_hash: Variant
+var _map: Variant
+var _seed: Variant
+var _clock_config: Variant
 var _next: int = 0
 var _hashes: PackedStringArray = PackedStringArray()
 
@@ -70,6 +76,11 @@ static func open(folder: String) -> MatchReplay:
 	var r := MatchReplay.new()
 	r.session = s
 	r.dir = folder
+	r._templates = l.templates
+	r._data_hash = l.data_hash
+	r._map = data["map"]
+	r._seed = data["seed"]
+	r._clock_config = data["clock_config"]
 	r._inputs = data["inputs"]
 	r._hashes = data["hashes"]
 	var meta: Variant = JSON.parse_string(FileAccess.get_file_as_string(folder + "/match.json"))
@@ -87,6 +98,28 @@ func turns() -> int:
 ## Whether every recorded turn has been played.
 func at_end() -> bool:
 	return session.turns_resolved() >= _hashes.size()
+
+
+## Goes to the start of the given turn (turns already played: 0 = the
+## beginning; clamped to the recording). Going back starts a fresh session
+## (`session` is then a new object: hosts re-read it) and plays it forward
+## again, so every turn on the way is checked against its recorded hash.
+## Returns whether `session` was replaced.
+func seek(played: int) -> bool:
+	played = clampi(played, 0, turns())
+	var replaced := false
+	if played < session.turns_resolved():
+		var s := OverworldSession.create(_templates, _data_hash, _map, _seed, OverworldSession._config_from(_clock_config))
+		if s == null:
+			return false
+		session = s
+		s.locked = true
+		_next = 0
+		diverged_turn = -1
+		replaced = true
+	while session.turns_resolved() < played and step():
+		pass
+	return replaced
 
 
 ## Plays the next recorded turn: feeds the session its inputs until the
