@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-23 18:19 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 18:35 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 59, craft-researcher: 13, games-researcher: 14, lead-designer: 16, orchestrator: 89, retro: 1, tech-lead: 10, ux-art-director: 12 |
-| Worker turns / research turns (24 h) | 31 / 0 |
+| Turns per role | auditor: 59, craft-researcher: 13, games-researcher: 15, lead-designer: 16, orchestrator: 90, retro: 1, tech-lead: 10, ux-art-director: 13 |
+| Worker turns / research turns (24 h) | 33 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
 | Merged / rejected (all time) | 18 / 1 |
-| Gateway calls last hour (rate-limited) | 8 (0) |
+| Gateway calls last hour (rate-limited) | 11 (0) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-23 18:01 UTC **WARN** (rules) |
+| Latest audit | 11-23 18:31 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-1jy.5 (2026-11-21T12:33)
@@ -25,6 +25,10 @@ Updated 2026-11-23 18:19 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-23 18:31 UTC **WARN** (rules)
+
+6 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 265 min ago and awaits review | act: sw-1jy.6 finished (failed) 243 min ago and awaits review | act: sw-5x6.2 finished (failed) 98 min ago and awaits review | act: sw-5x6.4 finished (failed) 87 min ago and awaits review | act: sw-68b finished (failed) 254 min ago and awaits review | act: sw-884.11 finished (failed) 76 min ago and awaits review | act: sw-abk finished (failed) 356 min ago and awaits review | act: sw-c9l finished (failed) 232 min ago and awaits review | act: sw-dqj finished (failed) 287 min ago and awaits review | act: sw-dqq finished (failed) 132 min ago and awaits review | act: sw-ijp.4 finished (failed) 187 min ago and awaits review | act: sw-kd5 finished (failed) 176 min ago and awaits review | act: sw-ll4.12 finished (failed) 65 min ago and awaits review | act: sw-ll4.17 finished (failed) 209 min ago and awaits review | act: sw-ll4.20 finished (failed) 198 min ago and awaits review | act: sw-ll4.26.6 finished (failed) 154 min ago and awaits review | act: sw-ll4.27.6 finished (failed) 143 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 309 min ago and awaits review | act: sw-ll4.5 finished (failed) 220 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 298 min ago and awaits review | act: sw-mun finished (failed) 109 min ago and awaits review | act: sw-w8x finished (failed) 165 min ago and awaits review | act: sw-wqc finished (failed) 276 min ago and awaits review | act: sw-wut finished (failed) 121 min ago and awaits review | health: 6/6 turns failed or timed out | health: no merge in 2 h while workers ran
 
 ### 11-23 18:01 UTC **WARN** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-23 18:19 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-23 16:31 UTC **WARN** (rules)
 
 6 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 145 min ago and awaits review | act: sw-1jy.6 finished (failed) 123 min ago and awaits review | act: sw-68b finished (failed) 134 min ago and awaits review | act: sw-abk finished (failed) 236 min ago and awaits review | act: sw-c9l finished (failed) 112 min ago and awaits review | act: sw-dqj finished (failed) 167 min ago and awaits review | act: sw-ijp.4 finished (failed) 67 min ago and awaits review | act: sw-ll4.17 finished (failed) 89 min ago and awaits review | act: sw-ll4.20 finished (failed) 78 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 189 min ago and awaits review | act: sw-ll4.5 finished (failed) 100 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 178 min ago and awaits review | act: sw-wqc finished (failed) 156 min ago and awaits review | health: 6/6 turns failed or timed out | health: no merge in 2 h while workers ran
-
-### 11-23 16:01 UTC **WARN** (rules)
-
-5 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-1ji finished (failed) 115 min ago and awaits review | act: sw-1jy.6 finished (failed) 93 min ago and awaits review | act: sw-68b finished (failed) 104 min ago and awaits review | act: sw-abk finished (failed) 206 min ago and awaits review | act: sw-c9l finished (failed) 82 min ago and awaits review | act: sw-dqj finished (failed) 137 min ago and awaits review | act: sw-ll4.27.7 finished (partial) 159 min ago and awaits review | act: sw-ll4.5 finished (failed) 70 min ago and awaits review | act: sw-ll4.9.1 finished (failed) 148 min ago and awaits review | act: sw-wqc finished (failed) 126 min ago and awaits review | health: 5/5 turns failed or timed out | health: no merge in 2 h while workers ran
 
