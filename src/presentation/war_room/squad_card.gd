@@ -391,7 +391,10 @@ static func _simpl_meter(pool: String, pd: Dictionary, floors: Array, verbose: b
 		l.tooltip_text = "%s: %s" % [tip["title"], tip["text"]]
 	row.add_child(l)
 	var c := Control.new()
-	c.custom_minimum_size = Vector2(120, 8)
+	# Narrow minimum, fills the room there is: the card fits its column
+	# (sw-7m6).
+	c.custom_minimum_size = Vector2(60, 8)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	c.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	c.add_child(UiTheme.backdrop("ScreenBackgroundPanel"))
 	var cap := float(pd["capacity"])

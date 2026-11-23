@@ -33,7 +33,8 @@ static func build(squad: Dictionary, insp: Dictionary, viewer: int, tps: int, ve
 		tab = "squad"
 	var col := VBoxContainer.new()
 	col.theme_type_variation = &"CardGap"
-	var bar := HBoxContainer.new()
+	# Flows onto a second line when the column is narrow (sw-7m6).
+	var bar := HFlowContainer.new()
 	for t: String in names:
 		var n := String(TAB_NAMES[t])
 		if t == "effects":

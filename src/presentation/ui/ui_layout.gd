@@ -200,7 +200,11 @@ static func _column(reg: Dictionary, panels: Dictionary, placed: Dictionary, row
 	col.add_child(box)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# SHOW_NEVER, not DISABLED: a DISABLED scroll takes its content's
+	# minimum width, so a wide card would widen the column, shift the stage
+	# under the cursor and end the hover that showed it: a flicker
+	# (sw-7m6). The column keeps the layout's width; its panels fit it.
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	box.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.theme_type_variation = box.theme_type_variation
