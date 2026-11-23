@@ -1,11 +1,11 @@
 # Swarm status
 
-Updated 2026-11-23 15:03 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 15:18 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 56, craft-researcher: 12, games-researcher: 14, lead-designer: 15, orchestrator: 83, retro: 1, tech-lead: 9, ux-art-director: 12 |
-| Worker turns / research turns (24 h) | 14 / 0 |
+| Turns per role | auditor: 56, craft-researcher: 12, games-researcher: 14, lead-designer: 15, orchestrator: 84, retro: 1, tech-lead: 9, ux-art-director: 12 |
+| Worker turns / research turns (24 h) | 15 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
 | Merged / rejected (all time) | 19 / 1 |
 | Gateway calls last hour (rate-limited) | 10 (0) |
