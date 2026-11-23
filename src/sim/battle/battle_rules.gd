@@ -391,6 +391,7 @@ func _compile(t: TemplateTable, scenario: String) -> void:
 	_compile_features(t, by_kind.get("feature", PackedStringArray()))
 	fx = EffectRules.compile(t, stats, tps, feature_ids)
 	errors.append_array(fx.errors)
+	_check_damage_tags(t)
 	var mv_index := _compile_movement(t, by_kind.get("movement", PackedStringArray()))
 	var df_index := _compile_defense(t, by_kind.get("defense", PackedStringArray()))
 	var wp_index := _compile_weapons(t, by_kind.get("weapon", PackedStringArray()))
@@ -606,6 +607,21 @@ func _compile_movement(t: TemplateTable, ids: PackedStringArray) -> Dictionary:
 		for fi in feature_ids.size():
 			mv_cost.append(int(costs.get(feature_ids[fi], 0 if f_impassable[fi] == 1 else 100)))
 	return index
+
+
+## Damage types are tags flagged damage_type (O1Q10). Each engine type needs
+## its tag, and a flagged tag the engine has no resistance stat for is an error.
+func _check_damage_tags(t: TemplateTable) -> void:
+	var flagged := {}
+	for tid in t.ids():
+		if not t.is_abstract(tid) and t.kind_of(tid) == "tag" and t.values_of(tid).get("damage_type", false):
+			flagged[tid] = true
+	for dt in DAMAGE_TYPES:
+		if not flagged.has(dt):
+			errors.append("damage type '%s' has no tag with damage_type: true" % dt)
+	for tid: String in flagged:
+		if not DAMAGE_TYPES.has(tid):
+			errors.append("tag '%s' is a damage type the engine has no resistance stat for" % tid)
 
 
 func _compile_defense(t: TemplateTable, ids: PackedStringArray) -> Dictionary:

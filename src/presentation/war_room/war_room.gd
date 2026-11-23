@@ -744,7 +744,15 @@ func _refresh_battle_panel() -> void:
 			if r == null:
 				r = rec["rules"]
 	var ctx := {"rules": r, "weapon_names": _weapon_names(r), "glossary": glossary}
-	_battle_box.show_battle(battle_name(eid), session.observe_battle(player, eid), squad, insp, player,
+	var bobs := session.observe_battle(player, eid)
+	if id >= 0 and _play.is_empty() and int(squad.get("player", -1)) == player:
+		for p: int in (bobs.get("scores", {}) as Dictionary):
+			if p != player:  # what an opponent that can see this squad is shown (E2Q12)
+				var theirs := session.inspect_battle(p, eid, id)
+				if not theirs.is_empty():
+					ctx["opponent_insp"] = theirs
+				break
+	_battle_box.show_battle(battle_name(eid), bobs, squad, insp, player,
 		r.tps if r != null else 10, false, ctx)
 
 
@@ -1228,25 +1236,37 @@ func reserves_ready(eid: int) -> int:
 ## The reserves of each of the player's commanders in the battle: a button to
 ## send each in, or what stops it (sw-dek).
 func _add_reserves(eid: int) -> void:
+	var panel := UiPanel.build("reserves", reserves_model(eid))
+	panel.action_invoked.connect(_on_panel_action)
+	_orders_box.add_child(panel)
+
+
+## The reserves panel's view model (read-only): per commander a title and a
+## row per squad with its text, whether it is disabled and the ids to send.
+func reserves_model(eid: int) -> Dictionary:
+	var groups := []
 	for g: Dictionary in session.reserves(player, eid):
 		var cid: int = g["commander"]
 		var open: int = g["open"]
-		_orders_box.add_child(_title("%s: reserves (%s)" % [EventText.commander(cid),
-			"battleforce full" if open == 0 else "room for %d more" % open]))
+		var squads := []
 		for q: Dictionary in g["squads"]:
 			var what := "%s  %d/%d" % [EventText.squad_name(session.rules.squad_ids[int(q["tmpl"])]), int(q["alive"]), int(q["size"])]
 			var why := String(q["why"])
-			var b := Button.new()
-			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			b.disabled = q["sent"] or not why.is_empty()
+			var text := "%s: %s" % [what, why]
 			if q["sent"]:
-				b.text = "✓ %s: joins next battle turn" % what
+				text = "✓ %s: joins next battle turn" % what
 			elif why.is_empty():
-				b.text = "Send in %s" % what
-				b.pressed.connect(send_reserve.bind(cid, int(q["squad"])))
-			else:
-				b.text = "%s: %s" % [what, why]
-			_orders_box.add_child(b)
+				text = "Send in %s" % what
+			squads.append({"text": text, "disabled": q["sent"] or not why.is_empty(), "commander": cid, "squad": int(q["squad"])})
+		groups.append({"title": "%s: reserves (%s)" % [EventText.commander(cid),
+			"battleforce full" if open == 0 else "room for %d more" % open], "squads": squads})
+	return {"groups": groups}
+
+
+## Actions by id from data-driven panels.
+func _on_panel_action(action: String, args: Array) -> void:
+	if action == "send_reserve":
+		send_reserve(int(args[0]), int(args[1]))
 
 
 ## Sends a squad from the commander's army into its battle.
@@ -1430,6 +1450,11 @@ func _bind_keys() -> void:
 	keys.on(&"next_player", func() -> void: _key_command(_on_next_player_key))
 	keys.on(&"deselect_all", func() -> void: _key_command(contexts.deselect_all))
 	keys.on(&"end_turn", func() -> void: _hotkey_free(_on_end_turn_key))
+	keys.on(&"zoom_in", func() -> void: _key_command(func() -> void: contexts.zoom_by(1.25)))
+	keys.on(&"zoom_out", func() -> void: _key_command(func() -> void: contexts.zoom_by(0.8)))
+	keys.on(&"next_squad", func() -> void: _hotkey_free(_cycle_squad.bind(1)))
+	keys.on(&"previous_squad", func() -> void: _hotkey_free(_cycle_squad.bind(-1)))
+	keys.on(&"inspect_squad", func() -> void: _hotkey_free(_toggle_inspect))
 	keys.enable(self)
 
 
@@ -1469,6 +1494,38 @@ func _focus_first_control() -> void:
 func _on_pan(dir: Vector2) -> void:
 	if contexts != null and _keys_free() and contexts.focus != ViewContexts.OVERWORLD:
 		_main.pan_camera(dir * PAN_STEP)
+
+
+## Gamepad / key squad selection (sw-dqq): steps through the focused
+## battle's own squads and shows the card of the one reached. Selection
+## itself needs the planning or reaction phase; during playback it only
+## inspects.
+func _cycle_squad(dir: int) -> void:
+	var pl := _focused_planner()
+	if pl == null:
+		return
+	var ids := pl.own_squads()
+	if ids.is_empty():
+		return
+	var cur: int = _inspected if ids.has(_inspected) else (pl.selection[0] if not pl.selection.is_empty() else -1)
+	var i := ids.find(cur)
+	var next: int = ids[posmod(i + dir, ids.size())] if i >= 0 else ids[0 if dir > 0 else ids.size() - 1]
+	_inspected = next
+	if _play.is_empty() and session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
+		pl.select([next])
+	_queue_refresh()
+
+
+## The card button: shows the selected squad's card, or hides it again.
+func _toggle_inspect() -> void:
+	var pl := _focused_planner()
+	if pl == null:
+		return
+	if _inspected >= 0:
+		_inspected = -1
+	elif not pl.selection.is_empty():
+		_inspected = pl.selection[0]
+	_queue_refresh()
 
 
 func _on_cancel_key() -> void:
