@@ -183,9 +183,7 @@ static func _commander_name(d: Dictionary, rules: OverworldRules) -> String:
 
 # --- battle glance summaries (sw-1jy.5) --------------------------------------
 
-## Placeholder band glyphs: word + icon together, never colour alone (GDD 01
-## Accessibility). Art direction may replace them (README Open topic 3).
-const BAND_ICONS: Dictionary = {"broken": "✖", "fraying": "▼", "neutral": "■", "primed": "▲", "surging": "★"}
+## Band glyphs come from BandGlyphs (word + icon together, never colour alone).
 ## Trend marks; "new" (no record yet) has none.
 const TREND_MARKS: Dictionary = {"worsening": "↘", "improving": "↗", "steady": "→", "new": ""}
 
@@ -214,7 +212,7 @@ static func battle_summary(sum: Dictionary) -> String:
 	var band := String(sum["band"])
 	var trend := String(sum["trend"])
 	var mark := String(TREND_MARKS.get(trend, ""))
-	return "%s %s · %s%s" % [BAND_ICONS.get(band, "?"), band_word(band), trend_word(trend),
+	return "%s %s · %s%s" % [BandGlyphs.icon(band, "?"), band_word(band), trend_word(trend),
 		"" if mark.is_empty() else " " + mark]
 
 

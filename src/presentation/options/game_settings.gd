@@ -19,7 +19,11 @@ const MAX_FPS: Array[int] = [30, 60, 120, 144, 240, 0]
 const DEFAULTS: Dictionary = {
 	"window_mode": "windowed", "width": 1280, "height": 720, "vsync": true, "max_fps": 144, "ui_scale": 1.0, "turn_seconds": 5.0,
 	"ui_theme": "default", "side_width": 300, "team_palette": "okabe_ito", "alert_seconds": 6.0,
+	"forecast_detail": "summary",
 }
+## How much a forecast contact marker says (sw-czg).
+const FORECAST_DETAILS: Array[String] = ["summary", "numbers"]
+const FORECAST_DETAIL_NAMES: Dictionary = {"summary": "Summary", "numbers": "Numbers (tick, reactions)"}
 
 ## Where the settings are kept (tests point this elsewhere).
 static var path: String = "user://settings.cfg"

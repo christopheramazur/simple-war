@@ -32,7 +32,7 @@ func open(at: Vector2, names: Array, current: String = "") -> void:
 		b.text = "%s %s" % [glyph(r), r.capitalize()]
 		b.toggle_mode = true
 		b.button_pressed = r == current
-		b.tooltip_text = r.capitalize()
+		b.tooltip_text = OrderTips.reaction_tip(r)
 		var ang := -PI / 2.0 + TAU * i / maxf(n, 1)
 		b.position = Vector2(cos(ang), sin(ang)) * RADIUS - Vector2(48, 14)
 		b.custom_minimum_size = Vector2(96, 28)

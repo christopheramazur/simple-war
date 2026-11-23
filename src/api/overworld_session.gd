@@ -720,10 +720,11 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 func playback(player: int) -> Dictionary:
 	PerfRecorder.begin(&"playback_build")
 	var out := {}
-	var me := BattleSquads.bit(player)
+	var all_seeing := player <= 0  # the replay's all-seeing view
+	var me := 0 if all_seeing else BattleSquads.bit(player)
 	for eid: int in _playback:
 		var rec: Dictionary = _playback[eid]
-		if not (rec["players"] as PackedInt64Array).has(player):
+		if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
 			continue
 		var r: BattleRules = rec["rules"]
 		var frames := []
@@ -733,7 +734,7 @@ func playback(player: int) -> Dictionary:
 			var squads := {}
 			var units := {}
 			for o in range(0, f.size(), PLAYBACK_STRIDE):
-				if f[o + 2] != player and f[o + 6] & me == 0:
+				if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
 					continue
 				var own_unit := f[o + 2] == player
 				if not squads.has(f[o + 1]):
@@ -840,7 +841,7 @@ func observe(player: int) -> Dictionary:
 ## overworld squad ID, own squads only).
 func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	var b: OverworldBattle = battles.get(engagement_id)
-	if b == null or not b.state.players.has(player):
+	if b == null or (player > 0 and not b.state.players.has(player)):
 		return {}
 	var o := BattleSession.observe_state(b.state, player)
 	o["engagement"] = engagement_id

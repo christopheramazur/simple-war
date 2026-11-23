@@ -187,8 +187,32 @@ def test_failed_merge_returns_the_bead(bead):
 
 def test_blocked_is_labelled(bead):
     bead["st"]["session"].update(result="blocked", summary="needs a design call")
+    bead["st"]["commits"] = "0"
     j = ap.run_bead(C, {"id": "sw-x"})
     assert j["outcome"] == "blocked" and labels(bead["calls"]) == ["--add-label=autopilot-blocked"]
+
+
+def test_blocked_work_is_merged_and_labelled(bead):
+    bead["st"]["session"].update(result="blocked", summary="needs a design call")
+    j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == "merged_blocked" and bead["merges"] == ["autopilot/sw-x"]
+    assert labels(bead["calls"]) == ["--add-label=autopilot-blocked"]
+    assert not [c for c in bead["calls"] if c[0] == "close"]
+
+
+def test_partial_work_is_merged_and_the_bead_left_open(bead):
+    bead["st"]["session"].update(result="partial", summary="the setting waits on sw-y")
+    j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == "merged_partial" and bead["merges"] == ["autopilot/sw-x"]
+    assert ("unclaim", "sw-x") in bead["calls"] and labels(bead["calls"]) == ["--add-label=autopilot-partial"]
+    assert not [c for c in bead["calls"] if c[0] == "close"]
+
+
+def test_partial_that_fails_the_gate_stays_on_its_branch(bead):
+    bead["st"]["session"].update(result="partial", summary="half")
+    bead["st"]["merge_error"] = "tests failed on the merged branch (godot test)"
+    j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == "merge_failed" and labels(bead["calls"]) == []
 
 
 def test_done_without_commits_is_not_merged(bead):
@@ -244,3 +268,9 @@ def test_stop_file_stops_the_loop(env, monkeypatch):
     Path(ap.STATE).mkdir(parents=True)
     (ap.STATE / "STOP").write_text("x")
     assert ap.run_loop() == []
+
+
+def test_godot_tooling_changes_run_the_godot_check():
+    names = [" ".join(c[-2:]) for c in ap.swarm._checks_for(["harness/godot/native_method_lint.gd"])]
+    assert "godot check" in names and "-q -x" in names
+    assert "godot check" not in [" ".join(c[-2:]) for c in ap.swarm._checks_for(["harness/src/hx/report.py"])]
