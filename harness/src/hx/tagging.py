@@ -217,7 +217,9 @@ def tag_session(session_id: str, con=None, tax: dict | None = None, delegate_run
         tag, problem = parse(out.text, tax) if not out.escalate else ({}, "escalated: no tagger available")
         rows.append({**base, **tag, "role": "tagger", "model": out.model, "valid": problem is None,
                      "problem": problem, "ts": datetime.now(timezone.utc).isoformat(timespec="seconds")})
-    if is_audited(session_id, tax["audit_share"]) and (session_id, "audit") not in done:
+    tagger_tag = rows[0] if rows and rows[0]["valid"] else {}
+    priority = tagger_tag.get("outcome") == "partial" or base["friction"]["score"] >= tax.get("audit_friction", 0.3)
+    if (priority or is_audited(session_id, tax["audit_share"])) and (session_id, "audit") not in done:
         from hx.bench import adapters
         call = audit_call or adapters.call
         reply = call({"adapter": "claude-cli", "model": tax["audit_model"]}, delegate.SYSTEM, text, 300)
@@ -258,17 +260,26 @@ def untagged_busy(con, since=None, min_calls: int = UNTAGGED_MIN_CALLS, grace_s:
             if n > min_calls and sid not in done and now - last >= grace_s]
 
 
+MIN_AUDIT_PAIRS = 8  # fewer pairs than this and an agreement figure says little
+
+
 def accuracy(rows: list[dict]) -> dict:
-    """Agreement between tagger and audit on sessions that have both (valid) tags."""
+    """Agreement between tagger and audit on sessions that have both (valid) tags.
+
+    Adds `insufficient_sample` when pairs < MIN_AUDIT_PAIRS and lists the disagreeing sessions."""
     by: dict[str, dict] = {}
     for r in rows:
         if r.get("valid"):
             by.setdefault(r["session_id"], {})[r["role"]] = r
     pairs = [(v["tagger"], v["audit"]) for v in by.values() if "tagger" in v and "audit" in v]
     if not pairs:
-        return {"pairs": 0}
+        return {"pairs": 0, "insufficient_sample": True}
     n = len(pairs)
-    return {"pairs": n,
+    off = [{"session": t["session_id"][:14], "tagger": [t["kind"], t["outcome"], t["complexity"]],
+            "audit": [a["kind"], a["outcome"], a["complexity"]]}
+           for t, a in pairs if t["kind"] != a["kind"] or t["outcome"] != a["outcome"]
+           or abs(t["complexity"] - a["complexity"]) > 1]
+    return {"pairs": n, "insufficient_sample": n < MIN_AUDIT_PAIRS, "disagreements": off,
             "kind_agree": round(sum(t["kind"] == a["kind"] for t, a in pairs) / n, 3),
             "outcome_agree": round(sum(t["outcome"] == a["outcome"] for t, a in pairs) / n, 3),
             "complexity_within_1": round(sum(abs(t["complexity"] - a["complexity"]) <= 1 for t, a in pairs) / n, 3)}

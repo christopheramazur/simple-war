@@ -1,0 +1,8 @@
+{
+	"gap": "TightGap",
+	"min_width": 250,
+	"sections": [
+		{"kind": "lines", "bind": "lines", "wrap": true, "default_style": "CaptionLabel",
+		 "styles": {"head": "CardAccentLabel", "dim": "CaptionDimLabel", "text": "CaptionLabel"}}
+	]
+}

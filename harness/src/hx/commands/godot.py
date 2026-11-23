@@ -1,7 +1,8 @@
 """hx godot: engine checks with error-only output (DESIGN.md §5 seed verbs).
 
   hx godot check [--no-import] [FILE...]  headless import, then a GDScript parse of every script under
-                                 src/ (or only FILEs, which skips the import)
+                                 src/ (or only FILEs, which skips the import), plus a ClassDB lint for calls to
+                                 methods a natively typed variable lacks (harness/godot/native_method_lint.gd)
   hx godot test [--dir D] [--file F] [--select S] [--test T]  run GUT headless (all, or a subset) and
                                  print the summary plus failures
   hx godot run <scene|script> [--quit-after N] [--editor]  run one scene or SceneTree script headless;
@@ -23,6 +24,7 @@ from hx.output import FAIL, OK, WARN, Check, Result
 
 HELP = ("Godot: check [files] (import + script parse, errors only) | test (GUT, or a subset) | "
         "run (one scene/script headless) | mock (UI mock -> PNG)")
+NATIVE_LINT = "res://harness/godot/native_method_lint.gd"
 MOCK_RUNNER = "res://src/presentation/mocks/mock_runner.gd"
 MOCK_DIR = "Game Design Document/Mocks"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -141,6 +143,11 @@ def _check(args) -> Result:
     with ThreadPoolExecutor(max_workers=4) as pool:
         for errs in pool.map(parse, scripts):
             found += errs
+    # The engine's parse-only check cannot see calls to methods a native type lacks (c.to_global() on a
+    # Control): a ClassDB-backed lint covers them. One launch for all scripts, in batches for command length.
+    for i in range(0, len(scripts), 40):
+        _, lines = _run(exe, root, ["--script", NATIVE_LINT, "--", *scripts[i:i + 40]], 120)
+        found += [x[len("NMLINT "):] for x in lines if x.startswith("NMLINT ")]
     r.data["scripts_parsed"] = len(scripts)
     r.data["errors"] = len(found)
     if found:

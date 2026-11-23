@@ -63,7 +63,20 @@ def test_tag_session_writes_tagger_and_audit(env, monkeypatch):
     assert tagging.tagged_ids() == {("s1", "tagger"), ("s1", "audit")}
     assert tagging.tag_session("s1", con=object(), tax=tax, delegate_run=None, audit_call=None) == []  # done
     acc = tagging.accuracy(tagging.read_rows())
-    assert acc == {"pairs": 1, "kind_agree": 1.0, "outcome_agree": 0.0, "complexity_within_1": 1.0}
+    assert acc["pairs"] == 1 and acc["insufficient_sample"] is True
+    assert (acc["kind_agree"], acc["outcome_agree"], acc["complexity_within_1"]) == (1.0, 0.0, 1.0)
+    assert [d["session"] for d in acc["disagreements"]] == ["s1"]
+
+
+def test_partial_outcome_is_always_audited(env, monkeypatch):
+    monkeypatch.setattr(tagging, "metrics", lambda con, sid: {
+        "calls": 4, "minutes": 3, "tools": {}, "tool_calls": 0, "tool_errors": 0, "denied": 0, "interrupts": 0,
+        "api_errors": 0, "compactions": 0, "prompts": 1, "tasks": []})
+    part = '{"kind": "feature", "area": "x", "complexity": 2, "outcome": "partial", "confidence": 0.8}'
+    rows = tagging.tag_session("s1", con=object(), tax={**TAX, "audit_share": 0.0},
+                               delegate_run=lambda *a: Outcome(target="b", model="m", text=part),
+                               audit_call=lambda *a: Reply(text=part))
+    assert [r["role"] for r in rows] == ["tagger", "audit"]
 
 
 def test_escalated_tagger_is_recorded_invalid(env, monkeypatch):
