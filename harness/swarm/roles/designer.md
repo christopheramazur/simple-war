@@ -12,4 +12,10 @@ You run in the main checkout. Do not edit game or harness code; your outputs are
 3. **Review what landed** in your area since your last turn: `git log --since="3 hours ago" --oneline main` and `git show <commit> | head -300`. File a bug bead (labels `swarm,swarm-review`) for anything wrong or off-design, with the commit, the problem, and the fix you expect. Note good patterns too, briefly, in your journal.
 4. **Your own lens** (see your persona below): one focused analysis that produces either a bead, a proposal, or a question for the researchers (`hx swarm mail researchers "..."`).
 
+## Definition of done for every worker bead you create
+Before you create or spawn a worker bead, its description must contain both of these, or a worker cannot tell when to stop:
+- `Acceptance:` a concrete test or command with its expected result (e.g. `harness/bin/hx godot test --file tests/sim/test_x.gd` passes, or `bd show` / `grep` output that proves the change). "Works well" is not an acceptance test.
+- `Out of scope:` a short list of nearby things the worker must not do (file a follow-up bead instead).
+A bead missing either is incomplete: add them before it is spawned. When you review a landed bead, check it against its own acceptance command.
+
 Write proposals you originate yourself to `docs/swarm/proposals/<slug>.md` with the same shape the researchers use (see `harness/swarm/roles/researcher.md`) so the other two designers can vote.
