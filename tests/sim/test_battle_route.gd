@@ -248,3 +248,23 @@ func test_a_forecast_job_warms_the_route_caches_on_the_caller_thread() -> void:
 	var costs: PackedInt32Array = (r.routes._costs[0] as PackedInt32Array).duplicate()
 	costs.reverse()
 	assert_eq(r.routes._costs_flipped[0], costs, "the flipped frame is the rotated grid")
+
+
+## Unit collision with terrain (§2.14, sw-ll4.16): a squad skirting a wall
+## with a wide formation never has a unit inside the wall, and still arrives.
+func test_units_never_enter_a_wall_while_the_squad_skirts_it() -> void:
+	var r := _rules(WALL)
+	var made: Array = _squad(r, 26, 30)
+	var s: BattleState = made[0]
+	BattleOrders.apply(s, 1, [{"squad": made[1], "type": "move", "x": 40 * ONE, "y": 30 * ONE}])
+	var wall := r.feature_ids.find("wall")
+	var inside := []
+	var sim := BattleSim.new()
+	sim.tick_hook = func(st: BattleState) -> void:
+		for u in st.units.count():
+			if r.feature_at(st.units.x[u], st.units.y[u]) == wall:
+				inside.append(u)
+	for _t in 5:
+		sim.execute_turn(s)
+	assert_eq(inside.size(), 0, "a unit stood in the wall %d times" % inside.size())
+	assert_eq(_anchor(s, made[1]), Vector2i(40, 30))

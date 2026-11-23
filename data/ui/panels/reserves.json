@@ -1,0 +1,10 @@
+{
+	"sections": [
+		{"kind": "list", "bind": "groups", "each": [
+			{"kind": "label", "bind": "title", "style": "DimLabel"},
+			{"kind": "list", "bind": "squads", "each": [
+				{"kind": "button", "bind": "text", "disabled": "disabled", "action": "send_reserve", "args": ["commander", "squad"]}
+			]}
+		]}
+	]
+}

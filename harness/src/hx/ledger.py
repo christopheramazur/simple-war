@@ -13,7 +13,7 @@ import duckdb
 
 from hx.paths import data_dir
 
-SCHEMA_VERSION = 3  # bump on any table change; a mismatch triggers a full rebuild from raw
+SCHEMA_VERSION = 4  # bump on any table change; a mismatch triggers a full rebuild from raw
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS tool_use (
 CREATE TABLE IF NOT EXISTS tool_result (
     tool_use_id TEXT PRIMARY KEY,
     session_id TEXT, ts TIMESTAMP,
-    result_chars BIGINT, is_error BOOLEAN, denied TEXT
+    result_chars BIGINT, is_error BOOLEAN, denied TEXT, error_line TEXT
 );
 
 -- Point events: prompt, interrupt, api_error, turn (value = ms), compaction, ...
@@ -111,10 +111,24 @@ def read_only(db: Path | None = None, wait: float = 120) -> duckdb.DuckDBPyConne
             time.sleep(1)
 
 
-def connect(db: Path | None = None, rebuild: bool = False) -> duckdb.DuckDBPyConnection:
+def connect(db: Path | None = None, rebuild: bool = False, wait: float = 120) -> duckdb.DuckDBPyConnection:
+    """Writable connection. DuckDB holds an exclusive file lock (on Windows even readers fail), so
+    a concurrent hook, worker ingest or reader makes this raise IOException: retry with backoff
+    until `wait` seconds pass (sw-um9)."""
+    import time
     db = db or path()
     db.parent.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(db))
+    deadline = time.time() + wait
+    delay = 0.25
+    while True:
+        try:
+            con = duckdb.connect(str(db))
+            break
+        except duckdb.IOException:
+            if time.time() > deadline:
+                raise
+            time.sleep(delay)
+            delay = min(delay * 2, 5)
     if rebuild or _version(con) not in (None, SCHEMA_VERSION):
         con.execute("DROP VIEW IF EXISTS session_summary")
         for t in TABLES:

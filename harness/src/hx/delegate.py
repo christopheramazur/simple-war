@@ -114,8 +114,8 @@ def _ready(cand: dict, roster: dict[str, providers.Provider], start_local: bool)
         if not start_local:
             return "local server not running"
         why = localmodel.can_start(p.id)
-        if why:
-            return why
+        if why:  # one stable reason, so fallback_reasons groups instead of splitting on MiB figures
+            return "skipped_local: vram" if why.startswith("not enough free VRAM") else why
         ok, msg = localmodel.start(p.id)
         if not ok:
             return f"{p.id} failed to start: {msg}"
@@ -144,7 +144,9 @@ def run(prompt: str, level: str, task_class: str | None = None, size: str | None
     t0 = time.perf_counter()
     down: dict[str, str] = {}  # provider -> why it can't serve; checked once per call, not per target
     for c in cands:
-        why = down.get(c["provider"]) or _ready(c, roster, start_local)
+        if c["provider"] in down:  # already recorded once for this call; no second skip entry
+            continue
+        why = _ready(c, roster, start_local)
         if why:
             down[c["provider"]] = why
             out.tried.append({"target": c["target"], "skipped": why})
