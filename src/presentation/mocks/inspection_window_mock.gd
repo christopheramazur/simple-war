@@ -4,6 +4,7 @@ extends RefCounted
 ## fed by BattleSession.inspect. Formatting lives here only because this is a
 ## mock; the real window will format the same API data the same way. Render
 ## with `hx godot mock res://src/presentation/mocks/inspection_window_mock.gd`.
+## Unit portraits now use the core unit art via `ArtSet` (sw-5fo); the silhouette remains the no-art fallback.
 
 const ONE := Fixed.ONE
 const W := 600
@@ -227,6 +228,7 @@ static func _card(v: Dictionary, units: Array, i: int) -> Control:
 	h.add_theme_constant_override("separation", 8)
 	p.add_child(h)
 	var portrait := Portrait.new()
+	portrait.tex = ArtSet.core().texture(String(u["template"]))
 	portrait.rank = u["template"] == "sergeant"
 	portrait.hurt = u["hp"] < u["hp_max"]
 	h.add_child(portrait)
@@ -743,18 +745,25 @@ class Icon extends Control:
 class Portrait extends Control:
 	var rank: bool = false
 	var hurt: bool = false
+	var tex: Texture2D = null
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(40, 40)
 		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 	func _draw() -> void:
 		var s := size
-		draw_rect(Rect2(Vector2.ZERO, s), Color("2b323d"))
-		var fig := Color("58637a")
-		draw_circle(Vector2(s.x / 2, s.y * 0.36), s.x * 0.17, fig, true, -1.0, true)
-		draw_colored_polygon(PackedVector2Array([Vector2(s.x * 0.16, s.y), Vector2(s.x * 0.24, s.y * 0.68),
-			Vector2(s.x * 0.76, s.y * 0.68), Vector2(s.x * 0.84, s.y)]), fig)
+		if tex != null:
+			var ts := Vector2(tex.get_size())
+			var d := ts * minf(s.x / ts.x, s.y / ts.y)
+			draw_texture_rect(tex, Rect2((s - d) * 0.5, d), false)
+		else:
+			draw_rect(Rect2(Vector2.ZERO, s), Color("2b323d"))
+			var fig := Color("58637a")
+			draw_circle(Vector2(s.x / 2, s.y * 0.36), s.x * 0.17, fig, true, -1.0, true)
+			draw_colored_polygon(PackedVector2Array([Vector2(s.x * 0.16, s.y), Vector2(s.x * 0.24, s.y * 0.68),
+				Vector2(s.x * 0.76, s.y * 0.68), Vector2(s.x * 0.84, s.y)]), fig)
 		if rank:
 			for dy: float in [4.0, 9.0]:
 				draw_polyline(PackedVector2Array([Vector2(4, dy + 4), Vector2(9, dy), Vector2(14, dy + 4)]), Color("e6b450"), 2.0, true)
