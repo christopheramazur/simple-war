@@ -6,7 +6,8 @@ extends VBoxContainer
 ## set each, and its definition to edit, validated against the whole
 ## package before it is written (PackageEditor). The Triggers tab draws a
 ## map's or scenario's triggers with custom_graph_editor (TriggerGraph), the
-## Dialogues tab a dialogue's nodes (DialogueGraph);
+## Dialogues tab a dialogue's nodes (DialogueGraph; edited in the graph and
+## saved as DialogueEdit changes);
 ## selecting a trigger node opens its template. The Maps tab paints battle
 ## maps (MapPainter). Problems lists everything
 ## the package would fail to load with. Runs in the editor's main screen
@@ -37,6 +38,8 @@ var _dialogues: OptionButton
 var _dgraph_holder: Control
 var _dgraph: Control
 var _dgraph_data: Dictionary = {}
+var _dgraph_id: String = ""
+var _dresult: Label
 var _problems: ItemList
 var _maps: MapPainter
 
@@ -141,10 +144,80 @@ func show_triggers(owner: String) -> void:
 	_graph = _load_graph(_graph_holder, _graph, _graph_data)
 
 
-## Draws one dialogue (DialogueGraph) on the Dialogues tab.
+## Draws one dialogue (DialogueGraph) on the Dialogues tab. Its graph is
+## editable: changes made in the editor are written to the dialogue
+## (sync_dialogue) and the graph is drawn again from the definition.
 func show_dialogue(id: String) -> void:
+	_dgraph_id = id
 	_dgraph_data = DialogueGraph.build(model.templates, id)
 	_dgraph = _load_graph(_dgraph_holder, _dgraph, _dgraph_data)
+	var g: CGEGraph = _dgraph.get("graph")
+	g.node_created.connect(_on_dialogue_graph_edited.unbind(1))
+	g.node_deleted.connect(_on_dialogue_graph_edited.unbind(1))
+	g.link_created.connect(_on_dialogue_graph_edited.unbind(3))
+	g.link_deleted.connect(_on_dialogue_graph_edited.unbind(1))
+
+
+## The editor changed its graph. Applied after the editor's command is done.
+func _on_dialogue_graph_edited() -> void:
+	sync_dialogue.call_deferred()
+
+
+## Writes the graph editor's changes to the shown dialogue: new nodes get a
+## name, links the editor drew or lost become links or unlinks, and nodes
+## the editor deleted are removed. The definition is validated and written
+## like any edit; then the graph is drawn again from the definition, so a
+## refused change is undone on screen too. Returns the errors.
+func sync_dialogue() -> PackedStringArray:
+	if _dgraph == null or _dgraph_id.is_empty() or model == null or model.file_of(_dgraph_id).is_empty():
+		return PackedStringArray()
+	var g: CGEGraph = _dgraph.get("graph")
+	var def: Dictionary = JSON.parse_string(model.definition_text(_dgraph_id))
+	var original := def.duplicate(true)
+	var values: Dictionary = def["values"]
+	var before := DialogueEdit.pairs(values)
+	# Editor node ID -> dialogue node name. Variable nodes are not dialogue nodes.
+	var names := {}
+	var fresh := []
+	for nid: int in g.get_all_node_ids():
+		var n := g.get_node(nid) as WarGraphNode
+		if n == null or n.kind == "var":
+			continue
+		if n.node_name.is_empty():
+			fresh.append(nid)
+		else:
+			names[nid] = n.node_name
+	for nid: int in fresh:
+		names[nid] = DialogueEdit.new_name(values)
+		DialogueEdit.add_node(values, names[nid])
+	var now := []
+	for nid: int in names:
+		for l in g.get_links_from(nid):
+			if names.has(l.end_node_id) and not now.has([names[nid], names[l.end_node_id]]):
+				now.append([names[nid], names[l.end_node_id]])
+	var alive := {}
+	for nid: int in names:
+		alive[names[nid]] = true
+	# Lost links go first (a deleted node's links are among them), then new
+	# links, then the nodes the editor deleted.
+	for p: Array in before:
+		if not now.has(p):
+			DialogueEdit.unlink(values, p[0], p[1])
+	for p: Array in now:
+		if not before.has(p):
+			DialogueEdit.link(values, p[0], p[1])
+	for name: String in (values["nodes"] as Dictionary).keys():
+		if not alive.has(name):
+			DialogueEdit.remove_node(values, name)
+	if def == original:
+		return PackedStringArray()
+	var errs := model.replace(_dgraph_id, JSON.stringify(def, "\t"))
+	_dresult.text = ("Saved to %s." % model.file_of(_dgraph_id)) if errs.is_empty() else "Not saved:\n" + "\n".join(errs)
+	_fill_problems()
+	if selected_id == _dgraph_id:
+		select(selected_id)
+	show_dialogue(_dgraph_id)
+	return errs
 
 
 ## Replaces the graph editor in `holder` with one showing `data`.
@@ -242,10 +315,17 @@ func _build() -> void:
 	_dialogues = OptionButton.new()
 	_dialogues.item_selected.connect(func(i: int) -> void: show_dialogue(_dialogues.get_item_text(i)))
 	dlg.add_child(_dialogues)
+	var dhint := Label.new()
+	dhint.text = "Drag from a node to another: a node with choices gets a choice to it, any other node its next. Delete a link or a node to remove it. Add Node makes node_N. Each change is saved."
+	dhint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dlg.add_child(dhint)
 	_dgraph_holder = Control.new()
 	_dgraph_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_dgraph_holder.clip_contents = true
 	dlg.add_child(_dgraph_holder)
+	_dresult = Label.new()
+	_dresult.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dlg.add_child(_dresult)
 	_maps = MapPainter.new()
 	_maps.saved.connect(_on_map_saved)
 	_tabs.add_child(_maps)
