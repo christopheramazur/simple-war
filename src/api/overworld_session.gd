@@ -486,6 +486,10 @@ func reaction_opportunities(player: int) -> Array:
 func telegraphs(player: int, engagement_id: int) -> Array:
 	if clock.phase != PulseClock.Phase.REACTION:
 		return []
+	if want_telegraphs and not _telegraphs.has(engagement_id) and battles.has(engagement_id):
+		# Lazy (sw-pcl): the scratch turn runs only for a battle someone asks about
+		# (the focused one), not for every battle at REACTION.
+		_telegraphs[engagement_id] = Reactions.forecast_all((battles[engagement_id] as OverworldBattle).state, _battle_sim)["telegraphs"]
 	return (_telegraphs.get(engagement_id, []) as Array).filter(
 		func(t: Dictionary) -> bool: return t["player"] == player)
 
@@ -627,9 +631,12 @@ func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 			var ids: Array = battles.keys()
 			ids.sort()
 			for eid: int in ids:
-				var fc := Reactions.forecast_all((battles[eid] as OverworldBattle).state, _battle_sim, want_telegraphs)
+				var bstate := (battles[eid] as OverworldBattle).state
+				var fc := Reactions.forecast_all(bstate, _battle_sim, false)
 				_opportunities[eid] = fc["opportunities"]
-				_telegraphs[eid] = fc["telegraphs"]
+				if Reactions.any_reactions(bstate):
+					_telegraphs[eid] = fc["telegraphs"]  # the scratch turn ran anyway
+				# else: telegraphs() computes them lazily for a battle that is looked at (sw-pcl)
 			_auto_ready = true
 		PulseClock.Phase.EXECUTE:
 			_execute_pending = true
