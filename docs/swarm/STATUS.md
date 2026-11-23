@@ -1,16 +1,16 @@
 # Swarm status
 
-Updated 2026-11-23 13:48 UTC. Generation 1, audit alert streak 0. Supervisor running.
+Updated 2026-11-23 14:03 UTC. Generation 1, audit alert streak 0. Supervisor running.
 
 | | |
 |---|---|
-| Turns per role | auditor: 54, craft-researcher: 12, games-researcher: 13, lead-designer: 15, orchestrator: 81, retro: 1, tech-lead: 9, ux-art-director: 11 |
-| Worker turns / research turns (24 h) | 7 / 0 |
+| Turns per role | auditor: 55, craft-researcher: 12, games-researcher: 13, lead-designer: 15, orchestrator: 82, retro: 1, tech-lead: 9, ux-art-director: 11 |
+| Worker turns / research turns (24 h) | 8 / 0 |
 | Workers queued / running / awaiting review | - / - / sw-ll4.27.7 |
 | Merged / rejected (all time) | 19 / 1 |
-| Gateway calls last hour (rate-limited) | 29 (7) |
+| Gateway calls last hour (rate-limited) | 21 (4) |
 | Incidents | 0 postmortem(s) |
-| Latest audit | 11-23 13:31 UTC **PASS** (rules) |
+| Latest audit | 11-23 14:01 UTC **WARN** (rules) |
 
 ## Recently merged
 - sw-ll4.27.1 (2026-11-21T13:00)
@@ -25,6 +25,10 @@ Updated 2026-11-23 13:48 UTC. Generation 1, audit alert streak 0. Supervisor run
 <!-- details: agents see only the summary above -->
 
 ## Last audits (newest first)
+
+### 11-23 14:01 UTC **WARN** (rules)
+
+4 swarm calls (0 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-abk finished (failed) 86 min ago and awaits review | health: 4/4 turns failed or timed out
 
 ### 11-23 13:31 UTC **PASS** (rules)
 
@@ -41,8 +45,4 @@ Updated 2026-11-23 13:48 UTC. Generation 1, audit alert streak 0. Supervisor run
 ### 11-23 12:01 UTC **WARN** (rules)
 
 11 swarm calls (4 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-ll4.27.6 finished (partial) 330 min ago and awaits review | act: sw-vld finished (partial) 306 min ago and awaits review | health: no merge in 2 h while workers ran
-
-### 11-23 11:31 UTC **WARN** (rules)
-
-8 swarm calls (2 rate-limited), all nous/qwen4-max, cost 0 USD | act: sw-ll4.27.6 finished (partial) 300 min ago and awaits review | act: sw-vld finished (partial) 276 min ago and awaits review | health: no merge in 2 h while workers ran
 
