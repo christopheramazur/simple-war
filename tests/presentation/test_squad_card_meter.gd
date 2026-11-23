@@ -73,7 +73,7 @@ func test_every_band_reads_as_icon_and_word() -> void:
 		assert_eq(String(pools[DataSchema.SIMPL[b]]["band"]), DataSchema.BANDS[b], "the sim maps mid-band")
 	var text := "\n".join(_texts(_card()))
 	for band: String in DataSchema.BANDS:
-		assert_string_contains(text, String(SquadCard.BAND_ICONS[band]) + " " + band.capitalize(),
+		assert_string_contains(text, String(BandGlyphs.ICONS[band]) + " " + band.capitalize(),
 			"icon + word, never colour alone")
 
 
@@ -183,7 +183,7 @@ func test_each_simpl_pool_has_a_unique_icon_and_glossary_name_with_hover() -> vo
 		var icon := SquadCard.pool_icon(p)
 		assert_false(seen.has(icon), "icon for %s is shared" % p)
 		seen[icon] = true
-		assert_false(SquadCard.BAND_ICONS.values().has(icon), "%s clashes with a band icon" % p)
+		assert_false(BandGlyphs.ICONS.values().has(icon), "%s clashes with a band icon" % p)
 		assert_eq(SquadCard.pool_word(p, g), g.name_of("term_" + p))
 	var card := SquadCard.build(_squad(), {}, 1, 10, false, {"glossary": g})
 	autofree(card)
