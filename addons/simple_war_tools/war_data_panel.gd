@@ -9,7 +9,8 @@ extends VBoxContainer
 ## Dialogues tab a dialogue's nodes (DialogueGraph; edited in the graph and
 ## saved as DialogueEdit changes);
 ## selecting a trigger node opens its template. The Maps tab paints battle
-## maps (MapPainter). Problems lists everything
+## maps (MapPainter), the World maps tab overworld maps (OverworldPainter).
+## Problems lists everything
 ## the package would fail to load with. Runs in the editor's main screen
 ## (plugin.gd) and standalone (F6).
 
@@ -44,6 +45,7 @@ var _dgraph_id: String = ""
 var _dresult: Label
 var _problems: ItemList
 var _maps: MapPainter
+var _world: OverworldPainter
 
 
 func _ready() -> void:
@@ -62,6 +64,7 @@ func open(dir: String) -> void:
 	_fill_dialogues()
 	_fill_problems()
 	_maps.set_model(model)
+	_world.set_model(model)
 	if not selected_id.is_empty() and model.file_of(selected_id) != "":
 		select(selected_id)
 
@@ -69,6 +72,11 @@ func open(dir: String) -> void:
 ## The Maps tab.
 func painter() -> MapPainter:
 	return _maps
+
+
+## The World maps tab (overworld maps).
+func world_painter() -> OverworldPainter:
+	return _world
 
 
 ## Opens the Maps tab (the map painter).
@@ -98,6 +106,10 @@ func select(id: String) -> void:
 ## paint. The tab is not switched.
 func _open_in_maps(id: String) -> void:
 	var kind := model.templates.kind_of(id) if model.templates != null else ""
+	if kind == "overworld_map" and not model.templates.is_abstract(id):
+		if _world.canvas == null or not _world.canvas.dirty:
+			_world.open_map(id)
+		return
 	var was := _maps._result.text
 	if kind == "battle_map":
 		_maps.open_map(id)
@@ -361,6 +373,9 @@ func _build() -> void:
 	_maps = MapPainter.new()
 	_maps.saved.connect(_on_map_saved)
 	_tabs.add_child(_maps)
+	_world = OverworldPainter.new()
+	_world.saved.connect(_on_map_saved)
+	_tabs.add_child(_world)
 	_problems = ItemList.new()
 	_problems.name = "Problems"
 	_tabs.add_child(_problems)
