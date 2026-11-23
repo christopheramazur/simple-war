@@ -165,6 +165,79 @@ func test_stamps_and_resizing() -> void:
 	assert_eq([c.width, c.cells().size()], [40, 2])
 
 
+## Paint lands on top of a stamp: the stamp becomes painted cells, the map
+## looks the same everywhere else, and undo brings the stamp back.
+func test_paint_over_a_stamp_flattens_it() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_map", 40, 30, "open")
+	var forest := c.features.find("forest")
+	c.begin()
+	c.add_stamp("ruin_block", 10, 5, 90)
+	c.begin()
+	c.paint(39, 29, forest, 0)
+	assert_eq(c.stamps.size(), 1, "paint away from a stamp leaves it")
+	var before: PackedInt32Array = c.composite()["feature"].duplicate()
+	c.begin()
+	c.paint(17, 20, forest, 0)
+	var after: PackedInt32Array = c.composite()["feature"]
+	assert_eq(after[20 * 40 + 17], forest, "the paint shows")
+	assert_eq(c.stamps.size(), 0)
+	assert_eq(c.flattened, PackedStringArray(["ruin_block"]))
+	var changed := 0
+	for i in after.size():
+		if after[i] != before[i]:
+			changed += 1
+	assert_eq(changed, 1, "only the painted cell looks different")
+	c.undo()
+	assert_eq(c.stamps.size(), 1, "undo brings the stamp back")
+	assert_eq(c.features[c.composite()["feature"][20 * 40 + 17]], "ruins")
+	assert_eq(c.cells().size(), 2, "saved: the forest cell and the stamp")
+
+
+## Flattening a stamp takes the stamps below it that it overlaps, so what was
+## hidden under it stays hidden; right-painting a stamped cell shows the base.
+func test_flatten_takes_overlapped_stamps_below() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_map", 40, 30, "open")
+	c.begin()
+	c.add_stamp("ruin_block", 2, 2, 0)
+	c.add_stamp("ruin_block", 6, 4, 0)
+	c.add_stamp("ruin_block", 30, 20, 0)
+	var top := c.stamp_rect(1)
+	var cell := Vector2i(-1, -1)
+	for y in range(top.position.y, top.end.y):
+		for x in range(top.position.x, top.end.x):
+			if cell.x < 0 and c.stamp_at(x, y) == 1 and c._stamp_paints(1, x, y):
+				cell = Vector2i(x, y)
+	assert_gt(cell.x, -1, "the top stamp paints a cell")
+	var before: PackedInt32Array = c.composite()["feature"].duplicate()
+	c.begin()
+	c.paint(cell.x, cell.y, c.base, 0)
+	assert_eq(c.stamps.size(), 1, "the far stamp stays")
+	assert_eq(c.stamps[0]["x"], 30)
+	var after: PackedInt32Array = c.composite()["feature"]
+	assert_eq(after[cell.y * 40 + cell.x], c.base, "the right button erases a stamped cell to the base")
+	var changed := 0
+	for i in after.size():
+		if after[i] != before[i]:
+			changed += 1
+	assert_eq(changed, 1)
+
+
+func test_fill_goes_by_what_the_map_shows() -> void:
+	var m := PackageEditor.open(COPY)
+	var c := MapCanvas.create(m.templates, "t_map", 40, 30, "open")
+	var forest := c.features.find("forest")
+	c.begin()
+	c.add_stamp("ruin_block", 10, 5, 90)
+	c.begin()
+	c.fill(17, 20, forest, 0)
+	var shown: PackedInt32Array = c.composite()["feature"]
+	assert_eq(shown[20 * 40 + 17], forest)
+	assert_eq(c.stamps.size(), 0, "the stamp is flattened")
+	assert_eq(shown[0], c.base, "the open ground around it is not filled")
+
+
 func test_the_maps_tab_paints_and_saves_a_new_map() -> void:
 	var p := WarDataPanel.new()
 	p.package_dir = COPY

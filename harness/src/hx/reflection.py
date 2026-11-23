@@ -90,6 +90,9 @@ def evidence(con, since: datetime) -> dict:
                                     for r in sorted(tagger, key=lambda r: -r["friction"]["score"])[:5]
                                     if r["friction"]["score"] >= 0.2]
     ev["tag_audit"] = tagging.accuracy(tags)
+    gap = tagging.untagged_busy(con, since)
+    if gap:  # the tag path is dropping sessions (sw-j41); say so instead of showing an empty table
+        ev["untagged_busy_sessions"] = {"count": len(gap), "top": gap[:5]}
 
     dl = _jsonl(paths.data_dir() / "raw" / "delegate", since)
     skips = Counter(t.get("skipped") or t.get("error", "")[:80] for r in dl for t in r.get("tried", []) if not t.get("ok"))

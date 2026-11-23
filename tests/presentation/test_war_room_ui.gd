@@ -393,7 +393,7 @@ func test_battle_tabs_and_tiles_show_the_worst_band_and_trend() -> void:
 	assert_eq(sum["band"], "broken")
 	var texts := "\n".join(_texts(w._menu))
 	assert_string_contains(texts, EventText.band_word("broken"), "the tab says the band as a word")
-	assert_string_contains(texts, String(EventText.BAND_ICONS["broken"]), "and an icon, never colour alone")
+	assert_string_contains(texts, String(BandGlyphs.ICONS["broken"]), "and an icon, never colour alone")
 	assert_string_contains(texts, EventText.trend_word(String(sum["trend"])), "with the backward-looking trend")
 	var sums: Dictionary = w._main._extra["summaries"]
 	assert_eq(sums.size(), 2, "both battle tiles carry a summary")

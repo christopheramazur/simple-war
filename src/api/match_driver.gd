@@ -141,9 +141,57 @@ func save_game(slot: String = "") -> String:
 		last_error = "could not write " + path
 		return ""
 	f.store_buffer(MAGIC.to_utf8_buffer())
-	f.store_buffer(var_to_bytes({"version": SAVE_VERSION, "meta": info, "session": session.save()}))
+	f.store_buffer(var_to_bytes({"version": SAVE_VERSION, "meta": info, "session": session.save(), "ai": ai_memory()}))
 	f.close()
 	return path
+
+
+## The AI controllers' memory by player, for the save file.
+func ai_memory() -> Dictionary:
+	var out := {"step": _ai_step, "players": {}}
+	for p: int in ai:
+		if ai[p] is ProfileController:
+			out["players"][p] = (ai[p] as ProfileController).save_state()
+	return out
+
+
+func restore_ai_memory(memory: Dictionary) -> void:
+	_ai_step = String(memory.get("step", ""))
+	var players: Dictionary = memory.get("players", {})
+	for p: int in players:
+		if ai.get(p) is ProfileController:
+			(ai[p] as ProfileController).load_state(players[p])
+
+
+## Deletes a saved game. Returns whether the file is gone.
+static func delete_save(path: String) -> bool:
+	last_error = ""
+	if path.get_extension() != "sav" or path.get_base_dir() != save_dir or _read(path) == null:
+		last_error = "not a saved game"
+		return false
+	if DirAccess.remove_absolute(path) != OK:
+		last_error = "could not delete " + path
+		return false
+	return true
+
+
+## Renames a saved game's slot. Returns the new path, or "" (see last_error).
+static func rename_save(path: String, new_slot: String) -> String:
+	last_error = ""
+	var slot := new_slot.strip_edges().validate_filename()
+	if slot.is_empty() or path.get_extension() != "sav" or path.get_base_dir() != save_dir or _read(path) == null:
+		last_error = "not a saved game or no name"
+		return ""
+	var to := "%s/%s.sav" % [save_dir, slot]
+	if to == path:
+		return path
+	if FileAccess.file_exists(to):
+		last_error = "a save named %s already exists" % slot
+		return ""
+	if DirAccess.rename_absolute(path, to) != OK:
+		last_error = "could not rename"
+		return ""
+	return to
 
 
 ## The saved games, newest first: [{"path", "slot", "map", "turn",
@@ -185,7 +233,8 @@ static func _read(path: String) -> Variant:
 ## Loads a saved game with the core package: the session where it was
 ## left, the same AI profile in the other seats, the tallies so far. Null
 ## if the file is unreadable or the content has changed (see last_error).
-## The AI's own memory is not saved: it plans afresh from the loaded state.
+## The AI's memory is saved too (ProfileController.save_state), so the
+## loaded game goes on as the saved one would have.
 static func load_game(path: String) -> MatchDriver:
 	last_error = ""
 	var data: Variant = _read(path)
@@ -204,6 +253,9 @@ static func load_game(path: String) -> MatchDriver:
 		m.stats = (info["stats"] as Dictionary).duplicate(true)
 	if not String(m.meta["profile"]).is_empty():
 		m.ai = opponents(s, m.human, m.meta["profile"], s.seed_value)
+		var memory: Variant = data.get("ai", {})
+		if memory is Dictionary:
+			m.restore_ai_memory(memory)
 	return m
 
 
