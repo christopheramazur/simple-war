@@ -91,6 +91,7 @@ Canonical instructions for every agent client (Claude Code reads this via `CLAUD
 | Search with context | `harness/bin/hx find <regex> [path ...] [-C N] [--max N] [--glob '*.gd']` (bounded `file:line: text` plus context; use instead of chaining `grep` and `sed -n`) |
 | List and find by name | `harness/bin/hx scan <dir> [--depth N] [--name GLOB]...` (entries plus case-insensitive name matches in one call; replaces `ls && find`) |
 | Read a line range plus files | `harness/bin/hx slice <path>:<a>-<b> [--also <path>[:a-b]]...` (numbered lines, bounded; replaces `sed -n a,bp && cat`) |
+| Worktree peek | `harness/bin/hx wt-status [path] [--limit N]` (top-level entries plus `git status --short` in one call; replaces `ls dir; git -C dir status --short`) |
 | Check some scripts | `harness/bin/hx godot check src/a.gd src/b.gd` (parse only, no import) |
 | Run one scene or script headless | `harness/bin/hx godot run <scene.tscn \| script.gd> [--quit-after N] [-- args]` (errors plus the output tail; `--editor` loads editor plugins). Don't call the Godot exe directly |
 | UI mock to PNG | `harness/bin/hx godot mock res://src/presentation/mocks/<name>_mock.gd` (opens a window briefly; writes `Game Design Document/Mocks/<name>.png`) |
