@@ -172,8 +172,12 @@ func sync_dialogue() -> PackedStringArray:
 	if _dgraph == null or _dgraph_id.is_empty() or model == null or model.file_of(_dgraph_id).is_empty():
 		return PackedStringArray()
 	var g: CGEGraph = _dgraph.get("graph")
-	var def: Dictionary = JSON.parse_string(model.definition_text(_dgraph_id))
-	var original := def.duplicate(true)
+	var def: Variant = JSON.parse_string(model.definition_text(_dgraph_id))
+	if not def is Dictionary or not (def["values"] is Dictionary) or not (def["values"] as Dictionary).has("nodes"):
+		_dresult.text = "Not saved: the nodes of '%s' come from another template; edit them in the Template tab." % _dgraph_id
+		show_dialogue(_dgraph_id)
+		return PackedStringArray(["the nodes are not in this template"])
+	var original := (def as Dictionary).duplicate(true)
 	var values: Dictionary = def["values"]
 	var before := DialogueEdit.pairs(values)
 	# Editor node ID -> dialogue node name. Variable nodes are not dialogue nodes.
