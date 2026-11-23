@@ -2,6 +2,7 @@ extends GutTest
 ## Replay recording and the viewer. Task sw-ip8.1.
 
 static var _loader: PackageLoader
+static var _rec: ReplayRecorder  ## seed-3 duel recorded once and shared
 
 
 func _l() -> PackageLoader:
@@ -10,12 +11,18 @@ func _l() -> PackageLoader:
 	return _loader
 
 
+func _recorded() -> ReplayRecorder:
+	if _rec == null:
+		_rec = ReplayRecorder.from_duel(_l().templates, _l().data_hash, "duel_crossroads", 3, _controllers())
+	return _rec
+
+
 func _controllers() -> Dictionary:
 	return {1: ZoneController.new(1), 2: ZoneController.new(2, {"fall_back_pct": 60})}
 
 
 func test_recorder_captures_every_tick() -> void:
-	var rec := ReplayRecorder.from_duel(_l().templates, _l().data_hash, "duel_crossroads", 7, _controllers())
+	var rec := _recorded()
 	var turns: int = rec.result["turn"]
 	# One initial frame, ticks_per_turn per turn, plus one after each turn's resolution.
 	assert_eq(rec.frames.size(), 1 + turns * (rec.rules.ticks_per_turn + 1))
@@ -29,7 +36,7 @@ func test_recorder_captures_every_tick() -> void:
 
 
 func test_save_replays_to_the_same_frames() -> void:
-	var live := ReplayRecorder.from_duel(_l().templates, _l().data_hash, "duel_crossroads", 3, _controllers())
+	var live := _recorded()
 	var again := ReplayRecorder.from_save(live.save_bytes, _l().templates, _l().data_hash)
 	assert_not_null(again)
 	assert_eq(again.frames.size(), live.frames.size())

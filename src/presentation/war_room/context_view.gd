@@ -616,7 +616,7 @@ func _draw_battle() -> void:
 		if ghosts.has(id) and pos.has(id) and not compact:
 			var pts: PackedInt64Array = ghosts[id]
 			var g := area.position + Vector2(pts[pts.size() - 2] / ONE, pts[pts.size() - 1] / ONE) * k
-			draw_string(font, g + Vector2(6, 4), "⚔", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, BATTLE)
+			draw_string(font, g + Vector2(6, 4), Telegraph.contact_label(ct, str(GameSettings.value("forecast_detail")) == "numbers"), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, BATTLE)
 	if _box.size != Vector2.ZERO:
 		draw_rect(_box.abs(), Color(SELECT, 0.15))
 		draw_rect(_box.abs(), SELECT, false, 1.0)

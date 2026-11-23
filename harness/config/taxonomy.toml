@@ -8,7 +8,9 @@ tag_class = "session_kind"
 
 # Audit: this share of sessions (picked by a hash of the session id, so reruns pick the same ones)
 # is re-tagged by a stronger model; agreement measures the tagger. Runs on the Claude subscription.
-audit_share = 0.10
+audit_share = 0.30
+# Sessions tagged partial, or with friction score at or above this, are always audited (sw-uxf).
+audit_friction = 0.3
 audit_model = "claude-sonnet-5-5"
 
 [kind]

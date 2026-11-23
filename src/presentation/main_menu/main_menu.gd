@@ -296,10 +296,13 @@ func open_saves() -> Control:
 	if found.is_empty():
 		list.add_child(_dim("No saved games yet. A skirmish saves itself every turn, and the war room has a Save button."))
 	for sv: Dictionary in found:
+		var row := HBoxContainer.new()
+		row.name = "Save_" + String(sv["slot"])
 		var b := Button.new()
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var map := String(sv["map"])
 		var versus := String(sv["profile"])
-		b.text = "%s  ·  %s, turn %d%s  ·  %s" % ["Autosave" if sv["slot"] == MatchDriver.AUTOSAVE else "Save",
+		b.text = "%s  ·  %s, turn %d%s  ·  %s" % ["Autosave" if sv["slot"] == MatchDriver.AUTOSAVE else String(sv["slot"]),
 			_name(map) if _templates != null and _templates.has(map) else map, int(sv["turn"]),
 			"" if versus.is_empty() else " vs " + (_name(versus) if _templates != null and _templates.has(versus) else versus), String(sv["saved"])]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -311,8 +314,38 @@ func open_saves() -> Control:
 			w.use_settings = true
 			w.autosave = true
 			_swap_to.call_deferred(w))
-		list.add_child(b)
+		row.add_child(b)
+		var name_edit := LineEdit.new()
+		name_edit.name = "Name"
+		name_edit.placeholder_text = "new name"
+		name_edit.custom_minimum_size = Vector2(110, 0)
+		row.add_child(name_edit)
+		var rename := Button.new()
+		rename.name = "Rename"
+		rename.text = "Rename"
+		rename.pressed.connect(func() -> void:
+			if MatchDriver.rename_save(String(sv["path"]), name_edit.text).is_empty():
+				said.text = "Could not rename: " + MatchDriver.last_error
+				return
+			_reopen_saves(parts["over"]))
+		row.add_child(rename)
+		var del := Button.new()
+		del.name = "Delete"
+		del.text = "Delete"
+		del.pressed.connect(func() -> void:
+			if not MatchDriver.delete_save(String(sv["path"])):
+				said.text = "Could not delete: " + MatchDriver.last_error
+				return
+			_reopen_saves(parts["over"]))
+		row.add_child(del)
+		list.add_child(row)
 	return parts["over"]
+
+
+func _reopen_saves(old: Control) -> void:
+	if old is UiWindow:
+		(old as UiWindow).close()
+	open_saves.call_deferred()
 
 
 ## The map editor as a screen: the War Data panel on its Maps tab, with a

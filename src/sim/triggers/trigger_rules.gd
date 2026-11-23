@@ -21,7 +21,14 @@ extends RefCounted
 ##   context; overworld: add_value,
 ##   add_feature, remove_feature, end_mission ("outcome" won or lost, with a
 ##   message "key" / "text"; the first one stands); battle: unlock_zone,
-##   lock_zone, end_battle.
+##   lock_zone, end_battle, apply_bundle ("bundle"; to every squad, or of
+##   "player" and/or template "squad"), reveal_area ("player", "x", "y",
+##   "radius" in cells, "turns", 0 = permanent).
+##   Overworld extras: check commander_at (commanders on col,row, optionally
+##   of "player" / template "commander"); actions spawn_commander
+##   ("commander", "player", col,row), give_squad / give_item ("squad" /
+##   "item" + "count" to "target" commander ID or "player"'s commander on
+##   col,row; give_squad respects the army cap), start_engagement (col,row).
 ## Triggers see the events of their own step only, not those their actions
 ## make (no chains; use variables across turns).
 
@@ -29,13 +36,14 @@ const CONTEXTS: Array[String] = ["overworld", "battle"]
 const OPS: Array[String] = ["==", "!=", "<", "<=", ">", ">="]
 const COMMON_CHECKS: Array[String] = ["var", "turn", "fired", "any"]
 const CHECKS: Dictionary = {
-	"overworld": ["value", "owns", "feature_at"],
+	"overworld": ["value", "owns", "feature_at", "commander_at"],
 	"battle": ["zone_owner", "zone_locked"],
 }
 const COMMON_ACTIONS: Array[String] = ["set_var", "add_var", "message", "start_dialogue"]
 const ACTIONS: Dictionary = {
-	"overworld": ["add_value", "add_feature", "remove_feature", "end_mission"],
-	"battle": ["unlock_zone", "lock_zone", "end_battle"],
+	"overworld": ["add_value", "add_feature", "remove_feature", "end_mission",
+		"spawn_commander", "give_squad", "give_item", "start_engagement"],
+	"battle": ["unlock_zone", "lock_zone", "end_battle", "apply_bundle", "reveal_area"],
 }
 const TURN_RESOLVED: StringName = &"turn_resolved"
 
@@ -125,6 +133,14 @@ func _check_action(tid: String, a: Dictionary, names: PackedStringArray, t: Temp
 		errors.append("%s: unknown zone '%s'" % [tid, a.get("zone", "")])
 	if kind in ["add_feature", "remove_feature"] and not names.has(String(a.get("feature", ""))):
 		errors.append("%s: unknown feature '%s'" % [tid, a.get("feature", "")])
+	if kind in ["spawn_commander", "give_squad", "give_item", "apply_bundle"]:
+		var key := {"spawn_commander": "commander", "give_squad": "squad", "give_item": "item", "apply_bundle": "bundle"}[kind] as String
+		var want := {"commander": "commander", "squad": "squad", "item": "item", "bundle": "bundle"}[key] as String
+		var id := String(a.get(key, ""))
+		if not t.has(id) or t.kind_of(id) != want:
+			errors.append("%s: %s needs a %s, '%s' is not one" % [tid, kind, want, id])
+	if kind == "apply_bundle" and a.has("squad") and (not t.has(String(a["squad"])) or t.kind_of(String(a["squad"])) != "squad"):
+		errors.append("%s: unknown squad '%s'" % [tid, a["squad"]])
 	if kind == "end_mission" and not String(a.get("outcome", "")) in ["won", "lost"]:
 		errors.append("%s: end_mission needs an outcome, won or lost" % tid)
 	if kind == "start_dialogue" and (not t.has(String(a.get("dialogue", ""))) or t.kind_of(String(a["dialogue"])) != "dialogue"):
