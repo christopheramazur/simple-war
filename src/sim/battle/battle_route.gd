@@ -40,6 +40,8 @@ var _cache: Dictionary = {}
 ## Per route class: cost per cell (0 impassable), and connected region per cell.
 var _costs: Dictionary = {}
 var _regions: Dictionary = {}
+## Per route class: the cheapest passable cell cost (the A* heuristic's scale).
+var _min_costs: Dictionary = {}
 ## The same, reversed: cell c of the 180° frame is cell n-1-c of the map.
 var _costs_flipped: Dictionary = {}
 var _regions_flipped: Dictionary = {}
@@ -81,7 +83,7 @@ func next_waypoint(r: BattleRules, route_class: int, from_x: int, from_y: int, t
 	if hit < 0:
 		if _cache.size() >= CACHE_MAX:
 			_cache.clear()
-		hit = _plan(costs, w, r.height, start, goal)
+		hit = _plan(costs, w, r.height, start, goal, _min_costs[route_class])
 		_cache[key] = hit
 		plans += 1
 	if hit & 1 == 1 and exact:
@@ -131,6 +133,11 @@ func _costs_of(r: BattleRules, route_class: int, flip: bool = false) -> PackedIn
 		costs[c] = by_feature[r.terrain[c]]
 	_costs[route_class] = costs
 	_regions[route_class] = _label_regions(costs, r.width, r.height)
+	var min_cost := 0
+	for c in costs:
+		if c > 0 and (min_cost == 0 or c < min_cost):
+			min_cost = c
+	_min_costs[route_class] = min_cost
 	return costs
 
 
@@ -203,12 +210,8 @@ static func _nearest(r: BattleRules, costs: PackedInt32Array, regions: PackedInt
 ## A* from start to goal (both passable, same region), then the farthest
 ## cell on that path the anchor can walk straight to at no more than the
 ## path's cost. Returns waypoint cell * 2 + (1 if it is the goal).
-func _plan(costs: PackedInt32Array, w: int, h: int, start: int, goal: int) -> int:
+func _plan(costs: PackedInt32Array, w: int, h: int, start: int, goal: int, min_cost: int) -> int:
 	var n := w * h
-	var min_cost := 0
-	for c in costs:
-		if c > 0 and (min_cost == 0 or c < min_cost):
-			min_cost = c
 	var gx := goal % w
 	@warning_ignore("integer_division")
 	var gy := goal / w

@@ -68,6 +68,11 @@ def evidence(con, since: datetime) -> dict:
     ev["spend"] = [{"client": c, "provider": p, "calls": n, "usd": round(u or 0, 2)} for c, p, n, u in q(
         "SELECT client, provider, count(*), sum(est_usd) FROM call WHERE ts >= ? AND source IS DISTINCT FROM 'gateway-dup' GROUP BY 1, 2 ORDER BY 4 DESC NULLS LAST")]
     from hx import providers
+    unknown = {pid for pid, p in providers.load().items() if p.billing == "unknown"}
+    unpriced = [r for r in ev["spend"] if r["provider"] in unknown and not r["usd"]]
+    for r in unpriced:  # $0 from an account whose billing is unknown means "no price recorded", not "free"
+        r["usd"] = "unpriced"
+    ev["unpriced_calls"] = {r["provider"]: r["calls"] for r in unpriced}
     ev["billing"] = {pid: ("free account: usd is list price, not charged" if p.billing == "none" else p.billing)
                      for pid, p in providers.load().items() if p.kind in ("api", "local")}
     ev["failing_tools"] = [{"tool": t, "calls": n, "errors": e} for t, n, e in q("""

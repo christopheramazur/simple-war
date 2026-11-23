@@ -29,9 +29,8 @@ func _in_battle() -> WarRoom:
 
 func _buttons(w: WarRoom) -> Array[Button]:
 	var out: Array[Button] = []
-	for c in w._orders_box.get_children():
-		if c is Button:
-			out.append(c as Button)
+	for c in w._orders_box.find_children("*", "Button", true, false):
+		out.append(c as Button)
 	return out
 
 
