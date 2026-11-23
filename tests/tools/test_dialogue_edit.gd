@@ -179,3 +179,75 @@ func test_a_refused_graph_edit_is_undone_on_screen() -> void:
 	assert_eq(values["start"], "greet")
 	assert_true((values["nodes"] as Dictionary).has("greet"))
 	assert_eq(p.dialogue_node_count(), (DialogueGraph.build(p.model.templates, "af_jeff_briefing")["nodes"] as Dictionary).size(), "the graph is drawn again from the definition")
+
+
+func test_rename_moves_the_node_and_its_links() -> void:
+	var v := _values()
+	v["nodes"]["a"]["choices"].append({"text": "b", "next": "b"})
+	assert_eq(DialogueEdit.rename(v, "b", "bee"), "")
+	assert_false(v["nodes"].has("b"))
+	assert_eq(v["nodes"]["bee"], {"text": "bye", "next": "c"})
+	assert_eq(v["nodes"].keys(), ["a", "bee", "c"], "the nodes keep their order")
+	var choices: Array = v["nodes"]["a"]["choices"]
+	assert_eq(choices[0], {"text": "to b", "next": "bee"}, "a text of its own stays")
+	assert_eq(choices[1], {"text": "bee", "next": "bee"}, "a choice still labelled with the old name takes the new one")
+	assert_eq(Dialogue.problems(v), PackedStringArray())
+
+
+func test_rename_the_start_and_refuse_a_taken_or_empty_name() -> void:
+	var v := _values()
+	assert_eq(DialogueEdit.rename(v, "a", "open"), "")
+	assert_eq(v["start"], "open")
+	assert_ne(DialogueEdit.rename(v, "open", "c"), "", "a taken name is refused")
+	assert_ne(DialogueEdit.rename(v, "open", ""), "", "an empty name is refused")
+	assert_ne(DialogueEdit.rename(v, "zz", "q"), "", "a node that is not there is refused")
+	assert_eq(DialogueEdit.rename(v, "c", "c"), "", "the same name is no change")
+	assert_eq(v["start"], "open")
+	assert_true(v["nodes"].has("open"))
+	assert_eq(Dialogue.problems(v), PackedStringArray())
+
+
+func test_set_line_sets_speaker_and_text_and_keeps_the_rest() -> void:
+	var v := _values()
+	v["nodes"]["a"]["do"] = [{"do": "set_var", "name": "x", "value": 1}]
+	assert_eq(DialogueEdit.set_line(v, "a", "bob", "Hello."), "")
+	assert_eq(v["nodes"]["a"]["speaker"], "bob")
+	assert_eq(v["nodes"]["a"]["text"], "Hello.")
+	assert_eq(v["nodes"]["a"]["choices"], [{"text": "to b", "next": "b"}])
+	assert_eq(v["nodes"]["a"]["do"].size(), 1)
+	assert_eq(DialogueEdit.set_line(v, "b", "", ""), "")
+	assert_false(v["nodes"]["b"].has("speaker"), "an empty speaker is removed")
+	assert_false(v["nodes"]["b"].has("text"), "an empty text is removed")
+	assert_eq(v["nodes"]["b"]["next"], "c")
+	assert_ne(DialogueEdit.set_line(v, "zz", "x", "y"), "")
+
+
+func test_the_inspector_renames_and_edits_a_node() -> void:
+	var p := WarDataPanel.new()
+	p.package_dir = COPY
+	add_child_autofree(p)
+	p.show_dialogue("af_jeff_briefing")
+	await get_tree().process_frame
+	p._inspect_dialogue_node("careful")
+	assert_true(p._dinspect.visible)
+	assert_eq(p._dname.text, "careful")
+	assert_eq(p._dspeaker.text, "jeff")
+	assert_eq(p._dtext.text, "Slow and steady, then.")
+
+	assert_eq(p.edit_dialogue_node("careful", " steady ", "", "Slowly, then."), PackedStringArray())
+	await get_tree().process_frame
+	var nodes := _nodes(p)
+	assert_false(nodes.has("careful"))
+	assert_eq(nodes["steady"]["text"], "Slowly, then.")
+	assert_false(nodes["steady"].has("speaker"))
+	assert_eq(nodes["steady"]["do"][0]["name"], "briefed_careful", "do is kept")
+	assert_eq(nodes["greet"]["choices"][1]["next"], "steady", "the choice to it follows")
+	assert_eq(p._dresult.text, "Saved to %s." % p.model.file_of("af_jeff_briefing"))
+	assert_false(p._dinspect.visible, "the graph is drawn again and the inspector closes")
+	assert_eq(DialogueGraph.build(p.model.templates, "af_jeff_briefing")["errors"], PackedStringArray())
+
+	# A refused edit is shown and undone: the node keeps its name.
+	p._inspect_dialogue_node("fast")
+	assert_ne(p.edit_dialogue_node("fast", "end", "jeff", "x").size(), 0)
+	assert_string_starts_with(p._dresult.text, "Not saved:")
+	assert_true(_nodes(p).has("fast"))

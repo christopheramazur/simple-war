@@ -43,6 +43,11 @@ var _dgraph: Control
 var _dgraph_data: Dictionary = {}
 var _dgraph_id: String = ""
 var _dresult: Label
+var _dinspect: GridContainer
+var _dinspect_node: String = ""
+var _dname: LineEdit
+var _dspeaker: LineEdit
+var _dtext: LineEdit
 var _problems: ItemList
 var _maps: MapPainter
 var _world: OverworldPainter
@@ -193,11 +198,71 @@ func show_dialogue(id: String) -> void:
 	g.node_deleted.connect(_on_dialogue_graph_edited.unbind(1))
 	g.link_created.connect(_on_dialogue_graph_edited.unbind(3))
 	g.link_deleted.connect(_on_dialogue_graph_edited.unbind(1))
+	_dinspect.visible = false
 
 
 ## The editor changed its graph. Applied after the editor's command is done.
 func _on_dialogue_graph_edited() -> void:
 	sync_dialogue.call_deferred()
+
+
+## Shows the inspector for a dialogue node selected in the graph: its name,
+## speaker and text, ready to edit.
+func _inspect_dialogue_node(name: String) -> void:
+	var nodes: Dictionary = model.templates.values_of(_dgraph_id).get("nodes", {})
+	if not nodes.get(name) is Dictionary:
+		_dinspect.visible = false
+		return
+	var node: Dictionary = nodes[name]
+	_dinspect_node = name
+	_dname.text = name
+	_dspeaker.text = String(node.get("speaker", ""))
+	_dtext.text = String(node.get("text", ""))
+	_dinspect.visible = true
+
+
+## The inspector's Apply: renames the node `old` to `new_name` and sets its
+## speaker and text. The change is validated and saved like a graph edit
+## (DialogueEdit); a refused one is shown and undone on screen. Returns the errors.
+func edit_dialogue_node(old: String, new_name: String, speaker: String, text: String) -> PackedStringArray:
+	var def: Variant = _editable_dialogue()
+	if def == null:
+		_dresult.text = "Not saved: the nodes of '%s' come from another template; edit them in the Template tab." % _dgraph_id
+		return PackedStringArray(["the nodes are not in this template"])
+	var original := (def as Dictionary).duplicate(true)
+	var values: Dictionary = def["values"]
+	var name := new_name.strip_edges()
+	var err := DialogueEdit.rename(values, old, name)
+	if err.is_empty():
+		err = DialogueEdit.set_line(values, name, speaker, text)
+	if not err.is_empty():
+		_dresult.text = "Not saved:\n" + err
+		return PackedStringArray([err])
+	return _save_dialogue(def, original)
+
+
+## The shown dialogue's definition, parsed, when its nodes are in this
+## template; otherwise null.
+func _editable_dialogue() -> Variant:
+	if _dgraph == null or _dgraph_id.is_empty() or model == null or model.file_of(_dgraph_id).is_empty():
+		return null
+	var def: Variant = JSON.parse_string(model.definition_text(_dgraph_id))
+	if not def is Dictionary or not (def as Dictionary).get("values") is Dictionary or not ((def as Dictionary)["values"] as Dictionary).has("nodes"):
+		return null
+	return def
+
+
+## Writes a changed definition and draws the dialogue again from it.
+func _save_dialogue(def: Dictionary, original: Dictionary) -> PackedStringArray:
+	if def == original:
+		return PackedStringArray()
+	var errs := model.replace(_dgraph_id, JSON.stringify(def, "\t"))
+	_dresult.text = ("Saved to %s." % model.file_of(_dgraph_id)) if errs.is_empty() else "Not saved:\n" + "\n".join(errs)
+	_fill_problems()
+	if selected_id == _dgraph_id:
+		select(selected_id)
+	show_dialogue(_dgraph_id)
+	return errs
 
 
 ## Writes the graph editor's changes to the shown dialogue: new nodes get a
@@ -209,8 +274,8 @@ func sync_dialogue() -> PackedStringArray:
 	if _dgraph == null or _dgraph_id.is_empty() or model == null or model.file_of(_dgraph_id).is_empty():
 		return PackedStringArray()
 	var g: CGEGraph = _dgraph.get("graph")
-	var def: Variant = JSON.parse_string(model.definition_text(_dgraph_id))
-	if not def is Dictionary or not (def["values"] is Dictionary) or not (def["values"] as Dictionary).has("nodes"):
+	var def: Variant = _editable_dialogue()
+	if def == null:
 		_dresult.text = "Not saved: the nodes of '%s' come from another template; edit them in the Template tab." % _dgraph_id
 		show_dialogue(_dgraph_id)
 		return PackedStringArray(["the nodes are not in this template"])
@@ -250,15 +315,7 @@ func sync_dialogue() -> PackedStringArray:
 	for name: String in (values["nodes"] as Dictionary).keys():
 		if not alive.has(name):
 			DialogueEdit.remove_node(values, name)
-	if def == original:
-		return PackedStringArray()
-	var errs := model.replace(_dgraph_id, JSON.stringify(def, "\t"))
-	_dresult.text = ("Saved to %s." % model.file_of(_dgraph_id)) if errs.is_empty() else "Not saved:\n" + "\n".join(errs)
-	_fill_problems()
-	if selected_id == _dgraph_id:
-		select(selected_id)
-	show_dialogue(_dgraph_id)
-	return errs
+	return _save_dialogue(def, original)
 
 
 ## Replaces the graph editor in `holder` with one showing `data`.
@@ -360,13 +417,34 @@ func _build() -> void:
 	_dialogues.item_selected.connect(func(i: int) -> void: show_dialogue(_dialogues.get_item_text(i)))
 	dlg.add_child(_dialogues)
 	var dhint := Label.new()
-	dhint.text = "Drag from a node to another: a node with choices gets a choice to it, any other node its next. Delete a link or a node to remove it. Add Node makes node_N. Each change is saved."
+	dhint.text = "Drag from a node to another: a node with choices gets a choice to it, any other node its next. Delete a link or a node to remove it. Add Node makes node_N. Select a node to edit its name, speaker and text below the graph (do and if: Template tab). Each change is saved."
 	dhint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dlg.add_child(dhint)
 	_dgraph_holder = Control.new()
 	_dgraph_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_dgraph_holder.clip_contents = true
 	dlg.add_child(_dgraph_holder)
+	_dinspect = GridContainer.new()
+	_dinspect.columns = 2
+	_dinspect.visible = false
+	dlg.add_child(_dinspect)
+	_dinspect.add_child(_inspect_label("Node name"))
+	_dname = LineEdit.new()
+	_dname.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dinspect.add_child(_dname)
+	_dinspect.add_child(_inspect_label("Speaker"))
+	_dspeaker = LineEdit.new()
+	_dspeaker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dinspect.add_child(_dspeaker)
+	_dinspect.add_child(_inspect_label("Text"))
+	_dtext = LineEdit.new()
+	_dtext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dinspect.add_child(_dtext)
+	var apply := Button.new()
+	apply.text = "Apply node"
+	apply.pressed.connect(func() -> void: edit_dialogue_node(_dinspect_node, _dname.text, _dspeaker.text, _dtext.text))
+	_dinspect.add_child(Control.new())
+	_dinspect.add_child(apply)
 	_dresult = Label.new()
 	_dresult.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	dlg.add_child(_dresult)
@@ -412,6 +490,12 @@ func _fill_dialogues() -> void:
 		_dialogues.add_item(id)
 
 
+func _inspect_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	return l
+
+
 func _fill_problems() -> void:
 	_problems.clear()
 	for e in model.errors:
@@ -442,3 +526,5 @@ func _on_graph_selected(node: Variant) -> void:
 	var el: Variant = node.get("graph_element") if node != null else null
 	if el is WarGraphNode and (el as WarGraphNode).kind == "trigger" and model.file_of((el as WarGraphNode).node_name) != "":
 		select((el as WarGraphNode).node_name)
+	elif el is WarGraphNode and (el as WarGraphNode).kind in ["line", "choice", "end"]:
+		_inspect_dialogue_node((el as WarGraphNode).node_name)

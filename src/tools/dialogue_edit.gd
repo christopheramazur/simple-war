@@ -8,6 +8,10 @@ extends RefCounted
 ## A link from a node with choices adds a choice to it; from any other node
 ## it sets that node's `next`. PackageEditor validates the result before it
 ## is written, so these ops do not have to be perfect about the schema.
+##
+## The node inspector (sw-2yt) adds two ops: rename (a node's name, and every
+## link and start that pointed at it) and set_line (a node's speaker and
+## text). Its do and if are still edited in the Template tab.
 
 
 ## A node name nothing uses yet ("node_N").
@@ -76,6 +80,53 @@ static func unlink(values: Dictionary, from: String, to: String) -> String:
 			node.erase("choices")
 	elif String(node.get("next", "")) == to:
 		node.erase("next")
+	return ""
+
+
+## Renames a node. Its key, the start, every next and choice that led to it
+## follow; a choice whose text is still the old name (the text link() gives a
+## new choice) takes the new one. The nodes keep their order. "" = ok.
+static func rename(values: Dictionary, old: String, new: String) -> String:
+	var nodes = values.get("nodes")
+	if not nodes is Dictionary or not (nodes as Dictionary).has(old):
+		return "'%s' is not a node" % old
+	if new == old:
+		return ""
+	if new.is_empty() or (nodes as Dictionary).has(new):
+		return "'%s' is empty or already a node" % new
+	var kept := (nodes as Dictionary).duplicate()
+	(nodes as Dictionary).clear()
+	for name: String in kept:
+		(nodes as Dictionary)[new if name == old else name] = kept[name]
+	if String(values.get("start", "")) == old:
+		values["start"] = new
+	for name: String in (nodes as Dictionary).keys():
+		var node: Variant = nodes[name]
+		if not node is Dictionary:
+			continue
+		if String((node as Dictionary).get("next", "")) == old:
+			node["next"] = new
+		var choices: Variant = (node as Dictionary).get("choices", [])
+		for c: Variant in (choices if choices is Array else []):
+			if c is Dictionary and String(c.get("next", "")) == old:
+				c["next"] = new
+				if String(c.get("text", "")) == old:
+					c["text"] = new
+	return ""
+
+
+## Sets a node's speaker and text. An empty one is removed. Its do, if and
+## choices stay as they are. "" = ok.
+static func set_line(values: Dictionary, name: String, speaker: String, text: String) -> String:
+	var nodes = values.get("nodes")
+	if not nodes is Dictionary or not (nodes as Dictionary).has(name) or not nodes[name] is Dictionary:
+		return "'%s' is not a node" % name
+	var node: Dictionary = nodes[name]
+	for field: Array in [["speaker", speaker], ["text", text]]:
+		if String(field[1]).is_empty():
+			node.erase(field[0])
+		else:
+			node[field[0]] = field[1]
 	return ""
 
 
