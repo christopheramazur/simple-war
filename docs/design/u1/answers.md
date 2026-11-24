@@ -42,3 +42,77 @@ sw-tdz's six suggestions are accepted: (1) storage is the scenario's `placed` li
 
 ### U1Q33 Default fire policy
 After the Pressure Lab sweep (D6), `fire.policy` switches to `prowess` in one commit with a new baseline era (D7).
+
+## Bead map
+
+Created 2026-11-24 by sw-08jt.7 from `00-synthesis.md` §5 as amended by the readings above and the Qwen reviews 02, 03 and 05. Titles end in "(U1 <plan ID>)". Not created: A7 (folded into A3, U1Q29), A13 and A14 (dropped, U1Q28), the decision beads X-OQ1..6 (= sw-08jt.1..6, closed). Changed from the plan: A3 is per-unit firing positions; A6 and A12b raised to P1 and moved before A3; A4 re-read as "arrival fires the standing mode"; B13 split into B13a/B13b; C8 widened (U1Q32) and C11 moved to Opus (`large`); sw-tdz depends on C14.
+
+| Plan ID | Bead | Depends on |
+|---|---|---|
+| X1 | sw-08jt.8 | — |
+| A1 | sw-txnj.1 | — |
+| A2 | sw-txnj.2 | — |
+| A6 | sw-txnj.3 | — |
+| A12b | sw-txnj.4 | A6 (sw-txnj.3) |
+| A3 | sw-txnj.5 | A2 (sw-txnj.2), A6 (sw-txnj.3), A12b (sw-txnj.4) |
+| A4 | sw-txnj.6 | A3 (sw-txnj.5), A1 (sw-txnj.1) |
+| A5 | sw-txnj.7 | — |
+| A8 | sw-txnj.8 | A4 (sw-txnj.6) |
+| A9a | sw-txnj.9 | A3 (sw-txnj.5) |
+| A9b | sw-txnj.10 | A9a (sw-txnj.9), A3 (sw-txnj.5) |
+| A10 | sw-txnj.11 | A9b (sw-txnj.10), B4 (sw-tho3.4) |
+| A11 | sw-txnj.12 | A6 (sw-txnj.3), A3 (sw-txnj.5) |
+| A12a | sw-txnj.13 | A11 (sw-txnj.12) |
+| A12c | sw-txnj.14 | A12a (sw-txnj.13), A12b (sw-txnj.4) |
+| B1 | sw-tho3.1 | — |
+| B2 | sw-tho3.2 | — |
+| B3 | sw-tho3.3 | B2 (sw-tho3.2) |
+| B4 | sw-tho3.4 | B3 (sw-tho3.3) |
+| B5 | sw-tho3.5 | B3 (sw-tho3.3) |
+| B6 | sw-tho3.6 | B3 (sw-tho3.3) |
+| B7 | sw-tho3.7 | — |
+| B8 | sw-tho3.8 | B6 (sw-tho3.6), B7 (sw-tho3.7) |
+| B9 | sw-tho3.9 | B2 (sw-tho3.2), B6 (sw-tho3.6), B7 (sw-tho3.7) |
+| B10 | sw-tho3.10 | B1 (sw-tho3.1), B9 (sw-tho3.9) |
+| B11 | sw-tho3.11 | B9 (sw-tho3.9), B10 (sw-tho3.10) |
+| B12 | sw-tho3.12 | B9 (sw-tho3.9) |
+| B13a | sw-tho3.13 | B9 (sw-tho3.9) |
+| B13b | sw-tho3.14 | B13a (sw-tho3.13) |
+| B14 | sw-tho3.15 | B11 (sw-tho3.11) |
+| B15 | sw-tho3.16 | B2 (sw-tho3.2), C3 (sw-bafi.3) |
+| C1 | sw-bafi.1 | — |
+| C2 | sw-bafi.2 | C1 (sw-bafi.1) |
+| C3 | sw-bafi.3 | A1 (sw-txnj.1), A2 (sw-txnj.2) |
+| C4 | sw-bafi.4 | C3 (sw-bafi.3), sw-abk |
+| C5 | sw-bafi.5 | C3 (sw-bafi.3), B7 (sw-tho3.7) |
+| C6a | sw-bafi.6 | C3 (sw-bafi.3) |
+| C6b | sw-bafi.7 | C1 (sw-bafi.1), C4 (sw-bafi.4), C5 (sw-bafi.5), C6a (sw-bafi.6), sw-ll4.27.6 |
+| C7 | sw-bafi.8 | C6b (sw-bafi.7) |
+| C8 | sw-bafi.9 | C1 (sw-bafi.1) |
+| C9 | sw-bafi.10 | — |
+| C10 | sw-bafi.11 | C9 (sw-bafi.10) |
+| C11 | sw-bafi.12 | C10 (sw-bafi.11), C1 (sw-bafi.1), C2 (sw-bafi.2) |
+| C12 | sw-bafi.13 | C10 (sw-bafi.11) |
+| C13 | sw-bafi.14 | C9 (sw-bafi.10) |
+| C14 | sw-bafi.15 | C9 (sw-bafi.10) |
+| C15 | sw-bafi.16 | C10 (sw-bafi.11) |
+| D1 | sw-pd2l.1 | — |
+| D2 | sw-pd2l.2 | B3 (sw-tho3.3), D1 (sw-pd2l.1), A1 (sw-txnj.1) |
+| D3 | sw-pd2l.3 | A1 (sw-txnj.1), A4 (sw-txnj.6), D2 (sw-pd2l.2) |
+| D4 | sw-pd2l.4 | D3 (sw-pd2l.3) |
+| D5 | sw-pd2l.5 | D4 (sw-pd2l.4) |
+| D6 | sw-pd2l.6 | D1 (sw-pd2l.1), D5 (sw-pd2l.5) |
+| D7 | sw-pd2l.7 | D6 (sw-pd2l.6) |
+| D8 | sw-pd2l.8 | D5 (sw-pd2l.5), sw-ll4.27.7 |
+| E1 | sw-63wt.1 | — |
+| E2 | sw-63wt.2 | E1 (sw-63wt.1) |
+| E3 | sw-63wt.3 | E2 (sw-63wt.2) |
+| E4 | sw-63wt.4 | — |
+| E5 | sw-63wt.5 | E4 (sw-63wt.4), C2 (sw-bafi.2) |
+| E6a | sw-63wt.6 | — |
+| E6b | sw-63wt.7 | E5 (sw-63wt.5), E6a (sw-63wt.6) |
+| E7 | sw-63wt.8 | E4 (sw-63wt.4), sw-7ii, sw-96x, sw-ll4.17 |
+| E8 | sw-63wt.9 | E2 (sw-63wt.2) |
+| E9 | sw-63wt.10 | E6b (sw-63wt.7), E8 (sw-63wt.9) |
+| E10 | sw-63wt.11 | E8 (sw-63wt.9) |
+| E11 | sw-63wt.12 | — |
