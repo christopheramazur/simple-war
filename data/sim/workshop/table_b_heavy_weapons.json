@@ -1,0 +1,37 @@
+{
+	"id": "table_b_heavy_weapons",
+	"component": "orders",
+	"doc": "Cross-check of 01 table B, heavy weapons row (2 LMG at 50 m, 2 rifles at 40 m) against an unarmed dummy, on the core package. Same four placements as table_b_assault: hold at 12 m, move from 60 m, attack-move from 60 m (base), attack from 44 m (unchecked, as the table ran it). Expectations are table B's DPS1 (8.0, 4.8, 4.1, 4.0) within 5%. Pinned to current behaviour; see table_b_assault.",
+	"status": "gate",
+	"package": "core",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "heavy", "player": 1, "squad": "heavy_weapons_team", "at": [25, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "heavy", "type": "attack_move", "x": 85, "y": 80}]
+	},
+	"variants": {
+		"hold_12": {"doc": "Hold at 12 m (table B's first column).",
+			"place": {"heavy": [73, 80]},
+			"script": {"1": [{"squad": "heavy", "type": "hold"}]}},
+		"move": {"doc": "Move to the dummy's centre.",
+			"script": {"1": [{"squad": "heavy", "type": "move", "x": 85, "y": 80}]}},
+		"attack": {"doc": "Attack the dummy from 44 m (unchecked, see table_b_assault).",
+			"place": {"heavy": [41, 80]},
+			"script": {"1": [{"squad": "heavy", "type": "attack", "target": "dummy", "unchecked": true}]}}
+	},
+	"probes": [
+		{"id": "dps_attack_move", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 3.895, "max": 4.305}, "variants": ["base"], "doc": "Table B: 4.1."},
+		{"id": "dps_hold_12", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 7.6, "max": 8.4}, "variants": ["hold_12"], "doc": "Table B: 8.0 (5%)."},
+		{"id": "dps_move", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 4.56, "max": 5.04}, "variants": ["move"], "doc": "Table B: 4.8 (5%)."},
+		{"id": "dps_attack", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 3.8, "max": 4.2}, "variants": ["attack"], "doc": "Table B: 4.0 (5%)."}
+	],
+	"compare": []
+}
