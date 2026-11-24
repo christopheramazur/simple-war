@@ -80,6 +80,10 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 | `duty` | over | share of armed living unit-ticks on which the unit fired (0..1; a weapon's cooldown caps it) | number |
 | `victims` | over | `{distinct, max_per_victim, overkill}` from the shot trace: distinct units shot at, most shots at one, and hits that dealt nothing (the victim was already dead when the hit was applied that tick) | `{sub: number}` for any subset |
 | `moved` | over | centroid displacement from just before the window to its last tick, m | number |
+| `dps_engaged` | over | `dps` counted from the squad's first shot at the target (ticks before it are not in the denominator): the approach does not dilute it | number |
+| `first_shot` | over | seconds from the window's first tick to the squad's first shot at the target (`null` when it never fires) | number |
+| `shooters` | over | distinct living units that fired in the window (at the target when given) | number |
+| `first_shot_ticks` | over | distinct ticks on which a unit fired its first shot in the window (1 is a lockstep volley) | number |
 
 A number expectation is either a number (equal after quantizing) or `{"min": a, "max": b}` (either end optional, inclusive).
 
@@ -160,3 +164,11 @@ Printed as one line between `WORKSHOP_JSON_BEGIN` and `WORKSHOP_JSON_END`. Any c
 
 - `rifle_vs_dummy` (gate): a rifle squad against an unarmed, unkillable dummy; variants `run_away` and `tough_dummy`; every probe kind that reads one squad.
 - `rifles_kill_unarmed` (gate): two rifle squads kill an unarmed squad; kills, victims and overkill; a `pending` probe that wants wider fire spread.
+- `dps_orders` (gate, sw-tho3.4): 01 table A's start (44 m) for the rifles under attack, attack-move, move-then-attack, run and move-then-hold; `dps_engaged`, `damage`, `duty` each within 0.9 of `attack`.
+- `dps_retarget` (gate): two stacked dummies; turn-boundary switch from A to B; turn-2 damage within 0.9 of the constant target. The format has no mid-turn orders, so a mid-turn retarget is not measured here.
+- `fire_modes_moving` (gate): standing fire against moving fire over 35 m; moving keeps at least 0.85 of standing `dps_engaged`.
+- `attack_move_firing_position` (pending, U1Q11/U1Q29): per-unit firing positions by the turn's end. At its geometry every unit already fires, so the checks report an unexpected pass: the geometry does not separate the old and new behaviour yet.
+- `staggered_opening` (pending, U1Q28): first-shot ticks across the squad; today one tick (lockstep).
+- `mixed_range_orders` (pending, core): 01 table B's assault squad under attack-move, move, attack and hold-at-12 m; the pending compare is B3's acceptance (attack-move at least 0.9 of hold).
+- `mixed_range_hold` (pending, core): table B's hold column with the table's own placement (12 m, holding from the start); reproduces 6.7.
+- `separation_clump`, `focus_fire_spread` (explore): watch-only; no probes.
