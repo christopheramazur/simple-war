@@ -60,7 +60,8 @@ static func loader_for(package: String) -> PackageLoader:
 	return _loaders[package]
 
 
-static func execute(sc: WorkshopScenario, variant_name: String = WorkshopScenario.BASE) -> WorkshopRun:
+## Builds the battle and, when `play`, runs it (false: placed, not run).
+static func execute(sc: WorkshopScenario, variant_name: String = WorkshopScenario.BASE, play: bool = true) -> WorkshopRun:
 	var run := WorkshopRun.new()
 	run.scenario = sc
 	run.variant = variant_name
@@ -71,7 +72,7 @@ static func execute(sc: WorkshopScenario, variant_name: String = WorkshopScenari
 	if setup.is_empty():
 		run.errors.append("%s: no variant '%s' (%s)" % [sc.path, variant_name, ", ".join(sc.variant_names())])
 		return run
-	if run._build(setup["squads"]):
+	if run._build(setup["squads"]) and play:
 		run._play(setup["script"])
 	return run
 
