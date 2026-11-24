@@ -1,0 +1,37 @@
+{
+	"id": "dps_retarget",
+	"component": "targeting",
+	"doc": "A rifle squad 44 m from two unarmed, unkillable dummies stacked 8 m apart. Constant: attack dummy A for two turns. Retarget: attack A, then switch to B at the start of turn 2. Measures what the switch costs in turn 2: total damage, and the seconds to the first shot at B. Orders only land at turn starts in this format, so this is the turn-boundary retarget; a mid-turn retarget needs the Retarget reaction, which this runner does not play.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 2,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [41, 80], "facing": 0},
+		{"key": "dummy_a", "player": 2, "squad": "rifle_squad", "at": [85, 76], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}},
+		{"key": "dummy_b", "player": 2, "squad": "rifle_squad", "at": [85, 84], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack", "target": "dummy_a"}]
+	},
+	"variants": {
+		"retarget": {"doc": "Switches to dummy B at the start of turn 2.",
+			"script": {
+				"1": [{"squad": "rifles", "type": "attack", "target": "dummy_a"}],
+				"2": [{"squad": "rifles", "type": "attack", "target": "dummy_b"}]}}
+	},
+	"probes": [
+		{"id": "t2_damage", "over": "t2", "squad": "rifles", "damage": {"min": 150}, "variants": "all", "doc": "Turn 2: total damage to any enemy, constant (base) or after the switch (retarget)."},
+		{"id": "b_first_shot", "over": "t2", "squad": "rifles", "target": "dummy_b", "first_shot": {"max": 2}, "variants": ["retarget"], "doc": "Seconds into turn 2 to the first shot at B: the cost of the switch."},
+		{"id": "a_first_shot", "over": "t2", "squad": "rifles", "target": "dummy_a", "first_shot": {"max": 0.5}, "doc": "Turn 2 of the constant target keeps firing at once."},
+		{"id": "t2_dps_engaged", "over": "t2", "squad": "rifles", "dps_engaged": null, "variants": "all"}
+	],
+	"compare": [
+		{"metric": "t2_damage", "lhs": "retarget", "rhs": "base", "rel": ">=", "factor": 0.9}
+	]
+}

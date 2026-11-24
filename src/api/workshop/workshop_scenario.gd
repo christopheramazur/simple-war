@@ -23,7 +23,8 @@ const BASE := "base"
 ## Probe kinds read from one snapshot (`at`) and over a window (`over`);
 ## spacing works both ways.
 const AT_KINDS: Array[String] = ["activity", "hold", "fire", "distance", "within", "spacing"]
-const OVER_KINDS: Array[String] = ["damage", "dps", "shots", "duty", "victims", "kills", "spacing", "moved"]
+const OVER_KINDS: Array[String] = ["damage", "dps", "dps_engaged", "first_shot", "shooters", "first_shot_ticks",
+		"shots", "duty", "victims", "kills", "spacing", "moved"]
 const NEEDS_TARGET: Array[String] = ["fire", "distance", "within"]
 const VICTIM_KEYS: Array[String] = ["distinct", "max_per_victim", "overkill"]
 ## LineOfFire.check codes by name.
