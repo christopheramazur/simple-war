@@ -247,6 +247,15 @@ def test_pick_skips_exclusions_tried_beads_and_swarm_paths(env, monkeypatch):
     assert ap.pick(C, set())["id"] == "sw-ok"
 
 
+def test_pick_keeps_to_include_labels(env, monkeypatch):
+    ready = [b("sw-other", priority=0), b("sw-u1", ["u1", "u1-orders"], priority=2)]
+    monkeypatch.setattr(ap.swarm, "_bd_json", lambda *a: ready)
+    monkeypatch.setattr(ap.swarm, "jobs", lambda: [])
+    focus = {**C, "beads": {**C["beads"], "include_labels": ["u1"]}}
+    assert ap.pick(focus, set())["id"] == "sw-u1"
+    assert ap.pick(C, set())["id"] == "sw-other"
+
+
 def test_loop_waits_instead_of_starting(env, monkeypatch):
     monkeypatch.setattr(ap, "cfg", lambda: C)
     monkeypatch.setattr(ap, "readings", lambda: both(five=70))

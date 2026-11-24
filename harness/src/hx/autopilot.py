@@ -207,7 +207,11 @@ def pick(c: dict, skip: set[str]) -> dict | None:
     tried = {j["bead"] for j in jobs() if j.get("attempts", 0) >= b["max_attempts"]}
     busy = [j.get("bead_text", "") for j in swarm.jobs() if j["status"] in ("queued", "running", "done", "partial")]
     rules = {"workers": {"refill_exclude_labels": b["exclude_labels"], "refill_exclude_parents": b["exclude_parents"]}}
-    return swarm.pick_ready(swarm._bd_json("ready"), swarm._bd_json("list", "--status=open,in_progress,blocked", "--limit", "0"),
+    ready = swarm._bd_json("ready")
+    only = set(b.get("include_labels") or [])
+    if only:  # a focus: only beads carrying one of these labels
+        ready = [x for x in ready if only & set(x.get("labels") or [])]
+    return swarm.pick_ready(ready, swarm._bd_json("list", "--status=open,in_progress,blocked", "--limit", "0"),
                             busy, rules, skip | tried)
 
 

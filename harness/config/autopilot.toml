@@ -31,6 +31,7 @@ reading_max_age_s = 900     # older than this: ask the API with a one-word haiku
 max_attempts = 2            # a bead that fails this often is labelled autopilot-failed and left for a person
 exclude_labels = ["needs-human", "swarm-harness", "autopilot-failed", "autopilot-blocked", "autopilot-partial"]
 exclude_parents = ["sw-p2q"]  # the design-interview epic: those need the user
+include_labels = ["u1"]     # focus: when set, only beads with one of these labels (owner, 2026-11-24: the U1 backlog)
 idle_s = 900                # nothing to do: look again this much later
 
 [merge]
