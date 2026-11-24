@@ -121,14 +121,13 @@ Not yet terms: each moves into the lists above, and into `glossary.json`, with t
 
 | Term | Definition | Decisions | Moves in with |
 |---|---|---|---|
-| Fire quorum | The share of a squad's standing damage per second whose units must each have a shot before an attacking squad stops closing. Data; default 100%. | U1Q11 | A3 |
-| Closing to fire | The default for Attack-move and Attack: the squad keeps advancing until its fire quorum has a shot, then stands. | U1Q1, U1Q11 | A3 |
-| Step out | A unit's short step (default up to 3 m) off its slot, once the anchor stands, to gain range or a line. | U1Q11 | A7 |
+| Firing position | The nearest point within its squad's coherency radius from which a unit has a shot; under attack orders each armed unit walks to its own and fires on arrival. | U1Q29 | A3 |
+| Closing to fire | The default for Attack-move and Attack: the anchor advances until every armed unit has a firing position, and each unit opens fire on its own as it comes into range. | U1Q1, U1Q11, U1Q28, U1Q29 | A3 |
 | Behaviour (squad) | What an order runs: an ordered list of components from a closed vocabulary, each with data parameters. | U1Q12 | A9a |
 | Separation | The push that keeps units of different squads from standing in one another, without blocking movement. | U1Q10 | A11 |
-| Coherency radius | How far a unit may stray from its squad's anchor before it heads back and the anchor slows. | U1Q10 | A12b |
+| Coherency radius | How far a unit may stray from its squad's anchor before it heads back and the anchor slows; it bounds firing positions. Data per formation. | U1Q10, U1Q29 | A12b |
 | Relation | One fact about what a squad is doing about another (in range, targeting, under fire, fleeing...), shown on hover and in the comparison menu. | U1Q8 | C6b |
-| Deployment | The step before a battle's first turn where each side places its squads, hidden, inside its deployment area. | U1Q9 | C11 |
+| Deployment | The step before a battle's first turn where each side places its squads, hidden, inside its deployment area. | U1Q9, U1Q30 | C11 |
 | Deployment area | The part of a battlefield where a side places its squads and where its reinforcements arrive. | U1Q9 | C11 |
 | Fire discipline | How well a squad focuses its fire (discipline) and avoids piling onto units already covered (coordination), scaled by Prowess. | U1Q15, U1Q17, U1Q18 | D5 |
 | Kill priority | The order a shooter considers enemy units in: lowest remaining HP first, then lowest unit ID. | U1Q14 | D5 |

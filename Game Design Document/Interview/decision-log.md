@@ -40,6 +40,7 @@ Append-only record of decisions settled in the design interview (task sw-d46), o
 ## Settled (Round 3)
 - R3Q1 ~60 s default plan budget; keep reserve top-up shape; cadence is general case, not max reserve. Need mitigation for players in many battles. Reaction window is a "treat" for players in battles: does NOT draw reserve; can be asymmetric (more battles → more reaction time). Encourage engaging with parallelism.
 - R3Q2 Playback NOT counted against timers. Watching real-time execution locks out overworld view/interaction; ranked likely skips to results after reactions. After resolve: a brief per-turn change summary step.
+  - Amended by U1Q32 (2026-11-24): watching locks out planning and activity, not viewing; the camera and every information view work during playback.
 - R3Q3 Commanders have abilities (not all battlefield / not every category). Commanders anchor armies; the ARMY's presence enables reinforcements. Future maybe: army drops battleforce without commander (limited). Reactions tied to commander: start with it.
 - R3Q4 Reactions = restricted orders triggered by interactions arising from revealed orders (e.g., A and B come into range). Involved squads get a reaction opportunity if player is attentive. UI: radial popup w/ clear icons on reactable squads; scrollable reaction queue. Cost to squad and/or commander. One reaction timing, no counter-reactions except niche abilities. Stats wave needed (tabletop abstractions remain).
 - R3Q5 Not one Pressure gauge: multiple systems — Morale, Endurance, Reflex, Mythos. Goal: don't overwhelm; designers tune squads/engagements to "feel right" without prescriptive optimization.
@@ -322,12 +323,12 @@ The owner's brief (`docs/design/u1/brief.md`) asked for features to be fleshed o
 - U1Q27 A caravan is an entity. Its payload is components that systems read to grant behaviours and capabilities.
 
 ### Proposed (Round U1, awaiting review)
-- Closing to fire: attack-move and attack close until units carrying the squad's fire quorum (100% of standing damage per second) each have a shot, with a stand-off, a 15 m attack-move leash, hysteresis and a 3 m per-unit step-out; no moving volley on arrival; a Retarget keeps the run flag (Rules Spec §2.15).
+- Closing to fire: attack-move and attack close until units carrying the squad's fire quorum (100% of standing damage per second) each have a shot, with a stand-off, a 15 m attack-move leash, hysteresis and a 3 m per-unit step-out; no moving volley on arrival; a Retarget keeps the run flag (Rules Spec §2.15). Quorum and step-out superseded by U1Q29.
 - Separation and coherency: separation between squads without body blocking, friendly destination spacing, a coherency radius with anchor slow-down, and shared routes for multi-select orders (Rules Spec §2.14).
 - The behaviour vocabulary: orders run behaviours composed from a closed set of components, with archetype defaults, as a `behaviour` template kind (Rules Spec §2.15, Data Model §3.4).
 - Visual assessment and the behaviour workshop: staged captures checked against a truth snapshot, a rubric and judges (Bonsai where the vision bench trusts it), and workshop scenarios as data with gate, pending and explore status, plus an F6 scene (Harness §5.6, §5.7; Systems Architecture §4.9).
 - Pair relations and playback relations: relation facts from the simulation's own functions, fog-filtered, shown on hover and in a comparison menu, in Planning and during playback; camera, hover and selection during playback (Rules Spec §2.2, §2.6; Systems Architecture §4.4).
-- The deployment model: hidden, simultaneous placement in the Planning that drafts battle turn 1 (Rules Spec §2.4; open question OQ-3).
+- The deployment model: hidden, simultaneous placement in the Planning that drafts battle turn 1 (Rules Spec §2.4; open question OQ-3). Settled by U1Q30, U1Q31.
 - Fire distribution via discipline and coordination: kill priority, covered units, and Prowess-scaled focus quality and coordination, with `nearest` kept as today's policy (Rules Spec §2.6, §2.8; Data Model §3.3, §3.4).
 - Hex composition and layout: features drawn by layer in slots, road offsets, map `at` overrides, per-feature selection, and a larger hex view with detail bands (Rules Spec §2.9; Data Model §3.5; Systems Architecture §4.8, §4.9).
 - Owner actions: remote buy (with a markup), rally point and output, from anywhere during Planning (Rules Spec §2.9; Systems Architecture §4.4).
@@ -337,9 +338,18 @@ The owner's brief (`docs/design/u1/brief.md`) asked for features to be fleshed o
 
 ### Open questions (Round U1)
 Each blocks the U1 tasks named in the synthesis §3a. The recommended default follows each.
-- OQ-1 Volley phase: keep lockstep volleys, or stagger each unit's hit accumulator by formation slot? Default: keep lockstep for now; decide after a spike measures both with focus fire in place.
-- OQ-2 Attack-move feel: squad anchor quorum (100% of standing damage per second) plus a 3 m step-out and a 15 m leash, or true per-unit stopping that leaves formation? Default: the quorum model, judged in the workshop scene once closing to fire lands.
-- OQ-3 Deployment model: deploy in the same Planning that drafts battle turn 1, hidden and simultaneous, anywhere in the side's area, with every side's area shown (turn-1 orders can't target enemy squads)? Default: yes; a separate deployment pulse can become a clock option later.
-- OQ-4 Placed squads (sw-tdz): accept that task's six suggested answers, plus "placed entries are deployment defaults; `locked: true` pins them"? Default: yes to all.
-- OQ-5 Overworld camera during playback: may it pan and zoom while a turn plays (no selection, no orders)? This amends R3Q2. Default: allow the camera only.
-- OQ-6 Switch the default fire policy from `nearest` to `prowess`, a global balance change? Default: accept after the Pressure Lab sweep, in one commit with a new baseline era.
+- OQ-1 (answered: U1Q28) Volley phase: keep lockstep volleys, or stagger each unit's hit accumulator by formation slot? Default: keep lockstep for now; decide after a spike measures both with focus fire in place.
+- OQ-2 (answered: U1Q29) Attack-move feel: squad anchor quorum (100% of standing damage per second) plus a 3 m step-out and a 15 m leash, or true per-unit stopping that leaves formation? Default: the quorum model, judged in the workshop scene once closing to fire lands.
+- OQ-3 (answered: U1Q30) Deployment model: deploy in the same Planning that drafts battle turn 1, hidden and simultaneous, anywhere in the side's area, with every side's area shown (turn-1 orders can't target enemy squads)? Default: yes; a separate deployment pulse can become a clock option later.
+- OQ-4 (answered: U1Q31) Placed squads (sw-tdz): accept that task's six suggested answers, plus "placed entries are deployment defaults; `locked: true` pins them"? Default: yes to all.
+- OQ-5 (answered: U1Q32) Overworld camera during playback: may it pan and zoom while a turn plays (no selection, no orders)? This amends R3Q2. Default: allow the camera only.
+- OQ-6 (answered: U1Q33) Switch the default fire policy from `nearest` to `prowess`, a global balance change? Default: accept after the Pressure Lab sweep, in one commit with a new baseline era.
+
+### Settled (Round U1 answers, 2026-11-24)
+The owner answered OQ-1 to OQ-6. Owner's words and readings: `docs/design/u1/answers.md`. Where an answer differs from the synthesis's recommendation, it supersedes the synthesis on that point.
+- U1Q28 (OQ-1) Units of a squad with a homogeneous attack profile attack as they come into range, so a moving squad's attacks are staggered. Reading: each unit opens fire on its own the first tick it meets the conditions; no squad quorum and no artificial slot stagger; squads already in range at the start may volley together.
+- U1Q29 (OQ-2) Each unit moves to find a firing position within the squad's coherency, and attacks as it meets the conditions to. Reading: per-unit firing positions within the coherency radius of the anchor; the anchor advances while any armed unit lacks one (1 s hysteresis); the 15 m attack-move leash stays; replaces the fire quorum and the 3 m step-out.
+- U1Q30 (OQ-3) Yes: deployment happens in the Planning that drafts battle turn 1, hidden and simultaneous, anywhere in the side's area, with every side's area shown; turn-1 orders can't target unseen enemy squads.
+- U1Q31 (OQ-4) Yes: sw-tdz's six suggested answers for placed squads stand, and placed entries are deployment defaults that `locked: true` pins.
+- U1Q32 (OQ-5) Allow camera controls and information panels, tooltips and the like during playback and execution, but no planning or activity. Reading: battle and overworld; every camera control and information view works, orders, routes, reactions, deployments, purchases, owner actions, rally changes and production choices don't. Amends R3Q2.
+- U1Q33 (OQ-6) Yes: the default fire policy switches to `prowess` after the Pressure Lab sweep, in one commit with a new baseline era.

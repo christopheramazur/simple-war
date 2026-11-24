@@ -25,7 +25,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 |---|---|
 | SIMPL pools | Stamina, Instinct, Morale, Prowess, Legend. Each has a starting value, neutral value, drift rate and sensitivity profile; band ranges can be bespoke (R5Q3) |
 | Total Hit Points | |
-| Formation Profile | Formation, coherence, stance or mode. Proposed (U1Q10): spacing, and a coherency radius (default half-width + 3 m) |
+| Formation Profile | Formation, coherence, stance or mode. Spacing (proposed, U1Q10), and a coherency radius per formation (U1Q29; default proposed: half-width + 4 m) that bounds units' firing positions (Rules Spec §2.15) |
 | Behaviours | Proposed (U1Q12): per order, a behaviour ID (Rules Spec §2.15). Unset orders use the archetype default |
 | Fire discipline | Proposed (U1Q17): `fire.discipline_pct` (default 60) and `fire.coordination_pct` (default 70); squad stats `squad.fire.discipline_pct`, `squad.fire.coordination_pct` (Rules Spec §2.8 Prowess) |
 | Keywords | Static (R6Q9) |
@@ -55,13 +55,22 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **Reactions:** abilities with reaction timing. Their bundles use the `order` operation (hold, fall_back or attack).
   - **Readied state** (R7Q3, E3Q6): ready time; what the state does; how long it lasts; the conditions that lose it; Prowess Vacuum while readying.
   - **Auto-off defaults** (R8Q2): the band that breaks the effect (default Broken), plus player-overridable rules.
-- **Behaviour** (`kind: "behaviour"`, U1Q12; proposed, Round U1, awaiting review): `{"components": [{"c": "advance", "quorum_pct": 100, "margin_m": 1}, ...]}`. Components come from the closed vocabulary in Rules Spec §2.15; unknown components or parameters fail validation. They compile to packed per-template arrays with the rules.
-- **Ruleset `fire` block** (U1Q15; proposed): `"fire": {"policy": "nearest", "discipline_pct": 60, "coordination_pct": 70}` in the `standard` ruleset. The policy is `nearest` today and has no data field yet; the proposed ids are `nearest` (today's) and `prowess` (Rules Spec §2.8 Prowess). Squad templates override the two percentages. The per-unit accumulators `acc_focus` and `acc_coord` (beside `acc_hit`) are runtime state, not data.
+- **Behaviour** (`kind: "behaviour"`, U1Q12; proposed, Round U1, awaiting review): `{"components": [{"c": "advance", "hysteresis_s": 1}, {"c": "firing_position", "stand_off_m": 2}, ...]}`. Components come from the closed vocabulary in Rules Spec §2.15; unknown components or parameters fail validation. They compile to packed per-template arrays with the rules.
+- **Ruleset `fire` block** (U1Q15; proposed): `"fire": {"policy": "nearest", "discipline_pct": 60, "coordination_pct": 70}` in the `standard` ruleset. The policy is `nearest` today and has no data field yet; the proposed ids are `nearest` (today's) and `prowess` (Rules Spec §2.8 Prowess). The default stays `nearest` until the Pressure Lab sweep (D6), then switches to `prowess` in one commit with a new baseline era (D7) (U1Q33). Squad templates override the two percentages. The per-unit accumulators `acc_focus` and `acc_coord` (beside `acc_hit`) are runtime state, not data.
 - **Tags:** a moddable registry with glossary entries.
 - **Banks:** per profile and namespaced; cross-campaign reads are declared in the manifest.
 
 ## 3.5 Battle and campaign content
 - **Scenario:** battlefield, deployment, zones, victory conditions, scoring mode (primary and tiebreaker), turn limit, and end-of-battle hooks (R7Q5, R7Q6).
+  - **Deployment** (U1Q9, U1Q30, U1Q31; Rules Spec §2.4 Deployment): `deployment` is `open` (default: sides place their squads in their areas before turn 1) or `fixed` (no deployment step) (proposed). Each side's `deploy` rectangle is where it may place.
+  - **Placed squads** (U1Q31, sw-tdz):
+    - **Storage:** the scenario's `placed` list, entries `{side, squad, x, y, facing?}`; `facing` defaults to the side's.
+    - **Inside the area:** a placed point must lie inside its side's deployment area.
+    - **Dealing:** unplaced squads deal evenly over the rest of the area; placed ones go to their cell, or the nearest one they can enter.
+    - **Overworld battles** ignore `placed` (a map's `battle_scenario` lends terrain, zones and areas only).
+    - **Planner:** the AI planner reads positions from the battle state after deployment, not from `placed`.
+    - **Validation:** two entries on one cell, or a squad placed twice, are refused.
+    - **Defaults, not pins:** placed entries are the squads' automatic places, which the player may move in deployment; `locked: true` pins one.
 - **Zone:** decay, threshold, buffer, scoring VP, and magic condition (Law, Ruined or Null) (R7Q5, R4Q21).
 - **Hex feature** (`hex_feature`): activities, production output and options, sight radius, controllability, garrison or guard, and interaction kind (stable or uncertain) (R4Q12, R5Q10, R6Q14).
   - **Fields:** `move_cost` (added to the map's base cost), `impassable`, `sight` (hexes), `controllable`, `interaction`, `activities` (refit, recruit, battle, convert, hire), `value_per_turn`, `cache_value` (picked up once, then removed), `guard` (neutral squads), `activity_cost` (Value per activity), `converts_to` (required by the convert activity), `recruits` (squad and Value cost per option; goes with the recruit activity), `hires` (commander template and Value cost per option; goes with the hire activity: the new commander arrives on the hex with its own squad and starting army, sw-kys.2), `refit_cost` (Value per unit restored), `produces` (a squad or an `item` with a `count`, `turns` per batch, Value `cost`; the owner selects one), `dispersal_turns` (a guard a commander with no battleforce disperses for this many turns; 0 = never), `choices` (answers to its offer), `items` (an item cache: item and `count` pairs, picked up once, then removed), `battlefield` (scenario its battles use), `bundles`.
@@ -100,7 +109,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
   - **One feature per cell** in v1. Shapes clip at the map edge. Elevation and a second, structure layer are reserved (Rules Spec §2.14).
   - **Facing** is data the rules don't read yet: it is there for drawing and for later rules (doors, directional cover). Whether a wall or road piece is straight, a corner or an end is not authored: it follows from its neighbours (a feature's `connects` list of other feature IDs it joins besides itself, drawing only; `ConnectShape`, sw-96x).
   - **Why a shape list, not painted rows** (O1Q11): properties ride on the entry, so there's no `door_left` and `door_right` in a palette; composition by stamps replaces long palettes; a sparse map stays short; and it extends the rectangle list scenarios already used. The cost is that the file doesn't look like the map, which the editor's view covers. The editor saves painted cells as merged rectangles, in a fixed order, so files diff.
-  - **Scenario use:** a scenario names its `map` and then leaves out `width`, `height` and `terrain_default`. Its own `terrain` rectangles are applied after the map, for changes one scenario needs. A scenario with no `map` works as before. Zones, deployment areas and triggers stay in the scenario; pre-placed squads (`placed`: side, squad, x, y) are proposed.
+  - **Scenario use:** a scenario names its `map` and then leaves out `width`, `height` and `terrain_default`. Its own `terrain` rectangles are applied after the map, for changes one scenario needs. A scenario with no `map` works as before. Zones, deployment areas, placed squads (`placed`, §3.5 Scenario, U1Q31) and triggers stay in the scenario.
 - **Authored overworld maps** (O1Q5 as revised): no new format. `passes` are already a shape list (`fill`, `rect`, `line`, `place` with `owner`), so the editor writes passes. A map with no `scatter` pass is fully authored.
 - **Campaign / mission:** missions, scripted triggers, story-essential commanders, carried armies (R2Q1, R2Q13).
 - **Triggers:** the declarative trigger and effect layer, which covers about 90% of campaign scripting. Angel behaviour is data here (R6Q17).
