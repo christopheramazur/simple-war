@@ -5,8 +5,9 @@ extends RefCounted
 ## defence, effects and unit health. It only formats what the game reports
 ## (observe_battle and inspect_battle): every number is the simulation's.
 ## Since sw-ll4.27.3 it also says what the squad is doing and why its guns
-## are silent (BattleActivity codes through the Glossary), per weapon and
-## per unit, and follows the shown moment during playback (moment()).
+## are silent (BattleActivity codes through the Glossary), per weapon with
+## identical units grouped on one line (sw-ll4.27.7), and follows the shown
+## moment during playback (moment()).
 ## SIMPL pools draw as five-segment meters with ticks at the band floors the
 ## observation carries (sw-1jy.3, GDD 02 §2.8): band icon + word always, the
 ## exact percent and the points to the next lower band only at higher
@@ -55,16 +56,23 @@ static func model(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 	# What the squad is doing, in the glossary's words (sw-ll4.27.3). The
 	# code is the simulation's (BattleActivity); enemies carry behaviour only.
 	var act := int(squad.get("activity", insp.get("activity", -1)))
+	var act_item: Dictionary = {}
 	if act >= 0:
 		var tname := String(ctx.get("target_name", ""))
 		if act == BattleActivity.Squad.ENGAGED and tname.is_empty():
 			tname = "the enemy"
-		items.append(_t(Glossary.activity_text(act, tname), "SmallAccentLabel"))
+		act_item = _t(Glossary.activity_text(act, tname), "SmallAccentLabel")
+		items.append(act_item)
 	if own:
 		var order := String(squad.get("order", "hold"))
-		var order_item := _t("Order: %s" % ORDER_NAMES.get(order, order.capitalize()), "SmallDimLabel")
-		order_item["tip"] = OrderTips.tip(order)
-		items.append(order_item)
+		if act == BattleActivity.Squad.HOLDING and order == "hold":
+			# The activity line already says Holding position (sw-ll4.27.7):
+			# no duplicate order line; its tooltip moves to the activity line.
+			act_item["tip"] = OrderTips.tip(order)
+		else:
+			var order_item := _t("Order: %s" % ORDER_NAMES.get(order, order.capitalize()), "SmallDimLabel")
+			order_item["tip"] = OrderTips.tip(order)
+			items.append(order_item)
 		var hp_max := float(squad.get("hp_max", 0))
 		if hp_max > 0.0:
 			items.append({"bar": _bar_model("Health", 1.0 - float(squad.get("hp_lost", 0)) / hp_max, "Good", "")})
@@ -165,7 +173,8 @@ static func _mode_items(items: Array, unit: Dictionary) -> void:
 ## unit_report). Name, damage type, modes, the range band against each
 ## unit's target distance, ammo, reload / cooldown progress, the hold-fire
 ## reason in the glossary's words, and shots / hits this turn when the
-## caller carries them (playback). Every number is the simulation's.
+## caller carries them (playback). Units with identical state share one
+## line and one mini-bar (sw-ll4.27.7). Every number is the simulation's.
 static func _weapons(items: Array, insp: Dictionary, ctx: Dictionary, tps: int, verbose: bool) -> void:
 	var units: Array = insp.get("units", [])
 	var groups := {}
@@ -206,23 +215,45 @@ static func _weapons(items: Array, insp: Dictionary, ctx: Dictionary, tps: int, 
 		_mode_items(items, first)
 		if w >= 0:
 			items.append(_t("Range %s–%s m" % [Fixed.to_display(rules.wp_min_range[w]), Fixed.to_display(rules.wp_range[w])], "CaptionDimLabel"))
+		# Units whose weapon state reads identically share one line
+		# (sw-ll4.27.7): an 8-unit squad no longer repeats itself eight times.
+		var bodies := {}
+		var body_order := []
 		for u: Dictionary in us:
-			_weapon_unit(items, u, String(labels[int(u["id"])]), w, rules, reload_total, cool_total, tps, verbose)
+			var body := _weapon_body(u, w, rules, tps, verbose)
+			if not bodies.has(body):
+				bodies[body] = []
+				body_order.append(body)
+			(bodies[body] as Array).append(u)
+		for body: String in body_order:
+			var ms: Array = bodies[body]
+			items.append(_t("%s: %s" % [_group_label(ms, labels), body], "SmallLabel", true))
+			var frac := _weapon_progress(ms[0], reload_total, cool_total)
+			if frac >= 0.0:
+				items.append({"progress": {"frac": frac}})
 
 
-## One unit's weapon state: the hold reason in words, time to fire, ammo,
-## the target's distance against the range band, and shots / hits this turn.
-static func _weapon_unit(items: Array, u: Dictionary, uname: String, w: int, rules: BattleRules,
-		reload_total: int, cool_total: int, tps: int, verbose: bool) -> void:
+## One unit's weapon state as the line body after its label: the hold reason
+## in words, time to fire, ammo, the target's distance against the range
+## band, and shots / hits this turn. Reload and cooldown tick concurrently
+## (CombatSystem._tick_timers), so the wait is the longer one, and when the
+## sim's RELOADING priority hides a longer cooldown, the cooldown's reason
+## is what holds the unit (sw-ll4.27.7).
+static func _weapon_body(u: Dictionary, w: int, rules: BattleRules, tps: int, verbose: bool) -> String:
 	var hold := int(u.get("hold", BattleActivity.Hold.NONE))
 	var rl := int(u.get("reload", 0))
 	var cd := int(u.get("cooldown", 0))
+	var shown := hold
 	var ticks := rl if hold == BattleActivity.Hold.RELOADING else cd
-	var txt := "%s: %s" % [uname, Glossary.hold_text(hold, ticks)]
-	if rl + cd > 0:
-		txt += " · fires in %.1f s" % (float(rl + cd) / maxi(tps, 1))
+	if hold == BattleActivity.Hold.RELOADING and cd > rl:
+		shown = BattleActivity.Hold.COOLDOWN
+		ticks = cd
+	var txt := Glossary.hold_text(shown, ticks)
+	var wait := maxi(rl, cd)
+	if wait > 0:
+		txt += " · fires in %.1f s" % (float(wait) / maxi(tps, 1))
 		if verbose:
-			txt += " (%d ticks)" % (rl + cd)
+			txt += " (%d ticks)" % wait
 	txt += " · ammo %d / %d" % [int(u.get("ammo", 0)), int(u.get("magazine", 0))]
 	if int(u.get("victim", -1)) >= 0 and int(u.get("victim_dist", 0)) > 0:
 		var vd := int(u["victim_dist"])
@@ -237,11 +268,64 @@ static func _weapon_unit(items: Array, u: Dictionary, uname: String, w: int, rul
 		var sh := int(u["shots"])
 		var hi := int(u.get("hits", 0))
 		txt += " · %d %s, %d %s" % [sh, "shot" if sh == 1 else "shots", hi, "hit" if hi == 1 else "hits"]
-	items.append(_t(txt, "SmallLabel", true))
-	if rl + cd > 0:
-		var total := reload_total if rl > 0 else cool_total
-		var left := rl if rl > 0 else cd
-		items.append({"progress": {"frac": 1.0 - float(left) / total if total > 0 else 0.0}})
+	return txt
+
+
+## The progress mini-bar tracks the same longer timer as the line
+## (sw-ll4.27.7); -1 when no timer runs (no bar). Ties read as reload,
+## the sim's own priority.
+static func _weapon_progress(u: Dictionary, reload_total: int, cool_total: int) -> float:
+	var rl := int(u.get("reload", 0))
+	var cd := int(u.get("cooldown", 0))
+	if rl <= 0 and cd <= 0:
+		return -1.0
+	var use_reload := rl >= cd
+	var total := reload_total if use_reload else cool_total
+	var left := rl if use_reload else cd
+	return clampf(1.0 - float(left) / total, 0.0, 1.0) if total > 0 else 0.0
+
+
+## The shared label of units whose weapon state reads identically: a run of
+## numbered names collapses to a range (Troopers 1-7), other members keep
+## their own labels, joined in inspection order (sw-ll4.27.7).
+static func _group_label(us: Array, labels: Dictionary) -> String:
+	if us.size() == 1:
+		return String(labels[int(us[0]["id"])])
+	var by_name := {}
+	var name_order := []
+	for u: Dictionary in us:
+		var n := String(u["name"])
+		if not by_name.has(n):
+			by_name[n] = []
+			name_order.append(n)
+		(by_name[n] as Array).append(u)
+	var parts := PackedStringArray()
+	for n: String in name_order:
+		var ms: Array = by_name[n]
+		if ms.size() == 1:
+			parts.append(String(labels[int(ms[0]["id"])]))
+			continue
+		var nums := PackedInt64Array()
+		for u: Dictionary in ms:
+			nums.append(String(labels[int(u["id"])]).substr(n.length() + 1).to_int())
+		nums.sort()
+		var contiguous := true
+		for i in range(1, nums.size()):
+			if nums[i] != nums[i - 1] + 1:
+				contiguous = false
+		if contiguous:
+			parts.append("%s %d-%d" % [_plural(n), nums[0], nums[nums.size() - 1]])
+		else:
+			var list := PackedStringArray()
+			for v: int in nums:
+				list.append(str(v))
+			parts.append("%s %s" % [_plural(n), ", ".join(list)])
+	return ", ".join(parts)
+
+
+## Presentation plural for grouped unit names (Troopers, Mortarmen).
+static func _plural(n: String) -> String:
+	return n.substr(0, n.length() - 3) + "men" if n.ends_with("man") else n + "s"
 
 
 ## Unit display names, duplicates numbered in inspection order (Trooper 1…).
