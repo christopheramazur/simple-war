@@ -210,6 +210,8 @@ func test_session_turns_match_playback_frames() -> void:
 			var frames: Array = rec["frames"]
 			for t in c.ticks:
 				assert_eq(OverworldSession._frame(c.seek(t)), frames[t], "frame %d" % t)
+			# The last frame is the last tick before resolution.
+			assert_eq(OverworldSession._frame(c.seek_unresolved(c.ticks)), frames[c.ticks], "the last frame is unresolved")
 			c.seek(c.ticks)
 			assert_eq(c.state_hash_hex(), rec["start"]["end_hash"])
 			if s.battles.has(eid):

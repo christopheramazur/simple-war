@@ -123,22 +123,34 @@ func available() -> bool:
 ## `ticks` the turn is also resolved, so it is the real end state. Null when
 ## unavailable. Read-only use: the next seek may change or replace it.
 func seek(tick: int) -> BattleState:
+	return _seek(tick, true)
+
+
+## The state after `tick` ticks with the turn not yet resolved: exactly what
+## the recorder's tick hook saw at that tick, and the last playback frame
+## (frame `ticks`). seek(ticks) is the resolved end and differs from it.
+## Same copy and checks as seek.
+func seek_unresolved(tick: int) -> BattleState:
+	return _seek(tick, false)
+
+
+func _seek(tick: int, resolve: bool) -> BattleState:
 	if not available():
 		return null
 	PerfRecorder.begin(&"battle_cursor")
 	var t := clampi(tick, 0, ticks)
 	var base := _key_at_or_before(t)
-	# Restore when behind (or past the end); jump to the keyframe when more
-	# than a span behind; from the span just before it, step through so the
-	# keyframe's hash checks the re-simulation.
-	if t < _at or (_resolved and t < ticks) or _at < base - KEY_EVERY:
+	# Restore when behind (or past the end, or back before the resolution);
+	# jump to the keyframe when more than a span behind; from the span just
+	# before it, step through so the keyframe's hash checks the re-simulation.
+	if t < _at or (_resolved and (t < ticks or not resolve)) or _at < base - KEY_EVERY:
 		_restore(base)
 	while available() and _at < t:
 		_sim.runner.step(_state)
 		_at += 1
 		if _keys.has(_at) and _state.state_hash_hex() != String(_keys[_at]["hash"]):
 			_fail("re-simulation diverged from the recording at tick %d" % _at)
-	if available() and t == ticks and not _resolved:
+	if available() and resolve and t == ticks and not _resolved:
 		BattleSim.resolve_turn(_state)
 		_resolved = true
 		var want := String(_rec.get("end_hash", ""))

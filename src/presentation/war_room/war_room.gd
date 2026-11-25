@@ -1926,7 +1926,8 @@ func _end_turn() -> void:
 	_note("end turn (%s)" % session.phase_name())
 	var before := session.observe(player)
 	var resolved := session.turns_resolved()
-	session.keep_playback = turn_time() > 0.0
+	# A recording keeps its turns for the relations at a frame (sw-bafi.5).
+	session.keep_playback = turn_time() > 0.0 or replay != null
 	var played := false
 	if replay != null:
 		played = replay.step()

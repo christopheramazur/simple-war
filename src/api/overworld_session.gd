@@ -774,10 +774,44 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 ## keep_playback): the full, all-seeing state at any tick of that turn. Its
 ## seek(i) matches playback frame i. Unavailable (never null) when nothing
 ## was recorded. Tooling and the all-seeing replay only: it shows hidden
-## squads, so callers filter by what a player saw.
+## squads, so callers filter by what a player saw. One cursor per recorded
+## turn, kept with the record (so it is dropped when the playback is).
 func turn_cursor(eid: int) -> BattleCursor:
 	var rec: Dictionary = _playback.get(eid, {})
-	return BattleCursor.new(rec.get("start", {}), rec.get("rules"))
+	if not rec.has("cursor"):
+		rec["cursor"] = BattleCursor.new(rec.get("start", {}), rec.get("rules"))
+	return rec["cursor"]
+
+
+## The battle tick a playback frame shows (sw-bafi.5). Frame i is the state
+## after i ticks of the turn, before the turn resolves (frame 0 the turn's
+## start, frame `ticks` the last tick): the recorder's tick hook captures.
+## Frames index the playback, so any pacing of it (sw-ll4.26.6) reaches the
+## same tick.
+static func tick_of_frame(frame: int, ticks: int) -> int:
+	return clampi(frame, 0, ticks)
+
+
+## SquadRelation.facts(a, b) at playback frame `frame` of battle `eid`'s last
+## turn, as `player` sees it (0 or less: all-seeing). The state is the
+## turn's BattleCursor at that frame's tick, so it is exactly the state the
+## live battle had then. [] when the battle has no playback this turn, the
+## player did not fight in it, the frame is out of range, or the turn has no
+## usable snapshot (an old record): never an error.
+func playback_relation(player: int, eid: int, frame: int, a: int, b: int) -> Array:
+	var rec: Dictionary = _playback.get(eid, {})
+	if rec.is_empty():
+		return []
+	var viewer := maxi(player, 0)
+	if viewer != 0 and not (rec["players"] as PackedInt64Array).has(viewer):
+		return []
+	if frame < 0 or frame >= (rec["frames"] as Array).size():
+		return []
+	var c := turn_cursor(eid)
+	var st := c.seek_unresolved(tick_of_frame(frame, c.ticks))
+	if st == null:
+		return []
+	return SquadRelation.facts(st, viewer, a, b)
 
 
 ## Ints per unit in a playback frame: ID, squad, player, x, y, squad facing,
