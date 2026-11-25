@@ -293,6 +293,12 @@ func _move_units(state: BattleState) -> void:
 		var dist := Fixed.length(dx, dy)
 		var profile := r.ut_movement[u.tmpl[row]]
 		if dist <= ARRIVE:
+			if u.fpos[row] == FiringPositions.HAS and gx == u.fx[row] and gy == u.fy[row]:
+				# sw-txnj.16: a firing position is validated at the point, so the
+				# unit stands on it. Stopping up to ARRIVE short left a shotgun
+				# just outside its 15 m range, holding 'o' for good.
+				x[row] = gx
+				y[row] = gy
 			speed[row] = 0
 			# Settle facing toward the squad's facing.
 			facing[row] = _turn(facing[row], sq.facing[srow], r.mv_turn[profile])
