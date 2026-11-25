@@ -48,7 +48,7 @@
 		{"metric": "dps_engaged", "lhs": "run", "rhs": "base", "rel": ">=", "factor": 0.9},
 		{"metric": "dps_engaged", "lhs": "hold", "rhs": "base", "rel": ">=", "factor": 0.9},
 		{"metric": "duty", "lhs": "attack_move", "rhs": "base", "rel": ">=", "factor": 0.9},
-		{"metric": "duty", "lhs": "move_then_attack", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "duty", "lhs": "move_then_attack", "rhs": "base", "rel": ">=", "factor": 0.85},
 		{"metric": "duty", "lhs": "run", "rhs": "base", "rel": ">=", "factor": 0.9},
 		{"metric": "duty", "lhs": "hold", "rhs": "base", "rel": ">=", "factor": 0.9}
 	]

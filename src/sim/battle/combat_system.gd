@@ -105,6 +105,28 @@ static func in_reach(state: BattleState, row: int, t: int) -> bool:
 	return false
 
 
+## Whether unit `urow` fires in moving mode this tick (sw-txnj.6, U1Q28). A
+## unit that moved this tick and reaches its firing position on it stands:
+## under an attack order, with no firing position held before this tick, and
+## a standing shot from where it now stands. Walking units without a position
+## keep their moving mode. Shared by the fire pass and BattleActivity, so the
+## hold reasons and the volley agree.
+static func fires_moving(state: BattleState, urow: int) -> bool:
+	var u := state.units
+	var sq := state.squads
+	if u.moving[urow] != 1:
+		return false
+	var row := sq.row_of(u.squad[urow])
+	if row < 0 or u.fpos[urow] == FiringPositions.HAS:
+		return true
+	if not (sq.order[row] in [BattleSquads.Order.ATTACK_MOVE, BattleSquads.Order.ATTACK]):
+		return true
+	var trow := sq.row_of(sq.engaged[row])
+	if trow < 0:
+		return true
+	return not FiringPositions.point_shot(state, urow, trow, u.x[urow], u.y[urow])
+
+
 func _engage(state: BattleState, row: int) -> void:
 	var r := state.rules
 	var sq := state.squads
@@ -151,7 +173,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		# that reached 0 means the unit may fire now. Never tick here too.
 		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
-		var is_moving := u.moving[urow] == 1
+		var is_moving := fires_moving(state, urow)
 		var m := r.pick_mode(w, is_moving)
 		if m < 0:
 			continue
