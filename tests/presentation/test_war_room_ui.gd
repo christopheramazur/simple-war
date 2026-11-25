@@ -93,6 +93,57 @@ func test_the_squad_card_shows_strength_weapons_and_range() -> void:
 	assert_eq(w._main.squad_at(Vector2(sq["x"], sq["y"]) / float(Fixed.ONE)), sq["id"])
 
 
+## A copy of the inspection with every weapon mode shifted from its base:
+## accuracy by 10 percentage points, damage by 1, up or down (sw-vld).
+func _shifted_insp(insp: Dictionary, dir: int) -> Dictionary:
+	var out := insp.duplicate(true)
+	for u: Dictionary in out["units"]:
+		for e: Dictionary in u["stats"]:
+			var stat := String(e["stat"])
+			if stat.begins_with("weapon.modes"):
+				var step := Fixed.ONE / 10 if stat.ends_with("accuracy") else Fixed.ONE
+				e["value"] = int(e["base"]) + dir * step
+	return out
+
+
+## Buffed and debuffed weapon stats read their direction in TEXT under every
+## theme, and the tones stay (sw-vld, GDD accessibility: never colour alone).
+func test_the_squad_card_marks_changed_stats_in_text_under_every_theme() -> void:
+	var w := _demo()
+	w.contexts.tab_in()
+	var eid := w.contexts.focus
+	var sq: Dictionary = w.session.observe_battle(1, eid)["squads"][0]
+	var insp := w.session.inspect_battle(1, eid, sq["id"])
+	for id: String in UiTheme.ids():
+		UiTheme.apply(get_window(), id)
+		for dir: int in [1, -1]:
+			var shifted := _shifted_insp(insp, dir)
+			var card := SquadCard.build(sq, shifted, 1)
+			autofree(card)
+			var text := "\n".join(_texts(card))
+			var mark := "+" if dir > 0 else "-"
+			assert_string_contains(text, "(%s10%%)" % mark,
+				"accuracy's direction in text under theme '%s'" % id)
+			assert_string_contains(text, "(%s" % mark, "damage's direction in text too")
+			# The named-style pipeline stays: the tone still names the change.
+			var want_tone := &"SmallGoodLabel" if dir > 0 else &"SmallBadLabel"
+			var found := 0
+			for l: Label in card.find_children("*", "Label", true, false):
+				if l.text.contains("to hit"):
+					found += 1
+					assert_eq(l.theme_type_variation, want_tone, "the tone stays under theme '%s'" % id)
+			assert_gt(found, 0, "the card shows accuracy lines")
+	UiTheme.apply(get_window(), "default")
+	# A hurt squad's Health bar reads the remaining / max numbers.
+	var hurt := sq.duplicate(true)
+	hurt["hp_lost"] = int(sq["hp_max"]) / 4
+	var card := SquadCard.build(hurt, insp, 1)
+	autofree(card)
+	assert_string_contains("\n".join(_texts(card)), "%s / %s" % [
+		Fixed.to_display(int(sq["hp_max"]) - int(hurt["hp_lost"])), Fixed.to_display(int(sq["hp_max"]))],
+		"the Health row shows remaining / max when hurt")
+
+
 func test_a_turn_plays_out_before_the_next_planning_is_shown() -> void:
 	var w := _demo()
 	w.turn_seconds = 5.0
