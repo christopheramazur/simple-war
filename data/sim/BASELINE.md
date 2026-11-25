@@ -8,3 +8,7 @@ Compare fitness only within one era.
 Batch `b20261122-153254`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
 Earlier post-merge batches that also belong to this era: `b20261122-152015`, `b20261122-133812` (baseline x60).
 Batch `b20261122-153132` is 18 failed runs (worktree had no import cache); ignore it.
+
+## Era 3 (coherency radius, sw-txnj.4) - baseline commit 2791748 (2026-11-25)
+Batch `b20261125-130349`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
+Outcomes differ from era 2 on purpose: squads wait for stragglers (anchor at half speed while a unit is out of coherency), so turns and value lost move. Compare fitness only within era 3.
