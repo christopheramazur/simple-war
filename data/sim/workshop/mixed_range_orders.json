@@ -1,8 +1,8 @@
 {
 	"id": "mixed_range_orders",
 	"component": "orders",
-	"doc": "The assault squad (a mixed-range squad: sergeant and breachers) against an unarmed, unkillable rifle dummy 60 m away, on the core package. Variants: attack-move from 60 m, move to the dummy's centre, attack from 60 m, and move to 12 m then hold. Measures dps_engaged (DPS from the first shot) per order: 01's table B (the owner's experience: attack-move and attack stall the shotguns out of range). Pending until B3 closes to fire (attack-move must reach at least 0.9 of hold at 12 m); reported until then.",
-	"status": "pending",
+	"doc": "The assault squad (a mixed-range squad: sergeant and breachers) against an unarmed, unkillable rifle dummy 60 m away, on the core package. Variants: attack-move from 60 m, move to the dummy's centre, attack from 60 m, and move to 12 m then hold. Measures dps_engaged (DPS from the first shot) per order: 01's table B (the owner's experience: attack-move and attack stall the shotguns out of range). Gated since sw-txnj.5 (closing to fire): attack-move must reach at least 0.9 of hold at 12 m.",
+	"status": "gate",
 	"package": "core",
 	"map": "duel_crossroads",
 	"open": true,
@@ -135,7 +135,6 @@
 			"rhs": "hold_12",
 			"rel": ">=",
 			"factor": 0.9,
-			"pending": true,
 			"doc": "B3 acceptance: attack-move must reach 0.9 of hold at 12 m."
 		}
 	]

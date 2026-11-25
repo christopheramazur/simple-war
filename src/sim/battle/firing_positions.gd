@@ -114,6 +114,8 @@ static func update(state: BattleState) -> void:
 					p = LACKS
 				elif _near(state, urow, row, trow, fx, fy):
 					p = HAS
+				elif _min_blocked(state, urow, row, trow):
+					p = UNACHIEVABLE
 				else:
 					if p == NONE:
 						p = LACKS
@@ -231,19 +233,26 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, fx: Pack
 				fx[urow] = px
 				fy[urow] = py
 				return HAS
-	# No candidate: unachievable when the minimum range is what blocks it
-	# (advancing can't help), else the anchor has to close.
-	var mn := _min_range(state, urow)
-	if mn > 0:
-		var near := 1 << 62
-		for t in Centroids.units_of(state, trow):
-			if u.hp[t] > 0:
-				var ddx := u.x[t] - gx
-				var ddy := u.y[t] - gy
-				near = mini(near, ddx * ddx + ddy * ddy)
-		if near < mn * mn:
-			return UNACHIEVABLE
+	# No candidate: the anchor has to close.
 	return LACKS
+
+
+## True if every living target unit is inside the unit's minimum range (plus
+## the stand-off) from its slot: advancing can't help, so it has no
+## achievable position and doesn't hold the anchor.
+static func _min_blocked(state: BattleState, urow: int, row: int, trow: int) -> bool:
+	var mn := _min_range(state, urow)
+	if mn <= 0:
+		return false
+	var u := state.units
+	var slot := MovementSystem.slot_point(state, urow, row)
+	var near := 1 << 62
+	for t in Centroids.units_of(state, trow):
+		if u.hp[t] > 0:
+			var ddx := u.x[t] - slot[0]
+			var ddy := u.y[t] - slot[1]
+			near = mini(near, ddx * ddx + ddy * ddy)
+	return near < mn * mn
 
 
 static func _min_range(state: BattleState, urow: int) -> int:

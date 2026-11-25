@@ -1,8 +1,8 @@
 {
 	"id": "staggered_opening",
 	"component": "fire",
-	"doc": "A homogeneous rifle squad attack-moves 60 m toward an unarmed dummy and walks into range. Target behaviour (U1Q28): units with the same attack profile open fire as each one comes into range, so the first shots are staggered across the squad instead of landing on one tick (the lockstep volley the duels show). Pending until A3; reported, not gated.",
-	"status": "pending",
+	"doc": "A homogeneous rifle squad attack-moves 60 m toward an unarmed dummy and walks into range. Target behaviour (U1Q28): units with the same attack profile open fire as each one comes into range, so the first shots are staggered across the squad instead of landing on one tick (the lockstep volley the duels show). Gated since sw-txnj.5. The dummy stands 10 m off the lane: a perfectly mirrored frontal pair of lines comes into range on one tick by geometry, which U1Q28 accepts.",
+	"status": "gate",
 	"package": "rules-fixture",
 	"map": "duel_crossroads",
 	"open": true,
@@ -18,7 +18,7 @@
 		"1": [{"squad": "rifles", "type": "attack_move", "x": 85, "y": 80}]
 	},
 	"probes": [
-		{"id": "staggered_first_shots", "over": "t1", "squad": "rifles", "target": "dummy", "first_shot_ticks": {"min": 2}, "pending": true, "doc": "Two or more distinct first-shot ticks among the units."},
+		{"id": "staggered_first_shots", "over": "t1", "squad": "rifles", "target": "dummy", "first_shot_ticks": {"min": 2}, "doc": "Two or more distinct first-shot ticks among the units."},
 		{"id": "first_shot", "over": "t1", "squad": "rifles", "target": "dummy", "first_shot": null, "doc": "Seconds from the order to the squad's first shot (reported)."},
 		{"id": "shooters", "over": "t1", "squad": "rifles", "target": "dummy", "shooters": null, "doc": "Units that fired in the turn (reported)."}
 	],

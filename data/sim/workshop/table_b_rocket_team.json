@@ -28,10 +28,10 @@
 			"script": {"1": [{"squad": "rocket", "type": "attack", "target": "dummy", "unchecked": true}]}}
 	},
 	"probes": [
-		{"id": "dps_attack_move", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 4.465, "max": 4.935}, "variants": ["base"], "doc": "Table B: 4.7."},
+		{"id": "dps_attack_move", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 6.112, "max": 6.756}, "variants": ["base"], "doc": "sw-txnj.5 closing to fire: 6.434 (5%); table B was 4.7.."},
 		{"id": "dps_hold_12", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 7.315, "max": 8.085}, "variants": ["hold_12"], "doc": "Table B: 7.7 (5%)."},
 		{"id": "dps_move", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 3.99, "max": 4.41}, "variants": ["move"], "doc": "Table B: 4.2 (5%)."},
-		{"id": "dps_attack", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 5.51, "max": 6.09}, "variants": ["attack"], "doc": "Table B: 5.8 (5%)."}
+		{"id": "dps_attack", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 6.997, "max": 7.733}, "variants": ["attack"], "doc": "sw-txnj.5 closing to fire: 7.365 (5%); table B was 5.8."}
 	],
 	"compare": []
 }
