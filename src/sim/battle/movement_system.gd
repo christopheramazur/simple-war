@@ -288,12 +288,13 @@ func _move_units(state: BattleState) -> void:
 		if Fixed.length(x[row] - sq.ax[srow], y[row] - sq.ay[srow]) > coherency_m(state, srow):
 			gx = Fixed.clamp_fixed(sq.ax[srow], 0, max_x)
 			gy = Fixed.clamp_fixed(sq.ay[srow], 0, max_y)
+		var at_fpos := u.fpos[row] == FiringPositions.HAS and gx == u.fx[row] and gy == u.fy[row]
 		var dx := gx - x[row]
 		var dy := gy - y[row]
 		var dist := Fixed.length(dx, dy)
 		var profile := r.ut_movement[u.tmpl[row]]
 		if dist <= ARRIVE:
-			if u.fpos[row] == FiringPositions.HAS and gx == u.fx[row] and gy == u.fy[row]:
+			if at_fpos:
 				# sw-txnj.16: a firing position is validated at the point, so the
 				# unit stands on it. Stopping up to ARRIVE short left a shotgun
 				# just outside its 15 m range, holding 'o' for good.
@@ -321,6 +322,16 @@ func _move_units(state: BattleState) -> void:
 			else:
 				speed[row] = 0
 				continue
+		# sw-txnj.17 (U1Q28): a unit that reaches its firing position this
+		# tick stands on it, so it fires in standing mode on the arrival
+		# tick. Its moving flag stays 0: a moving volley would start a
+		# cooldown the unit does not need.
+		if at_fpos and Fixed.distance(nx, ny, gx, gy) <= ARRIVE:
+			x[row] = gx
+			y[row] = gy
+			speed[row] = 0
+			facing[row] = _turn(facing[row], Fixed.atan2(dy, dx), r.mv_turn[profile])
+			continue
 		x[row] = nx
 		y[row] = ny
 		facing[row] = _turn(facing[row], Fixed.atan2(dy, dx), r.mv_turn[profile])
