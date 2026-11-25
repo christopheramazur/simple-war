@@ -69,6 +69,9 @@ var sq_route_class: PackedInt64Array = PackedInt64Array()
 var route_replan: int = 8 * Fixed.ONE
 ## Fixed. How far past its point an engaged attack-move may close (U1Q29).
 var chase_leash: int = 15 * Fixed.ONE
+## Ticks. How recent a volley must be for the "under fire" relation (U1 Q6;
+## default one second). Read models only: no system reads it.
+var recent_fire_ticks: int = 10
 ## Plans and caches routes for this battlefield. Not state: see BattleRoute.
 ## The only mutable part of the rules: concurrent forecasts must not share
 ## its writes, so they plan into a private copy (forecast_copy).
@@ -592,6 +595,7 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
 	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
 	chase_leash = DataSchema.to_fixed(rs.get("chase_leash_m"), 15 * Fixed.ONE)
+	recent_fire_ticks = int(rs.get("relation_recent_fire_ticks", tps))
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
 	_pool_defaults = rs.get("pool_defaults", {})

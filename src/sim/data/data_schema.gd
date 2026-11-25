@@ -440,6 +440,9 @@ const KINDS: Dictionary = {
 		## How far past its point an engaged attack-move may close on the
 		## squad it fights, metres (default 15; U1Q29 leash).
 		"chase_leash_m": {"type": "fixed", "min": 0},
+		## How recent a volley must be, in ticks, for the "under fire" pair
+		## relation (SquadRelation; default one second of ticks).
+		"relation_recent_fire_ticks": {"type": "int", "min": 1},
 		"pool_defaults": {"type": "map:obj:pool"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},
