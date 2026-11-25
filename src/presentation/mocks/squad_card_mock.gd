@@ -56,7 +56,8 @@ static func build() -> Control:
 	line2.add_theme_constant_override("separation", 24)
 	sheet.add_child(line2)
 	line2.add_child(_wrap("Holding position", "The hold-position order still fires: HOLDING is not 'holding fire'. "
-		+ "Each unit's hold reason, ammo and the weapon's range band.",
+		+ "Units with identical state share one line ('Troopers 1-7: ...'); a unit that differs keeps its own. "
+		+ "The Order line is gone while the activity already says Holding position.",
 		SquadCard.build(_squad(s, mine), s.inspect(1, mine), 1, s.state.rules.tps, false, ctx)))
 	# The status row shows a squad that took casualties: two troopers down,
 	# so the card also reads its strength at less than full.
@@ -76,7 +77,8 @@ static func build() -> Control:
 	st.units.set_value(st.units.id_at(us[0]), &"reload", 12)
 	st.units.set_value(st.units.id_at(us[1]), &"cooldown", 25)
 	line2.add_child(_wrap("Held fire: timers", "Reloading and cooling down, in words and seconds (ticks / tps), "
-		+ "with the progress already done. Higher verbosity adds the exact tick counts.",
+		+ "with the progress already done. Reload and cooldown tick together: the wait is the longer one, "
+		+ "and the bar tracks it. Higher verbosity adds the exact tick counts.",
 		SquadCard.build(_squad(s, mine), s.inspect(1, mine), 1, st.rules.tps, false, ctx)))
 	line2.add_child(_playback_variant(s, mine, ctx))
 	return root

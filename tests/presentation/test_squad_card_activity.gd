@@ -216,3 +216,118 @@ func test_a_squad_outside_the_frame_keeps_the_base() -> void:
 	var m := SquadCard.moment(_rec(), 1.0, 555, 1, base["squad"], base["insp"])
 	assert_eq(m["squad"], base["squad"], "no frame entry: the end state is what is left")
 	assert_eq(m["insp"], base["insp"])
+
+
+# --- the timers and the grouped weapon block (sw-ll4.27.7) -------------------
+
+## Every text line of a card model: label text and wrapped body lines.
+func _model_lines(m: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	for it: Dictionary in m["items"]:
+		if it.has("text"):
+			out.append(String(it["text"]))
+		elif it.has("wrapped"):
+			out.append(String(it["wrapped"]))
+	return out
+
+
+func _count_containing(lines: PackedStringArray, needle: String) -> int:
+	var n := 0
+	for l: String in lines:
+		if l.contains(needle):
+			n += 1
+	return n
+
+
+func _cool_total(wid: String) -> int:
+	var rules := _session.state.rules
+	var w := int(rules.weapon_index[wid])
+	var cool := 0
+	for m in range(rules.wp_mode_start[w], rules.wp_mode_start[w] + rules.wp_mode_count[w]):
+		cool = maxi(cool, int(rules.md_cooldown[m]))
+	return cool
+
+
+func test_fires_in_is_the_longer_timer_not_the_sum() -> void:
+	# A magazine emptied under a long cooldown: reload 30 and cooldown 60 tick
+	# concurrently, so the wait is 60 ticks (6.0 s at 10 tps), never 90.
+	var base := _base()
+	var u: Dictionary = (base["insp"]["units"] as Array)[0]
+	u["weapon"] = "mortar"
+	u["hold"] = BattleActivity.Hold.RELOADING
+	u["reload"] = 30
+	u["cooldown"] = 60
+	u["ammo"] = 0
+	base["insp"]["units"] = [u]
+	var m := SquadCard.model(base["squad"], base["insp"], 1, 10, false, _ctx())
+	var lines := _model_lines(m)
+	assert_eq(_count_containing(lines, "fires in 6.0 s"), 1, "the wait is the longer timer")
+	assert_eq(_count_containing(lines, "fires in 9.0 s"), 0, "never the sum (9.0 s)")
+	assert_eq(_count_containing(lines, Glossary.hold_text(BattleActivity.Hold.COOLDOWN, 60)), 1,
+		"the longer cooldown's reason, not Reloading")
+	assert_eq(_count_containing(lines, Glossary.hold_text(BattleActivity.Hold.RELOADING, 30)), 0,
+		"the sim's RELOADING priority does not hide the longer cooldown")
+	# The mini-bar tracks the same longer timer: 60 of the cooldown's total.
+	var frac := -1.0
+	for it: Dictionary in m["items"]:
+		if it.has("progress"):
+			frac = float((it["progress"] as Dictionary)["frac"])
+	assert_almost_eq(frac, 1.0 - 60.0 / float(_cool_total("mortar")), 0.0001, "the bar follows the cooldown, not the reload")
+	assert_gte(frac, 0.0, "a bar that is shown is never negative")
+
+
+func test_the_progress_bar_follows_the_longer_timer() -> void:
+	# Reload is the longer timer here: the bar and the line both read reload.
+	var u: Dictionary = {"reload": 60, "cooldown": 30}
+	var frac := SquadCard._weapon_progress(u, 100, 120)
+	assert_almost_eq(frac, 0.4, 0.0001, "reload total 100, 60 left: 40% done")
+	assert_eq(SquadCard._weapon_progress({"reload": 0, "cooldown": 0}, 100, 120), -1.0, "no timer, no bar")
+
+
+func test_identical_units_collapse_to_one_line() -> void:
+	var base := _base()
+	var one: Dictionary = (base["insp"]["units"] as Array)[0]
+	var units := []
+	for uid: int in range(1, 9):
+		var c: Dictionary = one.duplicate(true)
+		c["id"] = uid
+		units.append(c)
+	base["insp"]["units"] = units
+	var lines := _model_lines(SquadCard.model(base["squad"], base["insp"], 1, 10, false, _ctx()))
+	assert_eq(_count_containing(lines, "ammo 30 / 30"), 1, "eight identical units, one weapon line")
+	assert_eq(_count_containing(lines, "Troopers 1-8:"), 1, "the shared label is a range")
+
+
+func test_units_that_differ_keep_their_own_line() -> void:
+	var base := _base()
+	var one: Dictionary = (base["insp"]["units"] as Array)[0]
+	var units := []
+	for uid: int in [1, 2, 3]:
+		var c: Dictionary = one.duplicate(true)
+		c["id"] = uid
+		if uid == 2:
+			c["ammo"] = 12
+		units.append(c)
+	base["insp"]["units"] = units
+	var lines := _model_lines(SquadCard.model(base["squad"], base["insp"], 1, 10, false, _ctx()))
+	assert_eq(_count_containing(lines, "Troopers 1, 3:"), 1, "the matching units share a line")
+	assert_eq(_count_containing(lines, "Trooper 2:"), 1, "the differing unit keeps its own line")
+	assert_eq(_count_containing(lines, "ammo 12 / 30"), 1, "its own ammo")
+
+
+func test_order_holding_line_is_dropped_and_its_tip_moves() -> void:
+	var base := _base()
+	base["squad"]["activity"] = BattleActivity.Squad.HOLDING
+	base["insp"]["activity"] = BattleActivity.Squad.HOLDING
+	var m := SquadCard.model(base["squad"], base["insp"], 1, 10, false, _ctx())
+	var lines := _model_lines(m)
+	assert_eq(_count_containing(lines, "Order: Holding"), 0, "the activity line already says Holding position")
+	var act_tip := ""
+	for it: Dictionary in m["items"]:
+		if String(it.get("text", "")) == Glossary.activity_text(BattleActivity.Squad.HOLDING):
+			act_tip = String(it.get("tip", ""))
+	assert_eq(act_tip, OrderTips.tip("hold"), "the order's tooltip moved onto the activity line")
+	# Any other order keeps its line.
+	base["squad"]["order"] = "attack"
+	lines = _model_lines(SquadCard.model(base["squad"], base["insp"], 1, 10, false, _ctx()))
+	assert_eq(_count_containing(lines, "Order: "), 1, "a non-hold order still shows its line")

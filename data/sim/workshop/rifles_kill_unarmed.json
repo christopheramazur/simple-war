@@ -1,0 +1,43 @@
+{
+	"id": "rifles_kill_unarmed",
+	"component": "targeting",
+	"doc": "Two rifle squads fire on one unarmed rifle squad of normal HP until it is gone. Measures kills, how fire spreads over the victims, and overkill (hits on a victim already dead that tick). Each squad works through the victims one at a time today; the pending probe wants a squad's fire spread over at least six of them.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 7,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "north", "player": 1, "squad": "rifle_squad", "at": [50, 62]},
+		{"key": "south", "player": 1, "squad": "rifle_squad", "at": [50, 78]},
+		{"key": "prey", "player": 2, "squad": "rifle_squad", "at": [68, 70], "facing": 180,
+			"dummy": {"armed": false}}
+	],
+	"script": {
+		"1": [
+			{"squad": "north", "type": "attack", "target": "prey"},
+			{"squad": "south", "type": "attack", "target": "prey"}
+		]
+	},
+	"variants": {
+		"north_alone": {"doc": "Only the north squad attacks; the south one walks away.",
+			"script": {"1": [
+				{"squad": "north", "type": "attack", "target": "prey"},
+				{"squad": "south", "type": "move", "x": 10, "y": 90}
+			]}}
+	},
+	"probes": [
+		{"id": "north_kills", "over": "all", "squad": "north", "target": "prey", "kills": {"min": 1}, "variants": "all"},
+		{"id": "south_kills", "over": "all", "squad": "south", "target": "prey", "kills": null, "variants": "all"},
+		{"id": "north_spread", "over": "all", "squad": "north", "target": "prey", "victims": {"distinct": {"min": 2}}},
+		{"id": "overkill", "over": "all", "squad": "north", "target": "prey", "victims": null},
+		{"id": "wide_spread", "over": "t1", "squad": "north", "target": "prey", "victims": {"distinct": {"min": 6}}, "pending": true},
+		{"id": "prey_activity", "at": "t1:0", "squad": "prey", "activity": null},
+		{"id": "north_spacing", "over": "t1", "squad": "north", "spacing": {"min": 0.5}}
+	],
+	"compare": [
+		{"metric": "north_kills", "lhs": "north_alone", "rhs": "base", "rel": ">="}
+	]
+}

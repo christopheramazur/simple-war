@@ -1,0 +1,26 @@
+{
+	"id": "attack_move_firing_position",
+	"component": "orders",
+	"doc": "A rifle squad on attack-move toward an enemy it can see but cannot yet shoot (50 m, 40 m reach), with movement to spare. Target behaviour (U1Q11, U1Q29): each armed unit walks to its own firing position within the squad's coherency radius and fires by the turn's end, instead of the squad stopping as one body at the first shot. Pending until A3 (per-unit firing positions); the probes are reported, not gated.",
+	"status": "pending",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 1,
+	"probe_stride": 5,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [35, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack_move", "x": 85, "y": 80}]
+	},
+	"probes": [
+		{"id": "seen_out_of_range", "at": "t1:0", "squad": "rifles", "target": "dummy", "fire": "out_of_range", "doc": "At the start the enemy is out of reach."},
+		{"id": "every_unit_fires", "over": "t1", "squad": "rifles", "target": "dummy", "shooters": {"min": 8}, "pending": true, "doc": "Every armed unit fires by the turn's end (U1Q29)."},
+		{"id": "fires_by_end", "at": "end", "squad": "rifles", "target": "dummy", "fire": "shot", "pending": true}
+	],
+	"compare": []
+}

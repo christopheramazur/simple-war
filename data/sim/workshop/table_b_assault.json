@@ -1,0 +1,37 @@
+{
+	"id": "table_b_assault",
+	"component": "orders",
+	"doc": "Cross-check of 01 table B, assault squad row (1 rifle at 40 m, 4 shotguns at 15 m) against an unarmed dummy, on the core package. Four placements, as the table ran them: hold at 12 m (x 73); move to the dummy's centre from 60 m; attack-move from 60 m (base); attack from 44 m. The attack variant's order is `unchecked`: the table's runs set orders without the sight check, and the assault squad does not see the dummy at 44 m at turn start, so the check would refuse it. Expectations are table B's DPS1 (6.7, 8.8, 2.0, 2.2) within 5%. Pinned to the current behaviour: when the closing-to-fire fix (A3) lands, these change on purpose and are re-pinned with it. The B3 target (attack-move at least 0.9 of hold at 12 m) is mixed_range_orders, pending.",
+	"status": "gate",
+	"package": "core",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "assault", "player": 1, "squad": "assault_squad", "at": [25, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "assault", "type": "attack_move", "x": 85, "y": 80}]
+	},
+	"variants": {
+		"hold_12": {"doc": "Hold at 12 m (table B's first column).",
+			"place": {"assault": [73, 80]},
+			"script": {"1": [{"squad": "assault", "type": "hold"}]}},
+		"move": {"doc": "Move to the dummy's centre.",
+			"script": {"1": [{"squad": "assault", "type": "move", "x": 85, "y": 80}]}},
+		"attack": {"doc": "Attack the dummy from 44 m (unchecked, see the doc).",
+			"place": {"assault": [41, 80]},
+			"script": {"1": [{"squad": "assault", "type": "attack", "target": "dummy", "unchecked": true}]}}
+	},
+	"probes": [
+		{"id": "dps_attack_move", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 1.9, "max": 2.1}, "variants": ["base"], "doc": "Table B: 2.0."},
+		{"id": "dps_hold_12", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 6.365, "max": 7.035}, "variants": ["hold_12"], "doc": "Table B: 6.7 (5%)."},
+		{"id": "dps_move", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.36, "max": 9.24}, "variants": ["move"], "doc": "Table B: 8.8 (5%)."},
+		{"id": "dps_attack", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 2.09, "max": 2.31}, "variants": ["attack"], "doc": "Table B: 2.2 (5%)."}
+	],
+	"compare": []
+}
