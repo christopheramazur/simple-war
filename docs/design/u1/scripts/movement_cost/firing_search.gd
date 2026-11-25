@@ -32,6 +32,11 @@ var angles: int
 var nearest: bool
 var cap: int
 var memo: bool
+## LoS memo per (from cell, to cell): BattleRules.los depends only on the two
+## endpoint cells once past the awareness distance, and terrain is static.
+var los_cache: bool
+var cache := {}
+var cache_hits := 0
 var fail_ax := PackedInt64Array()
 var fail_ay := PackedInt64Array()
 var fail_tx := PackedInt64Array()
@@ -54,8 +59,9 @@ var found := 0
 var pass1_us := 0
 
 
-func _init(c: int, step_m: int, ring_count: int, angle_count: int, near: bool, cap_per_tick: int, use_memo: bool = false) -> void:
+func _init(c: int, step_m: int, ring_count: int, angle_count: int, near: bool, cap_per_tick: int, use_memo: bool = false, use_los_cache: bool = false) -> void:
 	memo = use_memo
+	los_cache = use_los_cache
 	cadence = c
 	step = step_m * Fixed.ONE
 	rings = ring_count
@@ -72,9 +78,9 @@ func stats() -> String:
 	var t := float(maxi(ticks, 1))
 	if searches == 0:
 		return "no searches"
-	return "memo skips/t %.1f, memo holds/t %.1f, due/t %.1f, searched/t %.1f, deferred/t %.1f, unreachable/t %.1f, cand/search %.2f, los/search %.2f, found %.0f%%, worst tick %.2f ms, pass-1 (due list + memo checks) %.3f ms/t" % [
+	return "memo skips/t %.1f, memo holds/t %.1f, due/t %.1f, searched/t %.1f, deferred/t %.1f, unreachable/t %.1f, cand/search %.2f, los/search %.2f, found %.0f%%, worst tick %.2f ms, pass-1 (due list + memo checks) %.3f ms/t, LoS cache hits %.0f%% (%d entries)" % [
 		memo_skips / t, memo_holds / t, due_total / t, searches / t, held / t, unreachable / t, candidates / float(searches),
-		los_calls / float(searches), 100.0 * found / searches, max_us / 1000.0, pass1_us / 1000.0 / t]
+		los_calls / float(searches), 100.0 * found / searches, max_us / 1000.0, pass1_us / 1000.0 / t, 100.0 * cache_hits / maxi(los_calls, 1), cache.size()]
 
 
 func fold_hash(h: HashingContext) -> void:
@@ -283,13 +289,27 @@ func _shot(r: BattleRules, u: BattleUnits, w: int, ind: bool, px: int, py: int, 
 				best_d = d
 				best = t
 			continue
-		los_calls += 1
-		if r.los(px, py, u.x[t], u.y[t]):
+		if _los(r, px, py, u.x[t], u.y[t], d):
 			return true
 	if best < 0:
 		return false
+	return _los(r, px, py, u.x[best], u.y[best], best_d)
+
+
+func _los(r: BattleRules, ax: int, ay: int, bx: int, by: int, d2: int) -> bool:
 	los_calls += 1
-	return r.los(px, py, u.x[best], u.y[best])
+	if not los_cache:
+		return r.los(ax, ay, bx, by)
+	if d2 <= BattleRules.AWARENESS * BattleRules.AWARENESS:
+		return true
+	var key := (((Fixed.to_int_floor(ax) * 128 + Fixed.to_int_floor(ay)) << 20) | (Fixed.to_int_floor(bx) * 128 + Fixed.to_int_floor(by)))
+	var v: Variant = cache.get(key)
+	if v != null:
+		cache_hits += 1
+		return v
+	var ok := r.los(ax, ay, bx, by)
+	cache[key] = ok
+	return ok
 
 
 static func _half_width(r: BattleRules, st: int, members: int) -> int:

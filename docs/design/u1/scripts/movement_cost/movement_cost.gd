@@ -34,6 +34,7 @@ func _initialize() -> void:
 	mix = PackedStringArray(["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"])
 	print("map %dx%d m, tps %d, ticks/turn %d, squad mix per side %s" % [rules.width, rules.height, rules.tps, rules.ticks_per_turn, mix])
 	var args := OS.get_cmdline_user_args()
+	_micro()
 	var counts := [4, 20, 40]
 	if args.has("--quick"):
 		counts = [4]
@@ -147,6 +148,8 @@ func _scenario(n: int) -> void:
 		["+search every 5 ticks (literal)", func() -> Array[SimSystem]: return [FiringSearch.new(5, 2, 3, 7, false, 0)] as Array[SimSystem]],
 		["+search memo (1 t, nearest)", func() -> Array[SimSystem]: return [FiringSearch.new(1, 2, 3, 7, true, 0, true)] as Array[SimSystem]],
 		["+search recommended (5 t, nearest, memo, cap 4)", func() -> Array[SimSystem]: return [FiringSearch.new(5, 2, 3, 7, true, 4, true)] as Array[SimSystem]],
+		["+search recommended + LoS cache", func() -> Array[SimSystem]: return [FiringSearch.new(5, 2, 3, 7, true, 4, true, true)] as Array[SimSystem]],
+		["+search every tick, nearest, memo, LoS cache (no cap)", func() -> Array[SimSystem]: return [FiringSearch.new(1, 2, 3, 7, true, 0, true, true)] as Array[SimSystem]],
 		["+separation (2 m hash)", func() -> Array[SimSystem]: return [Separation.new(Separation.HASH)] as Array[SimSystem]],
 		["+separation (squad broadphase)", func() -> Array[SimSystem]: return [Separation.new(Separation.SQUADS)] as Array[SimSystem]],
 		["+search recommended +separation (hash)", func() -> Array[SimSystem]: return [FiringSearch.new(5, 2, 3, 7, true, 4, true), Separation.new(Separation.HASH)] as Array[SimSystem]],
@@ -182,8 +185,77 @@ func _param_sweep(n: int) -> void:
 	print("cadence | ring step m | rings | angles | LoS targets | cap/tick | memo | ms/tick | stats")
 	for p in [[1, 2, 3, 7, false, 0], [1, 2, 3, 7, true, 0], [5, 2, 3, 7, true, 0], [5, 2, 2, 5, true, 0], [10, 2, 3, 7, true, 0],
 			[5, 1, 4, 9, true, 0], [5, 2, 3, 7, true, 8], [5, 2, 3, 7, true, 4], [5, 2, 3, 7, true, 2], [10, 2, 2, 5, true, 2], [1, 2, 3, 7, true, 1],
-			[1, 2, 3, 7, true, 0, true], [5, 2, 3, 7, true, 0, true], [5, 2, 3, 7, true, 4, true], [5, 2, 3, 7, true, 2, true], [10, 2, 3, 7, true, 2, true], [5, 2, 2, 5, true, 2, true]]:
+			[1, 2, 3, 7, true, 0, true], [5, 2, 3, 7, true, 0, true], [5, 2, 3, 7, true, 4, true], [5, 2, 3, 7, true, 2, true], [10, 2, 3, 7, true, 2, true], [5, 2, 2, 5, true, 2, true],
+			[5, 2, 3, 7, true, 0, true, true], [5, 2, 3, 7, true, 4, true, true], [5, 2, 3, 7, true, 2, true, true], [10, 2, 3, 7, true, 0, true, true], [5, 2, 2, 5, true, 2, true, true]]:
+		var lc: bool = p[7] if p.size() > 7 else false
 		var mm: bool = p[6] if p.size() > 6 else false
-		var fs := FiringSearch.new(p[0], p[1], p[2], p[3], p[4], p[5], mm)
+		var fs := FiringSearch.new(p[0], p[1], p[2], p[3], p[4], p[5], mm, lc)
 		var a := _measure(n, [fs] as Array[SimSystem])
-		print("%d | %d | %d | %d | %s | %s | %s | %.3f | %s" % [p[0], p[1], p[2], p[3], "nearest" if p[4] else "all", str(p[5]) if p[5] > 0 else "-", "memo" if mm else "-", a["proto_us"] / 1000.0 / TICKS, fs.stats()])
+		print("%d | %d | %d | %d | %s | %s | %s | %.3f | %s" % [p[0], p[1], p[2], p[3], "nearest" if p[4] else "all", str(p[5]) if p[5] > 0 else "-", ("memo" if mm else "-") + (" +LoS cache" if lc else ""), a["proto_us"] / 1000.0 / TICKS, fs.stats()])
+
+
+## Micro costs behind the search: Fixed.distance (isqrt from n: ~30 Newton
+## steps at map scale), a bit-length-seeded isqrt (same result), and one
+## BattleRules.los across 20-60 m.
+func _micro() -> void:
+	var n := 20000
+	var vals := PackedInt64Array()
+	var seed := 12345
+	for i in n:
+		seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+		var dx := (seed % 60) * ONE + (seed & 0xFFFF)
+		seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+		var dy := (seed % 40) * ONE + (seed & 0xFFFF)
+		vals.append(dx * dx + dy * dy)
+	var t0 := Time.get_ticks_usec()
+	var acc := 0
+	for v in vals:
+		acc += Fixed.isqrt(v)
+	var t_old := Time.get_ticks_usec() - t0
+	t0 = Time.get_ticks_usec()
+	var acc2 := 0
+	for v in vals:
+		acc2 += _isqrt_seeded(v)
+	var t_new := Time.get_ticks_usec() - t0
+	var los_n := 5000
+	var hits := 0
+	t0 = Time.get_ticks_usec()
+	for i in los_n:
+		var x0 := (60 + (i % 20)) * ONE
+		var y0 := (20 + (i * 7) % 60) * ONE
+		if rules.los(x0, y0, x0 + (20 + i % 40) * ONE, y0 + ((i * 3) % 30 - 15) * ONE):
+			hits += 1
+	var t_los := Time.get_ticks_usec() - t0
+	print("micro: Fixed.isqrt %.2f us/call, bit-length-seeded isqrt %.2f us/call (same results: %s), BattleRules.los 20-60 m %.2f us/call (%d%% clear)" % [
+		t_old / float(n), t_new / float(n), "yes" if acc == acc2 else "NO", t_los / float(los_n), 100 * hits / los_n])
+
+
+## floor(sqrt(v)) by Newton from 2^ceil(bits/2) >= sqrt(v): ~5 steps.
+static func _isqrt_seeded(v: int) -> int:
+	if v < 2:
+		return v
+	var b := 0
+	var t := v
+	if t >> 32 != 0:
+		t >>= 32
+		b += 32
+	if t >> 16 != 0:
+		t >>= 16
+		b += 16
+	if t >> 8 != 0:
+		t >>= 8
+		b += 8
+	if t >> 4 != 0:
+		t >>= 4
+		b += 4
+	if t >> 2 != 0:
+		t >>= 2
+		b += 2
+	if t >> 1 != 0:
+		b += 1
+	var x := 1 << ((b + 2) / 2)
+	var y := (x + v / x) >> 1
+	while y < x:
+		x = y
+		y = (x + v / x) >> 1
+	return x
