@@ -122,6 +122,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"ledger": ledger.duplicate(), "result": result.duplicate(true),
 		"zone_locked": zone_locked.duplicate(), "vars": vars.duplicate(), "fired": fired.duplicate(),
 		"auto_off_rules": auto_off_rules.duplicate(true), "reveals": reveals.duplicate(true),
+		"fx_had_mods": fx_had_mods,
 	}
 	if deploying:
 		snap["battle"]["deploying"] = true
@@ -142,6 +143,9 @@ func _restore_extra(snap: Dictionary) -> void:
 	fired = (b.get("fired", {}) as Dictionary).duplicate()
 	auto_off_rules = (b.get("auto_off_rules", {}) as Dictionary).duplicate(true)
 	reveals = (b.get("reveals", []) as Array).duplicate(true)
+	# Not hashed, but EffectSystem reads it on the next tick: a restore that
+	# lost it would skip returning maxima to base (sw-tho3.7).
+	fx_had_mods = bool(b.get("fx_had_mods", false))
 	deploying = bool(b.get("deploying", false))
 
 
