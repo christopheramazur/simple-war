@@ -1,0 +1,37 @@
+{
+	"id": "table_b_rocket_team",
+	"component": "orders",
+	"doc": "Cross-check of 01 table B, rocket team row (2 rockets at 45 m, 1 rifle at 40 m) against an unarmed dummy, on the core package. Same four placements as table_b_assault: hold at 12 m, move from 60 m, attack-move from 60 m (base), attack from 44 m (unchecked, as the table ran it). Expectations are table B's DPS1 (7.7, 4.2, 4.7, 5.8) within 5%. Pinned to current behaviour; see table_b_assault.",
+	"status": "gate",
+	"package": "core",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "rocket", "player": 1, "squad": "rocket_team", "at": [25, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rocket", "type": "attack_move", "x": 85, "y": 80}]
+	},
+	"variants": {
+		"hold_12": {"doc": "Hold at 12 m (table B's first column).",
+			"place": {"rocket": [73, 80]},
+			"script": {"1": [{"squad": "rocket", "type": "hold"}]}},
+		"move": {"doc": "Move to the dummy's centre.",
+			"script": {"1": [{"squad": "rocket", "type": "move", "x": 85, "y": 80}]}},
+		"attack": {"doc": "Attack the dummy from 44 m (unchecked, see table_b_assault).",
+			"place": {"rocket": [41, 80]},
+			"script": {"1": [{"squad": "rocket", "type": "attack", "target": "dummy", "unchecked": true}]}}
+	},
+	"probes": [
+		{"id": "dps_attack_move", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 4.465, "max": 4.935}, "variants": ["base"], "doc": "Table B: 4.7."},
+		{"id": "dps_hold_12", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 7.315, "max": 8.085}, "variants": ["hold_12"], "doc": "Table B: 7.7 (5%)."},
+		{"id": "dps_move", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 3.99, "max": 4.41}, "variants": ["move"], "doc": "Table B: 4.2 (5%)."},
+		{"id": "dps_attack", "over": "all", "squad": "rocket", "target": "dummy", "dps_engaged": {"min": 5.51, "max": 6.09}, "variants": ["attack"], "doc": "Table B: 5.8 (5%)."}
+	],
+	"compare": []
+}
