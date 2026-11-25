@@ -23,8 +23,8 @@ min_description_chars = 2000
 [limits]
 five_hour_start_pct = 60    # start a bead only below this share of the 5-hour window...
 five_hour_stop_pct = 85     # ...and end a running one (keeping its work) above this, leaving room for you
-weekly_max_pct = 80         # never take the weekly window past this
-weekly_slack_pct = 20       # pace: by a point in the week, use at most weekly_max x the share of the week gone + this
+weekly_max_pct = 90         # never take the weekly window past this
+weekly_slack_pct = 50       # pace: by a point in the week, use at most weekly_max x the share of the week gone + this
 reading_max_age_s = 900     # older than this: ask the API with a one-word haiku call before starting a bead
 
 [beads]
