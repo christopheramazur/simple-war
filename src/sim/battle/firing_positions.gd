@@ -34,23 +34,36 @@ extends RefCounted
 ## - Anchor (fp_stop): stops once no armed unit is NONE or LACKS; once stopped
 ##   it moves again only after some unit has lacked a position for
 ##   HYSTERESIS_S (fp_lack = the tick the lack began, -1 none).
+## - Per squad behaviour (sw-txnj.10, GDD 02 §2.15 Squad behaviours): the
+##   coherency radius, stand-off, cadence and hysteresis come from the
+##   squad's behaviour for its current order (BattleRules.bh_*); the
+##   constants below are the defaults those arrays compile to. A behaviour
+##   with stand_while(firing = false) takes no firing positions: its units
+##   keep their slots and fire on the move.
 
 enum { NONE, HAS, LACKS, UNACHIEVABLE }
 
 const STEP: int = 2 * Fixed.ONE
 const MAX_RINGS: int = 3
 const ANGLES: int = 7
-const CADENCE: int = 5
+const CADENCE: int = BattleRules.BH_CADENCE
 const SEARCH_CAP: int = 2
-const STAND_OFF: int = 5 * Fixed.ONE
+const STAND_OFF: int = BattleRules.BH_STAND_OFF
 const REACH_SLACK: int = 10 * Fixed.ONE
-const HYSTERESIS_S: int = 1
+const HYSTERESIS_S: int = BattleRules.BH_HYSTERESIS_S
+
+
+## Index into the BattleRules.bh_* arrays of squad `row`'s behaviour under
+## its current order.
+static func bh(state: BattleState, row: int) -> int:
+	return state.rules.bh_at(state.squads.tmpl[row], state.squads.order[row])
 
 
 ## The squad row whose units squad `row` takes firing positions against, or
 ## -1 when its order doesn't engage (Hold, Move, no engagement, Attack on a
-## squad other than its target).
-static func engaging(state: BattleState, row: int) -> int:
+## squad other than its target, a behaviour with stand_while firing = false).
+## `any_behaviour` skips that last test: the squad it closes on regardless.
+static func engaging(state: BattleState, row: int, any_behaviour: bool = false) -> int:
 	var sq := state.squads
 	if not sq.is_active(row) or sq.alive[row] == 0 or sq.engaged[row] < 0:
 		return -1
@@ -62,6 +75,8 @@ static func engaging(state: BattleState, row: int) -> int:
 				return -1
 		_:
 			return -1
+	if not any_behaviour and state.rules.bh_stand_firing[bh(state, row)] == 0:
+		return -1
 	var trow := sq.row_of(sq.engaged[row])
 	if trow < 0 or not sq.is_active(trow) or sq.alive[trow] == 0:
 		return -1
@@ -90,6 +105,7 @@ static func update(state: BattleState) -> void:
 		targets[row] = trow
 		var radius := MovementSystem.coherency_m(state, row)
 		var r2 := radius * radius
+		var cadence := maxi(r.bh_cadence[bh(state, row)], 1)
 		for urow in units:
 			var w := u.weapon[urow]
 			if u.hp[urow] <= 0 or w < 0:
@@ -99,13 +115,13 @@ static func update(state: BattleState) -> void:
 				fpos[urow] = UNACHIEVABLE
 				continue
 			var p := fpos[urow]
-			var on_cadence := (state.tick + urow) % CADENCE == 0
+			var on_cadence := (state.tick + urow) % cadence == 0
 			if p == HAS:
 				var dx := fx[urow] - sq.ax[row]
 				var dy := fy[urow] - sq.ay[row]
 				if dx * dx + dy * dy > r2:
 					p = LACKS
-				elif on_cadence and u.fired_tick[urow] < state.tick - CADENCE 						and not point_shot(state, urow, trow, fx[urow], fy[urow]):
+				elif on_cadence and u.fired_tick[urow] < state.tick - cadence 						and not point_shot(state, urow, trow, fx[urow], fy[urow]):
 					# A unit that fired within the cadence has its shot: the
 					# fire pass just checked it (no trace needed).
 					p = LACKS
@@ -157,7 +173,7 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 			continue
 		if lack[row] < 0:
 			lack[row] = state.tick
-		if stop[row] == 1 and state.tick - lack[row] < HYSTERESIS_S * state.rules.tps:
+		if stop[row] == 1 and state.tick - lack[row] < state.rules.bh_hysteresis[bh(state, row)]:
 			continue
 		stop[row] = 0
 	sq.put_column(&"fp_stop", stop)
@@ -238,7 +254,7 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, fx: Pack
 
 
 ## True if every living target unit is inside the unit's minimum range (plus
-## the stand-off) from its slot: advancing can't help, so it has no
+## its squad's stand-off) from its slot: advancing can't help, so it has no
 ## achievable position and doesn't hold the anchor.
 static func _min_blocked(state: BattleState, urow: int, row: int, trow: int) -> bool:
 	var mn := _min_range(state, urow)
@@ -257,7 +273,10 @@ static func _min_blocked(state: BattleState, urow: int, row: int, trow: int) -> 
 
 static func _min_range(state: BattleState, urow: int) -> int:
 	var mn := state.rules.wp_min_range[state.units.weapon[urow]]
-	return mn + STAND_OFF if mn > 0 else 0
+	if mn <= 0:
+		return 0
+	var row := state.squads.row_of(state.units.squad[urow])
+	return mn + (state.rules.bh_stand_off[bh(state, row)] if row >= 0 else STAND_OFF)
 
 
 ## Whether unit `urow` would have a standing shot at squad `trow` from the

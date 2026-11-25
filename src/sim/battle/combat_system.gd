@@ -84,7 +84,7 @@ static func pick_target(state: BattleState, row: int) -> int:
 static func in_reach(state: BattleState, row: int, t: int) -> bool:
 	var sq := state.squads
 	var r := state.rules
-	var broad := sq.reach[row] + r.sq_coherency[sq.tmpl[row]] + r.sq_coherency[sq.tmpl[t]]
+	var broad := sq.reach[row] + MovementSystem.coherency_m(state, row) + MovementSystem.coherency_m(state, t)
 	if Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[t], sq.cy[t]) > broad:
 		return false
 	var u := state.units
@@ -125,6 +125,21 @@ static func fires_moving(state: BattleState, urow: int) -> bool:
 	if trow < 0:
 		return true
 	return not FiringPositions.point_shot(state, urow, trow, u.x[urow], u.y[urow])
+
+
+## The fire mode unit `urow` uses this tick (moving or standing, per
+## fires_moving), or -1: none for that motion, or a moving mode under an
+## order whose behaviour forbids fire on the move (bh_fire_on_move,
+## sw-txnj.10). Shared by the fire pass and BattleActivity.
+static func fire_mode(state: BattleState, urow: int, is_moving: bool) -> int:
+	var r := state.rules
+	var m := r.pick_mode(state.units.weapon[urow], is_moving)
+	if m < 0 or r.md_moving[m] == 0:
+		return m
+	var row := state.squads.row_of(state.units.squad[urow])
+	if row >= 0 and r.bh_fire_on_move[FiringPositions.bh(state, row)] == 0:
+		return -1
+	return m
 
 
 func _engage(state: BattleState, row: int) -> void:
@@ -174,7 +189,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
 		var is_moving := fires_moving(state, urow)
-		var m := r.pick_mode(w, is_moving)
+		var m := fire_mode(state, urow, is_moving)
 		if m < 0:
 			continue
 		var victim := TargetPolicy.pick(state, urow, targets, w, m, pending)

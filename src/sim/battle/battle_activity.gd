@@ -89,7 +89,7 @@ static func hold(state: BattleState, urow: int) -> int:
 	if u.cooldown[urow] > 0:
 		return Hold.COOLDOWN
 	var walking := moving_to_fire(state, urow)
-	var m := r.pick_mode(w, CombatSystem.fires_moving(state, urow))
+	var m := CombatSystem.fire_mode(state, urow, CombatSystem.fires_moving(state, urow))
 	if m < 0:
 		return Hold.MOVING_TO_FIRE if walking else Hold.NO_MOVING_FIRE
 	var trow := sq.row_of(sq.engaged[row])
@@ -128,7 +128,7 @@ static func victim(state: BattleState, urow: int) -> int:
 	var trow := sq.row_of(sq.engaged[row])
 	if trow < 0 or not sq.is_active(trow):
 		return -1
-	var m := r.pick_mode(w, CombatSystem.fires_moving(state, urow))
+	var m := CombatSystem.fire_mode(state, urow, CombatSystem.fires_moving(state, urow))
 	if m < 0:
 		return -1
 	var best := -1

@@ -151,10 +151,11 @@ func _move_anchors(state: BattleState) -> void:
 
 
 ## Coherency radius of a squad, fixed metres (sw-txnj.4, U1Q29): data per
-## formation, compiled into BattleRules.sq_coherency. Firing positions (A3)
-## search within it.
+## formation, compiled into BattleRules.sq_coherency, which the squad's
+## behaviour for its current order may replace or widen (bh_coherency,
+## sw-txnj.10). Firing positions (A3) search within it.
 static func coherency_m(state: BattleState, row: int) -> int:
-	return state.rules.sq_coherency[state.squads.tmpl[row]]
+	return state.rules.bh_coherency[FiringPositions.bh(state, row)]
 
 
 ## True if any living unit stands farther than the squad's coherency radius
@@ -174,20 +175,30 @@ static func out_of_coherency(state: BattleState, row: int, ax: int, ay: int) -> 
 ## Engaged and closing, Attack-move walks its route to its point, and within
 ## its chase leash of the point heads for the engaged squad, never more than
 ## the leash from the point; Attack follows its target with no leash.
+## The squad's behaviour for its order (sw-txnj.10, GDD 02 §2.15 Squad
+## behaviours) sets the leash (bh_leash, -1 = none: an engaged Attack-move
+## heads straight for the engaged squad; only Attack-move has an order point
+## to leash to), a keep_distance band to the engaged squad, and whether the
+## anchor also stands while a unit reloads.
 func _destination(state: BattleState, row: int) -> PackedInt64Array:
 	var sq := state.squads
 	match sq.order[row]:
 		BattleSquads.Order.MOVE, BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW:
 			return PackedInt64Array([sq.tx[row], sq.ty[row]])
 		BattleSquads.Order.ATTACK_MOVE:
-			var erow := FiringPositions.engaging(state, row)
+			var erow := engaged_row(state, row)
 			if erow < 0:
 				return PackedInt64Array([sq.tx[row], sq.ty[row]])
-			if sq.fp_stop[row] == 1:
+			var away := _back_off(state, row, erow)
+			if not away.is_empty():
+				return away
+			if _holds(state, row, erow):
 				return PackedInt64Array()
 			# Along its route to the point; within the leash of the point it
 			# closes on the engaged squad, never past the leash (U1Q29).
-			var leash := state.rules.chase_leash
+			var leash := state.rules.bh_leash[FiringPositions.bh(state, row)]
+			if leash < 0:
+				return PackedInt64Array([sq.cx[erow], sq.cy[erow]])
 			if Fixed.distance(sq.ax[row], sq.ay[row], sq.tx[row], sq.ty[row]) > leash:
 				return PackedInt64Array([sq.tx[row], sq.ty[row]])
 			return leash_point(sq.tx[row], sq.ty[row], sq.cx[erow], sq.cy[erow], leash)
@@ -195,10 +206,63 @@ func _destination(state: BattleState, row: int) -> PackedInt64Array:
 			var trow := sq.row_of(sq.target[row])
 			if trow < 0 or not sq.is_active(trow):
 				return PackedInt64Array()
-			if FiringPositions.engaging(state, row) >= 0 and sq.fp_stop[row] == 1:
-				return PackedInt64Array()
+			var erow := engaged_row(state, row)
+			if erow >= 0:
+				var away := _back_off(state, row, erow)
+				if not away.is_empty():
+					return away
+				if _holds(state, row, erow):
+					return PackedInt64Array()
 			return PackedInt64Array([sq.cx[trow], sq.cy[trow]])
 	return PackedInt64Array()
+
+
+## The squad row that squad `row` closes on under its attack order:
+## FiringPositions.engaging, or for a behaviour that takes no firing
+## positions (stand_while firing = false) the same squad by the same rules.
+static func engaged_row(state: BattleState, row: int) -> int:
+	return FiringPositions.engaging(state, row, true)
+
+
+## True if the anchor of squad `row`, engaged with `erow`, stands this tick:
+## its units hold firing positions (fp_stop), or its behaviour stands while a
+## unit reloads and one does; never while the engaged squad is farther than
+## its keep_distance max_m.
+static func _holds(state: BattleState, row: int, erow: int) -> bool:
+	var r := state.rules
+	var sq := state.squads
+	var i := FiringPositions.bh(state, row)
+	var mx := r.bh_keep_max[i]
+	if mx >= 0 and Fixed.distance(sq.ax[row], sq.ay[row], sq.cx[erow], sq.cy[erow]) > mx:
+		return false
+	if sq.fp_stop[row] == 1:
+		return true
+	if r.bh_stand_reloading[i] == 0:
+		return false
+	var u := state.units
+	for urow in Centroids.units_of(state, row):
+		if u.hp[urow] > 0 and u.weapon[urow] >= 0 and u.reload[urow] > 0:
+			return true
+	return false
+
+
+## keep_distance min_m (sw-txnj.10): the point straight away from the
+## engaged squad's centroid at min_m, clamped to the map, while the anchor
+## is closer than that; else empty.
+static func _back_off(state: BattleState, row: int, erow: int) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var mn := r.bh_keep_min[FiringPositions.bh(state, row)]
+	if mn < 0:
+		return PackedInt64Array()
+	var ex := sq.cx[erow]
+	var ey := sq.cy[erow]
+	var d := Fixed.distance(sq.ax[row], sq.ay[row], ex, ey)
+	if d >= mn or d <= 0:
+		return PackedInt64Array()
+	return PackedInt64Array([
+		Fixed.clamp_fixed(ex + Fixed.mul_ratio(sq.ax[row] - ex, mn, d), 0, Fixed.from_int(r.width) - 1),
+		Fixed.clamp_fixed(ey + Fixed.mul_ratio(sq.ay[row] - ey, mn, d), 0, Fixed.from_int(r.height) - 1)])
 
 
 ## (tx, ty) moved toward (ex, ey) by at most `leash`: where an engaged
