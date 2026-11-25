@@ -79,7 +79,8 @@ var keep_playback: bool = false
 ## Off for headless runs: a battle with no reaction ability then skips the
 ## forecast's scratch turn (sw-kd5).
 var want_telegraphs: bool = true
-## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
+## Engagement ID -> {"rules", "players", "frames", "shots", "volleys",
+## "hits", "start" (BattleCursor.capture)} of the last turn.
 var _playback: Dictionary = {}
 ## Engagement ID -> player -> worst own SIMPL band index last recorded (at
 ## the battle's start and after each of its turns): the glance summary's
@@ -730,11 +731,15 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	var frames: Array[PackedInt64Array] = []
 	var first_tick := b.state.tick
 	var was := _battle_sim.tick_hook
+	# The turn's start, orders applied, and keyframes, for BattleCursor
+	# (sw-tho3.7).
+	var start := BattleCursor.capture(b.state)
 	var capture := func(st: BattleState) -> void:
 		if was.is_valid():
 			was.call(st)
 		if frames.size() <= b.rules.ticks_per_turn:
 			frames.append(_frame(st))
+			BattleCursor.keyframe(start, st, frames.size() - 1)
 	frames.append(_frame(b.state))
 	_battle_sim.tick_hook = capture
 	b.state.trace_shots = true
@@ -743,6 +748,7 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	_battle_sim.execute_turn(b.state)
 	b.state.trace_shots = false
 	_battle_sim.tick_hook = was
+	BattleCursor.seal(start, b.state)
 	var last := frames.size() - 1
 	var shots := []
 	for e in b.state.turn_log:
@@ -761,7 +767,17 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	b.state.shot_trace = PackedInt64Array()
 	b.state.hit_trace = PackedInt64Array()
 	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames,
-		"shots": shots, "volleys": volleys, "hits": hits}
+		"shots": shots, "volleys": volleys, "hits": hits, "start": start}
+
+
+## A BattleCursor over the last recorded turn of battle `eid` (needs
+## keep_playback): the full, all-seeing state at any tick of that turn. Its
+## seek(i) matches playback frame i. Unavailable (never null) when nothing
+## was recorded. Tooling and the all-seeing replay only: it shows hidden
+## squads, so callers filter by what a player saw.
+func turn_cursor(eid: int) -> BattleCursor:
+	var rec: Dictionary = _playback.get(eid, {})
+	return BattleCursor.new(rec.get("start", {}), rec.get("rules"))
 
 
 ## Ints per unit in a playback frame: ID, squad, player, x, y, squad facing,
