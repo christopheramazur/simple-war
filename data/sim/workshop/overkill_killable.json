@@ -1,0 +1,29 @@
+{
+	"id": "overkill_killable",
+	"component": "targeting",
+	"doc": "Overkill on killable targets (U1 B4, Qwen review 02 §5): a rifle squad 44 m from a stationary rifle squad of 6 HP units (two 3-damage hits each), for 30 s. Overkill is measured from the shot trace: hits that dealt nothing because the victim was already dead that tick. The dummies are killable here, unlike the unkillable dummies of dps_orders, so the overkill figure means something. Gate: every dummy dies in the run. The overkill figure is reported (null), not graded: it is the number the owner's targeting questions (U1Q2, Prowess) need.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [41, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 6, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack", "target": "dummy"}]
+	},
+	"variants": {
+		"attack_move": {"doc": "Attack-move to the dummy's position instead of attacking the squad.",
+			"script": {"1": [{"squad": "rifles", "type": "attack_move", "x": 85, "y": 80}]}}
+	},
+	"probes": [
+		{"id": "kills", "over": "all", "squad": "rifles", "target": "dummy", "kills": {"min": 8}, "variants": "all", "doc": "Every dummy dies within the 30 s."},
+		{"id": "victims", "over": "all", "squad": "rifles", "target": "dummy", "victims": null, "variants": "all", "doc": "Reported: distinct victims, most shots at one, and overkill (hits on a dead victim)."}
+	],
+	"compare": []
+}

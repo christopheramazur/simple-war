@@ -26,12 +26,18 @@ var acc_evade := PackedInt64Array()    ## evasion accumulator, percent points
 var acc_block := PackedInt64Array()    ## block accumulator, percent points
 var hits := PackedInt64Array()         ## hits landed, for "every Nth" crits
 var fired_tick := PackedInt64Array()   ## last tick it fired, -1 never
+## Firing position under attack orders (FiringPositions, sw-txnj.5): fpos is
+## FiringPositions.NONE / HAS / LACKS / UNACHIEVABLE; fx, fy the point (fixed)
+## while HAS.
+var fpos := PackedByteArray()
+var fx := PackedInt64Array()
+var fy := PackedInt64Array()
 
 
 func _init() -> void:
 	super(&"unit")
 	for c: StringName in [&"squad", &"tmpl", &"weapon", &"defense", &"slot", &"x", &"y", &"facing", &"speed", &"moving",
 			&"hp", &"hp_max", &"temp_hp", &"cooldown", &"ammo", &"reload", &"acc_hit", &"acc_evade",
-			&"acc_block", &"hits"]:
+			&"acc_block", &"hits", &"fpos", &"fx", &"fy"]:
 		declare(c, 0)
 	declare(&"fired_tick", -1)

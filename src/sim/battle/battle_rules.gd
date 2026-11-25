@@ -67,6 +67,8 @@ var rt_cost: Array[PackedInt32Array] = []
 var sq_route_class: PackedInt64Array = PackedInt64Array()
 ## Fixed. How far an attack target may move before the route is planned again.
 var route_replan: int = 8 * Fixed.ONE
+## Fixed. How far past its point an engaged attack-move may close (U1Q29).
+var chase_leash: int = 15 * Fixed.ONE
 ## Plans and caches routes for this battlefield. Not state: see BattleRoute.
 ## The only mutable part of the rules: concurrent forecasts must not share
 ## its writes, so they plan into a private copy (forecast_copy).
@@ -154,6 +156,9 @@ var sq_cr: PackedInt64Array = PackedInt64Array()
 var sq_sight: PackedInt64Array = PackedInt64Array()
 var sq_shape: PackedInt64Array = PackedInt64Array()
 var sq_spacing: PackedInt64Array = PackedInt64Array()
+## Coherency radius per squad template, fixed metres (sw-txnj.4): explicit
+## `formation.coherency`, else the formation's half-width + 4 m.
+var sq_coherency: PackedInt64Array = PackedInt64Array()
 var sq_archetype: PackedInt64Array = PackedInt64Array()
 ## Member unit template indices, expanded (one entry per model), leader first.
 var sq_members: Array[PackedInt64Array] = []
@@ -586,6 +591,7 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_gen = Fixed.round_div(DataSchema.to_fixed(rs.get("morale_rate_per_s"), 0) * morale_interval, tps)
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
 	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
+	chase_leash = DataSchema.to_fixed(rs.get("chase_leash_m"), 15 * Fixed.ONE)
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
 	_pool_defaults = rs.get("pool_defaults", {})
@@ -766,6 +772,8 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 					others.append(ui)
 		leaders.append_array(others)
 		sq_members.append(leaders)
+		var default_coherency := Formation.half_width(sq_shape[-1], leaders.size(), sq_spacing[-1]) + Fixed.from_int(4)
+		sq_coherency.append(DataSchema.to_fixed(form["coherency"]) if form.has("coherency") else default_coherency)
 		sq_bundles.append(_bundle_list(v))
 		sq_keywords.append(PackedStringArray(v.get("keywords", [])))
 		var abl := PackedInt64Array()

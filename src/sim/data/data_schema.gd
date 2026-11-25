@@ -88,6 +88,9 @@ const OBJECTS: Dictionary = {
 	"formation": {
 		"shape": {"type": "string", "enum": ["line", "column", "wedge", "blob"]},
 		"spacing": {"type": "fixed"},
+		## Coherency radius in metres (sw-txnj.4, U1Q29): how far a unit may be
+		## from its squad's anchor. Default: half-width + 4 m.
+		"coherency": {"type": "fixed", "min": 0},
 	},
 	"rect": {
 		"x": {"type": "fixed", "required": true},
@@ -434,6 +437,9 @@ const KINDS: Dictionary = {
 		## A squad attacking a moving squad plans a new route when its
 		## target is this far (metres) from where the route led (default 8).
 		"route_replan_m": {"type": "fixed", "min": 0},
+		## How far past its point an engaged attack-move may close on the
+		## squad it fights, metres (default 15; U1Q29 leash).
+		"chase_leash_m": {"type": "fixed", "min": 0},
 		"pool_defaults": {"type": "map:obj:pool"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},

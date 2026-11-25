@@ -27,39 +27,18 @@ func _empty() -> BattleState:
 
 
 func _place(s: BattleState, player: int, squad: String, x: int, y: int) -> int:
-	var sid := BattleSetup.spawn_squad(s, player, _rules().squad_index(squad), x * ONE, y * ONE, 0)
-	Centroids.update(s)
-	return sid
+	return ScenarioBuilder.place(s, player, squad, x * ONE, y * ONE)
 
 
 ## A stationary enemy that cannot shoot back (disarmed) and cannot die
 ## (huge HP), so only the observer's own timing is under test.
 func _target(s: BattleState, x: int, y: int) -> int:
-	var sid := _place(s, 2, "rifle_squad", x, y)
-	for urow in Centroids.units_of(s, s.squads.row_of(sid)):
-		s.units.set_value(s.units.id_at(urow), &"weapon", -1)
-		s.units.set_value(s.units.id_at(urow), &"hp", 1000 * ONE)
-		s.units.set_value(s.units.id_at(urow), &"hp_max", 1000 * ONE)
-	return sid
+	return ScenarioBuilder.target_dummy(s, 2, "rifle_squad", x * ONE, y * ONE)
 
 
 ## Teleports a squad (anchor, order point and every unit by the same delta).
 func _move_squad(s: BattleState, sid: int, nx: int, ny: int) -> void:
-	var row := s.squads.row_of(sid)
-	var dx := nx * ONE - s.squads.ax[row]
-	var dy := ny * ONE - s.squads.ay[row]
-	for c: StringName in [&"ax", &"tx", &"ay", &"ty"]:
-		var col: PackedInt64Array = s.squads.take_column(c)
-		col[row] += dx if c in [&"ax", &"tx"] else dy
-		s.squads.put_column(c, col)
-	var ux: PackedInt64Array = s.units.take_column(&"x")
-	var uy: PackedInt64Array = s.units.take_column(&"y")
-	for urow in Centroids.units_of(s, row):
-		ux[urow] += dx
-		uy[urow] += dy
-	s.units.put_column(&"x", ux)
-	s.units.put_column(&"y", uy)
-	Centroids.update(s)
+	ScenarioBuilder.move_squad(s, sid, nx * ONE, ny * ONE)
 
 
 func _squad_obs(obs: Dictionary, sid: int) -> Dictionary:
