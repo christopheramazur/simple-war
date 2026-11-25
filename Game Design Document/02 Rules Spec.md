@@ -608,27 +608,29 @@ The default for Attack-move and Attack. A squad with an engaged enemy and time l
 - **No slot stagger:** hit accumulators are not offset by slot. Stagger comes from movement only. Squads that start the battle already in range (both holding) may still volley together; that is accepted, and revisited only if a playtest shows it reads badly.
 - **Fire distribution is measured with it:** fire-distribution numbers (§2.6, §2.8 Prowess) are measured with movement-driven stagger, and coordination must still show an effect there.
 
-### Squad behaviours (U1Q12; vocabulary proposed)
-An order runs a **behaviour**: an ordered list of **components** from a closed, engine-provided vocabulary, each with data parameters. Mods compose components; they never add code (Data Model §3.7). Each squad template names a behaviour per order, falling back to its archetype's default.
+### Squad behaviours (U1Q12, U1Q29; vocabulary built, sw-txnj.9)
+An order runs a **behaviour**: an ordered list of **components** from a closed, engine-provided vocabulary, each with data parameters. Mods compose components; they never add code (Data Model §3.7). Each squad template names a behaviour per order, falling back to the default (today's closing to fire, the values in brackets below).
 
-| Component | Phase | Parameters | What it does |
+| Component | Phase | Parameters [default] | What it does |
 |---|---|---|---|
-| `advance` | move | `hysteresis_s` | Moves the anchor while an armed unit lacks a firing position (Closing to fire, above). |
-| `leash` | move | `chase_m` | Limits how far past the order point the squad pursues. |
-| `keep_distance` | move | `min_m`, `max_m` | Stands off, or backs away, to keep enemies in a band (mortars, snipers). |
-| `firing_position` | unit | `coherency_m`, `stand_off_m` | Each armed unit seeks a firing position within coherency (default the formation's radius), at least `stand_off_m` beyond its minimum range. |
-| `fire_on_move` | fire | `allow` | Whether moving modes may fire under this order. |
-| `stand_while` | move | `firing`, `reloading` | Today's "keep standing while weapons cycle". |
-| `separate` | unit | `radius_m` | Separation (§2.14). |
+| `firing_position` | unit | `coherency_m` or `extra_m` [the formation's radius], `stand_off_m` [5], `cadence_ticks` [5], `hysteresis_s` [1] | Each armed unit seeks a firing position within coherency of the anchor, at least `stand_off_m` beyond a minimum range, re-evaluated every `cadence_ticks`; the anchor moves while a unit lacks one, and once stopped only after `hysteresis_s` (Closing to fire, above). `coherency_m` replaces the formation's radius, `extra_m` adds to it. |
+| `keep_distance` | move | `min_m`, `max_m` [none] | Stands off, or backs away, to keep the engaged squad in a band (mortars, snipers). |
+| `leash` | move | `chase_m` [Attack-move: the ruleset's `chase_leash_m`; other orders none] | Limits how far past the order point the squad pursues. |
+| `fire_on_move` | fire | `allow` [true] | Whether moving modes may fire under this order. |
+| `stand_while` | move | `firing` [true], `reloading` [false] | Units with a shot stand while they fire; the squad also stands while a unit reloads. |
+| `separate` | unit | `radius_m` [the size-class radius] | Separation (§2.14). |
 
-Archetype defaults (proposed):
+- **Built** (sw-txnj.9): the vocabulary, validation and compile to per-template, per-order arrays. Movement does not read them yet (it still uses the defaults as constants); that switch changes no outcome. The core humanity squads name `line_attack_move` and `line_attack`, which spell out the defaults.
+- **Superseded** (U1Q29): `advance(quorum_pct)` and `step_out` are gone; the anchor's hysteresis is a `firing_position` parameter.
+
+Archetype defaults (proposed; data-only follow-up, U1 B9):
 
 | Archetype | Attack-move / Attack |
 |---|---|
-| Infantry (line) | `advance(1 s)`, `firing_position(formation's, 2)`, `leash(15)`, `stand_while(firing)` |
-| Indirect (mortar) | `advance(1 s)`, `firing_position(formation's, 2)`, `keep_distance(min_range + 5, —)`, `fire_on_move(false)`, `stand_while(firing, reloading)` |
-| Short-range / melee (assault) | `advance(1 s)`, `firing_position(formation's + 3, 0)`, `leash(25)` |
-| Marksman | `advance(1 s)`, `firing_position(formation's, 2)`, `keep_distance(—, range − 5)` |
+| Infantry (line) | `firing_position(stand_off_m 2)`, `leash(15)`, `stand_while(firing)` |
+| Indirect (mortar) | `firing_position(stand_off_m 5)`, `fire_on_move(false)`, `stand_while(firing, reloading)` |
+| Short-range / melee (assault) | `firing_position(extra_m 3, stand_off_m 0)`, `leash(25)` |
+| Marksman | `firing_position(stand_off_m 2)`, `keep_distance(max_m = its weapon's range − 5)` |
 
 - **Roles** (U1Q29): the archetypes keep their roles. Mortars keep their distance and stand while reloading, marksmen prefer their maximum range, and assault squads have a larger coherency radius. The numbers are proposed.
 
