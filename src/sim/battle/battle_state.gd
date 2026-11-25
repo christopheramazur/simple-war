@@ -10,6 +10,11 @@ var effects: BattleEffects
 var abilities: BattleAbilities
 ## Turns resolved so far.
 var turn: int = 0
+## True from the build of a battle whose scenario deployment is open until
+## Reveal applies the placements (BattleDeploy). While set, players see no
+## enemy squad. Saved, and hashed only while set (so a battle with no
+## deployment step hashes as before).
+var deploying: bool = false
 ## Player IDs in this battle, ascending.
 var players: PackedInt64Array = PackedInt64Array()
 ## Zone runtime (index = rules zone index). owner 0 = nobody.
@@ -118,6 +123,8 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"zone_locked": zone_locked.duplicate(), "vars": vars.duplicate(), "fired": fired.duplicate(),
 		"auto_off_rules": auto_off_rules.duplicate(true), "reveals": reveals.duplicate(true),
 	}
+	if deploying:
+		snap["battle"]["deploying"] = true
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -135,6 +142,7 @@ func _restore_extra(snap: Dictionary) -> void:
 	fired = (b.get("fired", {}) as Dictionary).duplicate()
 	auto_off_rules = (b.get("auto_off_rules", {}) as Dictionary).duplicate(true)
 	reveals = (b.get("reveals", []) as Array).duplicate(true)
+	deploying = bool(b.get("deploying", false))
 
 
 ## Hash includes battle-level state beyond the tables.
@@ -161,5 +169,7 @@ func state_hash() -> PackedByteArray:
 		h.update(zone_locked)
 	if not reveals.is_empty():
 		text += "RV" + JSON.stringify(reveals)
+	if deploying:
+		text += "DEPLOYING;"
 	h.update(text.to_utf8_buffer())
 	return h.finish()

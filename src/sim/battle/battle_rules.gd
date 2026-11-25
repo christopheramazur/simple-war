@@ -174,6 +174,9 @@ var sq_pool_drift: PackedInt64Array = PackedInt64Array()
 
 # --- scenario ---
 var ticks_per_turn: int = 100
+## Scenario `deployment`: true = open (a deployment step in turn-1 Planning,
+## BattleDeploy), false = fixed (squads start at their automatic places).
+var deployment_open: bool = true
 var zone_ids: PackedStringArray = PackedStringArray()
 var zn_x: PackedInt64Array = PackedInt64Array()
 var zn_y: PackedInt64Array = PackedInt64Array()
@@ -788,6 +791,7 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 
 func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 	ticks_per_turn = int(sc["ticks_per_turn"])
+	deployment_open = sc.get("deployment", "open") != "fixed"
 	if not _compile_terrain(t, sc):
 		return
 	for r: Dictionary in sc.get("terrain", []):

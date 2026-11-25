@@ -608,6 +608,9 @@ const KINDS: Dictionary = {
 		"width": {"type": "int", "min": 1},
 		"height": {"type": "int", "min": 1},
 		"ticks_per_turn": {"type": "int", "required": true, "min": 1},
+		## open (default): sides place their squads in their areas during
+		## turn-1 Planning (BattleDeploy); fixed: no deployment step.
+		"deployment": {"type": "string", "enum": ["open", "fixed"]},
 		"terrain_default": {"type": "ref:feature"},
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},

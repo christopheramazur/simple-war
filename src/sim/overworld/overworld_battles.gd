@@ -83,6 +83,7 @@ static func build(t: TemplateTable, hash_hex: String, s: OverworldState, eid: in
 	b.rules = br
 	b.areas = areas
 	b.state = BattleState.new(context_id, br, seed_value)
+	b.state.deploying = br.deployment_open
 	for i in sides.size():
 		var ids := BattleSetup.deploy_side(b.state, sides[i])
 		var mine: Array = owned[i]

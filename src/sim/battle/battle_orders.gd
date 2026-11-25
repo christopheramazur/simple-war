@@ -65,7 +65,7 @@ static func validate(state: BattleState, player: int, o: Variant) -> String:
 		var trow := state.squads.row_of(tid)
 		if state.squads.player[trow] == player or not state.squads.is_active(trow):
 			return "invalid target"
-		if state.squads.seen_by[trow] & BattleSquads.bit(player) == 0:
+		if state.squads.seen_by[trow] & BattleSquads.bit(player) == 0 or BattleDeploy.hides(state, player, trow):
 			return "target not visible"
 	if o.has("run") and typeof(o["run"]) != TYPE_BOOL:
 		return "run must be true or false"

@@ -681,6 +681,8 @@ func _reveal_battles() -> void:
 	ids.sort()
 	for eid: int in ids:
 		var b: OverworldBattle = battles[eid]
+		BattleDeploy.reveal(b.state, b.deploys)
+		b.deploys = {}
 		OverworldBattles.reinforce(state, b)
 		var n := OverworldBattles.NEUTRAL
 		if b.state.players.has(n):
@@ -923,7 +925,7 @@ func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	var b: OverworldBattle = battles.get(engagement_id)
 	if b == null or (player > 0 and not b.state.players.has(player)):
 		return {}
-	var o := BattleSession.observe_state(b.state, player)
+	var o := BattleSession.observe_state(b.state, player, _allies(b, player))
 	o["engagement"] = engagement_id
 	o["phase"] = phase_name()
 	var mine := {}
@@ -996,9 +998,19 @@ func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionar
 	if row < 0:
 		return {}
 	var own := b.state.squads.player[row] == player
-	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)):
+	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)
+			or BattleDeploy.hides(b.state, player, row, _allies(b, player))):
 		return {}
 	return Inspection.squad(b.state, squad_id, player)
+
+
+## The other players in battle b on the player's team (OverworldState.teams).
+func _allies(b: OverworldBattle, player: int) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	for p in b.state.players:
+		if p != player and not state.hostile(p, player):
+			out.append(p)
+	return out
 
 
 ## What `player` knows about one hex, for inspecting it (hover cards, the
