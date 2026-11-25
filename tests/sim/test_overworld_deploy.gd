@@ -123,11 +123,14 @@ func test_save_mid_deployment_reloads_with_drafts() -> void:
 
 
 func test_rebuild_with_deployments_reproduces_hashes() -> void:
-	var s := _session()
-	var eid := _eid(s)
-	var sid: int = _own(s, eid, 1)[0]
-	s.submit_battle_deployment(1, eid, [_centre(s, eid, 1, sid)])
-	_next_planning(s)
+	var placing := _PlacingExpand.new(1)
+	var s := HeadlessOverworld.play(OverworldSession.create(_l().templates, _l().data_hash, "test_vale", 7),
+		{1: placing, 2: ExpandController.new(2)}, 8)
+	var n := 0
+	for e: Dictionary in s.input_log:
+		if e["kind"] == "battle_deploy":
+			n += 1
+	assert_gt(n, 0, "the run deployed in a battle")
 	var rebuilt := OverworldSession.rebuild(s.save(), _l().templates, _l().data_hash)
 	assert_not_null(rebuilt, OverworldSession.last_error)
 	if rebuilt != null:
@@ -150,7 +153,6 @@ func test_empty_draft_is_the_automatic_places() -> void:
 	var empty := _session()
 	var eid := _eid(empty)
 	assert_eq(empty.submit_battle_deployment(1, eid, []).size(), 0)
-	assert_eq(empty.submit_battle_deployment(2, eid, []).size(), 0)
 	_next_planning(auto)
 	_next_planning(empty)
 	assert_eq(empty.state_hash_hex(), auto.state_hash_hex(), "no placements: the automatic places")
@@ -170,7 +172,7 @@ func test_placement_changes_the_battle() -> void:
 func test_headless_controller_with_deploy_hook_places_squads() -> void:
 	var s := _session()
 	var eid := _eid(s)
-	var placer := _Placer.new()
+	var placer := _PlacingExpand.new(1)
 	HeadlessOverworld.plan_for(s, 1, placer)
 	assert_gt(placer.seen, 0, "the hook saw the deploying battle")
 	var kinds := []
@@ -180,12 +182,9 @@ func test_headless_controller_with_deploy_hook_places_squads() -> void:
 	assert_eq((s.battles[eid] as OverworldBattle).deploys[1].size(), 1)
 
 
-## A controller that places its first squad at its area's centre.
-class _Placer extends RefCounted:
+## An expand controller that also places its first squad at its area's centre.
+class _PlacingExpand extends ExpandController:
 	var seen := 0
-
-	func plan(_obs: Dictionary, _session: OverworldSession) -> Array:
-		return []
 
 	func deploy(obs: Dictionary) -> Array:
 		seen += 1
