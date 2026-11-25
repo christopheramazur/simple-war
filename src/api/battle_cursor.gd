@@ -8,8 +8,8 @@ extends RefCounted
 ## full state without a new frame format.
 ##
 ## Read-only: the real battle is never touched. The copy plans into its own
-## route cache (BattleRules.forecast_copy) and runs on its own BattleSim with
-## no tick hook. Seeks are lazy: a forward seek steps on from where the copy
+## route cache (a fork of the battle's, BattleRoute.fork) and runs on its
+## own BattleSim with no tick hook, on the caller's thread. Seeks are lazy: a forward seek steps on from where the copy
 ## is; a backward one (or a long jump) restarts from the nearest keyframe at
 ## or before the tick. Keyframes are snapshots the recorder takes every
 ## KEY_EVERY ticks of the real turn, so a seek steps at most 2 * KEY_EVERY
@@ -106,6 +106,9 @@ func _init(snapshot: Variant, rules: BattleRules) -> void:
 	_key_ticks.sort()
 	_log = _rec.get("log", [])
 	_rules = rules.forecast_copy()
+	# Start from the battle's answers (every plan the turn used), writing
+	# into the copy's own cache: same results, without re-planning cold.
+	_rules.routes = rules.routes.fork()
 	Stats.warm(rules)
 	Fixed.warm()
 	_sim = BattleSim.new()

@@ -124,6 +124,22 @@ func warm(r: BattleRules) -> void:
 		_gates_of(r, cls, true)
 
 
+## A copy that starts from this cache's answers (they depend only on the
+## rules and cells, so a copy answers the same) but writes its own: for a
+## re-simulation on the caller's thread (BattleCursor). Gate graphs are
+## shared, so neither copy may run on another thread.
+func fork() -> BattleRoute:
+	var c := BattleRoute.new()
+	c._cache = _cache.duplicate()
+	c._costs = _costs.duplicate()
+	c._regions = _regions.duplicate()
+	c._min_costs = _min_costs.duplicate()
+	c._costs_flipped = _costs_flipped.duplicate()
+	c._regions_flipped = _regions_flipped.duplicate()
+	c._gates = _gates.duplicate()
+	return c
+
+
 ## The gate graph for a route class in a frame, baked on first use.
 func _gates_of(r: BattleRules, route_class: int, flip: bool = false) -> RouteGates:
 	var key := route_class * 2 + (1 if flip else 0)

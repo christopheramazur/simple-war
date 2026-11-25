@@ -223,7 +223,7 @@ func test_session_turns_match_playback_frames() -> void:
 
 
 ## Budget (sw-tho3.7): a full-turn forward seek on the 200 x 100 comb with
-## 48 squads, measured in the log, under 100 ms once warm.
+## 48 squads (user://battle_cursor.txt), under 100 ms from a new cursor.
 func test_full_turn_seek_budget_on_200x100() -> void:
 	var made := _battle(200, 100, 24, true)
 	var r: BattleRules = made[1]
@@ -263,5 +263,6 @@ func test_full_turn_seek_budget_on_200x100() -> void:
 	fa.seek_end()
 	fa.store_line(line)
 	fa.close()
+	assert_lt(cold_ms, 100.0, "a new cursor's full-turn seek stays inside its budget")
 	assert_lt(warm_ms, 100.0, "a full-turn seek stays inside its budget")
 	assert_lt(stepped_ms, whole_ms * 1.5 + 50.0, "tick-by-tick forward seeks are incremental")
