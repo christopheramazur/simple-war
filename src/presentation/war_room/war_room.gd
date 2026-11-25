@@ -161,7 +161,7 @@ var _play: Dictionary = {}
 var _play_card_frame: int = -1
 ## The screen's windows (sw-ijp.2): modals, the playback blocker, the hover card.
 var ui: UiRoot
-var _blocker: UiWindow
+var _blocker: PlaybackBlocker
 ## What the player knows about the hex under the cursor.
 var _hover_card: PanelContainer
 var _hover_win: UiWindow
@@ -460,14 +460,14 @@ func _build_ui() -> void:
 	ui = UiRoot.new()  # its own, last, so it draws and hears keys first
 	add_child(ui)
 	ui.open(_hover_win, stage)
-	# While a turn plays out, the blocker keeps clicks from the panels (no
-	# orders mid-turn); a left click in a battle inspects the squad under it
-	# instead of skipping (sw-ll4.27.4). Space and Esc still skip.
-	_blocker = UiWindow.new()
+	# While a turn plays out, the blocker keeps input from the side panels (no
+	# orders mid-turn). Over a battle the stage is left to the view: a left
+	# click inspects the squad under it, the wheel zooms and middle-drag pans
+	# (sw-bafi.1). Space and Esc still skip.
+	_blocker = PlaybackBlocker.new()
 	_blocker.layer = UiWindow.Layer.BLOCKER
 	_blocker.contexts = PackedStringArray(["playback"])
 	_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
-	_blocker.gui_input.connect(_on_playback_clicked)
 	ui.open(_blocker)
 	_sync_ui_context()
 
@@ -525,6 +525,10 @@ func _sync_ui_context() -> void:
 	var view := &"overworld" if contexts.focus == ViewContexts.OVERWORLD else &"battle"
 	layout.set_view(view)
 	ui.context = &"playback" if not _play.is_empty() else view
+	# A battle's stage stays open during playback (inspect, zoom, pan); the
+	# overworld's stage stays covered until C8 (sw-bafi.1).
+	if _blocker != null:
+		_blocker.uncovered = layout.regions.get("stage") if contexts.focus != ViewContexts.OVERWORLD else null
 
 
 func _clear(parent: Node) -> void:
@@ -845,10 +849,14 @@ func _weapon_names(r: BattleRules) -> Dictionary:
 	return out
 
 
+## The squad under the cursor changed: its card shows (planning, and during
+## playback too, where the card is for the shown moment). The view emits only
+## on a change; a repeat of the same id is ignored (sw-bafi.1).
 func _on_squad_hovered(id: int) -> void:
+	if id == _hovered:
+		return
 	_hovered = id
-	if _play.is_empty():
-		_refresh_battle_panel()
+	_refresh_battle_panel()
 
 
 ## The card for the hex under the cursor: what the player knows is there
@@ -1237,7 +1245,10 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 		_inspected = hit  # any squad in sight: its card (empty ground closes it)
 		_queue_refresh()
 	if not _play.is_empty():
-		return  # playback: inspection only, no selection or orders (sw-ll4.27.4)
+		# Playback: inspection only, no selection or orders (sw-ll4.27.4). The
+		# card is for the moment shown, so it is built now (sw-bafi.1).
+		_refresh_battle_panel()
+		return
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		if button == MOUSE_BUTTON_LEFT and hit >= 0:
 			if pl.own_squads().has(hit):
@@ -2041,23 +2052,6 @@ func _show_play() -> void:
 	_phase_banner.show()
 	_phase_text.text = "Turn %d is playing out (%d%%).  Space or Esc to skip." % [int(_play["turn"]), int(t * 100.0)]
 	_refresh_hud()
-
-
-## A click while the turn plays out (the blocker hears it): a left click in
-## a battle inspects the squad under it — its card shows in the battle panel
-## for the moment being shown — and nothing else. No click skips or orders
-## (sw-ll4.27.4); Space and Esc skip.
-func _on_playback_clicked(e: InputEvent) -> void:
-	var mb := e as InputEventMouseButton
-	if mb == null or not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
-		return
-	if _play.is_empty() or contexts.focus == ViewContexts.OVERWORLD:
-		return
-	var global: Vector2 = _blocker.get_global_transform_with_canvas() * mb.position
-	var local: Vector2 = _main.get_global_transform_with_canvas().affine_inverse() * global
-	_inspected = _main.squad_at(_main.to_battle(local))
-	_refresh_battle_panel()
-	_queue_refresh()
 
 
 ## Ends the playback: the view shows the present again.

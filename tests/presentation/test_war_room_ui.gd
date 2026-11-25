@@ -146,7 +146,8 @@ func _play_a_moving_turn(w: WarRoom) -> int:
 
 
 ## A left click during playback inspects the squad under it instead of
-## skipping; no click or planning command issues orders (sw-ll4.27.4).
+## skipping; no click or planning command issues orders (sw-ll4.27.4). The
+## click reaches the battle view, which routes it to _on_battle_pressed.
 func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
 	var w := _demo()
 	var squad := _play_a_moving_turn(w)
@@ -167,14 +168,13 @@ func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
 			centre = d["c"]
 			found = true
 	assert_true(found, "the squad is drawn mid-playback")
-	var view_pos: Vector2 = w._main.to_view(centre)
-	var global: Vector2 = w._main.get_global_transform_with_canvas() * view_pos
-	var at: Vector2 = w._blocker.get_global_transform_with_canvas().affine_inverse() * global
 	var mb := InputEventMouseButton.new()
 	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.position = w._main.to_view(centre)
 	mb.pressed = true
-	mb.position = at
-	w._blocker.gui_input.emit(mb)
+	w._main._gui_input(mb)
+	mb.pressed = false
+	w._main._gui_input(mb)
 	assert_true(w.playing(), "a click no longer skips the playback")
 	assert_eq(w._inspected, squad, "the click inspected the squad under it")
 	assert_eq(w.card_squad(), squad)
@@ -182,20 +182,91 @@ func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
 	for sq: Dictionary in w.session.observe_battle(1, eid)["squads"]:
 		if sq["id"] == squad:
 			squad_name = String(sq["name"])
-	assert_string_contains("\n".join(_texts(w._battle_box)), squad_name, "the battle panel shows its card")
+	assert_string_contains("
+".join(_texts(w._battle_box)), squad_name, "the battle panel shows its card")
 	await get_tree().process_frame
 	assert_eq(w._main._overlay.get("inspected", -1), squad, "the view highlights the inspected squad")
 	# Right clicks, box selects and planning commands order nothing meanwhile.
 	var drafts_before := pl.drafts.duplicate(true)
 	var selection_before := pl.selection.duplicate()
 	mb.button_index = MOUSE_BUTTON_RIGHT
-	w._blocker.gui_input.emit(mb)
+	mb.pressed = true
+	w._main._gui_input(mb)
+	mb.pressed = false
+	w._main._gui_input(mb)
 	w._on_battle_pressed(centre, MOUSE_BUTTON_RIGHT, false, false, false, false)
 	w._on_battle_box(Rect2(centre, Vector2(10, 10)), false)
 	w._on_command(&"hold", 0)
 	assert_true(w.playing(), "none of them skipped the playback")
 	assert_eq(pl.drafts, drafts_before, "none of them drafted an order")
 	assert_eq(pl.selection, selection_before, "the selection is untouched")
+
+
+## During a battle's playback the view takes the wheel, middle-drag, the
+## keyboard pan and the hover; the side panels stay blocked and the stage is
+## open to the view (sw-bafi.1).
+func test_playback_camera_and_hover_reach_the_battle_view() -> void:
+	var w := _demo()
+	var squad := _play_a_moving_turn(w)
+	await get_tree().process_frame
+	var view_mid := w._main.size / 2.0
+	# The wheel zooms the battle camera; the playback goes on.
+	var z0 := w.contexts.zoom
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	wheel.position = view_mid
+	w._main._gui_input(wheel)
+	assert_gt(w.contexts.zoom, z0, "the wheel zooms the battle camera during playback")
+	assert_true(w.playing(), "zooming does not end the playback")
+	# Middle-drag pans it.
+	var c0: Vector2 = w.contexts.battle_centre
+	var mid := InputEventMouseButton.new()
+	mid.button_index = MOUSE_BUTTON_MIDDLE
+	mid.pressed = true
+	w._main._gui_input(mid)
+	var drag := InputEventMouseMotion.new()
+	drag.position = view_mid + Vector2(60, 60)
+	drag.relative = Vector2(60, 60)
+	drag.button_mask = MOUSE_BUTTON_MASK_MIDDLE
+	w._main._gui_input(drag)
+	mid.pressed = false
+	w._main._gui_input(mid)
+	var c1: Vector2 = w.contexts.battle_centre
+	assert_ne(c1, c0, "middle-drag pans the battle camera during playback")
+	# The keyboard pan works too.
+	w._on_pan(Vector2.LEFT)
+	assert_ne(w.contexts.battle_centre, c1, "the arrow keys pan during playback")
+	# Hover: the squad under the cursor is marked and its card shows, with
+	# nothing else selected to take the card.
+	w.planner(w.contexts.focus).select([])
+	var centre := Vector2.ZERO
+	for d: Dictionary in w._main._battle_squads():
+		if d["id"] == squad:
+			centre = d["c"]
+	var motion := InputEventMouseMotion.new()
+	motion.position = w._main.to_view(centre)
+	w._main._gui_input(motion)
+	assert_eq(w._hovered, squad, "hovering a squad during playback marks it")
+	assert_eq(w.card_squad(), squad, "its card shows")
+	# A repeat over the same squad leaves the card as it is.
+	var card_before := w._battle_box.get_children().map(func(c: Node) -> int: return c.get_instance_id())
+	w._on_squad_hovered(squad)
+	var card_after := w._battle_box.get_children().map(func(c: Node) -> int: return c.get_instance_id())
+	assert_eq(card_after, card_before, "a repeat hover does not rebuild the card")
+	assert_true(w.playing(), "hovering does not end the playback")
+
+
+## The side panels are blocked during playback; the battle stage is not.
+func test_playback_blocker_leaves_the_battle_stage_open() -> void:
+	var w := _demo()
+	_play_a_moving_turn(w)
+	await get_tree().process_frame
+	var inv := w._blocker.get_global_transform().affine_inverse()
+	var side: Control = w.layout.regions["side"]
+	var stage: Control = w.layout.regions["stage"]
+	assert_true(w._blocker._has_point(inv * side.get_global_rect().get_center()), "the side panels stay blocked")
+	assert_false(w._blocker._has_point(inv * stage.get_global_rect().get_center()), "the battle stage is open")
 
 
 ## Space and Esc still skip the playback to its end (sw-ll4.27.4).
