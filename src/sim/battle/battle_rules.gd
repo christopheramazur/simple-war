@@ -170,8 +170,9 @@ var sq_archetype: PackedInt64Array = PackedInt64Array()
 ## default, which is the built closing-to-fire behaviour (sw-txnj.5): the
 ## formation's coherency, a 5 m stand-off past a minimum range, re-evaluation
 ## every 5 ticks, 1 s hysteresis, the ruleset's chase leash under Attack-move
-## only, moving fire allowed, units standing while they fire. Nothing reads
-## them yet (A9b moves MovementSystem and FiringPositions onto them).
+## only, moving fire allowed, units standing while they fire. Read by
+## MovementSystem, FiringPositions and CombatSystem for the squad's current
+## order (sw-txnj.10); bh_separate waits for separation (§2.14).
 const BH_ORDERS: int = 6
 const BH_STAND_OFF: int = 5 * Fixed.ONE
 const BH_CADENCE: int = 5

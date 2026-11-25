@@ -61,9 +61,11 @@ static func bh(state: BattleState, row: int) -> int:
 
 ## The squad row whose units squad `row` takes firing positions against, or
 ## -1 when its order doesn't engage (Hold, Move, no engagement, Attack on a
-## squad other than its target, a behaviour with stand_while firing = false).
-## `any_behaviour` skips that last test: the squad it closes on regardless.
-static func engaging(state: BattleState, row: int, any_behaviour: bool = false) -> int:
+## squad other than its target), or when its behaviour takes no positions
+## now: stand_while firing = false, or the anchor is outside its
+## keep_distance band (it walks in formation until it is back inside).
+## `closing` skips the behaviour tests: the squad it closes on regardless.
+static func engaging(state: BattleState, row: int, closing: bool = false) -> int:
 	var sq := state.squads
 	if not sq.is_active(row) or sq.alive[row] == 0 or sq.engaged[row] < 0:
 		return -1
@@ -75,13 +77,19 @@ static func engaging(state: BattleState, row: int, any_behaviour: bool = false) 
 				return -1
 		_:
 			return -1
-	if not any_behaviour and state.rules.bh_stand_firing[bh(state, row)] == 0:
+	var r := state.rules
+	var i := bh(state, row)
+	if not closing and r.bh_stand_firing[i] == 0:
 		return -1
 	var trow := sq.row_of(sq.engaged[row])
 	if trow < 0 or not sq.is_active(trow) or sq.alive[trow] == 0:
 		return -1
 	if sq.seen_by[trow] & BattleSquads.bit(sq.player[row]) == 0:
 		return -1
+	if not closing and (r.bh_keep_min[i] >= 0 or r.bh_keep_max[i] >= 0):
+		var d := Fixed.distance(sq.ax[row], sq.ay[row], sq.cx[trow], sq.cy[trow])
+		if d < r.bh_keep_min[i] or (r.bh_keep_max[i] >= 0 and d > r.bh_keep_max[i]):
+			return -1
 	return trow
 
 

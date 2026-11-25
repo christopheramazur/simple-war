@@ -218,8 +218,8 @@ func _destination(state: BattleState, row: int) -> PackedInt64Array:
 
 
 ## The squad row that squad `row` closes on under its attack order:
-## FiringPositions.engaging, or for a behaviour that takes no firing
-## positions (stand_while firing = false) the same squad by the same rules.
+## FiringPositions.engaging, also while its behaviour takes no firing
+## positions (stand_while firing = false, outside its keep_distance band).
 static func engaged_row(state: BattleState, row: int) -> int:
 	return FiringPositions.engaging(state, row, true)
 
