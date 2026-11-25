@@ -92,6 +92,10 @@ func _move_anchors(state: BattleState) -> void:
 				withdrawn_rows.append(row)
 			continue
 		var speed := _squad_speed(state, row, ax[row], ay[row])
+		# sw-txnj.4: the anchor waits for stragglers, at half speed, while any
+		# unit is out of coherency, so squads don't string out around corners.
+		if out_of_coherency(state, row, ax[row], ay[row]):
+			speed = speed / 2
 		if speed <= 0:
 			continue
 		var step := mini(speed, dist)
@@ -116,6 +120,24 @@ func _move_anchors(state: BattleState) -> void:
 	sq.put_column(&"moving", moving)
 	for row in withdrawn_rows:
 		_withdraw(state, row)
+
+
+## Coherency radius of a squad, fixed metres (sw-txnj.4, U1Q29): data per
+## formation, compiled into BattleRules.sq_coherency. Firing positions (A3)
+## search within it.
+static func coherency_m(state: BattleState, row: int) -> int:
+	return state.rules.sq_coherency[state.squads.tmpl[row]]
+
+
+## True if any living unit stands farther than the squad's coherency radius
+## from the anchor at (ax, ay).
+static func out_of_coherency(state: BattleState, row: int, ax: int, ay: int) -> bool:
+	var radius := coherency_m(state, row)
+	var u := state.units
+	for urow in Centroids.units_of(state, row):
+		if u.hp[urow] > 0 and Fixed.length(u.x[urow] - ax, u.y[urow] - ay) > radius:
+			return true
+	return false
 
 
 ## Destination of the anchor this tick, or empty to stand still.
@@ -226,6 +248,11 @@ func _move_units(state: BattleState) -> void:
 		var off := Formation.offset(r.sq_shape[st], u.slot[row], members, r.sq_spacing[st], sq.facing[srow])
 		var gx := Fixed.clamp_fixed(sq.ax[srow] + off[0], 0, max_x)
 		var gy := Fixed.clamp_fixed(sq.ay[srow] + off[1], 0, max_y)
+		# sw-txnj.4: a unit more than its coherency radius from the anchor
+		# heads straight for the anchor until it is back inside.
+		if Fixed.length(x[row] - sq.ax[srow], y[row] - sq.ay[srow]) > coherency_m(state, srow):
+			gx = Fixed.clamp_fixed(sq.ax[srow], 0, max_x)
+			gy = Fixed.clamp_fixed(sq.ay[srow], 0, max_y)
 		var dx := gx - x[row]
 		var dy := gy - y[row]
 		var dist := Fixed.length(dx, dy)

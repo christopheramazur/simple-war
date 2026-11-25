@@ -154,6 +154,9 @@ var sq_cr: PackedInt64Array = PackedInt64Array()
 var sq_sight: PackedInt64Array = PackedInt64Array()
 var sq_shape: PackedInt64Array = PackedInt64Array()
 var sq_spacing: PackedInt64Array = PackedInt64Array()
+## Coherency radius per squad template, fixed metres (sw-txnj.4): explicit
+## `formation.coherency`, else the formation's half-width + 4 m.
+var sq_coherency: PackedInt64Array = PackedInt64Array()
 var sq_archetype: PackedInt64Array = PackedInt64Array()
 ## Member unit template indices, expanded (one entry per model), leader first.
 var sq_members: Array[PackedInt64Array] = []
@@ -766,6 +769,8 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 					others.append(ui)
 		leaders.append_array(others)
 		sq_members.append(leaders)
+		var default_coherency := Formation.half_width(sq_shape[-1], leaders.size(), sq_spacing[-1]) + Fixed.from_int(4)
+		sq_coherency.append(DataSchema.to_fixed(form["coherency"]) if form.has("coherency") else default_coherency)
 		sq_bundles.append(_bundle_list(v))
 		sq_keywords.append(PackedStringArray(v.get("keywords", [])))
 		var abl := PackedInt64Array()

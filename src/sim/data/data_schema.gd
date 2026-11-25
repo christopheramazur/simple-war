@@ -88,6 +88,9 @@ const OBJECTS: Dictionary = {
 	"formation": {
 		"shape": {"type": "string", "enum": ["line", "column", "wedge", "blob"]},
 		"spacing": {"type": "fixed"},
+		## Coherency radius in metres (sw-txnj.4, U1Q29): how far a unit may be
+		## from its squad's anchor. Default: half-width + 4 m.
+		"coherency": {"type": "fixed", "min": 0},
 	},
 	"rect": {
 		"x": {"type": "fixed", "required": true},
