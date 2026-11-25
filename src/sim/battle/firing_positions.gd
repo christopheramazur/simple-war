@@ -14,7 +14,7 @@ extends RefCounted
 ##   stand-off). NONE: not evaluated yet, or the order no longer engages (the
 ##   unit returns to its slot).
 ## - Search (deterministic): the unit's own spot, then its slot, then rings
-##   of STEP m around the slot up to the coherency radius, ANGLES points over
+##   of STEP m around the slot up to MAX_RINGS or the coherency radius, ANGLES points over
 ##   the forward half circle toward the target centroid (0, +30, -30, ... 90
 ##   degrees); candidates outside coherency of the anchor or on a cell the
 ##   unit can't enter are skipped. The first candidate with a shot wins.
@@ -28,8 +28,9 @@ extends RefCounted
 ##   point. At most SEARCH_CAP full searches per tick per battle, taken from
 ##   the due list rotated by the tick (stateless round robin). A unit whose
 ##   slot is beyond range + coherency + REACH_SLACK of the target centroid
-##   lacks a position without a search. A unit's first evaluation is never
-##   capped, so a squad that engages standing doesn't step forward first.
+##   lacks a position without a search. The own spot and the slot are tried
+##   uncapped (a unit's first evaluation among them, so a squad that engages
+##   standing doesn't step forward first); only ring searches are capped.
 ## - Anchor (fp_stop): stops once no armed unit is NONE or LACKS; once stopped
 ##   it moves again only after some unit has lacked a position for
 ##   HYSTERESIS_S (fp_lack = the tick the lack began, -1 none).
@@ -37,7 +38,7 @@ extends RefCounted
 enum { NONE, HAS, LACKS, UNACHIEVABLE }
 
 const STEP: int = 2 * Fixed.ONE
-const MAX_RINGS: int = 6
+const MAX_RINGS: int = 3
 const ANGLES: int = 7
 const CADENCE: int = 5
 const SEARCH_CAP: int = 2
@@ -104,14 +105,18 @@ static func update(state: BattleState) -> void:
 				var dy := fy[urow] - sq.ay[row]
 				if dx * dx + dy * dy > r2:
 					p = LACKS
-				elif on_cadence and not point_shot(state, urow, trow, fx[urow], fy[urow]):
+				elif on_cadence and u.fired_tick[urow] < state.tick - CADENCE 						and not point_shot(state, urow, trow, fx[urow], fy[urow]):
+					# A unit that fired within the cadence has its shot: the
+					# fire pass just checked it (no trace needed).
 					p = LACKS
-			if p == NONE:
-				p = _search(state, urow, row, trow, fx, fy)
-			elif p != HAS and on_cadence:
+			if p == NONE or (p != HAS and on_cadence):
 				if _too_far(state, urow, row, trow):
 					p = LACKS
+				elif _near(state, urow, row, trow, fx, fy):
+					p = HAS
 				else:
+					if p == NONE:
+						p = LACKS
 					due.append(urow)
 					due_t.append(trow)
 			fpos[urow] = p
@@ -165,32 +170,39 @@ static func _too_far(state: BattleState, urow: int, row: int, trow: int) -> bool
 	return Fixed.distance(slot[0], slot[1], sq.cx[trow], sq.cy[trow]) > reach
 
 
-## Searches the unit's firing position; writes fx, fy on success. Returns the
-## new fpos code.
+## The first two candidates, cheap enough to test uncapped: the unit's own
+## spot (inside coherency), then its slot. Writes fx, fy on success.
+static func _near(state: BattleState, urow: int, row: int, trow: int, fx: PackedInt64Array, fy: PackedInt64Array) -> bool:
+	var sq := state.squads
+	var u := state.units
+	var radius := MovementSystem.coherency_m(state, row)
+	var odx := u.x[urow] - sq.ax[row]
+	var ody := u.y[urow] - sq.ay[row]
+	if odx * odx + ody * ody <= radius * radius and point_shot(state, urow, trow, u.x[urow], u.y[urow]):
+		fx[urow] = u.x[urow]
+		fy[urow] = u.y[urow]
+		return true
+	var slot := MovementSystem.slot_point(state, urow, row)
+	if point_shot(state, urow, trow, slot[0], slot[1]):
+		fx[urow] = slot[0]
+		fy[urow] = slot[1]
+		return true
+	return false
+
+
+## The ring search (own spot and slot already tried by _near); writes fx, fy
+## on success. Returns the new fpos code.
 static func _search(state: BattleState, urow: int, row: int, trow: int, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
 	var r := state.rules
 	var sq := state.squads
 	var u := state.units
-	if _too_far(state, urow, row, trow):
-		return LACKS
 	var radius := MovementSystem.coherency_m(state, row)
 	var r2 := radius * radius
 	var ax := sq.ax[row]
 	var ay := sq.ay[row]
-	# Own spot (inside coherency), then the slot.
-	var odx := u.x[urow] - ax
-	var ody := u.y[urow] - ay
-	if odx * odx + ody * ody <= r2 and point_shot(state, urow, trow, u.x[urow], u.y[urow]):
-		fx[urow] = u.x[urow]
-		fy[urow] = u.y[urow]
-		return HAS
 	var slot := MovementSystem.slot_point(state, urow, row)
 	var gx := slot[0]
 	var gy := slot[1]
-	if point_shot(state, urow, trow, gx, gy):
-		fx[urow] = gx
-		fy[urow] = gy
-		return HAS
 	var max_x := Fixed.from_int(r.width) - 1
 	var max_y := Fixed.from_int(r.height) - 1
 	var profile := r.ut_movement[u.tmpl[urow]]

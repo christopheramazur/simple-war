@@ -12,6 +12,12 @@ extends SimSystem
 
 ## Units within this distance of their slot count as arrived.
 const ARRIVE: int = Fixed.ONE / 8
+## A chasing squad at the end of its route plans again once its target has
+## moved this far.
+const CHASE_STEP: int = Fixed.ONE
+## A chasing squad this close to its target walks straight when the line is
+## clear, without planning a route.
+const CHASE_STRAIGHT: int = 32 * Fixed.ONE
 
 
 func system_name() -> StringName:
@@ -49,17 +55,30 @@ func _plan_routes(state: BattleState) -> void:
 		var dest := _destination(state, row)
 		if dest.is_empty():
 			continue
+		# Chasing a squad (Attack, or Attack-move closing on its engaged
+		# squad) replans only once the target has moved route_replan.
+		var chasing := sq.order[row] == BattleSquads.Order.ATTACK 			or (sq.order[row] == BattleSquads.Order.ATTACK_MOVE and sq.engaged[row] >= 0)
 		var plan := route[row] == 0
 		if not plan:
 			var drift := Fixed.distance(dest[0], dest[1], rx[row], ry[row])
-			# Chasing a squad (Attack, or Attack-move closing on its engaged
-			# squad) replans only once the target has moved route_replan.
-			var chasing := sq.order[row] == BattleSquads.Order.ATTACK 				or (sq.order[row] == BattleSquads.Order.ATTACK_MOVE and sq.engaged[row] >= 0)
 			var allowed := r.route_replan if chasing else 0
 			plan = drift > allowed
 			if not plan and Fixed.distance(sq.ax[row], sq.ay[row], wx[row], wy[row]) <= ARRIVE:
-				plan = route[row] == 1 or drift > ARRIVE
+				# A chase that reached its last leg follows its target in 1 m
+				# steps: re-planning on every jitter of the target's centroid
+				# (a fresh plan each tick, uncached) cost ~1 ms/tick at 200
+				# units (sw-txnj.5).
+				plan = route[row] == 1 or drift > (CHASE_STEP if chasing else ARRIVE)
 		if not plan:
+			continue
+		if chasing and Fixed.distance(sq.ax[row], sq.ay[row], dest[0], dest[1]) <= CHASE_STRAIGHT 				and r.routes.straight_clear(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1]):
+			# A short chase on clear ground walks straight: a fresh plan from
+			# a new cell each time is uncached (~2 ms, sw-txnj.5).
+			wx[row] = dest[0]
+			wy[row] = dest[1]
+			route[row] = 2
+			rx[row] = dest[0]
+			ry[row] = dest[1]
 			continue
 		var leg := r.routes.next_waypoint(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1], frames.get(sq.player[row], 0))
 		wx[row] = leg[0]
@@ -77,6 +96,13 @@ func _plan_routes(state: BattleState) -> void:
 func _move_anchors(state: BattleState) -> void:
 	var r := state.rules
 	var sq := state.squads
+	# Who walks this tick, decided before the anchor columns are taken
+	# (_destination reads them).
+	var walks := PackedByteArray()
+	walks.resize(sq.count())
+	for row in sq.count():
+		if sq.is_active(row) and sq.alive[row] > 0 and not _destination(state, row).is_empty():
+			walks[row] = 1
 	var ax: PackedInt64Array = sq.take_column(&"ax")
 	var ay: PackedInt64Array = sq.take_column(&"ay")
 	var facing: PackedInt64Array = sq.take_column(&"facing")
@@ -84,9 +110,7 @@ func _move_anchors(state: BattleState) -> void:
 	var withdrawn_rows := PackedInt64Array()
 	for row in sq.count():
 		moving[row] = 0
-		if not sq.is_active(row) or sq.alive[row] == 0:
-			continue
-		if _destination(state, row).is_empty():
+		if walks[row] == 0:
 			continue
 		var dx := sq.wx[row] - ax[row]
 		var dy := sq.wy[row] - ay[row]
@@ -147,8 +171,9 @@ static func out_of_coherency(state: BattleState, row: int, ax: int, ay: int) -> 
 ## Destination of the anchor this tick, or empty to stand still.
 ## Attack-move and Attack stand while every armed unit has a firing position
 ## (FiringPositions, GDD 02 §2.15 Closing to fire); weapons cycle per unit.
-## Engaged and closing, Attack-move heads for the engaged squad, at most its
-## chase leash past its point; Attack follows its target with no leash.
+## Engaged and closing, Attack-move walks its route to its point, and within
+## its chase leash of the point heads for the engaged squad, never more than
+## the leash from the point; Attack follows its target with no leash.
 func _destination(state: BattleState, row: int) -> PackedInt64Array:
 	var sq := state.squads
 	match sq.order[row]:
@@ -160,7 +185,12 @@ func _destination(state: BattleState, row: int) -> PackedInt64Array:
 				return PackedInt64Array([sq.tx[row], sq.ty[row]])
 			if sq.fp_stop[row] == 1:
 				return PackedInt64Array()
-			return leash_point(sq.tx[row], sq.ty[row], sq.cx[erow], sq.cy[erow], state.rules.chase_leash)
+			# Along its route to the point; within the leash of the point it
+			# closes on the engaged squad, never past the leash (U1Q29).
+			var leash := state.rules.chase_leash
+			if Fixed.distance(sq.ax[row], sq.ay[row], sq.tx[row], sq.ty[row]) > leash:
+				return PackedInt64Array([sq.tx[row], sq.ty[row]])
+			return leash_point(sq.tx[row], sq.ty[row], sq.cx[erow], sq.cy[erow], leash)
 		BattleSquads.Order.ATTACK:
 			var trow := sq.row_of(sq.target[row])
 			if trow < 0 or not sq.is_active(trow):
