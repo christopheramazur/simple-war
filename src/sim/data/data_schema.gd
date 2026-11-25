@@ -437,6 +437,9 @@ const KINDS: Dictionary = {
 		## A squad attacking a moving squad plans a new route when its
 		## target is this far (metres) from where the route led (default 8).
 		"route_replan_m": {"type": "fixed", "min": 0},
+		## How far past its point an engaged attack-move may close on the
+		## squad it fights, metres (default 15; U1Q29 leash).
+		"chase_leash_m": {"type": "fixed", "min": 0},
 		"pool_defaults": {"type": "map:obj:pool"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},

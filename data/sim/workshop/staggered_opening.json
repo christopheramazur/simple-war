@@ -11,7 +11,7 @@
 	"probe_stride": 5,
 	"squads": [
 		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [25, 80], "facing": 0},
-		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 90], "facing": 180,
 			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
 	],
 	"script": {

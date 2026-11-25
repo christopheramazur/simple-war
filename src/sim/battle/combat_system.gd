@@ -54,16 +54,15 @@ static func pick_target(state: BattleState, row: int) -> int:
 	var chosen := -1
 	if sq.is_active(row) and sq.alive[row] > 0 and not (sq.order[row] in [BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW]):
 		var me := sq.player[row]
-		var reach := sq.reach[row]
 		if sq.order[row] == BattleSquads.Order.ATTACK:
 			var trow := sq.row_of(sq.target[row])
 			if trow >= 0 and sq.is_active(trow) and sq.seen_by[trow] & BattleSquads.bit(me) != 0 \
-					and Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[trow], sq.cy[trow]) <= reach:
+					and in_reach(state, row, trow):
 				chosen = sq.target[row]
 		# Sticky targeting: keep the current target while it stays valid.
 		if chosen < 0 and prev >= 0:
 			var prow := sq.row_of(prev)
-			if prow >= 0 and sq.is_active(prow) and sq.alive[prow] > 0 and sq.seen_by[prow] & BattleSquads.bit(me) != 0 					and Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[prow], sq.cy[prow]) <= reach:
+			if prow >= 0 and sq.is_active(prow) and sq.alive[prow] > 0 and sq.seen_by[prow] & BattleSquads.bit(me) != 0 					and in_reach(state, row, prow):
 				chosen = prev
 		if chosen < 0:
 			var best_d := 1 << 62
@@ -71,10 +70,39 @@ static func pick_target(state: BattleState, row: int) -> int:
 				if sq.player[t] == me or not sq.is_active(t) or sq.alive[t] == 0 or sq.seen_by[t] & BattleSquads.bit(me) == 0:
 					continue
 				var d := Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[t], sq.cy[t])
-				if d <= reach and d < best_d:
+				if d < best_d and in_reach(state, row, t):
 					best_d = d
 					chosen = sq.id_at(t)
 	return chosen
+
+
+## Whether squad `row` can reach squad `t` (sw-txnj.5, U1Q28): some living
+## armed unit of `row` has some living unit of `t` within its weapon range,
+## unit to unit, so a squad engages as its first unit comes into range and
+## its units open fire one by one, not when the centroids meet the longest
+## range. Broadphase: centroids within reach plus both coherency radii.
+static func in_reach(state: BattleState, row: int, t: int) -> bool:
+	var sq := state.squads
+	var r := state.rules
+	var broad := sq.reach[row] + r.sq_coherency[sq.tmpl[row]] + r.sq_coherency[sq.tmpl[t]]
+	if Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[t], sq.cy[t]) > broad:
+		return false
+	var u := state.units
+	var theirs := Centroids.units_of(state, t)
+	for a in Centroids.units_of(state, row):
+		var w := u.weapon[a]
+		if u.hp[a] <= 0 or w < 0:
+			continue
+		var rng := r.wp_range[w]
+		var rng2 := rng * rng
+		for b in theirs:
+			if u.hp[b] <= 0:
+				continue
+			var dx := u.x[b] - u.x[a]
+			var dy := u.y[b] - u.y[a]
+			if dx * dx + dy * dy <= rng2:
+				return true
+	return false
 
 
 func _engage(state: BattleState, row: int) -> void:
