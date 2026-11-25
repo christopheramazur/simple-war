@@ -122,15 +122,8 @@ static func set_order(state: BattleState, row: int, t: int, tx: int, ty: int, ta
 static func fall_back_point(state: BattleState, row: int) -> PackedInt64Array:
 	var sq := state.squads
 	var me := sq.player[row]
-	var best := -1
-	var best_d := 1 << 62
-	for r in sq.count():
-		if sq.player[r] == me or not sq.is_active(r) or sq.seen_by[r] & BattleSquads.bit(me) == 0:
-			continue
-		var d := Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[r], sq.cy[r])
-		if d < best_d:
-			best_d = d
-			best = r
+	var best := nearest_visible_enemy(state, row)
+	var best_d := Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[best], sq.cy[best]) if best >= 0 else 0
 	var dir_x := -Fixed.ONE if _own_edge_is_west(state, me) else Fixed.ONE
 	var dir_y := 0
 	if best >= 0 and best_d > 0:
@@ -142,6 +135,24 @@ static func fall_back_point(state: BattleState, row: int) -> PackedInt64Array:
 		Fixed.clamp_fixed(sq.cx[row] + Fixed.mul(dir_x, FALL_BACK_DISTANCE), 0, w),
 		Fixed.clamp_fixed(sq.cy[row] + Fixed.mul(dir_y, FALL_BACK_DISTANCE), 0, h),
 	])
+
+
+## The row of the nearest active enemy squad the squad's player sees (centre
+## to centre), or -1: the threat a fall back runs from. Pure; the relation
+## read model (SquadRelation) asks the same question.
+static func nearest_visible_enemy(state: BattleState, row: int) -> int:
+	var sq := state.squads
+	var me := sq.player[row]
+	var best := -1
+	var best_d := 1 << 62
+	for r in sq.count():
+		if sq.player[r] == me or not sq.is_active(r) or sq.seen_by[r] & BattleSquads.bit(me) == 0:
+			continue
+		var d := Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[r], sq.cy[r])
+		if d < best_d:
+			best_d = d
+			best = r
+	return best
 
 
 static func _own_edge_is_west(state: BattleState, player: int) -> bool:

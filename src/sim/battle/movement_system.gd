@@ -12,6 +12,12 @@ extends SimSystem
 
 ## Units within this distance of their slot count as arrived.
 const ARRIVE: int = Fixed.ONE / 8
+## A chasing squad at the end of its route plans again once its target has
+## moved this far.
+const CHASE_STEP: int = Fixed.ONE
+## A chasing squad this close to its target walks straight when the line is
+## clear, without planning a route.
+const CHASE_STRAIGHT: int = 32 * Fixed.ONE
 
 
 func system_name() -> StringName:
@@ -20,6 +26,7 @@ func system_name() -> StringName:
 
 func run(ctx: SimContext) -> void:
 	var state := ctx as BattleState
+	FiringPositions.update(state)
 	_plan_routes(state)
 	_move_anchors(state)
 	_move_units(state)
@@ -48,14 +55,30 @@ func _plan_routes(state: BattleState) -> void:
 		var dest := _destination(state, row)
 		if dest.is_empty():
 			continue
+		# Chasing a squad (Attack, or Attack-move closing on its engaged
+		# squad) replans only once the target has moved route_replan.
+		var chasing := sq.order[row] == BattleSquads.Order.ATTACK 			or (sq.order[row] == BattleSquads.Order.ATTACK_MOVE and sq.engaged[row] >= 0)
 		var plan := route[row] == 0
 		if not plan:
 			var drift := Fixed.distance(dest[0], dest[1], rx[row], ry[row])
-			var allowed := r.route_replan if sq.order[row] == BattleSquads.Order.ATTACK else 0
+			var allowed := r.route_replan if chasing else 0
 			plan = drift > allowed
 			if not plan and Fixed.distance(sq.ax[row], sq.ay[row], wx[row], wy[row]) <= ARRIVE:
-				plan = route[row] == 1 or drift > ARRIVE
+				# A chase that reached its last leg follows its target in 1 m
+				# steps: re-planning on every jitter of the target's centroid
+				# (a fresh plan each tick, uncached) cost ~1 ms/tick at 200
+				# units (sw-txnj.5).
+				plan = route[row] == 1 or drift > (CHASE_STEP if chasing else ARRIVE)
 		if not plan:
+			continue
+		if chasing and Fixed.distance(sq.ax[row], sq.ay[row], dest[0], dest[1]) <= CHASE_STRAIGHT 				and r.routes.straight_clear(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1]):
+			# A short chase on clear ground walks straight: a fresh plan from
+			# a new cell each time is uncached (~2 ms, sw-txnj.5).
+			wx[row] = dest[0]
+			wy[row] = dest[1]
+			route[row] = 2
+			rx[row] = dest[0]
+			ry[row] = dest[1]
 			continue
 		var leg := r.routes.next_waypoint(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1], frames.get(sq.player[row], 0))
 		wx[row] = leg[0]
@@ -73,6 +96,13 @@ func _plan_routes(state: BattleState) -> void:
 func _move_anchors(state: BattleState) -> void:
 	var r := state.rules
 	var sq := state.squads
+	# Who walks this tick, decided before the anchor columns are taken
+	# (_destination reads them).
+	var walks := PackedByteArray()
+	walks.resize(sq.count())
+	for row in sq.count():
+		if sq.is_active(row) and sq.alive[row] > 0 and not _destination(state, row).is_empty():
+			walks[row] = 1
 	var ax: PackedInt64Array = sq.take_column(&"ax")
 	var ay: PackedInt64Array = sq.take_column(&"ay")
 	var facing: PackedInt64Array = sq.take_column(&"facing")
@@ -80,9 +110,7 @@ func _move_anchors(state: BattleState) -> void:
 	var withdrawn_rows := PackedInt64Array()
 	for row in sq.count():
 		moving[row] = 0
-		if not sq.is_active(row) or sq.alive[row] == 0:
-			continue
-		if _destination(state, row).is_empty():
+		if walks[row] == 0:
 			continue
 		var dx := sq.wx[row] - ax[row]
 		var dy := sq.wy[row] - ay[row]
@@ -92,6 +120,10 @@ func _move_anchors(state: BattleState) -> void:
 				withdrawn_rows.append(row)
 			continue
 		var speed := _squad_speed(state, row, ax[row], ay[row])
+		# sw-txnj.4: the anchor waits for stragglers, at half speed, while any
+		# unit is out of coherency, so squads don't string out around corners.
+		if out_of_coherency(state, row, ax[row], ay[row]):
+			speed = speed / 2
 		if speed <= 0:
 			continue
 		var step := mini(speed, dist)
@@ -118,56 +150,81 @@ func _move_anchors(state: BattleState) -> void:
 		_withdraw(state, row)
 
 
+## Coherency radius of a squad, fixed metres (sw-txnj.4, U1Q29): data per
+## formation, compiled into BattleRules.sq_coherency. Firing positions (A3)
+## search within it.
+static func coherency_m(state: BattleState, row: int) -> int:
+	return state.rules.sq_coherency[state.squads.tmpl[row]]
+
+
+## True if any living unit stands farther than the squad's coherency radius
+## from the anchor at (ax, ay).
+static func out_of_coherency(state: BattleState, row: int, ax: int, ay: int) -> bool:
+	var radius := coherency_m(state, row)
+	var u := state.units
+	for urow in Centroids.units_of(state, row):
+		if u.hp[urow] > 0 and Fixed.length(u.x[urow] - ax, u.y[urow] - ay) > radius:
+			return true
+	return false
+
+
 ## Destination of the anchor this tick, or empty to stand still.
+## Attack-move and Attack stand while every armed unit has a firing position
+## (FiringPositions, GDD 02 §2.15 Closing to fire); weapons cycle per unit.
+## Engaged and closing, Attack-move walks its route to its point, and within
+## its chase leash of the point heads for the engaged squad, never more than
+## the leash from the point; Attack follows its target with no leash.
 func _destination(state: BattleState, row: int) -> PackedInt64Array:
 	var sq := state.squads
 	match sq.order[row]:
 		BattleSquads.Order.MOVE, BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW:
 			return PackedInt64Array([sq.tx[row], sq.ty[row]])
 		BattleSquads.Order.ATTACK_MOVE:
-			if sq.engaged[row] >= 0 and (_firing(state, row) or _has_shot(state, row)):
+			var erow := FiringPositions.engaging(state, row)
+			if erow < 0:
+				return PackedInt64Array([sq.tx[row], sq.ty[row]])
+			if sq.fp_stop[row] == 1:
 				return PackedInt64Array()
-			return PackedInt64Array([sq.tx[row], sq.ty[row]])
+			# Along its route to the point; within the leash of the point it
+			# closes on the engaged squad, never past the leash (U1Q29).
+			var leash := state.rules.chase_leash
+			if Fixed.distance(sq.ax[row], sq.ay[row], sq.tx[row], sq.ty[row]) > leash:
+				return PackedInt64Array([sq.tx[row], sq.ty[row]])
+			return leash_point(sq.tx[row], sq.ty[row], sq.cx[erow], sq.cy[erow], leash)
 		BattleSquads.Order.ATTACK:
 			var trow := sq.row_of(sq.target[row])
 			if trow < 0 or not sq.is_active(trow):
 				return PackedInt64Array()
-			if sq.engaged[row] == sq.target[row] and (_firing(state, row) or _has_shot(state, row)):
+			if FiringPositions.engaging(state, row) >= 0 and sq.fp_stop[row] == 1:
 				return PackedInt64Array()
 			return PackedInt64Array([sq.cx[trow], sq.cy[trow]])
 	return PackedInt64Array()
 
 
-## Engaged squads stop to fight only while they are actually shooting: fired
-## within the last FIRING_HOLD_S, or a weapon is still reloading or cooling
-## down from a shot (a mortar's 6 s cycle, sw-kys.6). Otherwise they keep
-## closing, so a squad that sees its target but has no unit-level line of
-## fire never stalls.
-const FIRING_HOLD_S: int = 2
+## (tx, ty) moved toward (ex, ey) by at most `leash`: where an engaged
+## attack-move closes to (U1Q29 leash).
+static func leash_point(px: int, py: int, ex: int, ey: int, leash: int) -> PackedInt64Array:
+	var d := Fixed.distance(px, py, ex, ey)
+	if d <= leash:
+		return PackedInt64Array([ex, ey])
+	return PackedInt64Array([px + Fixed.mul_ratio(ex - px, leash, d), py + Fixed.mul_ratio(ey - py, leash, d)])
 
 
-func _firing(state: BattleState, row: int) -> bool:
-	var ft := state.squads.fired_tick[row]
-	if ft < 0:
-		return false
-	if state.tick - ft <= FIRING_HOLD_S * state.rules.tps:
-		return true
-	var u := state.units
-	for urow in Centroids.units_of(state, row):
-		if u.hp[urow] > 0 and (u.cooldown[urow] > 0 or u.reload[urow] > 0):
-			return true
-	return false
-
-
-## An engaged squad stops once it has a shot: its target within reach and a
-## unit carrying an indirect weapon, or a unit with a clear line to the
-## target's centre. Weapons that can't fire on the move (mortars, rockets)
-## need this to open fire under attack orders at all (sw-kys.6); a squad
-## whose units are all blocked keeps closing. The scan stops at the first
-## unit with a shot (usually the first one).
-func _has_shot(state: BattleState, row: int) -> bool:
-	var trow := state.squads.row_of(state.squads.engaged[row])
-	return trow >= 0 and LineOfFire.check(state, row, trow) == LineOfFire.SHOT
+## The unit's formation slot (fixed x, y), clamped to the map. Slots are laid
+## out for the units the squad spawned with, not its full template strength:
+## survivors hold the first slots of that line (sw-uyv). 0 = a state without
+## the column; fall back to full strength.
+static func slot_point(state: BattleState, urow: int, srow: int) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var st := sq.tmpl[srow]
+	var members := sq.form_size[srow]
+	if members <= 0:
+		members = r.sq_members[st].size()
+	var off := Formation.offset(r.sq_shape[st], state.units.slot[urow], members, r.sq_spacing[st], sq.facing[srow])
+	return PackedInt64Array([
+		Fixed.clamp_fixed(sq.ax[srow] + off[0], 0, Fixed.from_int(r.width) - 1),
+		Fixed.clamp_fixed(sq.ay[srow] + off[1], 0, Fixed.from_int(r.height) - 1)])
 
 
 ## Pace of the slowest living member at the anchor's terrain.
@@ -216,16 +273,21 @@ func _move_units(state: BattleState) -> void:
 		var srow := sq.row_of(u.squad[row])
 		if srow < 0 or not sq.is_active(srow):
 			continue
-		var st := sq.tmpl[srow]
-		# Lay slots out for the units the squad spawned with, not its full
-		# template strength: survivors hold the first slots of that line
-		# (sw-uyv). 0 = a state without the column; fall back to full strength.
-		var members := sq.form_size[srow]
-		if members <= 0:
-			members = r.sq_members[st].size()
-		var off := Formation.offset(r.sq_shape[st], u.slot[row], members, r.sq_spacing[st], sq.facing[srow])
-		var gx := Fixed.clamp_fixed(sq.ax[srow] + off[0], 0, max_x)
-		var gy := Fixed.clamp_fixed(sq.ay[srow] + off[1], 0, max_y)
+		# Its firing position under attack orders (sw-txnj.5), else its slot.
+		var gx: int
+		var gy: int
+		if u.fpos[row] == FiringPositions.HAS:
+			gx = u.fx[row]
+			gy = u.fy[row]
+		else:
+			var slot := slot_point(state, row, srow)
+			gx = slot[0]
+			gy = slot[1]
+		# sw-txnj.4: a unit more than its coherency radius from the anchor
+		# heads straight for the anchor until it is back inside.
+		if Fixed.length(x[row] - sq.ax[srow], y[row] - sq.ay[srow]) > coherency_m(state, srow):
+			gx = Fixed.clamp_fixed(sq.ax[srow], 0, max_x)
+			gy = Fixed.clamp_fixed(sq.ay[srow], 0, max_y)
 		var dx := gx - x[row]
 		var dy := gy - y[row]
 		var dist := Fixed.length(dx, dy)
