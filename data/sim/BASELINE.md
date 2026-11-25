@@ -16,3 +16,7 @@ Outcomes differ from era 2 on purpose: squads wait for stragglers (anchor at hal
 ## Era 4 (per-unit firing positions, sw-txnj.5) - baseline commit 1431a0e (2026-11-26)
 Batch `b20261125-140516`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
 Outcomes differ from era 3 on purpose: under attack orders each armed unit walks to its own firing position within coherency, the anchor advances until every armed unit has one, and squads engage unit to unit (a squad engages as its first unit comes into range). Compare fitness only within era 4.
+
+## Era 5 (firing position snap, sw-txnj.16) - baseline commit 74796e2 (2026-11-26)
+Batch `b20261125-223050`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
+Outcomes differ from era 4 on purpose: a unit that reaches its firing position stands on it (it used to stop up to 1/8 m short, which left shotguns out of their 15 m range), so attack from 44 m is 9.13 DPS (was 5.66). Compare fitness only within era 5.
