@@ -51,6 +51,7 @@ var unreachable := 0
 var candidates := 0
 var los_calls := 0
 var found := 0
+var pass1_us := 0
 
 
 func _init(c: int, step_m: int, ring_count: int, angle_count: int, near: bool, cap_per_tick: int, use_memo: bool = false) -> void:
@@ -71,9 +72,9 @@ func stats() -> String:
 	var t := float(maxi(ticks, 1))
 	if searches == 0:
 		return "no searches"
-	return "memo skips/t %.1f, memo holds/t %.1f, due/t %.1f, searched/t %.1f, deferred/t %.1f, unreachable/t %.1f, cand/search %.2f, los/search %.2f, found %.0f%%, worst tick %.2f ms" % [
+	return "memo skips/t %.1f, memo holds/t %.1f, due/t %.1f, searched/t %.1f, deferred/t %.1f, unreachable/t %.1f, cand/search %.2f, los/search %.2f, found %.0f%%, worst tick %.2f ms, pass-1 (due list + memo checks) %.3f ms/t" % [
 		memo_skips / t, memo_holds / t, due_total / t, searches / t, held / t, unreachable / t, candidates / float(searches),
-		los_calls / float(searches), 100.0 * found / searches, max_us / 1000.0]
+		los_calls / float(searches), 100.0 * found / searches, max_us / 1000.0, pass1_us / 1000.0 / t]
 
 
 func fold_hash(h: HashingContext) -> void:
@@ -105,6 +106,7 @@ func _run(state: BattleState) -> void:
 		fail_ty.resize(u.count())
 		fail_ax.fill(-1)
 	# Who is due this tick, with its target squad.
+	var t_p1 := Time.get_ticks_usec()
 	var due := PackedInt64Array()
 	var due_target := {}
 	for srow in sq.count():
@@ -126,6 +128,7 @@ func _run(state: BattleState) -> void:
 			due.append(urow)
 			due_target[urow] = trow
 	due.sort()
+	pass1_us += Time.get_ticks_usec() - t_p1
 	var n := due.size()
 	due_total += n
 	if n == 0:
@@ -166,6 +169,7 @@ func _search(state: BattleState, urow: int, trow: int) -> void:
 	var ind := r.indirect(w)
 	var profile := r.ut_movement[u.tmpl[urow]]
 	var coh := _half_width(r, st, members) + 4 * Fixed.ONE
+	var coh2 := coh * coh
 	var toward := Fixed.atan2(sq.cy[trow] - gy, sq.cx[trow] - gx)
 	var spread := Fixed.ANGLE_HALF / maxi(angles - 1, 1)
 	# Ring 0: where it stands, then its slot.
@@ -188,7 +192,9 @@ func _search(state: BattleState, urow: int, trow: int) -> void:
 			var py := gy + Fixed.mul(rad, Fixed.fsin(ang))
 			if px < 0 or py < 0 or px > max_x or py > max_y:
 				continue
-			if Fixed.distance(px, py, sq.ax[srow], sq.ay[srow]) > coh:
+			var cdx := px - sq.ax[srow]
+			var cdy := py - sq.ay[srow]
+			if cdx * cdx + cdy * cdy > coh2:
 				continue
 			if r.mv_cost[profile * r.feature_count() + r.feature_at(px, py)] <= 0:
 				continue
@@ -254,15 +260,21 @@ func _target(state: BattleState, srow: int) -> int:
 ## target unit within [min range, range], and line of fire unless the weapon
 ## has an indirect mode.
 func _shot(r: BattleRules, u: BattleUnits, w: int, ind: bool, px: int, py: int, targets: PackedInt64Array) -> bool:
+	# Squared compares: no isqrt per target (Fixed.isqrt is ~30 Newton
+	# steps at map scale). Boundary rounding differs from shot_gate by < 1 ulp.
 	var rng := r.wp_range[w]
 	var mn := r.wp_min_range[w]
+	var rng2 := rng * rng
+	var mn2 := mn * mn
 	var best := -1
 	var best_d := 1 << 62
 	for t in targets:
 		if u.hp[t] <= 0:
 			continue
-		var d := Fixed.distance(px, py, u.x[t], u.y[t])
-		if d > rng or d < mn:
+		var ddx := u.x[t] - px
+		var ddy := u.y[t] - py
+		var d := ddx * ddx + ddy * ddy
+		if d > rng2 or d < mn2:
 			continue
 		if ind:
 			return true

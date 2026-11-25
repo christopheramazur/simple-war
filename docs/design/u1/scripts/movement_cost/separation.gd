@@ -28,6 +28,8 @@ var pushes := 0
 var px := PackedInt64Array()
 var py := PackedInt64Array()
 var keys := PackedInt64Array()
+var cell_start := PackedInt32Array()
+var cell_end := PackedInt32Array()
 var rad := PackedInt64Array()
 
 
@@ -67,6 +69,11 @@ func run(ctx: SimContext) -> void:
 func _hash(state: BattleState) -> void:
 	var u := state.units
 	var cols := (Fixed.from_int(state.rules.width) + CELL - 1) / CELL
+	var rows := (Fixed.from_int(state.rules.height) + CELL - 1) / CELL
+	if cell_start.size() != cols * rows:
+		cell_start.resize(cols * rows)
+		cell_start.fill(-1)
+		cell_end.resize(cols * rows)
 	keys.resize(0)
 	for row in u.count():
 		if u.hp[row] <= 0:
@@ -74,36 +81,62 @@ func _hash(state: BattleState) -> void:
 		var cell := (u.y[row] / CELL) * cols + u.x[row] / CELL
 		keys.append((cell << 20) | row)
 	keys.sort()
-	var start := {}
 	var m := keys.size()
+	# Index occupied cells into the dense grid (reset after use).
+	var cells := PackedInt64Array()
 	var i := 0
 	while i < m:
 		var c := keys[i] >> 20
-		var j := i
+		var j := i + 1
 		while j < m and keys[j] >> 20 == c:
 			j += 1
-		start[c] = Vector2i(i, j)
+		cell_start[c] = i
+		cell_end[c] = j
+		cells.append(c)
 		i = j
-	for c: int in start:
-		var span: Vector2i = start[c]
-		for a in range(span.x, span.y):
+	var ncell := cols * rows
+	for c in cells:
+		var s0 := cell_start[c]
+		var s1 := cell_end[c]
+		for a in range(s0, s1):
 			var ra := keys[a] & 0xFFFFF
-			for b in range(a + 1, span.y):
+			var qa := u.squad[ra]
+			for b in range(a + 1, s1):
 				var rb := keys[b] & 0xFFFFF
-				if u.squad[ra] != u.squad[rb]:
-					_pair(u, ra, rb)
-		# Forward neighbours: E, SW, S, SE.
-		for nc: int in [c + 1, c + cols - 1, c + cols, c + cols + 1]:
-			var other: Variant = start.get(nc)
-			if other == null:
+				if qa != u.squad[rb]:
+					_pair(u, mini(ra, rb), maxi(ra, rb))
+		# Forward neighbours: E, SW, S, SE (half stencil; x wrap guarded).
+		var cx := c % cols
+		for k in 4:
+			var nc: int
+			match k:
+				0:
+					if cx == cols - 1:
+						continue
+					nc = c + 1
+				1:
+					if cx == 0:
+						continue
+					nc = c + cols - 1
+				2:
+					nc = c + cols
+				_:
+					if cx == cols - 1:
+						continue
+					nc = c + cols + 1
+			if nc >= ncell or cell_start[nc] < 0:
 				continue
-			var sp: Vector2i = other
-			for a in range(span.x, span.y):
+			var n0 := cell_start[nc]
+			var n1 := cell_end[nc]
+			for a in range(s0, s1):
 				var ra := keys[a] & 0xFFFFF
-				for b in range(sp.x, sp.y):
+				var qa := u.squad[ra]
+				for b in range(n0, n1):
 					var rb := keys[b] & 0xFFFFF
-					if u.squad[ra] != u.squad[rb]:
-						_pair(u, ra, rb)
+					if qa != u.squad[rb]:
+						_pair(u, mini(ra, rb), maxi(ra, rb))
+	for c in cells:
+		cell_start[c] = -1
 
 
 func _squads(state: BattleState) -> void:
