@@ -12,3 +12,7 @@ Batch `b20261122-153132` is 18 failed runs (worktree had no import cache); ignor
 ## Era 3 (coherency radius, sw-txnj.4) - baseline commit 2791748 (2026-11-25)
 Batch `b20261125-130349`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
 Outcomes differ from era 2 on purpose: squads wait for stragglers (anchor at half speed while a unit is out of coherency), so turns and value lost move. Compare fitness only within era 3.
+
+## Era 4 (per-unit firing positions, sw-txnj.5) - baseline commit 1431a0e (2026-11-26)
+Batch `b20261125-140516`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
+Outcomes differ from era 3 on purpose: under attack orders each armed unit walks to its own firing position within coherency, the anchor advances until every armed unit has one, and squads engage unit to unit (a squad engages as its first unit comes into range). Compare fitness only within era 4.
