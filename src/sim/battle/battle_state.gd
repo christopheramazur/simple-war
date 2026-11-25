@@ -138,12 +138,12 @@ func _restore_extra(snap: Dictionary) -> void:
 	value_score = (b["value_score"] as Dictionary).duplicate()
 	ledger = (b["ledger"] as Dictionary).duplicate()
 	result = (b["result"] as Dictionary).duplicate(true)
+	deploying = bool(b.get("deploying", false))
 	zone_locked = (b.get("zone_locked", rules.zn_locked) as PackedByteArray).duplicate()
 	vars = (b.get("vars", {}) as Dictionary).duplicate()
 	fired = (b.get("fired", {}) as Dictionary).duplicate()
 	auto_off_rules = (b.get("auto_off_rules", {}) as Dictionary).duplicate(true)
 	reveals = (b.get("reveals", []) as Array).duplicate(true)
-	deploying = bool(b.get("deploying", false))
 	# Not hashed, but EffectSystem reads it on the next tick: a restore that
 	# lost it would skip returning maxima to base (sw-tho3.7).
 	fx_had_mods = bool(b.get("fx_had_mods", false))
