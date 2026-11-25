@@ -12,11 +12,25 @@
 		{"id": "engineer", "parent": "trooper", "values": {"icon": "unit_engineer", "name": "Combat engineer", "weapon": "carbine", "proficiency_pct": 95}},
 		{"id": "mortarman", "parent": "trooper", "values": {"icon": "unit_mortarman", "name": "Mortarman", "movement": "heavy_foot", "weapon": "mortar"}},
 
+		{"id": "line_attack_move", "kind": "behaviour", "values": {"name": "Line infantry: attack-move",
+			"text": "Each armed unit seeks a firing position within the formation's coherency; under attack-move the squad closes at most the ruleset chase leash past its point.",
+			"components": [
+				{"c": "firing_position", "stand_off_m": 5, "cadence_ticks": 5, "hysteresis_s": 1},
+				{"c": "fire_on_move", "allow": true},
+				{"c": "stand_while", "firing": true, "reloading": false}]}},
+		{"id": "line_attack", "kind": "behaviour", "values": {"name": "Line infantry: attack",
+			"text": "Each armed unit seeks a firing position within the formation's coherency; the squad follows its target with no leash.",
+			"components": [
+				{"c": "firing_position", "stand_off_m": 5, "cadence_ticks": 5, "hysteresis_s": 1},
+				{"c": "fire_on_move", "allow": true},
+				{"c": "stand_while", "firing": true, "reloading": false}]}},
+
 		{"id": "humanity_squad", "kind": "squad", "abstract": true, "values": {
 			"faction": "humanity", "capture_rate": 10, "sight": 45,
 			"formation": {"shape": "line", "spacing": 2},
 			"abilities": ["halt", "fall_back", "retarget"],
-			"legend_archetype": "damage"}},
+			"legend_archetype": "damage",
+			"behaviours": {"attack_move": "line_attack_move", "attack": "line_attack"}}},
 		{"id": "rifle_squad", "parent": "humanity_squad", "values": {"icon": "unit_trooper", 
 			"name": "Rifle squad", "value": 100,
 			"members": [{"unit": "sergeant", "count": 1}, {"unit": "trooper", "count": 7}]}},

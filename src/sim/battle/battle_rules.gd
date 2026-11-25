@@ -163,6 +163,42 @@ var sq_spacing: PackedInt64Array = PackedInt64Array()
 ## `formation.coherency`, else the formation's half-width + 4 m.
 var sq_coherency: PackedInt64Array = PackedInt64Array()
 var sq_archetype: PackedInt64Array = PackedInt64Array()
+## Squad behaviours (GDD 02 §2.15, sw-txnj.9), compiled per squad template x
+## battle order: index bh_at(template, order), order = BattleSquads.Order
+## (DataSchema.BATTLE_ORDERS). A template's `behaviours` map names one per
+## order; unset orders, and components a behaviour leaves out, take the
+## default, which is the built closing-to-fire behaviour (sw-txnj.5): the
+## formation's coherency, a 5 m stand-off past a minimum range, re-evaluation
+## every 5 ticks, 1 s hysteresis, the ruleset's chase leash under Attack-move
+## only, moving fire allowed, units standing while they fire. Nothing reads
+## them yet (A9b moves MovementSystem and FiringPositions onto them).
+const BH_ORDERS: int = 6
+const BH_STAND_OFF: int = 5 * Fixed.ONE
+const BH_CADENCE: int = 5
+const BH_HYSTERESIS_S: int = 1
+## Behaviour template ID per entry, "" = the default.
+var bh_ids: PackedStringArray = PackedStringArray()
+## Coherency radius for firing positions, fixed metres.
+var bh_coherency: PackedInt64Array = PackedInt64Array()
+## Stand-off kept beyond a weapon's minimum range, fixed metres.
+var bh_stand_off: PackedInt64Array = PackedInt64Array()
+## Firing-position re-evaluation interval, ticks.
+var bh_cadence: PackedInt64Array = PackedInt64Array()
+## How long a unit lacks a position before a stopped anchor moves, ticks.
+var bh_hysteresis: PackedInt64Array = PackedInt64Array()
+## keep_distance band to the engaged squad, fixed metres; -1 = unbounded.
+var bh_keep_min: PackedInt64Array = PackedInt64Array()
+var bh_keep_max: PackedInt64Array = PackedInt64Array()
+## Chase leash past the order point, fixed metres; -1 = none.
+var bh_leash: PackedInt64Array = PackedInt64Array()
+## 1 = moving fire modes may fire under this order.
+var bh_fire_on_move: PackedByteArray = PackedByteArray()
+## 1 = units with a shot stand while they fire / the squad stands while a
+## unit reloads.
+var bh_stand_firing: PackedByteArray = PackedByteArray()
+var bh_stand_reloading: PackedByteArray = PackedByteArray()
+## Separation radius, fixed metres; -1 = the size-class default (§2.14).
+var bh_separate: PackedInt64Array = PackedInt64Array()
 ## Member unit template indices, expanded (one entry per model), leader first.
 var sq_members: Array[PackedInt64Array] = []
 ## Innate bundles (EffectRules indices) applied at spawn, per template.
@@ -781,6 +817,7 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 		sq_members.append(leaders)
 		var default_coherency := Formation.half_width(sq_shape[-1], leaders.size(), sq_spacing[-1]) + Fixed.from_int(4)
 		sq_coherency.append(DataSchema.to_fixed(form["coherency"]) if form.has("coherency") else default_coherency)
+		_compile_behaviours(t, tid, v.get("behaviours", {}), sq_coherency[-1])
 		sq_bundles.append(_bundle_list(v))
 		sq_keywords.append(PackedStringArray(v.get("keywords", [])))
 		var abl := PackedInt64Array()
@@ -799,6 +836,48 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 			sq_pool_neutral.append(Fixed.round_div(Fixed.from_int(cap) * int(o.get("neutral_pct", d.get("neutral_pct", 52))), 100))
 			var drift_pct := DataSchema.to_fixed(o.get("drift_pct_per_s", d.get("drift_pct_per_s", 1)))
 			sq_pool_drift.append(Fixed.round_div(drift_pct * cap, 100 * tps))
+
+
+## Index into the bh_* arrays of squad template `st` under `order`
+## (BattleSquads.Order).
+func bh_at(st: int, order: int) -> int:
+	return st * BH_ORDERS + order
+
+
+## Appends one bh_* entry per battle order for the squad template `tid`
+## (sw-txnj.9): the default, overridden by the components of the behaviour
+## its `behaviours` map names for that order.
+func _compile_behaviours(t: TemplateTable, tid: String, by_order: Dictionary, coherency: int) -> void:
+	for o in BH_ORDERS:
+		var order_name: String = DataSchema.BATTLE_ORDERS[o]
+		var bid := str(by_order.get(order_name, ""))
+		var comps := {}
+		if not bid.is_empty():
+			if not t.has(bid) or t.kind_of(bid) != "behaviour":
+				errors.append("%s: behaviours/%s names unknown behaviour '%s'" % [tid, order_name, bid])
+				bid = ""
+			else:
+				for entry: Dictionary in t.values_of(bid).get("components", []):
+					comps[str(entry.get("c", ""))] = entry
+		bh_ids.append(bid)
+		var fp: Dictionary = comps.get("firing_position", {})
+		if fp.has("coherency_m"):
+			bh_coherency.append(DataSchema.to_fixed(fp["coherency_m"]))
+		else:
+			bh_coherency.append(maxi(coherency + DataSchema.to_fixed(fp.get("extra_m"), 0), 0))
+		bh_stand_off.append(DataSchema.to_fixed(fp.get("stand_off_m"), BH_STAND_OFF))
+		bh_cadence.append(int(fp.get("cadence_ticks", BH_CADENCE)))
+		bh_hysteresis.append(Fixed.to_int_floor(DataSchema.to_fixed(fp.get("hysteresis_s"), Fixed.from_int(BH_HYSTERESIS_S)) * tps))
+		var kd: Dictionary = comps.get("keep_distance", {})
+		bh_keep_min.append(DataSchema.to_fixed(kd.get("min_m"), -1))
+		bh_keep_max.append(DataSchema.to_fixed(kd.get("max_m"), -1))
+		var default_leash := chase_leash if o == BattleSquads.Order.ATTACK_MOVE else -1
+		bh_leash.append(DataSchema.to_fixed(comps["leash"].get("chase_m"), default_leash) if comps.has("leash") else default_leash)
+		bh_fire_on_move.append(1 if comps.get("fire_on_move", {}).get("allow", true) else 0)
+		var sw: Dictionary = comps.get("stand_while", {})
+		bh_stand_firing.append(1 if sw.get("firing", true) else 0)
+		bh_stand_reloading.append(1 if sw.get("reloading", false) else 0)
+		bh_separate.append(DataSchema.to_fixed(comps["separate"].get("radius_m"), -1) if comps.has("separate") else -1)
 
 
 func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
