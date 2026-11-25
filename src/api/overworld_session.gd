@@ -15,7 +15,8 @@ extends RefCounted
 ##           cheapest affordable route as the player knows the map.
 ## Battles:  every engagement becomes a battle at the start of the next
 ##           turn (OverworldBattles) and runs one battle turn per overworld
-##           turn on the same pulse: submit_battle_orders, reinforce and
+##           turn on the same pulse: submit_battle_orders, reinforce,
+##           submit_battle_deployment (while the battle is deploying) and
 ##           leave_battle in Planning; observe_battle shows one;
 ##           forecast_battle previews drafted orders (intent ghosts).
 ## Clock:    the shared PulseClock (R2Q3). Reveal sends reinforcements in
@@ -426,6 +427,36 @@ func submit_battle_orders(player: int, engagement_id: int, orders: Array) -> Pac
 	b.orders[player] = kept
 	_log(player, "battle_orders", {"engagement": engagement_id, "orders": kept})
 	return errs
+
+
+## Deployment placements for one of the player's battles while it is
+## deploying (BattleDeploy): [{squad, x, y, facing}]. Replaces the player's
+## earlier draft for that battle; valid placements are kept and apply at the
+## Reveal (squads not placed keep their automatic places, so an empty draft
+## at the timeout is automatic deployment). Returns errors. Planning only.
+func submit_battle_deployment(player: int, engagement_id: int, placements: Array) -> PackedStringArray:
+	var errs := PackedStringArray()
+	var err := _planning(player)
+	var b: OverworldBattle = battles.get(engagement_id)
+	if err.is_empty() and (b == null or not b.state.players.has(player)):
+		err = "not in that battle"
+	if err.is_empty() and not b.state.deploying:
+		err = "the battle is not deploying"
+	if not err.is_empty():
+		errs.append(err)
+		return errs
+	var c := BattleDeploy.check(b.state, player, placements)
+	b.deploys[player] = c["kept"]
+	_deploy_draft_changed(engagement_id)
+	_log(player, "battle_deploy", {"engagement": engagement_id, "placements": c["kept"]})
+	return c["errors"]
+
+
+## A deployment draft changed: the battle's cached reaction-window forecasts
+## are stale. (C4's forecast_battle cache clears here too once it lands.)
+func _deploy_draft_changed(engagement_id: int) -> void:
+	_opportunities.erase(engagement_id)
+	_telegraphs.erase(engagement_id)
 
 
 ## The planning forecast for one of the player's battles (IntentForecast):
@@ -1319,6 +1350,10 @@ func _replay(inputs: Array) -> void:
 				set_battleforce(i["player"], p["commander"], p["preset"], p["squads"], p["lead"])
 			"battle_orders":
 				submit_battle_orders(i["player"], p["engagement"], p["orders"])
+			"battle_deploy":
+				# A draft for a battle that is gone by now is refused here and
+				# never logged, so it leaves no effect on replay.
+				submit_battle_deployment(i["player"], p["engagement"], p["placements"])
 			"reinforce":
 				reinforce(i["player"], p["commander"], p["squad"])
 			"leave":

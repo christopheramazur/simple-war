@@ -127,7 +127,7 @@ func submit_deployment(player: int, placements: Array) -> PackedStringArray:
 		return errors
 	var c := BattleDeploy.check(state, player, placements)
 	_deploys[player] = c["kept"]
-	_log(player, "deploy", c["kept"])
+	_log(player, "battle_deploy", c["kept"])
 	return c["errors"]
 
 
@@ -365,7 +365,26 @@ static func observe_state(state: BattleState, player: int, allies: PackedInt64Ar
 		"width": rules.width, "height": rules.height,
 		"squads": squads, "units": units, "zones": zones, "scores": scores, "events": events,
 		"result": state.result.duplicate(true),
+		"deploying": state.deploying, "areas": deploy_areas(state), "area": deploy_area_of(state, player),
 	}
+
+
+## Every side's deployment area (public scenario data): [{player, facing,
+## deploy: [x, y, w, h]}].
+static func deploy_areas(state: BattleState) -> Array:
+	var out := []
+	for side: Dictionary in state.rules.sides:
+		out.append({"player": int(side["player"]), "facing": int(side["facing"]),
+			"deploy": Array(side["deploy"] as PackedInt64Array)})
+	return out
+
+
+## The player's own deployment area [x, y, w, h] ([] for replays and players
+## with no side in the battle).
+static func deploy_area_of(state: BattleState, player: int) -> Array:
+	if player <= 0:
+		return []
+	return Array(BattleDeploy.area(state, player))
 
 
 ## Activity bits of observed units and playback frames (sw-aba).
@@ -482,7 +501,7 @@ func replay_inputs(inputs: Array) -> void:
 				submit_orders(i["player"], i["payload"])
 			"ready":
 				ready(i["player"])
-			"deploy":
+			"battle_deploy", "deploy":  # "deploy": logs from before sw-bafi.11
 				submit_deployment(i["player"], i["payload"])
 			"advance":
 				advance(i["payload"])
