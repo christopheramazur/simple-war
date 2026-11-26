@@ -24,3 +24,7 @@ Outcomes differ from era 4 on purpose: a unit that reaches its firing position s
 ## Era 6 (arrival tick, sw-txnj.6) - baseline commit b654a65 (2026-11-26)
 Batch `b20261125-230507`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
 Outcomes differ from era 5 on purpose: a unit under an attack order that reaches its firing position this tick fires standing, not on the move (the arrival tick, or the tick it comes into range). Attack from 41 m rises 453 -> 462 damage (dps_orders); the 60 m draft 01 duel attack-move vs hold goes 0-5 -> 0-0 (both sides wiped on one tick, lockstep). The dps_orders duty gate for move_then_attack is re-pinned 0.9 -> 0.85 (base duty 0.093 -> 0.097; move_then_attack unchanged). Compare fitness only within era 6.
+
+## Era 7 (archetype behaviours, sw-txnj.11) - baseline commit f9e1a93 (2026-11-26)
+Batch `b20261126-001752`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
+Outcomes equal era 6 in every row (the batch summary matches `b20261125-230507` for all six scenario x variant rows): the mortar stand-off, marksman max band and assault coherency change no sim outcome here. The archetype DPS and stand-off numbers are pinned in the workshop gates instead (`archetype_mortar`, `archetype_marksman`, `archetype_rifle_line`, `table_b_assault`). Compare fitness only within era 7.
