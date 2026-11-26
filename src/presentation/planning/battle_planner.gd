@@ -11,7 +11,11 @@ extends RefCounted
 ## keeping the formation or into a new line formation, attack, hold, fall
 ## back, withdraw, run toggle, and one ability menu across the selection.
 
+## The orders or groups changed (a draft to submit).
 signal changed
+## The selection changed. Separate from `changed`, so a selection never
+## counts as a draft: it is information, allowed during playback (sw-bafi.2).
+signal selection_changed
 
 ## Spacing between squads in a new formation (fixed, metres).
 const FORMATION_SPACING: int = 12 * Fixed.ONE
@@ -94,12 +98,12 @@ func select(ids: Array, add: bool = false, toggle: bool = false) -> void:
 			selection.erase(id)
 		elif not selection.has(id):
 			selection.append(id)
-	changed.emit()
+	selection_changed.emit()
 
 
 func deselect() -> void:
 	selection = []
-	changed.emit()
+	selection_changed.emit()
 
 
 ## Own squads whose position is inside a battlefield rect (metres).

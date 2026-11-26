@@ -253,6 +253,87 @@ func test_playback_clicks_inspect_but_never_skip_or_order() -> void:
 	assert_eq(pl.selection, selection_before, "the selection is untouched")
 
 
+## The drawn centre (metres) of one squad in the playback frame shown now.
+func _drawn_centre(w: WarRoom, id: int) -> Vector2:
+	for d: Dictionary in w._main._battle_squads():
+		if d["id"] == id:
+			return d["c"]
+	return Vector2.ZERO
+
+
+## Selects during playback (sw-bafi.2): a click, a box, the next-squad key and
+## a group recall change the planner's selection; nothing drafts, the game
+## gets no orders, the order keys and the right click say why, and the skip
+## keeps the selection.
+func test_playback_selection_never_drafts_and_survives_the_skip() -> void:
+	var w := _demo()
+	var squad := _play_a_moving_turn(w)
+	var eid := w.contexts.focus
+	var pl := w.planner(eid)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var drafts_before := pl.drafts.duplicate(true)
+	var orders_before: Array = (w.session.battles[eid] as OverworldBattle).orders.get(1, []).duplicate(true)
+	var centre := _drawn_centre(w, squad)
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.position = w._main.to_view(centre)
+	mb.pressed = true
+	w._main._gui_input(mb)
+	mb.pressed = false
+	w._main._gui_input(mb)
+	assert_eq(pl.selection, [squad] as Array[int], "a click selects the squad under it")
+	assert_true(w.playing(), "and playback goes on")
+	await get_tree().process_frame
+	assert_true(w._main._overlay.get("selected", []).has(squad), "the view rings the selected squad")
+	# A box over the whole field takes every own squad drawn in it.
+	w._on_battle_box(Rect2(Vector2(-1000, -1000), Vector2(2000, 2000)), false)
+	assert_true(pl.selection.has(squad) and pl.selection.size() >= 2, "a box select takes the squads it covers")
+	# The next-squad key steps the selection to one squad.
+	w._cycle_squad(1)
+	assert_eq(pl.selection.size(), 1, "next squad selects one squad")
+	var sel_before := pl.selection.duplicate()
+	# Orders are refused, with the reason in the status line.
+	w._on_battle_pressed(centre, MOUSE_BUTTON_RIGHT, false, false, false, false)
+	assert_eq(w._hud_note, "Orders open in Planning", "a right click says why")
+	w._on_command(&"hold", 0)
+	w._on_command(&"assign_group", 2)
+	await get_tree().process_frame
+	assert_true(w._hud.text.contains("Orders open in Planning"), "the status line shows the reason")
+	assert_true(w.playing(), "none of them skipped the playback")
+	assert_eq(pl.drafts, drafts_before, "nothing drafted during playback")
+	assert_eq((w.session.battles[eid] as OverworldBattle).orders.get(1, []), orders_before, "submit_battle_orders was not called")
+	assert_eq(pl.selection, sel_before, "the selection is untouched by the refused orders")
+	# The skip keeps the selection and the drafts, and clears the refusal.
+	w.skip_playback()
+	assert_false(w.playing())
+	assert_eq(pl.selection, sel_before, "the selection survives the skip")
+	assert_eq(pl.drafts, drafts_before, "the drafts are unchanged by the skip")
+	assert_eq(w._hud_note, "", "the playback refusal does not linger into Planning")
+
+
+## A selection made during playback is still there in the next Planning, and
+## a squad that dies drops out of it there (sw-bafi.2).
+func test_selection_from_playback_carries_into_planning_and_drops_the_dead() -> void:
+	var w := _demo()
+	var squad := _play_a_moving_turn(w)
+	var eid := w.contexts.focus
+	var pl := w.planner(eid)
+	await get_tree().process_frame
+	w._on_battle_box(Rect2(_drawn_centre(w, squad) - Vector2(1, 1), Vector2(2, 2)), false)
+	assert_eq(pl.selection, [squad] as Array[int])
+	w.skip_playback()
+	await get_tree().process_frame
+	assert_eq(pl.selection, [squad] as Array[int], "still selected in the next Planning")
+	# The squad dies: the next Planning's observation no longer has it.
+	var obs: Dictionary = w.session.observe_battle(1, eid).duplicate(true)
+	for sq: Dictionary in obs["squads"]:
+		if sq["id"] == squad:
+			sq["destroyed"] = true
+	pl.sync(obs)
+	assert_false(pl.selection.has(squad), "a squad that died is dropped from the selection")
+
+
 ## During a battle's playback the view takes the wheel, middle-drag, the
 ## keyboard pan and the hover; the side panels stay blocked and the stage is
 ## open to the view (sw-bafi.1).

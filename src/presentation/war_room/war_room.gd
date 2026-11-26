@@ -26,7 +26,8 @@ extends Control
 ## turn is played out over that long (commanders and convoys walk their hexes,
 ## battles replay tick by tick) before the next Planning is shown. Space or
 ## Esc skips it; a left click inspects the squad under it (its card shows)
-## and no click issues orders. The game itself has already resolved: playback
+## and selects it as Planning does (sw-bafi.2), but no click or key issues
+## orders ("Orders open in Planning"). The game itself has already resolved: playback
 ## only delays what is drawn.
 ##
 ## Planning in the focused battle (sw-ip8.3, GDD 01 Input and UI, 02 §2.2):
@@ -1112,6 +1113,7 @@ func planner(eid: int) -> BattlePlanner:
 		var pl := BattlePlanner.new(player)
 		pl.sync(_obs_battle(eid))
 		pl.changed.connect(_on_draft.bind(eid))
+		pl.selection_changed.connect(_queue_refresh)
 		planners[eid] = pl
 	return planners[eid]
 
@@ -1245,8 +1247,12 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 		_inspected = hit  # any squad in sight: its card (empty ground closes it)
 		_queue_refresh()
 	if not _play.is_empty():
-		# Playback: inspection only, no selection or orders (sw-ll4.27.4). The
+		# Playback: selection and inspection, never orders (sw-bafi.2). The
 		# card is for the moment shown, so it is built now (sw-bafi.1).
+		if button == MOUSE_BUTTON_LEFT:
+			_playback_click(pl, hit, shift, ctrl)
+		else:
+			_refuse_orders()
 		_refresh_battle_panel()
 		return
 	if session.clock.phase == PulseClock.Phase.REACTION:
@@ -1280,8 +1286,45 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 
 func _on_battle_box(rect: Rect2, add: bool) -> void:
 	var pl := _focused_planner()
-	if pl != null and session.clock.phase == PulseClock.Phase.PLANNING and _play.is_empty():
+	if pl == null:
+		return
+	if not _play.is_empty():
+		# Playback: the squads drawn inside the box (their metres are the
+		# moment's, not the planner's last Planning).
+		pl.select(_main.squads_in(rect), add)
+	elif session.clock.phase == PulseClock.Phase.PLANNING:
 		pl.select_box(rect, add)
+
+
+## A left click on the battlefield during playback selects like Planning does:
+## an own squad (shift adds, ctrl toggles), empty ground clears (sw-bafi.2).
+func _playback_click(pl: BattlePlanner, hit: int, shift: bool, ctrl: bool) -> void:
+	if hit >= 0:
+		if _selectable(pl).has(hit):
+			pl.select([hit], shift, ctrl)
+	elif not shift and not ctrl:
+		pl.deselect()
+
+
+## The own squads a selection may take now. In playback, only those drawn at
+## the moment shown: a squad that died this turn stays in the planner's list
+## until the next Planning (sw-bafi.2).
+func _selectable(pl: BattlePlanner) -> Array[int]:
+	if _play.is_empty():
+		return pl.own_squads()
+	var drawn := _main.drawn_ids()
+	var out: Array[int] = []
+	for id: int in pl.own_squads():
+		if drawn.has(id):
+			out.append(id)
+	return out
+
+
+## An order action during playback is refused, with the reason shown in the
+## status line (sw-bafi.2).
+func _refuse_orders() -> void:
+	_hud_note = ORDERS_LOCKED_NOTE
+	_queue_refresh()
 
 
 ## GUIDE commands (PlanningInput).
@@ -1294,7 +1337,15 @@ func _on_command(name: StringName, arg: int) -> void:
 			contexts.set_bookmark(arg)
 			return
 	var pl := _focused_planner()
-	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING or not _play.is_empty():
+	if pl == null:
+		return
+	if name == &"recall_group":
+		pl.recall_group(arg)  # a selection, not an order: any time (sw-bafi.2)
+		return
+	if not _play.is_empty():
+		_refuse_orders()
+		return
+	if session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	match name:
 		&"hold", &"fall_back", &"withdraw":
@@ -1306,8 +1357,6 @@ func _on_command(name: StringName, arg: int) -> void:
 			pl.toggle_run()
 		&"abilities":
 			_queue_refresh()
-		&"recall_group":
-			pl.recall_group(arg)
 		&"assign_group":
 			pl.assign_group(arg)
 		&"add_group":
@@ -1523,6 +1572,9 @@ func _input(event: InputEvent) -> void:
 ## Arrow keys: how far one press (or key repeat) pans the battle camera.
 const PAN_STEP: float = 60.0
 
+## The status line's reason when an order is asked for during playback (sw-bafi.2).
+const ORDERS_LOCKED_NOTE: String = "Orders open in Planning"
+
 ## The war room's GUIDE actions (DefaultKeys.war_room), enabled while it is
 ## in the tree. Name -> GUIDEAction is `keys.actions`.
 var keys: GuideKeys
@@ -1587,21 +1639,20 @@ func _on_pan(dir: Vector2) -> void:
 
 
 ## Gamepad / key squad selection (sw-dqq): steps through the focused
-## battle's own squads and shows the card of the one reached. Selection
-## itself needs the planning or reaction phase; during playback it only
-## inspects.
+## battle's own squads, selects the one reached and shows its card. Selection
+## works in playback too (sw-bafi.2), over the squads drawn at the moment shown.
 func _cycle_squad(dir: int) -> void:
 	var pl := _focused_planner()
 	if pl == null:
 		return
-	var ids := pl.own_squads()
+	var ids := _selectable(pl)
 	if ids.is_empty():
 		return
 	var cur: int = _inspected if ids.has(_inspected) else (pl.selection[0] if not pl.selection.is_empty() else -1)
 	var i := ids.find(cur)
 	var next: int = ids[posmod(i + dir, ids.size())] if i >= 0 else ids[0 if dir > 0 else ids.size() - 1]
 	_inspected = next
-	if _play.is_empty() and session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
+	if not _play.is_empty() or session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
 		pl.select([next])
 	_queue_refresh()
 
@@ -2036,7 +2087,8 @@ func _show_play() -> void:
 	elif battles.has(eid):
 		_main.title = battle_name(eid)
 		_main.set_camera(contexts.zoom, contexts.battle_centre)
-		_main.show_playback(battles[eid], t, _obs_battle(eid), _inspected)
+		var selected: Array = (planners[eid] as BattlePlanner).selection if planners.has(eid) else []
+		_main.show_playback(battles[eid], t, _obs_battle(eid), _inspected, selected)
 		# The squad card follows the shown moment: rebuild it when the frame
 		# changes, not on every draw (sw-ll4.27.3).
 		var frames: Array = (battles[eid] as Dictionary).get("frames", [])
@@ -2061,6 +2113,8 @@ func skip_playback() -> void:
 		return
 	_play = {}
 	_play_card_frame = -1
+	if _hud_note == ORDERS_LOCKED_NOTE:
+		_hud_note = ""  # the refusal was for playback; Planning takes orders again
 	_refresh_hover_card()
 	set_process(false)
 	contexts.sync(_obs())
