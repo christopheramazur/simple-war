@@ -19,6 +19,11 @@ static func play(session: BattleSession, controllers: Dictionary, max_turns: int
 				if stop_turn >= 0 and session.state.turn + 1 >= stop_turn:
 					break
 				for p in session.players():
+					if controllers[p].has_method("deploy") and session.state.deploying:
+						var placements: Array = controllers[p].deploy(session.observe(p))
+						if not placements.is_empty():  # none: the automatic places (no log entry)
+							session.submit_deployment(p, placements)
+				for p in session.players():
 					session.submit_orders(p, controllers[p].orders(session.observe(p)))
 				for p in session.players():
 					session.ready(p)

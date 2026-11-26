@@ -67,6 +67,8 @@ Format: **Term**: definition. *(decision IDs; former names)*
 - **Concealment**: an ability that hides a squad from enemies without Detection. *(R7Q4)*
 - **Ambush**: an attack begun while the target hasn't detected the attacker. *(R6Q1)*
 - **Intercept**: a charge against an enemy squad that is itself charging one of yours. *(R6Q1)*
+- **Firing position**: The nearest point within its squad's coherency radius from which a unit has a shot; under attack orders each armed unit walks to its own and fires on arrival. *(U1Q29)*
+- **Closing to fire**: The default for Attack-move and Attack: the anchor advances until every armed unit has a firing position, and each unit opens fire on its own as it comes into range. *(U1Q1, U1Q11, U1Q28, U1Q29)*
 - **Keyword**: a static squad property. *(R6Q9)*
 - **Status**: a transient bundle of effects on a unit or squad. *(R6Q9, E1Q2)*
 
@@ -121,8 +123,6 @@ Not yet terms: each moves into the lists above, and into `glossary.json`, with t
 
 | Term | Definition | Decisions | Moves in with |
 |---|---|---|---|
-| Firing position | The nearest point within its squad's coherency radius from which a unit has a shot; under attack orders each armed unit walks to its own and fires on arrival. | U1Q29 | A3 |
-| Closing to fire | The default for Attack-move and Attack: the anchor advances until every armed unit has a firing position, and each unit opens fire on its own as it comes into range. | U1Q1, U1Q11, U1Q28, U1Q29 | A3 |
 | Behaviour (squad) | What an order runs: an ordered list of components from a closed vocabulary, each with data parameters. | U1Q12 | A9a |
 | Separation | The push that keeps units of different squads from standing in one another, without blocking movement. | U1Q10 | A11 |
 | Coherency radius | How far a unit may stray from its squad's anchor before it heads back and the anchor slows; it bounds firing positions. Data per formation. | U1Q10, U1Q29 | A12b |

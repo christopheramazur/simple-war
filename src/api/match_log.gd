@@ -150,6 +150,9 @@ func _input_text(i: Dictionary) -> String:
 			return "battle orders: %s" % (", ".join(parts) if not parts.is_empty() else "none")
 		"reinforce":
 			return "%s: reinforce with squad %d" % [who, int(d.get("squad", -1)) & 0xffff]
+		"battle_deploy":
+			var n := (d.get("placements", []) as Array).size()
+			return "battle %d: %d deployment placement%s" % [int(d.get("engagement", -1)), n, "" if n == 1 else "s"]
 		"transfer":
 			return "squad %d to %s" % [int(d.get("squad", -1)) & 0xffff, EventText.commander(int(d.get("to", -1)))]
 		"battleforce":
