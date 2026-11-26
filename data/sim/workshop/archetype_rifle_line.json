@@ -1,0 +1,63 @@
+{
+ "id": "archetype_rifle_line",
+ "component": "behaviour",
+ "doc": "Rifle line (1 sergeant, 7 troopers, 40 m service rifles) attack-moves on an unarmed dummy from 60 m. The line uses the A3 defaults (humanity.json line_attack_move: firing positions within the default coherency, stand while firing, fire on the move allowed, the 15 m attack-move leash). Pinned absolute DPS over the first contact turn, so the line's number is fixed beside the mortar, marksman and assault ones (sw-txnj.11).",
+ "status": "gate",
+ "package": "core",
+ "map": "duel_crossroads",
+ "open": true,
+ "seed": 1,
+ "turns": 2,
+ "probe_stride": 10,
+ "squads": [
+  {
+   "key": "line",
+   "player": 1,
+   "squad": "rifle_squad",
+   "at": [
+    25,
+    80
+   ],
+   "facing": 0
+  },
+  {
+   "key": "dummy",
+   "player": 2,
+   "squad": "rifle_squad",
+   "at": [
+    85,
+    80
+   ],
+   "facing": 180,
+   "dummy": {
+    "armed": false,
+    "hp": 1000,
+    "stationary": true
+   }
+  }
+ ],
+ "script": {
+  "1": [
+   {
+    "squad": "line",
+    "type": "attack_move",
+    "x": 85,
+    "y": 80
+   }
+  ]
+ },
+ "probes": [
+  {
+   "id": "dps_attack_move",
+   "over": "t1",
+   "squad": "line",
+   "target": "dummy",
+   "dps_engaged": {
+    "min": 13.82,
+    "max": 15.27
+   },
+   "doc": "Line DPS from its first shot at the dummy over turn 1, 14.55 (5%). Pinned by sw-txnj.11."
+  }
+ ],
+ "compare": []
+}

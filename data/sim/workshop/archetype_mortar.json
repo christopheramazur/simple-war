@@ -1,0 +1,98 @@
+{
+ "id": "archetype_mortar",
+ "component": "behaviour",
+ "doc": "Mortar team (3 mortars, 20-90 m, standing only) attack-moves on an unarmed dummy from 60 m, with a disarmed friendly spotter 25 m short of it (sight 40 m, so the spotter gives the mortars the target). The mortar behaviour (sw-txnj.11, humanity.json mortar_attack_move) keeps the team at least min_range + 5 = 25 m out (keep_distance) and never fires on the move. Pinned absolute DPS over the first contact turn; the distance floor is the acceptance check.",
+ "status": "gate",
+ "package": "core",
+ "map": "duel_crossroads",
+ "open": true,
+ "seed": 1,
+ "turns": 2,
+ "probe_stride": 10,
+ "squads": [
+  {
+   "key": "spotter",
+   "player": 1,
+   "squad": "rifle_squad",
+   "at": [
+    60,
+    80
+   ],
+   "facing": 0,
+   "dummy": {
+    "armed": false,
+    "hp": 1000,
+    "stationary": true
+   }
+  },
+  {
+   "key": "mortars",
+   "player": 1,
+   "squad": "mortar_team",
+   "at": [
+    25,
+    80
+   ],
+   "facing": 0
+  },
+  {
+   "key": "dummy",
+   "player": 2,
+   "squad": "rifle_squad",
+   "at": [
+    85,
+    80
+   ],
+   "facing": 180,
+   "dummy": {
+    "armed": false,
+    "hp": 1000,
+    "stationary": true
+   }
+  }
+ ],
+ "script": {
+  "1": [
+   {
+    "squad": "mortars",
+    "type": "attack_move",
+    "x": 85,
+    "y": 80
+   }
+  ]
+ },
+ "probes": [
+  {
+   "id": "dps_attack_move",
+   "over": "all",
+   "squad": "mortars",
+   "target": "dummy",
+   "dps_engaged": {
+    "min": 5.7,
+    "max": 6.3
+   },
+   "doc": "Team DPS from its first shot at the dummy over the scenario's two turns (the first contact window), 6.0 (5%). Pinned by sw-txnj.11."
+  },
+  {
+   "id": "dist_t1",
+   "at": "t1",
+   "squad": "mortars",
+   "target": "dummy",
+   "distance": {
+    "min": 25
+   },
+   "doc": "After turn 1: the team stays at or beyond min_range + 5 = 25 m (it stands at its 60 m firing position)."
+  },
+  {
+   "id": "dist_end",
+   "at": "end",
+   "squad": "mortars",
+   "target": "dummy",
+   "distance": {
+    "min": 25
+   },
+   "doc": "Last frame: the team stays at or beyond min_range + 5 = 25 m."
+  }
+ ],
+ "compare": []
+}

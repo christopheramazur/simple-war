@@ -1,0 +1,25 @@
+{
+	"id": "mixed_range_hold",
+	"component": "orders",
+	"doc": "The cross-check for 01's table B, hold column: the assault squad placed 12 m from the dummy (at x = 73) and holding from the start, on the core package. Reported only, no gate: it pins the table's DPS1 (6.7) to the workshop's runner so the two can be compared directly. Companion of mixed_range_orders.",
+	"status": "pending",
+	"package": "core",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "assault", "player": 1, "squad": "assault_squad", "at": [73, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "assault", "type": "hold"}]
+	},
+	"probes": [
+		{"id": "dps_engaged", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": null, "doc": "Table B's hold at 12 m: 6.7."},
+		{"id": "shooters", "over": "all", "squad": "assault", "target": "dummy", "shooters": null}
+	],
+	"compare": []
+}

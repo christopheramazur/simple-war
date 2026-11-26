@@ -26,19 +26,12 @@ func _empty() -> BattleState:
 
 
 func _place(s: BattleState, player: int, squad: String, x: int, y: int) -> int:
-	var sid := BattleSetup.spawn_squad(s, player, _rules().squad_index(squad), x * ONE, y * ONE, 0)
-	Centroids.update(s)
-	return sid
+	return ScenarioBuilder.place(s, player, squad, x * ONE, y * ONE)
 
 
 ## A stationary enemy that cannot shoot back and cannot die.
 func _target(s: BattleState, x: int, y: int) -> int:
-	var sid := _place(s, 2, "rifle_squad", x, y)
-	for urow in Centroids.units_of(s, s.squads.row_of(sid)):
-		s.units.set_value(s.units.id_at(urow), &"weapon", -1)
-		s.units.set_value(s.units.id_at(urow), &"hp", 1000 * ONE)
-		s.units.set_value(s.units.id_at(urow), &"hp_max", 1000 * ONE)
-	return sid
+	return ScenarioBuilder.target_dummy(s, 2, "rifle_squad", x * ONE, y * ONE)
 
 
 func _squad_of(snap: Dictionary, sid: int) -> Dictionary:

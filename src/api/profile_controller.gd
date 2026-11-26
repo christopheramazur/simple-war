@@ -236,6 +236,14 @@ func reinforcements(obs: Dictionary, rules: OverworldRules) -> Array:
 	return out
 
 
+## Deployment placements for a deploying battle ([{squad, x, y, facing}]).
+## Profiles leave deployment to the automatic places for now: an empty list,
+## which the headless runners do not submit (nothing is logged), so their
+## input logs and results are unchanged (sw-bafi.11).
+func deploy(_obs: Dictionary) -> Array:
+	return []
+
+
 func battle_orders(obs: Dictionary) -> Array:
 	var proc := _battle(int(obs.get("engagement", 0)))
 	var ub := _utility(proc)
