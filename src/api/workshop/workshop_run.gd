@@ -49,13 +49,14 @@ var turns_run: int = 0
 ## (frame -> Dictionary of plain data) for the debug overlay.
 var debug: bool = false
 var debug_frames: Dictionary = {}
+## The debug capture's own route planner (the battle's cache is untouched).
+var _debug_routes: BattleRoute
 
 var _turn: int = 0
 var _k: int = 0
 var _seen: int = 0
 var _last_tick: int = -1
 var _want: Dictionary = {}
-var _debug_routes: BattleRoute
 
 
 ## The package's loader, cached per process (content is read-only).
