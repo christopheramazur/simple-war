@@ -192,3 +192,22 @@ func test_strip_helpers() -> void:
 	var patches := (cell.x / CaptureJob.PATCH) * (cell.y / CaptureJob.PATCH) * 5
 	assert_true(patches <= CaptureJob.STRIP_TOKENS, str(cell))
 	assert_true(patches > CaptureJob.STRIP_TOKENS * 0.8, str(cell))
+
+
+func test_match_source_replays_hash_checked_and_reads_only() -> void:
+	var w := MainMenu.skirmish_room("profile_utility", "skirmish_mirror", 5)
+	add_child_autofree(w)
+	for i in 12:
+		w.end_turn_requested.emit()
+	var dir: String = w.match_log.dir
+	var bytes := FileAccess.get_file_as_bytes(dir + "/match.sav")
+	var played := w.session.state_hash_hex()
+	var job := CaptureJob.prepare({"kind": "match", "path": dir})
+	assert_true(job.is_ok(), str(job.errors))
+	assert_eq(job.state_hash, played, "the capture replays the recorded match")
+	assert_eq(FileAccess.get_file_as_bytes(dir + "/match.sav"), bytes, "the match log is untouched")
+	for n in CaptureStages.ORDER:
+		assert_true(job.stages.has(n) != job.missing.has(n), n)
+	var again := CaptureJob.prepare({"kind": "match", "path": dir})
+	assert_eq(CaptureJob.to_json(again.manifest()), CaptureJob.to_json(job.manifest()))
+	assert_false(CaptureJob.prepare({"kind": "match", "path": dir, "battle": 99999}).is_ok())

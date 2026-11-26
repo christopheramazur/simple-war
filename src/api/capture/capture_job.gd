@@ -249,13 +249,13 @@ func _play_match(src: Dictionary, sim: CaptureSim) -> Dictionary:
 
 
 func _pick_battle(sim: CaptureSim) -> int:
-	if sim.turns.is_empty():
-		return -1
 	if source.has("battle"):
 		var want := int(source["battle"])
 		if sim.turns.has(want):
 			return want
 		errors.append("battle: no battle %d in the source (%s)" % [want, sim.turns.keys()])
+		return -1
+	if sim.turns.is_empty():
 		return -1
 	var ids: Array = sim.turns.keys()
 	ids.sort()
