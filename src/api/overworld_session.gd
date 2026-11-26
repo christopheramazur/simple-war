@@ -852,6 +852,11 @@ func playback_relation(player: int, eid: int, frame: int, a: int, b: int) -> Arr
 ## hold-fire reason (BattleActivity.Hold), squad activity (BattleActivity.
 ## Squad, raw), reload left, cooldown left, ammo (sw-ll4.27.2).
 const PLAYBACK_STRIDE: int = 16
+## One playback frame of `state` (PLAYBACK_STRIDE ints per unit); read-only.
+static func playback_frame(st: BattleState) -> PackedInt64Array:
+	return _frame(st)
+
+
 static func _frame(st: BattleState) -> PackedInt64Array:
 	var u := st.units
 	var sq := st.squads
@@ -883,66 +888,74 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 func playback(player: int) -> Dictionary:
 	PerfRecorder.begin(&"playback_build")
 	var out := {}
-	var all_seeing := player <= 0  # the replay's all-seeing view
-	var me := 0 if all_seeing else BattleSquads.bit(player)
 	for eid: int in _playback:
 		var rec: Dictionary = _playback[eid]
-		if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
+		if player > 0 and not (rec["players"] as PackedInt64Array).has(player):
 			continue
-		var r: BattleRules = rec["rules"]
-		var frames := []
-		# Per frame, the unit IDs the player saw.
-		var seen := []
-		for f: PackedInt64Array in rec["frames"]:
-			var squads := {}
-			var units := {}
-			for o in range(0, f.size(), PLAYBACK_STRIDE):
-				if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
-					continue
-				var own_unit := f[o + 2] == player
-				if not squads.has(f[o + 1]):
-					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": [],
-						"activity": f[o + 12] if own_unit else BattleActivity.squad_public(f[o + 12], f[o + 10] & BattleSession.ACT_MOVING != 0)}
-					if own_unit:
-						squads[f[o + 1]]["holds"] = []
-						squads[f[o + 1]]["reload"] = []
-						squads[f[o + 1]]["cooldown"] = []
-						squads[f[o + 1]]["ammo"] = []
-				var d: Dictionary = squads[f[o + 1]]
-				(d["ids"] as Array).append(f[o])
-				(d["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
-				var t := f[o + 7]
-				(d["tmpls"] as Array).append(r.unit_ids[t] if t >= 0 and t < r.unit_ids.size() else "")
-				(d["hp"] as Array).append(clampf(float(f[o + 8]) / maxf(float(f[o + 9]), 1.0), 0.0, 1.0))
-				(d["acts"] as Array).append(f[o + 10])
-				if own_unit:
-					(d["holds"] as Array).append(f[o + 11])
-					(d["reload"] as Array).append(f[o + 13])
-					(d["cooldown"] as Array).append(f[o + 14])
-					(d["ammo"] as Array).append(f[o + 15])
-				units[f[o]] = true
-			frames.append(squads)
-			seen.append(units)
-		var shots := []
-		for sh: Array in rec["shots"]:
-			var at: Dictionary = frames[sh[0]]
-			if at.has(sh[1]) and at.has(sh[2]):
-				shots.append(sh)
-		# A shot is shown when the player saw both units the tick before it
-		# (a victim it killed is gone from the frame it lands in).
-		var volleys := []
-		for v: Array in rec.get("volleys", []):
-			var at: Dictionary = seen[maxi(v[0] - 1, 0)]
-			if at.has(v[1]) and at.has(v[2]):
-				volleys.append(v)
-		var hits := []
-		for h: Array in rec.get("hits", []):
-			if (seen[maxi(h[0] - 1, 0)] as Dictionary).has(h[1]):
-				hits.append(h)
-		out[eid] = {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots,
-			"volleys": volleys, "hits": hits}
+		out[eid] = playback_entry(rec, player)
 	PerfRecorder.end(&"playback_build")
 	return out
+
+
+## One recorded battle as `player` saw it (0 or less: all-seeing), in
+## playback's entry format. `rec` holds "rules", "frames" (playback_frame
+## per tick), "shots", "volleys" and "hits" as _record_turn keeps them; the
+## behaviour workshop (WorkshopRun.playback) builds one for a whole run.
+static func playback_entry(rec: Dictionary, player: int) -> Dictionary:
+	var all_seeing := player <= 0  # the replay's all-seeing view
+	var me := 0 if all_seeing else BattleSquads.bit(player)
+	var r: BattleRules = rec["rules"]
+	var frames := []
+	# Per frame, the unit IDs the player saw.
+	var seen := []
+	for f: PackedInt64Array in rec["frames"]:
+		var squads := {}
+		var units := {}
+		for o in range(0, f.size(), PLAYBACK_STRIDE):
+			if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
+				continue
+			var own_unit := f[o + 2] == player
+			if not squads.has(f[o + 1]):
+				squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": [],
+					"activity": f[o + 12] if own_unit else BattleActivity.squad_public(f[o + 12], f[o + 10] & BattleSession.ACT_MOVING != 0)}
+				if own_unit:
+					squads[f[o + 1]]["holds"] = []
+					squads[f[o + 1]]["reload"] = []
+					squads[f[o + 1]]["cooldown"] = []
+					squads[f[o + 1]]["ammo"] = []
+			var d: Dictionary = squads[f[o + 1]]
+			(d["ids"] as Array).append(f[o])
+			(d["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
+			var t := f[o + 7]
+			(d["tmpls"] as Array).append(r.unit_ids[t] if t >= 0 and t < r.unit_ids.size() else "")
+			(d["hp"] as Array).append(clampf(float(f[o + 8]) / maxf(float(f[o + 9]), 1.0), 0.0, 1.0))
+			(d["acts"] as Array).append(f[o + 10])
+			if own_unit:
+				(d["holds"] as Array).append(f[o + 11])
+				(d["reload"] as Array).append(f[o + 13])
+				(d["cooldown"] as Array).append(f[o + 14])
+				(d["ammo"] as Array).append(f[o + 15])
+			units[f[o]] = true
+		frames.append(squads)
+		seen.append(units)
+	var shots := []
+	for sh: Array in rec["shots"]:
+		var at: Dictionary = frames[sh[0]]
+		if at.has(sh[1]) and at.has(sh[2]):
+			shots.append(sh)
+	# A shot is shown when the player saw both units the tick before it
+	# (a victim it killed is gone from the frame it lands in).
+	var volleys := []
+	for v: Array in rec.get("volleys", []):
+		var at: Dictionary = seen[maxi(v[0] - 1, 0)]
+		if at.has(v[1]) and at.has(v[2]):
+			volleys.append(v)
+	var hits := []
+	for h: Array in rec.get("hits", []):
+		if (seen[maxi(h[0] - 1, 0)] as Dictionary).has(h[1]):
+			hits.append(h)
+	return {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots,
+		"volleys": volleys, "hits": hits}
 
 
 ## Battles begin at the start of a turn (R2Q1): every engagement without one
