@@ -291,6 +291,8 @@ func _build_ui() -> void:
 	_main.hex_clicked.connect(_on_hex_clicked)
 	_main.battle_pressed.connect(_on_battle_pressed)
 	_main.battle_box.connect(_on_battle_box)
+	_main.deploy_dragged.connect(_on_deploy_dragged)
+	_main.deploy_faced.connect(_on_deploy_faced)
 	_main.zoomed.connect(func(f: float) -> void: contexts.zoom_by(f))
 	_main.battle_camera.connect(func(z: float, c: Vector2) -> void: contexts.set_battle_camera(z, c))
 	_main.hex_hovered.connect(_on_hex_hovered)
@@ -640,7 +642,10 @@ func _show_main() -> void:
 	pl.sync(obs)
 	_main.title = battle_name(contexts.focus)
 	var fc: Dictionary = _forecasts.get(contexts.focus, {})
-	_main.show_battle(obs, {"selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
+	var deploy := _deploy_overlay(pl)
+	if not deploy.is_empty():
+		obs = pl.deploy_view(obs)
+	_main.show_battle(obs, {"deploy": deploy, "selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
 		"contacts": fc.get("contacts", []), "reactable": _reactable(contexts.focus), "inspected": _inspected,
 		"triggers": _triggers(contexts.focus), "telegraphs": session.telegraphs(player, contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
 
@@ -744,6 +749,10 @@ func hints() -> String:
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		return "Reaction window: click a marked squad to react  ·  Space: play the turn"
 	var pl := _focused_planner()
+	if deploying_now(pl) and not _attack_armed:
+		if pl.selection.is_empty():
+			return "Deployment: drag one of your squads inside your lit area to place it  ·  Left click or drag a box: select squads  ·  Turn-1 orders work as in Planning  ·  Space: end turn (squads you leave keep their automatic places)"
+		return "Deployment: drag a selected squad to place the group (offsets kept)  ·  Drag the knob or E / Shift+E: turn (8 directions)  ·  Arrows or left stick: nudge  ·  Right click: turn-1 move  ·  Space: end turn"
 	if _attack_armed:
 		return "ATTACK-MOVE: right click where to go; the squads fight what they meet"
 	if pl != null and not pl.selection.is_empty():
@@ -904,6 +913,10 @@ func _battle_rules(eid: int) -> BattleRules:
 ## can't do (sw-ip8.7).
 func _refresh_phase_banner() -> void:
 	var ph := session.clock.phase
+	if session.state.outcome.is_empty() and deploying_now(_focused_planner()):
+		_phase_banner.visible = true
+		_phase_text.text = DEPLOY_BANNER
+		return
 	_phase_banner.visible = ph == PulseClock.Phase.REACTION and session.state.outcome.is_empty()
 	if _phase_banner.visible:
 		_phase_text.text = "Reaction window: moves are locked. React to the marked contacts (Halt · Fall back · Retarget) or press Space to play the turn. Moves you draw now are queued and sent in the next Planning phase."
@@ -1111,8 +1124,10 @@ func _convoy_route_of(did: int) -> PackedInt64Array:
 func planner(eid: int) -> BattlePlanner:
 	if not planners.has(eid):
 		var pl := BattlePlanner.new(player)
+		pl.rules = _battle_rules(eid)
 		pl.sync(_obs_battle(eid))
 		pl.changed.connect(_on_draft.bind(eid))
+		pl.deploy_changed.connect(_on_deploy.bind(eid))
 		pl.selection_changed.connect(_on_selection.bind(eid))
 		planners[eid] = pl
 	return planners[eid]
@@ -1145,6 +1160,64 @@ func _on_draft(eid: int) -> void:
 		_hud_note = "moves are locked until Planning: your drawn orders are queued"
 		_note("%s orders drawn in the %s phase (queued for Planning): %s" % [battle_name(eid), session.phase_name(), _orders_text(orders)])
 	_queue_refresh()
+
+
+## Whether the player can place squads in the focused battle now: Planning
+## of a deploying battle with an own area, not watching a replay or playback.
+func deploying_now(pl: BattlePlanner) -> bool:
+	return pl != null and pl.can_deploy() and replay == null and _play.is_empty() 		and session.clock.phase == PulseClock.Phase.PLANNING
+
+
+## The battle view's deployment overlay ({} unless deploying_now).
+func _deploy_overlay(pl: BattlePlanner) -> Dictionary:
+	if not deploying_now(pl):
+		return {}
+	return {"player": player, "areas": pl.areas, "own": pl.own_squads(), "snap": pl.snap}
+
+
+## Deployment placements changed: submit them (submit_battle_deployment is
+## their only way to the game). The draft stays in the planner either way.
+func _on_deploy(eid: int) -> void:
+	var pl: BattlePlanner = planners.get(eid)
+	if pl == null or not session.battles.has(eid) or session.clock.phase != PulseClock.Phase.PLANNING:
+		return
+	var placements := pl.deployment()
+	var errs := session.submit_battle_deployment(player, eid, placements)
+	_hud_note = "" if errs.is_empty() else "deployment refused: " + "; ".join(errs)
+	_note("%s deployment: %s%s" % [battle_name(eid), _placements_text(placements),
+		"" if errs.is_empty() else " - refused: " + "; ".join(errs)])
+	_queue_refresh()
+
+
+func _placements_text(placements: Array) -> String:
+	if placements.is_empty():
+		return "automatic"
+	var parts := PackedStringArray()
+	for d: Dictionary in placements:
+		parts.append("squad %d at (%.0f, %.0f) facing %d°" % [int(d["squad"]) & 0xffff, float(d["x"]) / ContextView.ONE,
+			float(d["y"]) / ContextView.ONE, roundi(float(d["facing"]) / Fixed.ANGLE_FULL * 360.0)])
+	return ", ".join(parts)
+
+
+## A squad (or the selected group) dragged in the battle view while deploying.
+func _on_deploy_dragged(ids: Array, anchor: int, delta: Vector2) -> void:
+	var pl := _focused_planner()
+	if deploying_now(pl):
+		pl.drag(ids, anchor, delta)
+
+
+## The facing handle dragged while deploying.
+func _on_deploy_faced(ids: Array, toward: Vector2) -> void:
+	var pl := _focused_planner()
+	if deploying_now(pl):
+		pl.face(ids, toward)
+
+
+## "Reset to automatic": the focused battle's placements dropped.
+func reset_deployment() -> void:
+	var pl := _focused_planner()
+	if deploying_now(pl):
+		pl.reset_deployment()
 
 
 ## Forecasts a battle's drafts on a worker thread; the ghosts show when it
@@ -1367,6 +1440,9 @@ func _on_command(name: StringName, arg: int) -> void:
 			pl.toggle_run()
 		&"abilities":
 			_queue_refresh()
+		&"rotate", &"rotate_back":
+			if deploying_now(pl):
+				pl.rotate(pl.selection, arg)
 		&"assign_group":
 			pl.assign_group(arg)
 		&"add_group":
@@ -1433,6 +1509,15 @@ func _refresh_orders() -> void:
 	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	_add_reserves(contexts.focus)
+	if deploying_now(pl):
+		_orders_box.add_child(_title("Deployment (%d placed)" % pl.placements.size()))
+		var reset := Button.new()
+		reset.name = "ResetDeployment"
+		reset.text = "Reset to automatic"
+		reset.tooltip_text = "Put every squad back in its automatic place in your deployment area"
+		reset.disabled = pl.placements.is_empty()
+		reset.pressed.connect(reset_deployment)
+		_orders_box.add_child(reset)
 	_orders_box.add_child(_title("Orders (%d selected)" % pl.selection.size()))
 	if pl.selection.is_empty():
 		return
@@ -1582,6 +1667,9 @@ func _input(event: InputEvent) -> void:
 ## Arrow keys: how far one press (or key repeat) pans the battle camera.
 const PAN_STEP: float = 60.0
 
+## The phase banner while the focused battle deploys (sw-bafi.12).
+const DEPLOY_BANNER: String = "Deployment: place your squads; the enemy can't see them until Reveal"
+
 ## The status line's reason when an order is asked for during playback (sw-bafi.2).
 const ORDERS_LOCKED_NOTE: String = "Orders open in Planning"
 
@@ -1644,8 +1732,15 @@ func _focus_first_control() -> void:
 
 
 func _on_pan(dir: Vector2) -> void:
-	if contexts != null and _keys_free() and contexts.focus != ViewContexts.OVERWORLD:
-		_main.pan_camera(dir * PAN_STEP)
+	if contexts == null or not _keys_free() or contexts.focus == ViewContexts.OVERWORLD:
+		return
+	# Deploying with squads selected: the arrows and the left stick nudge
+	# them instead (pad placement until sw-wut).
+	var pl := _focused_planner()
+	if deploying_now(pl) and not pl.selection.is_empty():
+		pl.nudge(dir)
+		return
+	_main.pan_camera(dir * PAN_STEP)
 
 
 ## Gamepad / key squad selection (sw-dqq): steps through the focused
