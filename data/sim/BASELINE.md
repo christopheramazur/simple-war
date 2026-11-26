@@ -28,3 +28,7 @@ Outcomes differ from era 5 on purpose: a unit under an attack order that reaches
 ## Era 7 (archetype behaviours, sw-txnj.11) - baseline commit f9e1a93 (2026-11-26)
 Batch `b20261126-001752`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
 Outcomes equal era 6 in every row (the batch summary matches `b20261125-230507` for all six scenario x variant rows): the mortar stand-off, marksman max band and assault coherency change no sim outcome here. The archetype DPS and stand-off numbers are pinned in the workshop gates instead (`archetype_mortar`, `archetype_marksman`, `archetype_rifle_line`, `table_b_assault`). Compare fitness only within era 7.
+
+## Era 8 (separation between squads, sw-txnj.12) - baseline commit (this branch, sw-txnj.12) (2026-11-26)
+Batch `b20261126-011216`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
+Outcomes differ from era 7 on purpose: units of different squads are pushed apart to their size-class distance (medium 0.6 m) and walk around each other, so squads that meet or share ground no longer stack. angelfall_spaceport is unchanged; duel_crossroads and hangar_drill shift (baseline p1 win 0.67 -> 0.33 in both; value lost moves both ways). Separation costs 0.16 ms/tick at 208 units. Compare fitness only within era 8.
