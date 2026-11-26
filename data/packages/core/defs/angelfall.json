@@ -59,11 +59,11 @@
 			"members": [{"unit": "cantor", "count": 4}]}},
 
 		{"id": "jeff_commander", "kind": "commander", "values": {
-			"name": "Jeff", "tags": ["story_essential"], "movement_points": 50, "sight": 3, "squad": "jeff_squad",
+			"name": "Jeff", "tags": ["story_essential"], "movement_points": 45, "sight": 4, "squad": "jeff_squad",
 			"army": ["civilian_group", "cr0_patrol"], "army_cap": 5}},
 
 		{"id": "hex_frontier_town", "kind": "hex_feature", "values": {
-			"name": "Frontier town", "controllable": true, "interaction": "stable", "sight": 2,
+			"name": "Frontier town", "controllable": true, "interaction": "stable", "sight": 3,
 			"produces": [{"squad": "civilian_group", "turns": 2, "cost": 0}]}},
 		{"id": "hex_cliffs", "kind": "hex_feature", "values": {"layer": "ground", "draw_order": 4, "color": "4a4440", "name": "Cliffs", "impassable": true}},
 		{"id": "hex_angel_blockade", "kind": "hex_feature", "values": {"layout_priority": 1, "color": "d9d2f2", 

@@ -1,0 +1,55 @@
+{
+	"id": "dps_orders",
+	"component": "orders",
+	"doc": "A rifle squad 44 m from an unarmed, unkillable dummy (01 table A's start distance), for 30 s, under each order: attack, attack-move, move then attack, attack while running, and move into range then hold. Answers U1Q1: does the order lower damage? dps_engaged counts from the first shot, so the approach does not dilute it; damage is the raw total.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [41, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack", "target": "dummy"}]
+	},
+	"variants": {
+		"attack_move": {"doc": "Attack-move to the dummy's position.",
+			"script": {"1": [{"squad": "rifles", "type": "attack_move", "x": 85, "y": 80}]}},
+		"move_then_attack": {"doc": "Move to 20 m short of the dummy, then attack.",
+			"script": {
+				"1": [{"squad": "rifles", "type": "move", "x": 65, "y": 80}],
+				"2": [{"squad": "rifles", "type": "attack", "target": "dummy"}]}},
+		"run": {"doc": "Attack while running.",
+			"script": {"1": [{"squad": "rifles", "type": "attack", "target": "dummy", "run": true}]}},
+		"hold": {"doc": "Move to 35 m (in range) and hold there from turn 2.",
+			"script": {
+				"1": [{"squad": "rifles", "type": "move", "x": 50, "y": 80}],
+				"2": [{"squad": "rifles", "type": "hold"}]}}
+	},
+	"probes": [
+		{"id": "damage", "over": "all", "squad": "rifles", "target": "dummy", "damage": {"min": 400}, "variants": "all", "doc": "Raw damage in 30 s (table A: 453 for attack)."},
+		{"id": "dps_engaged", "over": "all", "squad": "rifles", "target": "dummy", "dps_engaged": {"min": 14}, "variants": "all", "doc": "Damage per second from the first shot (table A's DPS1)."},
+		{"id": "first_shot", "over": "all", "squad": "rifles", "target": "dummy", "first_shot": {"max": 2}, "variants": "all", "doc": "Seconds from the first tick to the first shot."},
+		{"id": "duty", "over": "all", "squad": "rifles", "duty": {"min": 0.08}, "variants": "all"},
+		{"id": "shooters", "over": "all", "squad": "rifles", "target": "dummy", "shooters": {"min": 8}, "variants": "all", "doc": "Every rifle fires within the 30 s."}
+	],
+	"compare": [
+		{"metric": "damage", "lhs": "attack_move", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "damage", "lhs": "move_then_attack", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "damage", "lhs": "run", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "damage", "lhs": "hold", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "dps_engaged", "lhs": "attack_move", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "dps_engaged", "lhs": "move_then_attack", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "dps_engaged", "lhs": "run", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "dps_engaged", "lhs": "hold", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "duty", "lhs": "attack_move", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "duty", "lhs": "move_then_attack", "rhs": "base", "rel": ">=", "factor": 0.85},
+		{"metric": "duty", "lhs": "run", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "duty", "lhs": "hold", "rhs": "base", "rel": ">=", "factor": 0.9}
+	]
+}

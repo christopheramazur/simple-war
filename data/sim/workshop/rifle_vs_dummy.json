@@ -1,0 +1,45 @@
+{
+	"id": "rifle_vs_dummy",
+	"component": "fire",
+	"doc": "A rifle squad against an unarmed, unkillable dummy 20 m east on open ground. Attacking keeps every rifle firing; running away stops the fire.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 2,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [50, 70], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [70, 70], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack", "target": "dummy"}]
+	},
+	"variants": {
+		"run_away": {"doc": "Runs west instead of attacking.",
+			"script": {"1": [{"squad": "rifles", "type": "move", "x": 10, "y": 70, "run": true}]}},
+		"tough_dummy": {"doc": "Same attack; the dummy has twice the HP (patch over the base dummy).",
+			"patch": {"dummy": {"hp": 2000}}}
+	},
+	"probes": [
+		{"id": "engaged", "at": "t1:10", "squad": "rifles", "activity": ["ENGAGED", "READY"]},
+		{"id": "line", "at": "t1:10", "squad": "rifles", "target": "dummy", "fire": "shot"},
+		{"id": "in_reach", "at": "t1:0", "squad": "rifles", "target": "dummy", "within": true},
+		{"id": "gap", "at": "t1:0", "squad": "rifles", "target": "dummy", "distance": {"min": 15, "max": 25}},
+		{"id": "duty", "over": "t1", "squad": "rifles", "duty": {"min": 0.09}},
+		{"id": "damage", "over": "all", "squad": "rifles", "target": "dummy", "damage": {"min": 1}},
+		{"id": "dps", "over": "t1", "squad": "rifles", "dps": null},
+		{"id": "shots", "over": "t1", "squad": "rifles", "shots": {"min": 1}},
+		{"id": "victims", "over": "all", "squad": "rifles", "target": "dummy", "victims": {"distinct": {"min": 1}, "overkill": 0}},
+		{"id": "kills", "over": "all", "squad": "rifles", "kills": 0},
+		{"id": "spacing", "at": "end", "squad": "rifles", "spacing": {"min": 0.5}},
+		{"id": "held", "over": "all", "squad": "dummy", "moved": {"max": 0.5}},
+		{"id": "rifles_moved", "over": "t1", "squad": "rifles", "moved": null, "variants": "all"}
+	],
+	"compare": [
+		{"metric": "duty", "lhs": "base", "rhs": "run_away", "rel": ">", "factor": 2},
+		{"metric": "rifles_moved", "lhs": "run_away", "rhs": "base", "rel": ">"},
+		{"metric": "dps", "lhs": "tough_dummy", "rhs": "base", "rel": "==", "factor": 1}
+	]
+}

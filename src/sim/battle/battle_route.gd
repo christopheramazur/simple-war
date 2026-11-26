@@ -103,6 +103,18 @@ func next_waypoint(r: BattleRules, route_class: int, from_x: int, from_y: int, t
 	return _centre((n - 1 - cell) if flip else cell, w, hit & 1)
 
 
+## True if the anchor of this route class can walk straight from one point to
+## the other: every cell on the line passable, no corner cut (sw-txnj.5: a
+## short chase skips the planner).
+func straight_clear(r: BattleRules, route_class: int, from_x: int, from_y: int, to_x: int, to_y: int) -> bool:
+	var costs := _costs_of(r, route_class)
+	var a := _cell(r, from_x, from_y)
+	var b := _cell(r, to_x, to_y)
+	if a == b:
+		return costs[a] > 0
+	return _straight_ok(costs, r.width, a, b, 1 << 40)
+
+
 static func _cell(r: BattleRules, x: int, y: int) -> int:
 	return clampi(Fixed.to_int_floor(y), 0, r.height - 1) * r.width + clampi(Fixed.to_int_floor(x), 0, r.width - 1)
 
@@ -122,6 +134,22 @@ func warm(r: BattleRules) -> void:
 		_costs_of(r, cls, true)
 		_gates_of(r, cls)
 		_gates_of(r, cls, true)
+
+
+## A copy that starts from this cache's answers (they depend only on the
+## rules and cells, so a copy answers the same) but writes its own: for a
+## re-simulation on the caller's thread (BattleCursor). Gate graphs are
+## shared, so neither copy may run on another thread.
+func fork() -> BattleRoute:
+	var c := BattleRoute.new()
+	c._cache = _cache.duplicate()
+	c._costs = _costs.duplicate()
+	c._regions = _regions.duplicate()
+	c._min_costs = _min_costs.duplicate()
+	c._costs_flipped = _costs_flipped.duplicate()
+	c._regions_flipped = _regions_flipped.duplicate()
+	c._gates = _gates.duplicate()
+	return c
 
 
 ## The gate graph for a route class in a frame, baked on first use.

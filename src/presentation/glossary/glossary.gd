@@ -47,6 +47,7 @@ const EN: Dictionary = {
 	"hold.no_los": "No line of fire",
 	"hold.not_spotted": "Target not spotted by our side",
 	"hold.no_target": "No target in reach",
+	"hold.moving_to_fire": "Moving to its firing position",
 }
 
 

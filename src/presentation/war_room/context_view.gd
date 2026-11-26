@@ -18,6 +18,11 @@ signal zoomed(factor: float)
 ## Asks the owner to move the battle camera (wheel zoom about the cursor,
 ## middle-button drag, pan_by): magnification and centre (metres).
 signal battle_camera(zoom: float, centre: Vector2)
+## Deployment (overlay "deploy"): own squads `ids` dragged with `anchor`
+## under the cursor, by `delta` metres (a group keeps its offsets).
+signal deploy_dragged(ids: Array, anchor: int, delta: Vector2)
+## Deployment: the facing handle of `ids` dragged to point at `toward` (metres).
+signal deploy_faced(ids: Array, toward: Vector2)
 
 const HEX_SIZE: float = 26.0
 ## Pixels per battlefield metre when the ground is drawn from textures (ArtSet).
@@ -101,6 +106,15 @@ var _cam_centre: Vector2 = ViewContexts.NO_CENTRE
 var _dragging_cam: bool = false
 var _box: Rect2 = Rect2()
 var _pressing: bool = false
+## A deployment drag from the left press: "" (none, a box or a click),
+## "squad" (place) or "face" (the facing handle); the squads it moves, the
+## grabbed one, and the cursor while it drags (view px).
+var _drag_kind: String = ""
+var _drag_ids: Array = []
+var _drag_anchor: int = -1
+var _drag_at: Vector2 = Vector2.ZERO
+## Facing handle knobs of the last draw: squad ID -> view point.
+var _handles: Dictionary = {}
 ## The battle terrain texture, built once per BattleRules.
 var _terrain_rules: BattleRules
 var _terrain_tex: ImageTexture
@@ -187,13 +201,15 @@ func show_battle(obs: Dictionary, overlay: Dictionary = {}) -> void:
 ## battle's entry in OverworldSession.playback, `t` how far through (0..1).
 ## Squads are drawn where they were then; orders and selection are not
 ## drawn. `obs` (may be {}) names the squads still known; `inspected` is the
-## clicked squad, highlighted while its card shows (sw-ll4.27.4).
-func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}, inspected: int = -1) -> void:
+## clicked squad, highlighted while its card shows (sw-ll4.27.4). `selected`
+## (squad IDs) gets the selection rings and range/sight rings as in Planning
+## (sw-bafi.2); orders are still not drawn.
+func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}, inspected: int = -1, selected: Array = []) -> void:
 	mode = "battle"
 	_obs = obs.duplicate()
 	_obs["width"] = rec["width"]
 	_obs["height"] = rec["height"]
-	_overlay = {"terrain": rec["rules"], "inspected": inspected}
+	_overlay = {"terrain": rec["rules"], "inspected": inspected, "selected": selected}
 	_play = rec
 	_play_t = clampf(t, 0.0, 1.0)
 	if _fx == null or not is_same(_fx_src, rec):
@@ -549,6 +565,7 @@ func _draw_battle() -> void:
 	var playing := not _play.is_empty()
 	if not playing:
 		_draw_zones(font, area, k)
+		_draw_deploy_areas(font, area, k)
 	_shown = _battle_squads()
 	var pos := {}
 	for d: Dictionary in _shown:
@@ -586,11 +603,13 @@ func _draw_battle() -> void:
 	var selected: Array = _overlay.get("selected", [])
 	var reactable: Dictionary = _overlay.get("reactable", {})
 	var inspected: int = _overlay.get("inspected", -1)
+	var radii := {}
 	for d: Dictionary in _shown:
 		var id: int = d["id"]
 		var c: Vector2 = pos[id]
 		var hovered := id == _hover_squad and not playing
 		var r := _draw_squad(d, area, k, font, selected.has(id), hovered or id == inspected)
+		radii[id] = r
 		if reactable.has(id) and not compact:
 			var q: String = reactable[id]
 			var mark := "!" if q.is_empty() else ReactionRadial.glyph(q)
@@ -611,6 +630,8 @@ func _draw_battle() -> void:
 				draw_arc(pos[t], 12.0, 0, TAU, 24, SELECT, 2.0)
 				draw_string(font, pos[t] + Vector2(13, -10), "trigger", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, SELECT)
 	_draw_telegraphs(font, pos)
+	if not playing:
+		_draw_deploy(font, area, k, pos, radii, selected)
 	for ct: Dictionary in _overlay.get("contacts", []):
 		var id: int = ct["squad"]
 		if ghosts.has(id) and pos.has(id) and not compact:
@@ -1009,6 +1030,102 @@ func _draw_fx(area: Rect2, k: float, font: Font) -> void:
 
 
 ## Zones: who holds each and how far its control has built.
+## Deployment areas while the battle deploys (overlay "deploy"): the
+## player's own lit and outlined, every other side's hatched and labelled,
+## so the difference is shape and text as well as colour (sw-ijp.5).
+func _draw_deploy_areas(font: Font, area: Rect2, k: float) -> void:
+	var dep: Dictionary = _overlay.get("deploy", {})
+	if dep.is_empty():
+		return
+	var me := int(dep.get("player", 0))
+	for a: Dictionary in dep.get("areas", []):
+		var rr: Rect2 = a["rect"]
+		var r := Rect2(area.position + rr.position * k, rr.size * k)
+		var p := int(a["player"])
+		var col: Color = TeamPalette.color(p, TEXT)
+		if p == me:
+			draw_rect(r, Color(col, 0.14))
+			draw_rect(r, Color(col, 0.9), false, 2.0)
+			if not compact:
+				draw_string(font, r.position + Vector2(6, 15), "Your deployment area", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col.lightened(0.4))
+			continue
+		_hatch(r, Color(col, 0.35), 10.0)
+		draw_rect(r, Color(col, 0.6), false, 1.0)
+		if not compact:
+			var lc := col.lightened(0.4)
+			draw_string(font, r.position + Vector2(6, 15), "Player %d deploys here" % p, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, lc)
+			draw_string(font, r.position + Vector2(6, 29), "hidden until Reveal", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, lc)
+
+
+## Diagonal hatching inside a view rect.
+func _hatch(r: Rect2, col: Color, step: float) -> void:
+	var w := r.size.x
+	var h := r.size.y
+	var t := -h
+	while t < w:
+		var s0 := maxf(0.0, -t)
+		var s1 := minf(h, w - t)
+		if s1 > s0:
+			draw_line(r.position + Vector2(t + s0, s0), r.position + Vector2(t + s1, s1), col, 1.0)
+		t += step
+
+
+## Deployment marks over the squads: a facing handle on each selected own
+## squad, and while dragging, the ghosts where the squads would land (snapped
+## to a cell they can enter; a cross marks a refused drop point) or the
+## facing they would turn to.
+func _draw_deploy(font: Font, area: Rect2, k: float, pos: Dictionary, radii: Dictionary, selected: Array) -> void:
+	_handles = {}
+	var dep: Dictionary = _overlay.get("deploy", {})
+	if dep.is_empty() or compact:
+		return
+	var own: Array = dep.get("own", [])
+	for d: Dictionary in _shown:
+		var id: int = d["id"]
+		if not selected.has(id) or not own.has(id) or not pos.has(id):
+			continue
+		var ang := float(d.get("facing", 0)) / TURN * TAU
+		var dir := Vector2(cos(ang), sin(ang))
+		var knob: Vector2 = pos[id] + dir * (float(radii.get(id, 8.0)) + 14.0)
+		_handles[id] = knob
+		draw_line(pos[id], knob, SELECT, 1.5)
+		draw_circle(knob, 5.0, SELECT)
+		draw_arc(knob, 5.0, 0, TAU, 12, BG, 1.0)
+	if _box.size != Vector2.ZERO or _drag_kind.is_empty() or _drag_at == Vector2.ZERO:
+		return
+	var snap: Callable = dep.get("snap", Callable())
+	var cursor := to_battle(_drag_at)
+	if _drag_kind == "face":
+		for id: int in _drag_ids:
+			if not pos.has(id):
+				continue
+			var a := (cursor - to_battle(pos[id])).angle()
+			var step := TAU / 8.0
+			var snapped := roundf(a / step) * step
+			var tip: Vector2 = pos[id] + Vector2(cos(snapped), sin(snapped)) * (float(radii.get(id, 8.0)) + 22.0)
+			draw_line(pos[id], tip, GHOST, 2.0)
+			draw_circle(tip, 4.0, GHOST)
+		return
+	var delta := cursor - to_battle(_press_at)
+	for d: Dictionary in _shown:
+		var id: int = d["id"]
+		if not _drag_ids.has(id):
+			continue
+		var want: Vector2 = (d["c"] as Vector2) + delta
+		var land: Vector2 = snap.call(id, want) if snap.is_valid() else want
+		var g := area.position + land * k
+		var rad := float(radii.get(id, 8.0))
+		draw_arc(g, rad, 0, TAU, 24, GHOST, 2.0)
+		draw_circle(g, 2.5, GHOST)
+		if land.distance_to(want) > 0.5:
+			var at := area.position + want * k
+			draw_dashed_line(at, g, GHOST, 1.0, 3.0)
+			draw_line(at + Vector2(-5, -5), at + Vector2(5, 5), BATTLE, 2.0)
+			draw_line(at + Vector2(-5, 5), at + Vector2(5, -5), BATTLE, 2.0)
+			if id == _drag_anchor:
+				draw_string(font, at + Vector2(8, -6), "can't deploy here", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, BATTLE)
+
+
 func _draw_zones(font: Font, area: Rect2, k: float) -> void:
 	for z: Dictionary in _obs.get("zones", []):
 		var c := area.position + Vector2(z["x"], z["y"]) / ONE * k
@@ -1152,6 +1269,23 @@ func to_view(m: Vector2) -> Vector2:
 	return area.position + m * area.size.x / float(_obs.get("width", 1))
 
 
+## The squads drawn in the last battle draw (playback: the moment shown), by ID.
+func drawn_ids() -> Array[int]:
+	var out: Array[int] = []
+	for d: Dictionary in _shown:
+		out.append(d["id"])
+	return out
+
+
+## The drawn squads whose centre lies inside a battlefield rect (metres).
+func squads_in(rect: Rect2) -> Array[int]:
+	var out: Array[int] = []
+	for d: Dictionary in _shown:
+		if rect.abs().has_point(d["c"]):
+			out.append(d["id"])
+	return out
+
+
 ## The squad at a battlefield point: the one with a unit (or its centre)
 ## nearest within `radius` metres, or -1.
 func squad_at(m: Vector2, radius: float = 4.0) -> int:
@@ -1187,6 +1321,38 @@ func _clear_hover() -> void:
 	queue_redraw()
 
 
+## A left press while deploying: on a selected squad's facing handle it
+## starts turning the selection; on an own squad, placing it (the whole
+## selection if it is selected). Shift / ctrl presses stay selection clicks
+## and boxes.
+func _begin_deploy_drag(at: Vector2, modified: bool) -> void:
+	_end_deploy_drag()
+	var dep: Dictionary = _overlay.get("deploy", {})
+	if dep.is_empty() or compact or modified or not _play.is_empty():
+		return
+	var selected: Array = _overlay.get("selected", [])
+	for id: int in _handles:
+		if (_handles[id] as Vector2).distance_to(at) <= 8.0:
+			_drag_kind = "face"
+			_drag_ids = selected.duplicate()
+			_drag_anchor = id
+			return
+	var hit := squad_at(to_battle(at))
+	if hit >= 0 and (dep.get("own", []) as Array).has(hit):
+		_drag_kind = "squad"
+		_drag_anchor = hit
+		_drag_ids = selected.duplicate() if selected.has(hit) else [hit]
+
+
+func _end_deploy_drag() -> void:
+	if not _drag_kind.is_empty() and _drag_at != Vector2.ZERO:
+		queue_redraw()
+	_drag_kind = ""
+	_drag_ids = []
+	_drag_anchor = -1
+	_drag_at = Vector2.ZERO
+
+
 func _gui_input(event: InputEvent) -> void:
 	var mm := event as InputEventMouseMotion
 	if mm != null and _dragging_cam:
@@ -1195,7 +1361,10 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if mm != null and _pressing and mode == "battle":
 		if mm.position.distance_to(_press_at) > 6.0:
-			_box = Rect2(_press_at, mm.position - _press_at)
+			if _drag_kind.is_empty():
+				_box = Rect2(_press_at, mm.position - _press_at)
+			else:
+				_drag_at = mm.position
 			queue_redraw()
 		accept_event()
 		return
@@ -1206,7 +1375,9 @@ func _gui_input(event: InputEvent) -> void:
 				_hover_plot = p
 				hex_hovered.emit(p)
 				queue_redraw()
-		elif mode == "battle" and not compact and _play.is_empty():
+		elif mode == "battle" and not compact:
+			# Playback too: the hover card follows the squad under the cursor
+			# (sw-bafi.1); the owner rebuilds it only on a change.
 			var sq := squad_at(to_battle(mm.position))
 			if sq != _hover_squad:
 				_hover_squad = sq
@@ -1229,12 +1400,22 @@ func _gui_input(event: InputEvent) -> void:
 			_pressing = true
 			_press_at = mb.position
 			_box = Rect2()
+			_begin_deploy_drag(mb.position, mb.shift_pressed or mb.ctrl_pressed)
 			if mb.double_click:
 				_pressing = false
+				_end_deploy_drag()
 				battle_pressed.emit(to_battle(mb.position), MOUSE_BUTTON_LEFT, mb.shift_pressed, mb.ctrl_pressed, mb.alt_pressed, true)
 		elif _pressing:
 			_pressing = false
-			if _box.size != Vector2.ZERO:
+			var kind := _drag_kind if _drag_at != Vector2.ZERO else ""
+			var ids := _drag_ids
+			var anchor := _drag_anchor
+			_end_deploy_drag()
+			if kind == "squad":
+				deploy_dragged.emit(ids, anchor, to_battle(mb.position) - to_battle(_press_at))
+			elif kind == "face":
+				deploy_faced.emit(ids, to_battle(mb.position))
+			elif _box.size != Vector2.ZERO:
 				var a := to_battle(_box.position)
 				var b := to_battle(_box.end)
 				_box = Rect2()

@@ -73,6 +73,7 @@ static func open(folder: String) -> MatchReplay:
 	if s == null:
 		last_error = OverworldSession.last_error
 		return null
+	s.keep_playback = true  # the relations at a frame need the turn's record (sw-bafi.5)
 	var r := MatchReplay.new()
 	r.session = s
 	r.dir = folder
@@ -114,12 +115,20 @@ func seek(played: int) -> bool:
 			return false
 		session = s
 		s.locked = true
+		s.keep_playback = true
 		_next = 0
 		diverged_turn = -1
 		replaced = true
 	while session.turns_resolved() < played and step():
 		pass
 	return replaced
+
+
+## SquadRelation.facts(a, b) at playback frame `frame` of battle `eid` in the
+## last turn played, as `player` sees it (0: all-seeing). See
+## OverworldSession.playback_relation; [] when there is nothing to show.
+func playback_relation(player: int, eid: int, frame: int, a: int, b: int) -> Array:
+	return session.playback_relation(player, eid, frame, a, b)
 
 
 ## Plays the next recorded turn: feeds the session its inputs until the

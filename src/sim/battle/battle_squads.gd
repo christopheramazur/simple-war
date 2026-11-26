@@ -49,6 +49,11 @@ var engaged := PackedInt64Array()       ## squad ID it is firing at, -1 none
 var seen_by := PackedInt64Array()       ## bitmask of players that see it (bit = player)
 var fired_tick := PackedInt64Array()
 var moving := PackedByteArray()
+## Firing positions (FiringPositions, sw-txnj.5): fp_stop 1 = the anchor stands
+## because every armed unit has a firing position; fp_lack = tick some unit
+## began lacking one, -1 none (hysteresis).
+var fp_stop := PackedByteArray()
+var fp_lack := PackedInt64Array()
 var reaction := PackedInt64Array()      ## queued reaction (ability index), -1 none
 var reaction_trigger := PackedInt64Array()  ## enemy squad ID that triggers it
 var dmg_dealt := PackedInt64Array()     ## remainder accumulators for "per 10" Legend floats
@@ -69,11 +74,11 @@ func _init() -> void:
 	super(&"squad")
 	for c: StringName in [&"player", &"tmpl", &"order", &"tx", &"ty", &"run", &"facing", &"ax", &"ay",
 			&"cx", &"cy", &"alive", &"form_size", &"hp_max", &"reach", &"hp_lost", &"destroyed", &"withdrawn",
-			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken", &"route", &"wx", &"wy", &"rx", &"ry",
+			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken", &"route", &"wx", &"wy", &"rx", &"ry", &"fp_stop",
 			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
 			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:
 		declare(c, 0)
-	for c: StringName in [&"target", &"engaged", &"fired_tick", &"reaction", &"reaction_trigger"]:
+	for c: StringName in [&"target", &"engaged", &"fired_tick", &"reaction", &"reaction_trigger", &"fp_lack"]:
 		declare(c, -1)
 
 
