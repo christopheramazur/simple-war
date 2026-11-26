@@ -1011,7 +1011,8 @@ func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionar
 ## its output goes: {"plot", "commander"} or {})}], "commanders": [{"id",
 ## "player", "squads" (own: army size, else -1), "engagement"}],
 ## "detachments": [{"id", "player", "convoy", "squads" (own: names)}],
-## "battle" (an engagement there)}. Read-only, any phase.
+## "battle" (an engagement there)}. Read-only, any phase. Each feature is
+## inspect_feature's facts without its plot, visible and turn keys.
 func inspect_plot(player: int, plot: int) -> Dictionary:
 	var out := {"plot": plot, "known": false, "visible": false, "cost": -1, "features": [], "commanders": [], "detachments": [], "battle": false}
 	if plot < 0 or plot >= rules.plot_count() or not _players.has(player):
@@ -1023,42 +1024,10 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 	out["known"] = true
 	out["visible"] = bool(entry.get("visible", false))
 	out["cost"] = OverworldVision.known_costs(state, player)[plot]
-	var production: Dictionary = obs.get("production", {})
-	var lines: Dictionary = obs.get("supply_lines", {})
 	for f: Dictionary in entry.get("features", []):
-		var t := int(f["tmpl"])
-		if t < 0 or t >= rules.hf_names.size():
-			continue
-		var fid := int(f["id"])
-		var guard := PackedStringArray()
-		for g in rules.hf_guard[t]:
-			var gi := rules.squad_index(g)
-			guard.append(rules.sq_names[gi] if gi >= 0 else g)
-		var acts := PackedStringArray()
-		for i in OverworldRules.ACTIVITIES.size():
-			if rules.hf_activities[t] & (1 << i) != 0:
-				acts.append(OverworldRules.ACTIVITIES[i])
-		var recruits := []
-		for i in range(0, rules.hf_recruits[t].size(), 2):
-			recruits.append({"id": rules.squad_ids[rules.hf_recruits[t][i]], "name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
-		var hires := []
-		for i in range(0, rules.hf_hires[t].size(), 2):
-			var cm := rules.hf_hires[t][i]
-			hires.append({"id": rules.commander_ids[cm], "name": rules.cm_names[cm], "cost": rules.hf_hires[t][i + 1]})
-		var produces := []
-		var opts := rules.hf_produces[t]
-		var made: Dictionary = production.get(fid, {})
-		@warning_ignore("integer_division")
-		for i in opts.size() / OverworldRules.PRODUCTION_STRIDE:
-			var o := i * OverworldRules.PRODUCTION_STRIDE
-			var what := rules.sq_names[opts[o]] if opts[o] >= 0 else "%d × %s" % [opts[o + 4], rules.it_names[opts[o + 3]] if opts[o + 3] >= 0 else "item"]
-			var chosen: bool = not made.is_empty() and int(made["output"]) == i
-			produces.append({"name": what, "turns": opts[o + 1], "cost": opts[o + 2], "selected": chosen,
-				"progress": int(made["progress"]) if chosen else -1})
-		out["features"].append({"id": fid, "name": rules.hf_names[t], "owner": int(f.get("owner", 0)),
-			"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
-			"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "hires": hires, "produces": produces,
-			"line": (lines.get(fid, {}) as Dictionary).duplicate()})
+		var fact := _feature_facts(obs, int(f["id"]), int(f["tmpl"]), int(f.get("owner", 0)))
+		if not fact.is_empty():
+			out["features"].append(fact)
 	for c: Dictionary in obs.get("commanders", []):
 		if int(c["plot"]) == plot:
 			out["commanders"].append({"id": c["id"], "player": c["player"], "engagement": c["engagement"],
@@ -1073,6 +1042,73 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 		if int(b["plot"]) == plot:
 			out["battle"] = true
 	return out
+
+
+## One feature as `player` knows it (feature_id, from its observation `obs`):
+## the facts inspect_plot lists, plus "plot", "visible" (in sight now) and
+## "turn" (now if visible, else the turn it was last seen, from memory).
+## Dead features (despawned), unknown IDs and features the player never saw
+## give {}. Enemy features carry no progress, selected output or supply line:
+## those come only from the owner's own production and lines.
+func inspect_feature(player: int, feature_id: int) -> Dictionary:
+	if not _players.has(player):
+		return {}
+	var row := state.features.row_of(feature_id)
+	if row < 0:
+		return {}
+	var plot := state.features.plot[row]
+	var obs := OverworldVision.observe(state, player)
+	var entry: Dictionary = (obs["plots"] as Dictionary).get(plot, {})
+	for f: Dictionary in entry.get("features", []):
+		if int(f["id"]) != feature_id:
+			continue
+		var out := _feature_facts(obs, feature_id, int(f["tmpl"]), int(f.get("owner", 0)))
+		if out.is_empty():
+			return {}
+		out["plot"] = plot
+		out["visible"] = bool(entry.get("visible", false))
+		out["turn"] = int(entry.get("turn", -1))
+		return out
+	return {}
+
+
+## One feature's facts (see inspect_plot), from the observation `obs` of the
+## player: its template `t` and the owner it is known to have. {} if the
+## template is unknown.
+func _feature_facts(obs: Dictionary, fid: int, t: int, owner: int) -> Dictionary:
+	if t < 0 or t >= rules.hf_names.size():
+		return {}
+	var production: Dictionary = obs.get("production", {})
+	var lines: Dictionary = obs.get("supply_lines", {})
+	var guard := PackedStringArray()
+	for g in rules.hf_guard[t]:
+		var gi := rules.squad_index(g)
+		guard.append(rules.sq_names[gi] if gi >= 0 else g)
+	var acts := PackedStringArray()
+	for i in OverworldRules.ACTIVITIES.size():
+		if rules.hf_activities[t] & (1 << i) != 0:
+			acts.append(OverworldRules.ACTIVITIES[i])
+	var recruits := []
+	for i in range(0, rules.hf_recruits[t].size(), 2):
+		recruits.append({"id": rules.squad_ids[rules.hf_recruits[t][i]], "name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
+	var hires := []
+	for i in range(0, rules.hf_hires[t].size(), 2):
+		var cm := rules.hf_hires[t][i]
+		hires.append({"id": rules.commander_ids[cm], "name": rules.cm_names[cm], "cost": rules.hf_hires[t][i + 1]})
+	var produces := []
+	var opts := rules.hf_produces[t]
+	var made: Dictionary = production.get(fid, {})
+	@warning_ignore("integer_division")
+	for i in opts.size() / OverworldRules.PRODUCTION_STRIDE:
+		var o := i * OverworldRules.PRODUCTION_STRIDE
+		var what := rules.sq_names[opts[o]] if opts[o] >= 0 else "%d × %s" % [opts[o + 4], rules.it_names[opts[o + 3]] if opts[o + 3] >= 0 else "item"]
+		var chosen: bool = not made.is_empty() and int(made["output"]) == i
+		produces.append({"name": what, "turns": opts[o + 1], "cost": opts[o + 2], "selected": chosen,
+			"progress": int(made["progress"]) if chosen else -1})
+	return {"id": fid, "name": rules.hf_names[t], "owner": owner,
+		"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
+		"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "hires": hires, "produces": produces,
+		"line": (lines.get(fid, {}) as Dictionary).duplicate()}
 
 
 ## A commander's movement this turn, as the player knows the map:
