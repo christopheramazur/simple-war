@@ -5,7 +5,8 @@ extends RefCounted
 ##     for its owner: the selected option (the first by default) advances
 ##     one turn per overworld turn, and on reaching its `turns` the squad or
 ##     items are made for its `cost` in Value (waiting while the owner can't
-##     pay). Items go into the receiving detachment's War Chest (WarChest). Capturing the
+##     pay). While its hex is engaged, production holds its progress and
+##     makes nothing. Items go into the receiving detachment's War Chest (WarChest). Capturing the
 ##     feature resets its progress and output, and its supply line lapses.
 ##   - Without a supply line, produced squads join the owner's detachment
 ##     holding the feature's hex: a garrison commanders pick up from.
@@ -221,6 +222,9 @@ static func produce(s: OverworldState) -> void:
 		var t := f.tmpl[row]
 		var n := s.rules.production_count(t)
 		if owner <= 0 or n == 0:
+			continue
+		# An engaged hex pauses production: progress is held, nothing is made (GDD 02 §2.9, sw-63wt.12).
+		if s.engagement_at(f.plot[row]) >= 0:
 			continue
 		var o := clampi(f.output[row], 0, n - 1) * OverworldRules.PRODUCTION_STRIDE
 		var opts := s.rules.hf_produces[t]

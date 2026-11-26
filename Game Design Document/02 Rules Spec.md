@@ -384,7 +384,7 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
 - **Intent:** this design encourages multiple commanders, consolidating battleforces and protecting supply lines.
 - **For now:** simple squad, item and resource tiles. Faction or allegiance variants come later.
 - **Production and convoys:**
-  - **Production:** a feature's `produces` lists squads it can make. Its owner selects one (the first by default). Each turn it advances one step; on reaching the option's `turns`, the squad is made for the option's `cost` in Value. While the owner can't pay, it waits, ready to go.
+  - **Production:** a feature's `produces` lists squads it can make. Its owner selects one (the first by default). Each turn it advances one step; on reaching the option's `turns`, the squad is made for the option's `cost` in Value. While the owner can't pay, it waits, ready to go. While its hex is engaged, production holds its progress and makes nothing.
   - **No supply line:** produced squads join the owner's detachment holding the feature's hex, which garrisons it until a commander picks them up.
   - **Supply lines:** the owner sends a feature's output to a plot or to one of its commanders. Each squad leaves as a convoy on that line, and changing the line redirects convoys already on it. Capturing the feature resets its output and progress, and its line lapses.
   - **Rallies:** a player sends any of its detachments to a plot or a commander, which makes it a convoy; rallying it nowhere halts it. Survivors of a commander that left its battle rally to it (R8Q3).
