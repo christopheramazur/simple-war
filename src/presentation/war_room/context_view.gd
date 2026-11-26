@@ -1052,8 +1052,9 @@ func _draw_deploy_areas(font: Font, area: Rect2, k: float) -> void:
 		_hatch(r, Color(col, 0.35), 10.0)
 		draw_rect(r, Color(col, 0.6), false, 1.0)
 		if not compact:
-			draw_string(font, r.position + Vector2(6, 15), "Player %d deploys here (hidden until Reveal)" % p,
-				HORIZONTAL_ALIGNMENT_LEFT, maxf(r.size.x - 12.0, 60.0), 12, col.lightened(0.4))
+			var lc := col.lightened(0.4)
+			draw_string(font, r.position + Vector2(6, 15), "Player %d deploys here" % p, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, lc)
+			draw_string(font, r.position + Vector2(6, 29), "hidden until Reveal", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, lc)
 
 
 ## Diagonal hatching inside a view rect.
