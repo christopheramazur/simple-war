@@ -624,16 +624,18 @@ An order runs a **behaviour**: an ordered list of **components** from a closed, 
 - **Read by movement and fire** (sw-txnj.10; the defaults change no outcome, harness hashes equal): a squad uses the behaviour of its *current* order. `firing_position` sets the coherency radius the squad keeps under that order (anchor wait, unit return, the engagement broadphase too), the stand-off, the re-evaluation cadence and the hysteresis. `leash` applies to Attack-move, the only order with a point to leash to. `keep_distance` measures anchor to engaged squad centroid: closer than `min_m`, the anchor backs straight away to `min_m`; farther than `max_m`, it closes and does not stand for firing positions; outside the band the squad takes no firing positions (it walks in formation, firing on the move) and takes them again inside it. `fire_on_move(false)` gives a unit no fire mode while it moves (the hold reason is "moving to fire"). `stand_while(firing = false)` takes no firing positions at all: the squad keeps walking and fires on the move; `stand_while(reloading)` holds the anchor while any armed unit reloads (not while backing off). `separate` is compiled but not read: separation (§2.14) is not built.
 - **Superseded** (U1Q29): `advance(quorum_pct)` and `step_out` are gone; the anchor's hysteresis is a `firing_position` parameter.
 
-Archetype defaults (proposed; data-only follow-up, U1 B9):
+Archetype defaults (built, sw-txnj.11):
 
-| Archetype | Attack-move / Attack |
+Archetype behaviours, as built in `humanity.json` (sw-txnj.11; the line keeps `line_attack_move` / `line_attack`):
+
+| Archetype | Attack-move / Attack (built) |
 |---|---|
-| Infantry (line) | `firing_position(stand_off_m 2)`, `leash(15)`, `stand_while(firing)` |
-| Indirect (mortar) | `firing_position(stand_off_m 5)`, `fire_on_move(false)`, `stand_while(firing, reloading)` |
-| Short-range / melee (assault) | `firing_position(extra_m 3, stand_off_m 0)`, `leash(25)` |
-| Marksman | `firing_position(stand_off_m 2)`, `keep_distance(max_m = its weapon's range − 5)` |
+| Infantry (line) | the defaults: `firing_position(stand_off_m 5)`, `fire_on_move(true)`, `stand_while(firing)`; attack-move leash is the ruleset's 15 m |
+| Indirect (mortar) | `firing_position(stand_off_m 5)`, `keep_distance(min_m 25)` (min range 20 m + 5), `fire_on_move(false)`, `stand_while(firing, reloading)` |
+| Short-range / melee (assault) | the line's components with `firing_position(extra_m 3)`: a 3 m wider coherency radius; leash and stand-off unchanged |
+| Marksman | the line's components with `keep_distance(max_m 65)` (range 70 m − 5) |
 
-- **Roles** (U1Q29): the archetypes keep their roles. Mortars keep their distance and stand while reloading, marksmen prefer their maximum range, and assault squads have a larger coherency radius. The numbers are proposed.
+- **Roles** (U1Q29): the archetypes keep their roles. Mortars keep their distance and stand while reloading, marksmen prefer their maximum range, and assault squads have a larger coherency radius. Workshop gates pin each archetype's DPS (`archetype_mortar`, `archetype_marksman`, `archetype_rifle_line`, `table_b_assault`). The numbers are not yet playtested.
 
 - **Order of evaluation:** components run in vocabulary order in their phase, squads in row order, units in row order. Arithmetic is integer and fixed-point.
 - **Forecasts:** they run the same behaviours, so the ghosts show them.
