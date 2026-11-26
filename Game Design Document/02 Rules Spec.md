@@ -546,27 +546,33 @@ Fields: starting value, value, step size, counted event (second, attack, hit, he
   - **Measured** (200 × 100 map, one plan): about 17 ms across open ground with forests, about 48 ms through a comb of walls, 2 µs when cached. A plan happens once per leg, not per tick.
 
 ### What v1 leaves out
-- **Collision between units and squads:** units and squads don't block each other. Two squads may stand in the same place. This is revisited only if playtests show it reads badly.
+- **Body blocking:** units and squads don't block each other's movement or routes. Units of different squads are kept apart by separation (Separation and coherency, below), so two squads sent to one place interleave instead of stacking; nothing stops a squad walking through another.
 - **Elevation:** there is no height. The map format reserves an elevation layer (Data Model §3.5) so it can be added without a format change. Adding it is a rules decision, not a presentation one.
 - **Formation width:** a route is planned for the anchor point, so a wide formation may reach past impassable cells at its edges. Units handle that themselves (next section).
 
 ### Unit movement (sw-ll4.16)
 - **Terrain collision:** a unit can't enter a cell its own movement type can't (cost 0). If its step would, it slides along the wall on one axis (x first) when that is open, else it stands still for the tick. A unit already on an impassable cell (deployed or displaced there) may leave it.
 - **Coherency:** a unit whose formation slot lies on a cell it can't enter heads for the squad's anchor instead, which routes keep on passable ground. There is no separate leash distance: slots are at most a formation's width from the anchor.
-- **Not built:** unit-vs-unit collision, and unit pathfinding. A unit stuck in a concave wall pocket waits until the anchor moves on. Revisit if playtests show it reads badly.
+- **Not built:** body blocking (separation only pushes units apart, sw-txnj.12), and unit pathfinding. A unit stuck in a concave wall pocket waits until the anchor moves on. Revisit if playtests show it reads badly.
 
 ### Separation and coherency (U1Q10)
-**Proposed (Round U1, awaiting review).** "What v1 leaves out → Collision" (O1Q8) and "Unit movement → Coherency" above stay in play until this lands. The coherency radius is a prerequisite of closing to fire (U1Q29, §2.15) and lands before it; separation, footprints and clusters are later refinements.
+**Status:** the coherency radius (sw-txnj.4) and separation (sw-txnj.12) are built; squad footprints and clusters are proposed (Round U1, awaiting review). "What v1 leaves out → Body blocking" (O1Q8) and "Unit movement → Coherency" above still hold.
 - **No body blocking.** Units and squads never block movement or routes. Routes stay static and cached (§2.14 Routing).
-- **Separation:** after units steer to their slots, a unit closer than its separation radius (by size class: small 0.4 m, medium 0.6 m, large 1.2 m) to a unit of *another* squad is pushed apart along the line between them.
-  - **Pushes:** computed from start-of-tick positions, summed per unit, capped at the unit's speed, and applied together, so row order doesn't matter. Integer math.
-  - **Walls:** a push never enters a cell the unit can't (the terrain-collision slide rule applies).
-  - **Tie-breaks:** units on the same point push along the lower unit ID's facing.
+- **Separation** (built, sw-txnj.12): after units steer to their slots, a unit closer than its separation radius to a unit of *another* squad is pushed apart along the line between them, half the overlap each. Units of one squad are never pushed.
+  - **Radius by size class** (ruleset `separation_m`, a unit's `size_class`, default medium): small 0.4 m, medium 0.6 m, large 1.2 m, huge 2.4 m. A pair keeps the larger of its two radii apart.
+  - **Pushes:** computed from the positions after units step, summed per unit, capped at the unit's speed (at least its walk speed per tick, so a standing unit can be nudged), and applied together, so row order doesn't matter. Integer math.
+  - **Walls:** a push never enters a cell the unit can't (the terrain-collision slide rule applies: x first, then y, else the push is dropped).
+  - **Tie-breaks:** units on the same point push along the lower unit ID's facing: that unit steps forward, the other back.
+  - **Walking past:** a push on a unit that moved this tick that runs against its heading turns sideways (the side it already leans to, its right if straight back), keeping its length, so two units walking head-on step around each other instead of locking.
+  - **Standing beside:** a unit is **crowded** while a unit of another squad stands within 1.5 × their separation distance. A crowded unit of a squad whose anchor stands counts as arrived within its separation radius of its slot or firing position, so it stays beside the other squad's unit instead of stepping back into it (and firing on the move) every other tick. The flag is state (`crowded`, set by each tick's pass).
+  - **While arriving** two units stepping onto one point can overlap for a tick, since a push is capped at the unit's speed: 0.32 m at worst in `separation_clump`; settled, no pair is under the distance.
 - **Squad footprints:** two friendly squads ordered to the same point are given points one footprint apart: the nearest free ring position, then the lowest cell index. A footprint is the formation's width.
 - **Coherency radius** (U1Q10, U1Q29; data per formation; default proposed: the formation's half-width + 4 m): how far a unit may be from its squad's anchor. Under attack orders, units seek their firing positions inside it (§2.15 Closing to fire).
 - **Coherency:** a unit more than its squad's coherency radius from the anchor heads straight for the anchor (this exists, §2.14 Unit movement). The anchor also slows to half speed while any unit is out of coherency, so squads don't string out around corners.
 - **Clusters:** squads given one shared order (a multi-select move) share one route plan and keep their offsets from the cluster's lead squad, which is the lowest row. A cluster's leg is the lead squad's leg.
-- **Budget:** separation uses a uniform 2 m spatial hash rebuilt each tick, at about one bucket pass per unit. The target is ≤ 0.2 ms per tick at 200 units on desktop, measured before the rule ships, so a 100-tick forecast stays ≤ 20 ms on top of today's.
+- **Budget:** separation uses a uniform 2 m spatial hash rebuilt each tick (wider if a size class needs it), at about one bucket pass per unit. The target is ≤ 0.2 ms per tick at 200 units on desktop, so a 100-tick forecast stays ≤ 20 ms on top of today's.
+  - **Measured** (sw-txnj.12, `docs/design/u1/scripts/separation_cost/`; Crossroads, two blocks closing on attack-move, 300 ticks, desktop): 0.16 ms per tick at 208 units (worst tick 0.5 ms), 0.09 ms at 104, 0.03 ms at 32.
+  - **Workshop:** `separation_clump` (gate): two rifle squads sent to one point end no closer than 0.6 m.
 
 ### Charges
 A **charge** is an Attack order while the squad is still closing on its target. This is the meaning Intercept (§2.7) already uses. Melee has no rules of its own in v1: a short-range weapon is a weapon with a short range.

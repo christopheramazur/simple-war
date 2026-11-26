@@ -13,7 +13,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 |---|---|
 | Hit Points | Base HP; temporary HP is a separate layer |
 | Defensive Profile | Evasion, Block (chance + amount), Resistances, Flat DR, % DR, Floor per damage type, healing and Absorption, other typical stats (R5Q7, R7Q1) |
-| Size Class | |
+| Size Class | `small`, `medium` (default), `large`, `huge`. Sets the unit's separation radius (ruleset `separation_m`; 0.4, 0.6, 1.2, 2.4 m; Rules Spec §2.14 Separation and coherency) |
 | Movement Profile | Movement types and speeds, acceleration, deceleration, turning rate; feature cost tables (R6Q8) |
 | Offensive Profile | Base proficiencies plus equipped weapon stats; fire modes, reload cycles (R6Q8) |
 | Traits | |
