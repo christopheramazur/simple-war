@@ -44,23 +44,25 @@ func run(ctx: SimContext) -> void:
 		_fire_squad(state, row, trow)
 
 
-func _engage(state: BattleState, row: int) -> void:
-	var r := state.rules
+## The squad row's engaged target this tick (a squad id), or -1. Ordered
+## attack target when visible and in reach; else the sticky previous target
+## while it stays valid; else the nearest visible enemy in reach. Pure: reads
+## state only, so the read model can ask without running a tick.
+static func pick_target(state: BattleState, row: int) -> int:
 	var sq := state.squads
 	var prev := sq.engaged[row]
 	var chosen := -1
 	if sq.is_active(row) and sq.alive[row] > 0 and not (sq.order[row] in [BattleSquads.Order.FALL_BACK, BattleSquads.Order.WITHDRAW]):
 		var me := sq.player[row]
-		var reach := sq.reach[row]
 		if sq.order[row] == BattleSquads.Order.ATTACK:
 			var trow := sq.row_of(sq.target[row])
 			if trow >= 0 and sq.is_active(trow) and sq.seen_by[trow] & BattleSquads.bit(me) != 0 \
-					and Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[trow], sq.cy[trow]) <= reach:
+					and in_reach(state, row, trow):
 				chosen = sq.target[row]
 		# Sticky targeting: keep the current target while it stays valid.
 		if chosen < 0 and prev >= 0:
 			var prow := sq.row_of(prev)
-			if prow >= 0 and sq.is_active(prow) and sq.alive[prow] > 0 and sq.seen_by[prow] & BattleSquads.bit(me) != 0 					and Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[prow], sq.cy[prow]) <= reach:
+			if prow >= 0 and sq.is_active(prow) and sq.alive[prow] > 0 and sq.seen_by[prow] & BattleSquads.bit(me) != 0 					and in_reach(state, row, prow):
 				chosen = prev
 		if chosen < 0:
 			var best_d := 1 << 62
@@ -68,9 +70,83 @@ func _engage(state: BattleState, row: int) -> void:
 				if sq.player[t] == me or not sq.is_active(t) or sq.alive[t] == 0 or sq.seen_by[t] & BattleSquads.bit(me) == 0:
 					continue
 				var d := Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[t], sq.cy[t])
-				if d <= reach and d < best_d:
+				if d < best_d and in_reach(state, row, t):
 					best_d = d
 					chosen = sq.id_at(t)
+	return chosen
+
+
+## Whether squad `row` can reach squad `t` (sw-txnj.5, U1Q28): some living
+## armed unit of `row` has some living unit of `t` within its weapon range,
+## unit to unit, so a squad engages as its first unit comes into range and
+## its units open fire one by one, not when the centroids meet the longest
+## range. Broadphase: centroids within reach plus both coherency radii.
+static func in_reach(state: BattleState, row: int, t: int) -> bool:
+	var sq := state.squads
+	var r := state.rules
+	var broad := sq.reach[row] + MovementSystem.coherency_m(state, row) + MovementSystem.coherency_m(state, t)
+	if Fixed.distance(sq.cx[row], sq.cy[row], sq.cx[t], sq.cy[t]) > broad:
+		return false
+	var u := state.units
+	var theirs := Centroids.units_of(state, t)
+	for a in Centroids.units_of(state, row):
+		var w := u.weapon[a]
+		if u.hp[a] <= 0 or w < 0:
+			continue
+		var rng := r.wp_range[w]
+		var rng2 := rng * rng
+		for b in theirs:
+			if u.hp[b] <= 0:
+				continue
+			var dx := u.x[b] - u.x[a]
+			var dy := u.y[b] - u.y[a]
+			if dx * dx + dy * dy <= rng2:
+				return true
+	return false
+
+
+## Whether unit `urow` fires in moving mode this tick (sw-txnj.6, U1Q28). A
+## unit that moved this tick and reaches its firing position on it stands:
+## under an attack order, with no firing position held before this tick, and
+## a standing shot from where it now stands. Walking units without a position
+## keep their moving mode. Shared by the fire pass and BattleActivity, so the
+## hold reasons and the volley agree.
+static func fires_moving(state: BattleState, urow: int) -> bool:
+	var u := state.units
+	var sq := state.squads
+	if u.moving[urow] != 1:
+		return false
+	var row := sq.row_of(u.squad[urow])
+	if row < 0 or u.fpos[urow] == FiringPositions.HAS:
+		return true
+	if not (sq.order[row] in [BattleSquads.Order.ATTACK_MOVE, BattleSquads.Order.ATTACK]):
+		return true
+	var trow := sq.row_of(sq.engaged[row])
+	if trow < 0:
+		return true
+	return not FiringPositions.point_shot(state, urow, trow, u.x[urow], u.y[urow])
+
+
+## The fire mode unit `urow` uses this tick (moving or standing, per
+## fires_moving), or -1: none for that motion, or a moving mode under an
+## order whose behaviour forbids fire on the move (bh_fire_on_move,
+## sw-txnj.10). Shared by the fire pass and BattleActivity.
+static func fire_mode(state: BattleState, urow: int, is_moving: bool) -> int:
+	var r := state.rules
+	var m := r.pick_mode(state.units.weapon[urow], is_moving)
+	if m < 0 or r.md_moving[m] == 0:
+		return m
+	var row := state.squads.row_of(state.units.squad[urow])
+	if row >= 0 and r.bh_fire_on_move[FiringPositions.bh(state, row)] == 0:
+		return -1
+	return m
+
+
+func _engage(state: BattleState, row: int) -> void:
+	var r := state.rules
+	var sq := state.squads
+	var prev := sq.engaged[row]
+	var chosen := pick_target(state, row)
 	if chosen == prev:
 		return
 	var col: PackedInt64Array = sq.take_column(&"engaged")
@@ -112,11 +188,11 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		# that reached 0 means the unit may fire now. Never tick here too.
 		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
-		var is_moving := u.moving[urow] == 1
-		var m := r.pick_mode(w, is_moving)
+		var is_moving := fires_moving(state, urow)
+		var m := fire_mode(state, urow, is_moving)
 		if m < 0:
 			continue
-		var victim := _nearest_target(state, urow, targets, w, m, pending)
+		var victim := TargetPolicy.pick(state, urow, targets, w, m, pending)
 		if victim < 0:
 			continue
 		var accuracy := Stats.unit(state, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m])
@@ -127,8 +203,8 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
 			Pools.flow(state, row, BattleSquads.INSTINCT, -Fixed.from_int(r.sink("instinct_fire_moving")), &"fire_moving")
 		for _s in r.md_shots[m]:
-			if _covered(u, victim, pending):
-				var next := _nearest_target(state, urow, targets, w, m, pending)
+			if TargetPolicy.covered(u, victim, pending):
+				var next := TargetPolicy.pick(state, urow, targets, w, m, pending)
 				if next >= 0:
 					victim = next
 			shots_total += 1
@@ -165,12 +241,6 @@ func _queue(state: BattleState, urow: int, row: int, trow: int, victim: int, dmg
 	var sq := state.squads
 	Health.queue(state, u.id_at(urow), sq.id_at(row), u.id_at(victim), sq.id_at(trow), dmg, dtype)
 	pending[victim] = int(pending.get(victim, 0)) + dmg
-
-
-## True when damage already queued on the unit covers its HP (ignoring
-## defences, which only lower it).
-static func _covered(u: BattleUnits, t: int, pending: Dictionary) -> bool:
-	return int(pending.get(t, 0)) >= u.hp[t]
 
 
 ## Real-time weapon timers (GDD 02 §2.6): every living armed unit's reload
@@ -213,32 +283,6 @@ static func shot_gate(state: BattleState, urow: int, t: int, w: int, m: int, d: 
 	if r.md_indirect[m] == 0 and not r.los(u.x[urow], u.y[urow], u.x[t], u.y[t]):
 		return GATE_NO_LOS
 	return GATE_OK
-
-
-## Nearest living target in range and sight, preferring ones whose queued
-## damage doesn't already cover their HP. -1 if none in reach.
-func _nearest_target(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary) -> int:
-	var u := state.units
-	var best := -1
-	var best_d := 1 << 62
-	var fallback := -1
-	var fallback_d := 1 << 62
-	for t in targets:
-		if u.hp[t] <= 0:
-			continue
-		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
-		if shot_gate(state, urow, t, w, m, d) != GATE_OK:
-			continue
-		var covered := _covered(u, t, pending)
-		if (covered and d >= fallback_d) or (not covered and d >= best_d):
-			continue
-		if covered:
-			fallback_d = d
-			fallback = t
-		else:
-			best_d = d
-			best = t
-	return best if best >= 0 else fallback
 
 
 func _roll_hit(u: BattleUnits, urow: int, acc: int) -> bool:

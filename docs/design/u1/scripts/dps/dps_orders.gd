@@ -18,7 +18,7 @@ const HOLD_LETTERS := {
 	BattleActivity.Hold.NONE: ".", BattleActivity.Hold.UNARMED: "u", BattleActivity.Hold.FALLING_BACK: "f",
 	BattleActivity.Hold.RELOADING: "R", BattleActivity.Hold.COOLDOWN: "c", BattleActivity.Hold.NO_MOVING_FIRE: "m",
 	BattleActivity.Hold.MIN_RANGE: "n", BattleActivity.Hold.OUT_OF_RANGE: "o", BattleActivity.Hold.NO_LOS: "l",
-	BattleActivity.Hold.NOT_SPOTTED: "s", BattleActivity.Hold.NO_TARGET: "t",
+	BattleActivity.Hold.NOT_SPOTTED: "s", BattleActivity.Hold.NO_TARGET: "t", BattleActivity.Hold.MOVING_TO_FIRE: "w",
 }
 
 

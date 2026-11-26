@@ -64,11 +64,13 @@ var save_bytes: PackedByteArray = PackedByteArray()
 func _attach(session: BattleSession) -> void:
 	rules = session.rules
 	players = session.players()
-	_capture(session.state)
-	session.sim.tick_hook = _capture
+	capture(session.state)
+	session.sim.tick_hook = capture
 
 
-func _capture(state: BattleState) -> void:
+## Records one frame of `state` (a read-only tick hook). Also used by
+## WorkshopRun, which drives the sim without a session.
+func capture(state: BattleState) -> void:
 	var u := state.units
 	var sq := state.squads
 	var f := PackedInt64Array()

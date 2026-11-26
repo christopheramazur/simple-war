@@ -14,3 +14,12 @@ var state: BattleState
 var links: Dictionary = {}
 ## Pending battle orders this turn: player -> Array.
 var orders: Dictionary = {}
+## Pending deployment placements while the battle is deploying: player ->
+## Array (BattleDeploy), applied at Reveal.
+var deploys: Dictionary = {}
+## Arrival areas of players joining at the next Reveal, fixed at Planning
+## start (OverworldBattles.plan_arrivals): player -> {facing, deploy}.
+var arrivals: Dictionary = {}
+## Placements of arriving squads for the next Reveal: overworld squad ID ->
+## {x, y, facing}.
+var places: Dictionary = {}
