@@ -450,8 +450,21 @@ func submit_battle_deployment(player: int, engagement_id: int, placements: Array
 	var c := BattleDeploy.check(b.state, player, placements)
 	b.deploys[player] = c["kept"]
 	_deploy_draft_changed(engagement_id)
+	_sync_deploying()
 	_log(player, "battle_deploy", {"engagement": engagement_id, "placements": c["kept"]})
 	return c["errors"]
+
+
+## Tells the clock how many battles each player deploys in this Planning
+## (a non-empty draft), for the deployment bonus (GDD 02 §2.2 Time).
+func _sync_deploying() -> void:
+	for p in _players:
+		var n := 0
+		for eid: int in battles:
+			var b: OverworldBattle = battles[eid]
+			if b.state.players.has(p) and not (b.deploys.get(p, []) as Array).is_empty():
+				n += 1
+		clock.set_deploying(p, n)
 
 
 ## A deployment draft changed: the battle's cached reaction-window forecasts

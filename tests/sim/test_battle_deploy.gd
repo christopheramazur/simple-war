@@ -235,3 +235,15 @@ func test_save_rebuild_with_placements() -> void:
 	_finish_turn(s)
 	var r := BattleSession.rebuild(s.save(), _l().templates, _l().data_hash)
 	assert_not_null(r, BattleSession.last_error)
+
+
+## sw-bafi.14: a standalone battle's deployment adds the deployment bonus to
+## the player's Planning time while the placements are kept.
+func test_standalone_deployment_adds_planning_time() -> void:
+	var s := _make()
+	var base := s.clock.remaining_ms(1)
+	var sid: int = _ids(s, 1)[1]
+	s.submit_deployment(1, [{"squad": sid, "x": _f(12.5), "y": _f(70.5), "facing": 0}])
+	assert_eq(s.clock.remaining_ms(1), base + 15000, "one battle deployed in")
+	s.submit_deployment(1, [{"squad": sid, "x": 0, "y": 0, "facing": 0}])
+	assert_eq(s.clock.remaining_ms(1), base, "a draft with nothing kept is no deployment")

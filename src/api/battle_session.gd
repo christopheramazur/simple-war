@@ -127,6 +127,7 @@ func submit_deployment(player: int, placements: Array) -> PackedStringArray:
 		return errors
 	var c := BattleDeploy.check(state, player, placements)
 	_deploys[player] = c["kept"]
+	clock.set_deploying(player, 1 if not (c["kept"] as Array).is_empty() else 0)
 	_log(player, "battle_deploy", c["kept"])
 	return c["errors"]
 
