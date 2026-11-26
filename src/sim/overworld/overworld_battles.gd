@@ -11,11 +11,16 @@ extends RefCounted
 ## battle (a reinforcement planned this turn) is spawned at its side's
 ## deployment area before the next battle turn.
 ## Joining: a player who enters a battle tile after the battle began (§2.10
-## Stopping) becomes a new side. It arrives at whichever of these is farthest
-## from every squad already fighting (first on a tie): the scenario's
-## deployment areas, then a strip of the same size along the middle of the
-## top edge, then the bottom edge. Its squads spread along the area, facing
-## the middle of the field.
+## Stopping) becomes a new side at the next Reveal. Its arrival area is
+## fixed at the start of Planning (plan_arrivals, arrival_area) and shown to
+## that player only: whichever of these is farthest from every squad
+## already fighting (first on a tie): the scenario's deployment areas, then
+## a strip of the same size along the middle of the top edge, then the
+## bottom edge. Two sides joining in one Reveal resolve ascending by player
+## ID, each counting the areas of those before it as taken. Its squads
+## spread along the area, facing the middle of the field, unless placed.
+## Placing: an arriving squad (joiner or reinforcement) may be placed at
+## {x, y, facing} inside its area (place_error); it spawns there.
 ## Finishing: survivors carry their units alive back to their armies (those
 ## of a commander that left form a convoy rallied to it, R8Q3); the
 ## destroyed and the scattered are gone. A commander whose own squad is gone
@@ -115,16 +120,12 @@ static func _groups(s: OverworldState, eid: int) -> Dictionary:
 
 
 ## Spawns reinforcements: squads deployed in the engagement but not yet in
-## the battle, at their side's deployment area.
+## the battle, at their side's deployment area (or where placed, `b.places`).
+## Players not yet a side join first (ascending), each at its arrival area:
+## the one fixed at Planning start (`b.arrivals`, plan_arrivals) if there is
+## one, else computed now the same way.
 static func reinforce(s: OverworldState, b: OverworldBattle) -> void:
-	var linked := {}
-	for bid: int in b.links:
-		linked[b.links[bid]] = true
-	var fresh: Array = []
-	for id in OverworldBattleforce.deployed_in(s, b.engagement):
-		if not linked.has(id):
-			fresh.append(id)
-	# Players not yet a side join as one; their squads line up down its area.
+	var fresh := arriving(s, b)
 	var joining := {}  # player -> how many of its squads arrive
 	for id: int in fresh:
 		var pl := OverworldArmies.player_of(s, id)
@@ -132,8 +133,13 @@ static func reinforce(s: OverworldState, b: OverworldBattle) -> void:
 			joining[pl] = int(joining.get(pl, 0)) + 1
 	var joiners: Array = joining.keys()
 	joiners.sort()
+	var taken := []
 	for pl: int in joiners:
-		_join(s, b, pl)
+		var a: Dictionary = b.arrivals.get(pl, {})
+		if a.is_empty():
+			a = arrival_area(b, taken)
+		taken.append(a)
+		_join(s, b, pl, a)
 	var placed := {}  # player -> squads of a joining side placed so far
 	for id: int in fresh:
 		var pl := OverworldArmies.player_of(s, id)
@@ -146,25 +152,136 @@ static func reinforce(s: OverworldState, b: OverworldBattle) -> void:
 		var d: PackedInt64Array = side["deploy"]
 		var st := b.rules.squad_index(s.rules.squad_ids[s.squads.get_value(id, &"tmpl")])
 		var alive := s.squads.get_value(id, &"alive")
-		var x := d[0] + d[2] / 2
-		var y := d[1] + d[3] / 2
-		if joining.has(pl):
-			var i := int(placed.get(pl, 0))
-			placed[pl] = i + 1
-			if d[2] > d[3]:
-				x = d[0] + Fixed.round_div(d[2] * (2 * i + 1), 2 * int(joining[pl]))
-			else:
-				y = d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * int(joining[pl]))
-		var bid := BattleSetup.spawn_squad(b.state, pl, st, x, y, side["facing"], alive,
+		var i := int(placed.get(pl, 0))
+		placed[pl] = i + 1
+		var spot := default_spot(d, i, int(joining.get(pl, 0)))
+		var facing: int = side["facing"]
+		var pc: Dictionary = b.places.get(id, {})
+		if not pc.is_empty():
+			var at := BattleDeploy.open_point_in(b.rules, st, int(pc["x"]), int(pc["y"]), d)
+			if not at.is_empty():
+				spot = at
+				facing = int(pc["facing"]) & Fixed.ANGLE_MASK
+		var bid := BattleSetup.spawn_squad(b.state, pl, st, spot[0], spot[1], facing, alive,
 			WarChest.gear(s, id, alive))
 		b.links[bid] = id
 		s.events.push(&"squad_reinforced", {"engagement": b.engagement, "squad": id, "player": pl}, s.tick)
+	b.arrivals = {}
+	b.places = {}
 	Centroids.update(b.state)
 
 
-## Makes `pl` a side of a battle already running.
-static func _join(s: OverworldState, b: OverworldBattle, pl: int) -> void:
+## Overworld squads deployed in b's engagement but not yet in the battle
+## (they arrive at the next Reveal), in deployment order.
+static func arriving(s: OverworldState, b: OverworldBattle) -> Array:
+	var linked := {}
+	for bid: int in b.links:
+		linked[b.links[bid]] = true
+	var out := []
+	for id in OverworldBattleforce.deployed_in(s, b.engagement):
+		if not linked.has(id):
+			out.append(id)
+	return out
+
+
+## The automatic place [x, y] of the i-th arriving squad in area d: the
+## centre, or for a joining side (`joining` = how many of its squads
+## arrive, 0 for an existing side) spread evenly along the area's long axis.
+static func default_spot(d: PackedInt64Array, i: int, joining: int) -> PackedInt64Array:
+	var x := d[0] + d[2] / 2
+	var y := d[1] + d[3] / 2
+	if joining > 0:
+		if d[2] > d[3]:
+			x = d[0] + Fixed.round_div(d[2] * (2 * i + 1), 2 * joining)
+		else:
+			y = d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * joining)
+	return PackedInt64Array([x, y])
+
+
+## Players with squads arriving in b who are not yet a side, ascending.
+static func joiners(s: OverworldState, b: OverworldBattle) -> Array:
+	var seen := {}
+	for id: int in arriving(s, b):
+		var pl := OverworldArmies.player_of(s, id)
+		if not b.state.players.has(pl):
+			seen[pl] = true
+	var out: Array = seen.keys()
+	out.sort()
+	return out
+
+
+## Fixes the arrival area of every player about to join b (called at the
+## start of Planning, so the area shown in Planning is the one used at
+## Reveal). Resolution order: joiners ascending by player ID; each takes
+## arrival_area with the areas of the joiners before it counted as taken.
+## Clears placements left from an earlier Planning.
+static func plan_arrivals(s: OverworldState, b: OverworldBattle) -> void:
+	b.arrivals = {}
+	var taken := []
+	for pl: int in joiners(s, b):
+		var a := arrival_area(b, taken)
+		taken.append(a)
+		b.arrivals[pl] = a
+	b.places = {}
+
+
+## The area `player`'s arriving squads land in ({facing, deploy}): its
+## side's deployment area, else its planned arrival area (computed now if
+## none was planned), else {} when it has nothing arriving.
+static func arrival_area_of(s: OverworldState, b: OverworldBattle, player: int) -> Dictionary:
+	for sd in b.rules.sides:
+		if sd["player"] == player:
+			return {"facing": sd["facing"], "deploy": (sd["deploy"] as PackedInt64Array).duplicate()}
+	if b.arrivals.has(player):
+		return b.arrivals[player]
+	var taken := []
+	for pl: int in joiners(s, b):
+		var a := arrival_area(b, taken)
+		if pl == player:
+			return a
+		taken.append(a)
+	return {}
+
+
+## Why `place` ({x, y, facing}: ints, fixed and binary angle) can't be where
+## squad `id` of `player` arrives in b, or "" if it can: inside the area and
+## on or near a cell the squad can enter there.
+static func place_error(s: OverworldState, b: OverworldBattle, player: int, id: int, place: Variant) -> String:
+	if typeof(place) != TYPE_DICTIONARY:
+		return "placement must be a dictionary"
+	for k in ["x", "y", "facing"]:
+		if typeof((place as Dictionary).get(k)) != TYPE_INT:
+			return "%s must be an int" % k
+	if not s.squads.is_alive(id):
+		return "unknown squad"
+	var a := arrival_area_of(s, b, player)
+	if a.is_empty():
+		return "no arrival area"
+	var r: PackedInt64Array = a["deploy"]
+	var x: int = place["x"]
+	var y: int = place["y"]
+	if x < r[0] or y < r[1] or x > r[0] + r[2] or y > r[1] + r[3]:
+		return "outside the arrival area"
+	var st := b.rules.squad_index(s.rules.squad_ids[s.squads.get_value(id, &"tmpl")])
+	if BattleDeploy.open_point_in(b.rules, st, x, y, r).is_empty():
+		return "no cell the squad can enter in the arrival area"
+	return ""
+
+
+## Where a side joining b arrives ({facing, deploy}): whichever of these is
+## farthest from every squad already fighting and from the centre of every
+## area in `taken` (first on a tie): the scenario's deployment areas, then a
+## strip of the same size along the middle of the top edge, then the bottom
+## edge.
+static func arrival_area(b: OverworldBattle, taken: Array = []) -> Dictionary:
 	var bq := b.state.squads
+	var pts := []
+	for row in bq.count():
+		if bq.is_active(row) and bq.alive[row] > 0 and bq.destroyed[row] == 0:
+			pts.append([bq.cx[row], bq.cy[row]])
+	for t: Dictionary in taken:
+		var td: PackedInt64Array = t["deploy"]
+		pts.append([td[0] + td[2] / 2, td[1] + td[3] / 2])
 	var best := {}
 	var best_gap := -1
 	var options: Array = (b.areas if not b.areas.is_empty() else b.rules.sides).duplicate()
@@ -179,13 +296,17 @@ static func _join(s: OverworldState, b: OverworldBattle, pl: int) -> void:
 	for a: Dictionary in options:
 		var d: PackedInt64Array = a["deploy"]
 		var gap := 1 << 62
-		for row in bq.count():
-			if bq.is_active(row) and bq.alive[row] > 0 and bq.destroyed[row] == 0:
-				gap = mini(gap, Fixed.distance(d[0] + d[2] / 2, d[1] + d[3] / 2, bq.cx[row], bq.cy[row]))
+		for pt: Array in pts:
+			gap = mini(gap, Fixed.distance(d[0] + d[2] / 2, d[1] + d[3] / 2, pt[0], pt[1]))
 		if gap > best_gap:
 			best_gap = gap
 			best = a
-	b.rules.sides.append({"player": pl, "facing": best["facing"], "deploy": (best["deploy"] as PackedInt64Array).duplicate(),
+	return {"facing": best["facing"], "deploy": (best["deploy"] as PackedInt64Array).duplicate()}
+
+
+## Makes `pl` a side of a battle already running, arriving at area `a`.
+static func _join(s: OverworldState, b: OverworldBattle, pl: int, a: Dictionary) -> void:
+	b.rules.sides.append({"player": pl, "facing": a["facing"], "deploy": (a["deploy"] as PackedInt64Array).duplicate(),
 		"squads": PackedInt64Array(), "alive": PackedInt64Array()})
 	b.state.players.append(pl)
 	b.state.players.sort()
@@ -353,7 +474,7 @@ static func to_dict(b: OverworldBattle) -> Dictionary:
 		sides.append(sd.duplicate(true))
 	return {"engagement": b.engagement, "plot": b.plot, "context": b.context_id, "scenario": b.scenario,
 		"sides": sides, "state": b.state.snapshot(), "links": b.links.duplicate(), "orders": b.orders.duplicate(true),
-		"deploys": b.deploys.duplicate(true)}
+		"deploys": b.deploys.duplicate(true), "arrivals": b.arrivals.duplicate(true), "places": b.places.duplicate(true)}
 
 
 static func from_dict(t: TemplateTable, hash_hex: String, d: Dictionary) -> OverworldBattle:
@@ -374,4 +495,6 @@ static func from_dict(t: TemplateTable, hash_hex: String, d: Dictionary) -> Over
 	b.links = d["links"]
 	b.orders = d["orders"]
 	b.deploys = d.get("deploys", {})
+	b.arrivals = d.get("arrivals", {})
+	b.places = d.get("places", {})
 	return b
