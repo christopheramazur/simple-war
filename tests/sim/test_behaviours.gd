@@ -118,20 +118,29 @@ func test_every_core_squad_compiles_a_behaviour_per_order() -> void:
 	for arr: Variant in [r.bh_ids, r.bh_coherency, r.bh_stand_off, r.bh_cadence, r.bh_hysteresis, r.bh_keep_min,
 			r.bh_keep_max, r.bh_leash, r.bh_fire_on_move, r.bh_stand_firing, r.bh_stand_reloading, r.bh_separate]:
 		assert_eq(arr.size(), n)
+	# The archetype behaviours (humanity.json, sw-txnj.11), under the engaging orders only.
+	var archetype := {
+		"mortar_team": {"keep_min": 25 * Fixed.ONE, "fire_on_move": 0, "stand_reloading": 1},
+		"marksman_team": {"keep_max": 65 * Fixed.ONE},
+		"assault_squad": {"extra": 3 * Fixed.ONE},
+	}
 	for st in r.squad_ids.size():
 		var tid := r.squad_ids[st]
+		var arch: Dictionary = archetype.get(tid, {})
 		for o in BattleRules.BH_ORDERS:
 			var i := r.bh_at(st, o)
-			assert_eq(r.bh_coherency[i], r.sq_coherency[st], "%s/%d coherency" % [tid, o])
+			var engaging := o == BattleSquads.Order.ATTACK_MOVE or o == BattleSquads.Order.ATTACK
+			var a: Dictionary = arch if engaging else {}
+			assert_eq(r.bh_coherency[i], r.sq_coherency[st] + a.get("extra", 0), "%s/%d coherency" % [tid, o])
 			assert_eq(r.bh_stand_off[i], FiringPositions.STAND_OFF)
 			assert_eq(r.bh_cadence[i], FiringPositions.CADENCE)
 			assert_eq(r.bh_hysteresis[i], FiringPositions.HYSTERESIS_S * r.tps)
 			assert_eq(r.bh_leash[i], r.chase_leash if o == BattleSquads.Order.ATTACK_MOVE else -1, "%s/%d leash" % [tid, o])
-			assert_eq(r.bh_keep_min[i], -1)
-			assert_eq(r.bh_keep_max[i], -1)
-			assert_eq(r.bh_fire_on_move[i], 1)
+			assert_eq(r.bh_keep_min[i], a.get("keep_min", -1), "%s/%d keep_min" % [tid, o])
+			assert_eq(r.bh_keep_max[i], a.get("keep_max", -1), "%s/%d keep_max" % [tid, o])
+			assert_eq(r.bh_fire_on_move[i], a.get("fire_on_move", 1), "%s/%d fire_on_move" % [tid, o])
 			assert_eq(r.bh_stand_firing[i], 1)
-			assert_eq(r.bh_stand_reloading[i], 0)
+			assert_eq(r.bh_stand_reloading[i], a.get("stand_reloading", 0), "%s/%d stand_reloading" % [tid, o])
 			assert_eq(r.bh_separate[i], -1)
 	var rifle := r.squad_index("rifle_squad")
 	assert_eq(r.bh_ids[r.bh_at(rifle, BattleSquads.Order.ATTACK_MOVE)], "line_attack_move")

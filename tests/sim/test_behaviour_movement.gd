@@ -98,7 +98,7 @@ func _leash_run(r: BattleRules) -> Array:
 func test_defaults_are_the_built_constants() -> void:
 	var r := _default_rules()
 	var s := BattleState.new(1, r, 1)
-	var me := _place(s, 1, "assault_squad", 20, LANE, 0)
+	var me := _place(s, 1, "rifle_squad", 20, LANE, 0)
 	var row := s.squads.row_of(me)
 	for o in BattleRules.BH_ORDERS:
 		_order(s, me, o, 20, LANE)

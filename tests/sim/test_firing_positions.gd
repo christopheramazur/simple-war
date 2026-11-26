@@ -118,7 +118,7 @@ func test_attack_has_no_leash() -> void:
 	assert_true(Fixed.distance(s.squads.ax[row], s.squads.ay[row], s.squads.cx[frow], s.squads.cy[frow]) < 25 * ONE, "follows its target all the way")
 
 
-func test_mortar_stays_outside_min_range_and_does_not_hold_the_anchor() -> void:
+func test_mortar_inside_min_range_backs_out_to_the_band() -> void:
 	var s := BattleState.new(1, _r(), 1)
 	var me := _place(s, 1, "mortar_team", 20, LANE, 0)
 	var foe := _dummy(s, 34, LANE)
@@ -133,12 +133,11 @@ func test_mortar_stays_outside_min_range_and_does_not_hold_the_anchor() -> void:
 			for t in Centroids.units_of(st, frow):
 				closest[0] = mini(closest[0], Fixed.distance(st.units.x[urow], st.units.y[urow], st.units.x[t], st.units.y[t]))
 	)
-	for urow in Centroids.units_of(s, row):
-		assert_eq(s.units.fpos[urow], FiringPositions.UNACHIEVABLE, "inside the 20 m minimum range: no position")
-	assert_eq(s.squads.fp_stop[row], 1, "unachievable units don't hold the anchor")
-	# One tick of walking before the first engagement (combat runs after
-	# movement), then it stands.
-	assert_true(Fixed.distance(s.squads.ax[row], s.squads.ay[row], ax0, ay0) <= ONE, "the anchor doesn't walk in")
+	# keep_distance min_m 25 (min_range 20 + 5): the team backs out to the band
+	# and stands there (sw-txnj.11), instead of walking in.
+	var d := Fixed.distance(s.squads.ax[row], s.squads.ay[row], s.squads.cx[frow], s.squads.cy[frow])
+	assert_true(d >= 24 * ONE, "backed out to about 25 m: %d" % d)
+	assert_true(Fixed.distance(s.squads.ax[row], s.squads.ay[row], ax0, ay0) > 5 * ONE, "the anchor walked out from 14 m: %d" % d)
 	assert_true(closest[0] > 10 * ONE, "no mortar walks onto its target: %d" % closest[0])
 
 
