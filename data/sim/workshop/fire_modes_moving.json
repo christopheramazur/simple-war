@@ -1,0 +1,37 @@
+{
+	"id": "fire_modes_moving",
+	"component": "fire",
+	"doc": "A rifle squad 35 m from an unarmed, unkillable dummy (in range). Standing: attack and stand. Moving: move 30 m toward the dummy, firing on the move (burst fire, 0.3 accuracy, Instinct drain). Measures what moving fire costs per second once the first shot lands.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 2,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [50, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack", "target": "dummy"}]
+	},
+	"variants": {
+		"moving": {"doc": "Moves 30 m toward the dummy in turn 1 (firing on the move), then attacks.",
+			"script": {
+				"1": [{"squad": "rifles", "type": "move", "x": 80, "y": 80}],
+				"2": [{"squad": "rifles", "type": "attack", "target": "dummy"}]}}
+	},
+	"probes": [
+		{"id": "t1_damage", "over": "t1", "squad": "rifles", "target": "dummy", "damage": {"min": 100}, "variants": "all"},
+		{"id": "t1_dps_engaged", "over": "t1", "squad": "rifles", "dps_engaged": null, "variants": "all"},
+		{"id": "t1_duty", "over": "t1", "squad": "rifles", "duty": null, "variants": "all"},
+		{"id": "t1_moved", "over": "t1", "squad": "rifles", "moved": null, "variants": "all"},
+		{"id": "t2_dps_engaged", "over": "t2", "squad": "rifles", "dps_engaged": null, "variants": "all"}
+	],
+	"compare": [
+		{"metric": "t1_dps_engaged", "lhs": "moving", "rhs": "base", "rel": ">=", "factor": 0.85, "doc": "Table A: moving fire loses about 11% at neutral Instinct (measured 10%)."},
+		{"metric": "t1_moved", "lhs": "moving", "rhs": "base", "rel": ">"}
+	]
+}

@@ -51,6 +51,8 @@ var _k: int = 0
 var _seen: int = 0
 var _last_tick: int = -1
 var _want: Dictionary = {}
+## Vector2i(turn, tick) -> orders given after that many ticks of the turn.
+var _timed: Dictionary = {}
 
 
 ## The package's loader, cached per process (content is read-only).
@@ -160,10 +162,18 @@ func _patch(sid: int, patch: Dictionary) -> void:
 					state.squads.set_value(sid, BattleSquads.CAPS[p], v)
 
 
-func _play(by_turn: Dictionary) -> void:
+func _play(script: Dictionary) -> void:
 	for p: Dictionary in scenario.probes:
 		if p.has("at") and p["at"]["tick"] >= 0:
 			_want["%d:%d" % [p["at"]["turn"], p["at"]["tick"]]] = true
+	_timed = {}
+	for k: Variant in script:
+		if typeof(k) != TYPE_VECTOR2I:
+			continue
+		if (k as Vector2i).y >= rules.ticks_per_turn:
+			_err("script %d@%d: turn %d has %d ticks" % [k.x, k.y, k.x, rules.ticks_per_turn])
+			return
+		_timed[k] = script[k]
 	recorder = ReplayRecorder.new()
 	recorder.rules = rules
 	recorder.players = state.players.duplicate()
@@ -174,7 +184,7 @@ func _play(by_turn: Dictionary) -> void:
 	for t in range(1, scenario.turns + 1):
 		if state.is_over():
 			break
-		if not _orders(t, by_turn.get(t, [])):
+		if not _orders("script turn %d" % t, script.get(t, [])):
 			return
 		_turn = t
 		_k = 0
@@ -185,9 +195,12 @@ func _play(by_turn: Dictionary) -> void:
 	final_hash = state.state_hash_hex()
 
 
-## Validates the turn's orders as BattleSession.submit_orders does, then
-## applies them per player in player order, as its Reveal does.
-func _orders(t: int, list: Array) -> bool:
+## Validates a batch of orders as BattleSession.submit_orders does, then
+## applies them per player in player order, as its Reveal does. `label`
+## names the batch in errors. An order with `unchecked` (cross-check only)
+## is validated as if its squad saw the target: 01's table B runs set orders
+## without the sight check, and this is how the workshop reproduces them.
+func _orders(label: String, list: Array) -> bool:
 	var by_player := {}
 	for i in list.size():
 		var o: Dictionary = (list[i] as Dictionary).duplicate(true)
@@ -195,9 +208,12 @@ func _orders(t: int, list: Array) -> bool:
 		if o.has("target"):
 			o["target"] = sids[o["target"]]
 		var player := state.squads.player[state.squads.row_of(o["squad"])]
+		if o.get("unchecked", false) and o.has("target"):
+			_grant_sight(o["target"], player)
+		o.erase("unchecked")
 		var err := BattleOrders.validate(state, player, o)
 		if not err.is_empty():
-			_err("script turn %d, order %d (%s): %s" % [t, i, list[i]["squad"], err])
+			_err("%s, order %d (%s): %s" % [label, i, list[i]["squad"], err])
 			return false
 		if not by_player.has(player):
 			by_player[player] = []
@@ -208,12 +224,26 @@ func _orders(t: int, list: Array) -> bool:
 	return true
 
 
+## Marks `target` as seen by `player` for the order check (cross-check only).
+## Vision runs again on the next tick, so this is not carried into the sim.
+func _grant_sight(target: int, player: int) -> void:
+	var sq := state.squads
+	var row := sq.row_of(target)
+	var col: PackedInt64Array = sq.take_column(&"seen_by")
+	col[row] |= BattleSquads.bit(player)
+	sq.put_column(&"seen_by", col)
+
+
 func _on_tick(st: BattleState) -> void:
 	if st.tick != _last_tick:
 		var f := _frame(st, _turn, _k, st.tick - 1)
 		if _k % scenario.probe_stride == 0 or _want.has("%d:%d" % [_turn, _k]):
 			snapshots[f] = BattleProbe.snapshot(st, 0)
 		_k += 1
+		# Mid-turn orders: given once _k ticks of this turn have run.
+		var due := Vector2i(_turn, _k)
+		if _timed.has(due):
+			_orders("script turn %d@%d" % [_turn, _k], _timed[due])
 	else:
 		var f := _frame(st, _turn, -1, -1)
 		snapshots[f] = BattleProbe.snapshot(st, 0)

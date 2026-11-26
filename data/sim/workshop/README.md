@@ -31,8 +31,8 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 | `turns` | whole ≥ 1 | 1 | Turns to run. |
 | `probe_stride` | whole ≥ 1 | 1 | A snapshot every N ticks (bounds the cost of long runs). Window probes do not need snapshots; they read frames and events. |
 | `squads` | list | required | See Squads. |
-| `script` | `{"<turn>": [order]}` | `{}` | Orders given at the start of that turn. A turn with no entry gives no new orders (squads keep theirs). |
-| `variants` | `{name: {script, patch, doc}}` | `{}` | See Variants. `base` is reserved: the file's own script and patches. |
+| `script` | `{"<turn>": [order], "<turn>@<tick>": [order]}` | `{}` | Orders given at the start of that turn (`"1"`), or after `<tick>` ticks of it (`"1@50"`, 1 to ticks-1: a mid-turn order, as the Retarget reaction gives one). A turn with no entry gives no new orders (squads keep theirs). |
+| `variants` | `{name: {script, patch, place, doc}}` | `{}` | See Variants. `base` is reserved: the file's own script, patches and placement. |
 | `probes` | list | `[]` | See Probes. |
 | `compare` | list | `[]` | See Compare. |
 
@@ -47,12 +47,16 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 
 ### Orders
 
-`BattleOrders` format with squad keys instead of IDs: `{"squad": key, "type": "hold"|"move"|"attack_move"|"attack"|"fall_back"|"withdraw", "x": m, "y": m, "target": key, "run": bool, "abilities": [...]}`. `attack` targets must be visible at the turn's start, as in a game.
+`BattleOrders` format with squad keys instead of IDs: `{"squad": key, "type": "hold"|"move"|"attack_move"|"attack"|"fall_back"|"withdraw", "x": m, "y": m, "target": key, "run": bool, "abilities": [...], "unchecked": bool}`. `attack` targets must be visible at the turn's start, as in a game (a mid-turn order is checked against the sight at its tick).
+
+`unchecked: true` is for cross-checks only. It grants the target's sighting for that one check. 01's table B was measured by setting orders without the sight check; the table B scenarios use it for their attack-from-44 m column, where the assault squad does not see the dummy. No other order uses it.
 
 ### Variants
 
 - `script`: each turn it names **replaces** that turn's base orders entirely. Turns it does not name keep the base orders.
 - `patch`: `{squad key: {stat: value}}`, merged **shallowly** over that squad's base `patch`: stat by stat, the variant's value wins, other base stats stay. A variant cannot change a squad's `dummy` block.
+- `place`: `{squad key: [x, y]}` moves a squad at the start (the table B scenarios use it: one squad, four starts).
+- A turn a variant names replaces that turn's base orders, mid-turn ones included.
 
 ### Probes
 
@@ -80,6 +84,10 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 | `duty` | over | share of armed living unit-ticks on which the unit fired (0..1; a weapon's cooldown caps it) | number |
 | `victims` | over | `{distinct, max_per_victim, overkill}` from the shot trace: distinct units shot at, most shots at one, and hits that dealt nothing (the victim was already dead when the hit was applied that tick) | `{sub: number}` for any subset |
 | `moved` | over | centroid displacement from just before the window to its last tick, m | number |
+| `dps_engaged` | over | `dps` counted from the squad's first shot at the target (ticks before it are not in the denominator): the approach does not dilute it | number |
+| `first_shot` | over | seconds from the window's first tick to the squad's first shot at the target (`null` when it never fires) | number |
+| `shooters` | over | distinct living units that fired in the window (at the target when given) | number |
+| `first_shot_ticks` | over | distinct ticks on which a unit fired its first shot in the window (1 is a lockstep volley) | number |
 
 A number expectation is either a number (equal after quantizing) or `{"min": a, "max": b}` (either end optional, inclusive).
 
@@ -160,3 +168,13 @@ Printed as one line between `WORKSHOP_JSON_BEGIN` and `WORKSHOP_JSON_END`. Any c
 
 - `rifle_vs_dummy` (gate): a rifle squad against an unarmed, unkillable dummy; variants `run_away` and `tough_dummy`; every probe kind that reads one squad.
 - `rifles_kill_unarmed` (gate): two rifle squads kill an unarmed squad; kills, victims and overkill; a `pending` probe that wants wider fire spread.
+- `dps_orders` (gate, sw-tho3.4): 01 table A's start (44 m) for the rifles under attack, attack-move, move-then-attack, run and move-then-hold; `dps_engaged`, `damage`, `duty` each within 0.9 of `attack`.
+- `dps_retarget` (gate): two stacked dummies; turn-boundary switch from A to B (`retarget`: turn-2 damage within 0.9 of the constant target); mid-turn switch 5 s into turn 1 (`retarget_mid`: total damage within 0.9 of the constant target, measured +1%; the first shot at B follows at once).
+- `overkill_killable` (gate, sw-tho3.4): 8 rifles against 8 killable dummies (6 HP each): every dummy dies; victims and overkill reported (overkill is 0 in both variants).
+- `table_b_assault`, `table_b_heavy_weapons`, `table_b_rocket_team` (gate, core, sw-tho3.4): 01 table B's twelve cells (hold at 12 m, move from 60 m, attack-move from 60 m, attack from 44 m, DPS1), each within 5% of the table. Pinned to current behaviour: A3 changes them on purpose.
+- `fire_modes_moving` (gate): standing fire against moving fire over 35 m; moving keeps at least 0.85 of standing `dps_engaged`.
+- `attack_move_firing_position` (pending, U1Q11/U1Q29): per-unit firing positions by the turn's end. At its geometry every unit already fires, so the checks report an unexpected pass: the geometry does not separate the old and new behaviour yet.
+- `staggered_opening` (pending, U1Q28): first-shot ticks across the squad; today one tick (lockstep).
+- `mixed_range_orders` (pending, core): 01 table B's assault squad under attack-move, move, attack and hold-at-12 m; the pending compare is B3's acceptance (attack-move at least 0.9 of hold).
+- `mixed_range_hold` (pending, core): table B's hold column with the table's own placement (12 m, holding from the start); reproduces 6.7.
+- `separation_clump`, `focus_fire_spread` (explore): watch-only; no probes.

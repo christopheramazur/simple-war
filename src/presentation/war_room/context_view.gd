@@ -1206,7 +1206,9 @@ func _gui_input(event: InputEvent) -> void:
 				_hover_plot = p
 				hex_hovered.emit(p)
 				queue_redraw()
-		elif mode == "battle" and not compact and _play.is_empty():
+		elif mode == "battle" and not compact:
+			# Playback too: the hover card follows the squad under the cursor
+			# (sw-bafi.1); the owner rebuilds it only on a change.
 			var sq := squad_at(to_battle(mm.position))
 			if sq != _hover_squad:
 				_hover_squad = sq

@@ -1,0 +1,21 @@
+{
+	"id": "focus_fire_spread",
+	"component": "targeting",
+	"doc": "One rifle squad attacks two unarmed, killable squads that stand side by side 30 m away. Watch the playback: does fire pile onto the first victim until it dies, or spread over both (overkill: shots at a victim already dead that tick)? Explore only: no probes. Feeds the Prowess fire-distribution question (04, bead D2); gate probes (victims, overkill) come with that bead.",
+	"status": "explore",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 5,
+	"turns": 3,
+	"squads": [
+		{"key": "shooters", "player": 1, "squad": "rifle_squad", "at": [50, 80], "facing": 0},
+		{"key": "prey_a", "player": 2, "squad": "rifle_squad", "at": [80, 74], "facing": 180,
+			"dummy": {"armed": false}},
+		{"key": "prey_b", "player": 2, "squad": "rifle_squad", "at": [80, 86], "facing": 180,
+			"dummy": {"armed": false}}
+	],
+	"script": {
+		"1": [{"squad": "shooters", "type": "attack", "target": "prey_a"}]
+	}
+}

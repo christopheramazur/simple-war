@@ -11,7 +11,9 @@ extends RefCounted
 ## SIMPL pools draw as five-segment meters with ticks at the band floors the
 ## observation carries (sw-1jy.3, GDD 02 §2.8): band icon + word always, the
 ## exact percent and the points to the next lower band only at higher
-## verbosity (sw-1jy.4); never colour alone.
+## verbosity (sw-1jy.4); never colour alone. Changed weapon stats carry their
+## direction in text (+N / -N from base) and the Health bar reads value / max
+## (sw-vld), so colour is never the only signal.
 ## A first, one-page form of the inspection window (Mocks/
 ## inspection_window.png); tabs and traces are InspectionTabs (sw-ll4.20).
 
@@ -75,7 +77,10 @@ static func model(squad: Dictionary, insp: Dictionary, viewer: int, tps: int = 1
 			items.append(order_item)
 		var hp_max := float(squad.get("hp_max", 0))
 		if hp_max > 0.0:
-			items.append({"bar": _bar_model("Health", 1.0 - float(squad.get("hp_lost", 0)) / hp_max, "Good", "")})
+			# Remaining / max in text, as the pools show their value (sw-vld).
+			var hp_left := int(hp_max - float(squad.get("hp_lost", 0)))
+			items.append({"bar": _bar_model("Health", 1.0 - float(squad.get("hp_lost", 0)) / hp_max, "Good",
+				"%s / %s" % [Fixed.to_display(hp_left), Fixed.to_display(int(hp_max))])})
 		var pools: Dictionary = squad.get("pools", {})
 		var floors: Array = squad.get("band_floor_pct", [])
 		for p: String in pools:
@@ -162,9 +167,9 @@ static func _mode_items(items: Array, unit: Dictionary) -> void:
 		var m: Dictionary = modes[label]
 		var values: Array = []
 		if m.has("accuracy"):
-			values.append({"text": "%s to hit" % _fmt(m["accuracy"]), "tone": _tone(m["accuracy"])})
+			values.append({"text": "%s to hit%s" % [_fmt(m["accuracy"]), _delta(m["accuracy"])], "tone": _tone(m["accuracy"])})
 		if m.has("damage"):
-			values.append({"text": "· %s damage" % _fmt(m["damage"]), "tone": _tone(m["damage"])})
+			values.append({"text": "· %s damage%s" % [_fmt(m["damage"]), _delta(m["damage"])], "tone": _tone(m["damage"])})
 		items.append({"kv": {"key": "%s:" % String(label).capitalize(), "values": values}})
 
 
@@ -434,6 +439,24 @@ static func moment(rec: Dictionary, t: float, squad_id: int, viewer: int, base_s
 	out["squad"] = squad
 	out["insp"] = insp
 	return out
+
+
+## The change from base as text (sw-vld): " (+10%)" for accuracy points,
+## " (-1)" for damage, "" when unchanged. The colour and this sign say the
+## same thing, so a colour-blind player reads the direction too.
+static func _delta(e: Dictionary) -> String:
+	var d := int(e["value"]) - int(e["base"])
+	if d == 0:
+		return ""
+	var mag := ""
+	if String(e["stat"]).ends_with("accuracy"):
+		var pp := Fixed.to_int_round(absi(d) * 100)
+		if pp == 0:
+			return ""
+		mag = "%d%%" % pp
+	else:
+		mag = Fixed.to_display(absi(d))
+	return " (%s%s)" % ["+" if d > 0 else "-", mag]
 
 
 ## Coloured when an effect has changed the value from its base.

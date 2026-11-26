@@ -174,6 +174,8 @@ static func _over(run: WorkshopRun, frames: PackedInt64Array, kind: String, key:
 			if kind == "dps":
 				return Fixed.round_div(milli_of_fixed(total) * run.rules.tps, frames.size())
 			return total * 1000
+		"first_shot", "first_shot_ticks", "shooters", "dps_engaged":
+			return _shot_value(run, frames, kind, key, sid, tid)
 		"duty":
 			var armed := 0
 			var fired := 0
@@ -197,6 +199,71 @@ static func _over(run: WorkshopRun, frames: PackedInt64Array, kind: String, key:
 				return null
 			return milli_of_fixed(Fixed.distance(c0[0], c0[1], c1[0], c1[1]))
 	return null
+
+
+## Firing-start probes, read from the shot trace in the window (sw-tho3.4):
+## first_shot = seconds from the window's first tick to the squad's first
+## shot at the target (null: no shot); dps_engaged = dps counted from that
+## first shot, so approach time does not dilute it; shooters = distinct
+## units that fired; first_shot_ticks = distinct ticks on which a unit fired
+## its first shot in the window (staggered opening: 1 is lockstep).
+static func _shot_value(run: WorkshopRun, frames: PackedInt64Array, kind: String, key: String, sid: int, tid: int) -> Variant:
+	var lo := run.frame_abs[frames[0]]
+	var hi := run.frame_abs[frames[frames.size() - 1]]
+	var shots := _shots_in(run, lo, hi, key, _key_of(run, tid))
+	var first_tick := -1
+	for s: Array in shots:
+		if first_tick < 0 or s[0] < first_tick:
+			first_tick = s[0]
+	match kind:
+		"shooters":
+			var who := {}
+			for s: Array in shots:
+				who[s[1]] = true
+			return who.size() * 1000
+		"first_shot_ticks":
+			var first := {}
+			for s: Array in shots:
+				first[s[1]] = mini(int(first.get(s[1], s[0])), s[0])
+			var ticks := {}
+			for t: int in first.values():
+				ticks[t] = true
+			return ticks.size() * 1000
+		"first_shot":
+			return null if first_tick < 0 else (first_tick - lo) * 1000 / run.rules.tps
+		"dps_engaged":
+			if first_tick < 0:
+				return null
+			var sub := PackedInt64Array()
+			for f in frames:
+				if run.frame_abs[f] >= first_tick:
+					sub.append(f)
+			return _over(run, sub, "dps", key, sid, tid)
+	return null
+
+
+## The shot trace rows [tick, shooter unit, victim unit] of the squad `key`
+## in ticks lo..hi; victims limited to the squad `tkey` when given.
+static func _shots_in(run: WorkshopRun, lo: int, hi: int, key: String, tkey: String) -> Array:
+	var out := []
+	var t := run.state.shot_trace
+	for i in range(0, t.size(), BattleState.SHOT_STRIDE):
+		var tick := t[i]
+		if tick < lo or tick > hi or run.unit_key.get(t[i + 1]) != key:
+			continue
+		if tkey != "" and run.unit_key.get(t[i + 2]) != tkey:
+			continue
+		out.append([tick, t[i + 1], t[i + 2]])
+	return out
+
+
+static func _key_of(run: WorkshopRun, sid: int) -> String:
+	if sid < 0:
+		return ""
+	for k: String in run.sids:
+		if run.sids[k] == sid:
+			return k
+	return ""
 
 
 ## Shots by the squad's units at victims (target squad only when given).

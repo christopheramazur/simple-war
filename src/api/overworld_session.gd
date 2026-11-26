@@ -15,7 +15,8 @@ extends RefCounted
 ##           cheapest affordable route as the player knows the map.
 ## Battles:  every engagement becomes a battle at the start of the next
 ##           turn (OverworldBattles) and runs one battle turn per overworld
-##           turn on the same pulse: submit_battle_orders, reinforce and
+##           turn on the same pulse: submit_battle_orders, reinforce,
+##           submit_battle_deployment (while the battle is deploying) and
 ##           leave_battle in Planning; observe_battle shows one;
 ##           forecast_battle previews drafted orders (intent ghosts).
 ## Clock:    the shared PulseClock (R2Q3). Reveal sends reinforcements in
@@ -79,7 +80,8 @@ var keep_playback: bool = false
 ## Off for headless runs: a battle with no reaction ability then skips the
 ## forecast's scratch turn (sw-kd5).
 var want_telegraphs: bool = true
-## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
+## Engagement ID -> {"rules", "players", "frames", "shots", "volleys",
+## "hits", "start" (BattleCursor.capture)} of the last turn.
 var _playback: Dictionary = {}
 ## Engagement ID -> player -> worst own SIMPL band index last recorded (at
 ## the battle's start and after each of its turns): the glance summary's
@@ -427,6 +429,36 @@ func submit_battle_orders(player: int, engagement_id: int, orders: Array) -> Pac
 	return errs
 
 
+## Deployment placements for one of the player's battles while it is
+## deploying (BattleDeploy): [{squad, x, y, facing}]. Replaces the player's
+## earlier draft for that battle; valid placements are kept and apply at the
+## Reveal (squads not placed keep their automatic places, so an empty draft
+## at the timeout is automatic deployment). Returns errors. Planning only.
+func submit_battle_deployment(player: int, engagement_id: int, placements: Array) -> PackedStringArray:
+	var errs := PackedStringArray()
+	var err := _planning(player)
+	var b: OverworldBattle = battles.get(engagement_id)
+	if err.is_empty() and (b == null or not b.state.players.has(player)):
+		err = "not in that battle"
+	if err.is_empty() and not b.state.deploying:
+		err = "the battle is not deploying"
+	if not err.is_empty():
+		errs.append(err)
+		return errs
+	var c := BattleDeploy.check(b.state, player, placements)
+	b.deploys[player] = c["kept"]
+	_deploy_draft_changed(engagement_id)
+	_log(player, "battle_deploy", {"engagement": engagement_id, "placements": c["kept"]})
+	return c["errors"]
+
+
+## A deployment draft changed: the battle's cached reaction-window forecasts
+## are stale. (C4's forecast_battle cache clears here too once it lands.)
+func _deploy_draft_changed(engagement_id: int) -> void:
+	_opportunities.erase(engagement_id)
+	_telegraphs.erase(engagement_id)
+
+
 ## The planning forecast for one of the player's battles (IntentForecast):
 ## the coming battle turn with these drafted orders, as the player knows
 ## it. Nothing is submitted or changed. Planning only ({} otherwise).
@@ -681,6 +713,8 @@ func _reveal_battles() -> void:
 	ids.sort()
 	for eid: int in ids:
 		var b: OverworldBattle = battles[eid]
+		BattleDeploy.reveal(b.state, b.deploys)
+		b.deploys = {}
 		OverworldBattles.reinforce(state, b)
 		var n := OverworldBattles.NEUTRAL
 		if b.state.players.has(n):
@@ -730,11 +764,15 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	var frames: Array[PackedInt64Array] = []
 	var first_tick := b.state.tick
 	var was := _battle_sim.tick_hook
+	# The turn's start, orders applied, and keyframes, for BattleCursor
+	# (sw-tho3.7).
+	var start := BattleCursor.capture(b.state)
 	var capture := func(st: BattleState) -> void:
 		if was.is_valid():
 			was.call(st)
 		if frames.size() <= b.rules.ticks_per_turn:
 			frames.append(_frame(st))
+			BattleCursor.keyframe(start, st, frames.size() - 1)
 	frames.append(_frame(b.state))
 	_battle_sim.tick_hook = capture
 	b.state.trace_shots = true
@@ -743,6 +781,7 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	_battle_sim.execute_turn(b.state)
 	b.state.trace_shots = false
 	_battle_sim.tick_hook = was
+	BattleCursor.seal(start, b.state)
 	var last := frames.size() - 1
 	var shots := []
 	for e in b.state.turn_log:
@@ -761,7 +800,51 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	b.state.shot_trace = PackedInt64Array()
 	b.state.hit_trace = PackedInt64Array()
 	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames,
-		"shots": shots, "volleys": volleys, "hits": hits}
+		"shots": shots, "volleys": volleys, "hits": hits, "start": start}
+
+
+## A BattleCursor over the last recorded turn of battle `eid` (needs
+## keep_playback): the full, all-seeing state at any tick of that turn. Its
+## seek(i) matches playback frame i. Unavailable (never null) when nothing
+## was recorded. Tooling and the all-seeing replay only: it shows hidden
+## squads, so callers filter by what a player saw. One cursor per recorded
+## turn, kept with the record (so it is dropped when the playback is).
+func turn_cursor(eid: int) -> BattleCursor:
+	var rec: Dictionary = _playback.get(eid, {})
+	if not rec.has("cursor"):
+		rec["cursor"] = BattleCursor.new(rec.get("start", {}), rec.get("rules"))
+	return rec["cursor"]
+
+
+## The battle tick a playback frame shows (sw-bafi.5). Frame i is the state
+## after i ticks of the turn, before the turn resolves (frame 0 the turn's
+## start, frame `ticks` the last tick): the recorder's tick hook captures.
+## Frames index the playback, so any pacing of it (sw-ll4.26.6) reaches the
+## same tick.
+static func tick_of_frame(frame: int, ticks: int) -> int:
+	return clampi(frame, 0, ticks)
+
+
+## SquadRelation.facts(a, b) at playback frame `frame` of battle `eid`'s last
+## turn, as `player` sees it (0 or less: all-seeing). The state is the
+## turn's BattleCursor at that frame's tick, so it is exactly the state the
+## live battle had then. [] when the battle has no playback this turn, the
+## player did not fight in it, the frame is out of range, or the turn has no
+## usable snapshot (an old record): never an error.
+func playback_relation(player: int, eid: int, frame: int, a: int, b: int) -> Array:
+	var rec: Dictionary = _playback.get(eid, {})
+	if rec.is_empty():
+		return []
+	var viewer := maxi(player, 0)
+	if viewer != 0 and not (rec["players"] as PackedInt64Array).has(viewer):
+		return []
+	if frame < 0 or frame >= (rec["frames"] as Array).size():
+		return []
+	var c := turn_cursor(eid)
+	var st := c.seek_unresolved(tick_of_frame(frame, c.ticks))
+	if st == null:
+		return []
+	return SquadRelation.facts(st, viewer, a, b)
 
 
 ## Ints per unit in a playback frame: ID, squad, player, x, y, squad facing,
@@ -923,7 +1006,7 @@ func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	var b: OverworldBattle = battles.get(engagement_id)
 	if b == null or (player > 0 and not b.state.players.has(player)):
 		return {}
-	var o := BattleSession.observe_state(b.state, player)
+	var o := BattleSession.observe_state(b.state, player, _allies(b, player))
 	o["engagement"] = engagement_id
 	o["phase"] = phase_name()
 	var mine := {}
@@ -996,9 +1079,19 @@ func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionar
 	if row < 0:
 		return {}
 	var own := b.state.squads.player[row] == player
-	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)):
+	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)
+			or BattleDeploy.hides(b.state, player, row, _allies(b, player))):
 		return {}
 	return Inspection.squad(b.state, squad_id, player)
+
+
+## The other players in battle b on the player's team (OverworldState.teams).
+func _allies(b: OverworldBattle, player: int) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	for p in b.state.players:
+		if p != player and not state.hostile(p, player):
+			out.append(p)
+	return out
 
 
 ## What `player` knows about one hex, for inspecting it (hover cards, the
@@ -1257,6 +1350,10 @@ func _replay(inputs: Array) -> void:
 				set_battleforce(i["player"], p["commander"], p["preset"], p["squads"], p["lead"])
 			"battle_orders":
 				submit_battle_orders(i["player"], p["engagement"], p["orders"])
+			"battle_deploy":
+				# A draft for a battle that is gone by now is refused here and
+				# never logged, so it leaves no effect on replay.
+				submit_battle_deployment(i["player"], p["engagement"], p["placements"])
 			"reinforce":
 				reinforce(i["player"], p["commander"], p["squad"])
 			"leave":
