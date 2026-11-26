@@ -55,7 +55,7 @@ static func _forecast(scratch: BattleState, sim: BattleSim, player: int, orders:
 	var me := BattleSquads.bit(player)
 	var withdrawn: PackedByteArray = sq.take_column(&"withdrawn")
 	for row in sq.count():
-		if sq.player[row] != player and sq.seen_by[row] & me == 0:
+		if sq.player[row] != player and (sq.seen_by[row] & me == 0 or BattleDeploy.hides(scratch, player, row)):
 			withdrawn[row] = 1
 	sq.put_column(&"withdrawn", withdrawn)
 	Centroids.update(scratch)

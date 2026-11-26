@@ -9,6 +9,17 @@ const WEDGE: int = 2
 const BLOB: int = 3
 
 
+## Half-width (fixed metres) of a formation of `count`: the distance from the
+## anchor to its farthest slot. For a line that is exactly half its width
+## (sw-txnj.4: the default coherency radius is this plus 4 m, U1Q29).
+static func half_width(shape: int, count: int, spacing: int) -> int:
+	var m := 0
+	for slot in count:
+		var o := offset(shape, slot, count, spacing, 0)
+		m = maxi(m, Fixed.length(o[0], o[1]))
+	return m
+
+
 ## World-space offset [dx, dy] (fixed) of `slot` in a formation of `count`.
 static func offset(shape: int, slot: int, count: int, spacing: int, facing: int) -> PackedInt64Array:
 	var lx := 0

@@ -27,6 +27,50 @@ const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "app
 ## Orders an "order" effect gives its holder (reactions, E3Q7). "attack"
 ## attacks the first squad the effect's target selector picks.
 const ORDERS: Array[String] = ["hold", "fall_back", "attack"]
+## Battle orders a squad template names a behaviour for (GDD 02 §2.15 Squad
+## behaviours), in BattleSquads.Order order: the index is the order's value.
+const BATTLE_ORDERS: Array[String] = ["hold", "move", "attack_move", "attack", "fall_back", "withdraw"]
+## The closed behaviour vocabulary (GDD 02 §2.15, U1Q12, U1Q29, sw-txnj.9):
+## component name -> its parameters, in vocabulary (evaluation) order. A
+## behaviour template lists components as {"c": name, <params>}; mods compose
+## them and never add any. BattleRules compiles them to bh_* arrays.
+const BEHAVIOUR_COMPONENTS: Dictionary = {
+	## Each armed unit seeks a firing position within coherency of the anchor.
+	## coherency_m replaces the formation's radius; extra_m adds to it (not
+	## both). stand_off_m: margin kept beyond a minimum range. cadence_ticks:
+	## re-evaluation interval. hysteresis_s: how long a unit lacks a position
+	## before a stopped anchor moves again.
+	"firing_position": {
+		"coherency_m": {"type": "fixed", "min": 0},
+		"extra_m": {"type": "fixed"},
+		"stand_off_m": {"type": "fixed", "min": 0},
+		"cadence_ticks": {"type": "int", "min": 1},
+		"hysteresis_s": {"type": "fixed", "min": 0},
+	},
+	## Keep the engaged squad between min_m and max_m metres (either optional).
+	"keep_distance": {
+		"min_m": {"type": "fixed", "min": 0},
+		"max_m": {"type": "fixed", "min": 0},
+	},
+	## How far past the order point an engaged squad may close.
+	"leash": {
+		"chase_m": {"type": "fixed", "required": true, "min": 0},
+	},
+	## Whether moving fire modes may fire under this order.
+	"fire_on_move": {
+		"allow": {"type": "bool", "required": true},
+	},
+	## Stand still while weapons fire (units with a shot stay put) and/or
+	## while any unit reloads.
+	"stand_while": {
+		"firing": {"type": "bool"},
+		"reloading": {"type": "bool"},
+	},
+	## Separation radius from units of other squads (GDD 02 §2.14).
+	"separate": {
+		"radius_m": {"type": "fixed", "required": true, "min": 0},
+	},
+}
 ## A cell's facing in a battle map; stored per cell as index + 1 (0 = none).
 ## In clockwise order, so a quarter turn is +1.
 const FACINGS: Array[String] = ["n", "e", "s", "w"]
@@ -47,6 +91,8 @@ const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 ## the start of a turn with an uncontested commander (R6Q14).
 const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert", "hire"]
 const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
+## Hex feature drawing layers (U1Q20); default "site".
+const HEX_LAYERS: Array[String] = ["ground", "path", "site"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
 const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
 
@@ -88,6 +134,9 @@ const OBJECTS: Dictionary = {
 	"formation": {
 		"shape": {"type": "string", "enum": ["line", "column", "wedge", "blob"]},
 		"spacing": {"type": "fixed"},
+		## Coherency radius in metres (sw-txnj.4, U1Q29): how far a unit may be
+		## from its squad's anchor. Default: half-width + 4 m.
+		"coherency": {"type": "fixed", "min": 0},
 	},
 	"rect": {
 		"x": {"type": "fixed", "required": true},
@@ -424,6 +473,17 @@ const KINDS: Dictionary = {
 		"keywords": {"type": "list:string"},
 		"bundles": {"type": "list:ref:bundle"},
 		"legend_archetype": {"type": "string", "enum": ["damage", "tank", "scout", "sapper", "support"]},
+		## Per battle order, the behaviour it runs (GDD 02 §2.15); unset
+		## orders use the default behaviour (BattleRules.bh_*).
+		"behaviours": {"type": "map:ref:behaviour", "keys": BATTLE_ORDERS},
+	},
+	## A squad behaviour (GDD 02 §2.15, U1Q12, sw-txnj.9): an ordered list of
+	## components from BEHAVIOUR_COMPONENTS, each {"c": name, <params>}.
+	## Checked by _check_behaviour.
+	"behaviour": {
+		"name": {"type": "string"},
+		"text": {"type": "string"},
+		"components": {"type": "list:dict", "required": true},
 	},
 	"ruleset": {
 		"ticks_per_second": {"type": "int", "min": 1},
@@ -434,6 +494,12 @@ const KINDS: Dictionary = {
 		## A squad attacking a moving squad plans a new route when its
 		## target is this far (metres) from where the route led (default 8).
 		"route_replan_m": {"type": "fixed", "min": 0},
+		## How far past its point an engaged attack-move may close on the
+		## squad it fights, metres (default 15; U1Q29 leash).
+		"chase_leash_m": {"type": "fixed", "min": 0},
+		## How recent a volley must be, in ticks, for the "under fire" pair
+		## relation (SquadRelation; default one second of ticks).
+		"relation_recent_fire_ticks": {"type": "int", "min": 1},
 		"pool_defaults": {"type": "map:obj:pool"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},
@@ -450,6 +516,17 @@ const KINDS: Dictionary = {
 		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
 		"icon": {"type": "string"},
 		"tile": {"type": "string"},
+		## Drawing only (U1Q20-U1Q22, sw-63wt.4; the rules never read them):
+		## ground features tile the hex (highest draw_order wins), paths draw
+		## strips to sides whose neighbour holds a feature they connect with
+		## (itself plus `connects`), sites take HexLayout slots by
+		## layout_priority (higher first), then template ID. color: six hex
+		## digits.
+		"layer": {"type": "string", "enum": HEX_LAYERS},
+		"draw_order": {"type": "int"},
+		"layout_priority": {"type": "int"},
+		"connects": {"type": "list:ref:hex_feature"},
+		"color": {"type": "string"},
 		"name": {"type": "string"},
 		"tags": {"type": "list:string"},
 		"move_cost": {"type": "int"},
@@ -608,6 +685,9 @@ const KINDS: Dictionary = {
 		"width": {"type": "int", "min": 1},
 		"height": {"type": "int", "min": 1},
 		"ticks_per_turn": {"type": "int", "required": true, "min": 1},
+		## open (default): sides place their squads in their areas during
+		## turn-1 Planning (BattleDeploy); fixed: no deployment step.
+		"deployment": {"type": "string", "enum": ["open", "fixed"]},
 		"terrain_default": {"type": "ref:feature"},
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},
@@ -667,7 +747,45 @@ static func validate(table: TemplateTable) -> PackedStringArray:
 		if kind == "dialogue":
 			for e in Dialogue.problems(table.values_of(tid)):
 				errors.append("%s: %s" % [tid, e])
+		elif kind == "behaviour":
+			_check_behaviour(table.values_of(tid), tid, table, errors)
 	return errors
+
+
+## A behaviour's components (sw-txnj.9): each a known component, at most once,
+## with only its own parameters, each of the right type.
+static func _check_behaviour(values: Dictionary, tid: String, table: TemplateTable, errors: PackedStringArray) -> void:
+	var list: Variant = values.get("components", [])
+	if typeof(list) != TYPE_ARRAY:
+		return  # reported by the field check
+	var seen := {}
+	for i in (list as Array).size():
+		var entry: Variant = list[i]
+		var path := "components/%d" % i
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue  # reported by the field check
+		var c: Variant = entry.get("c")
+		if typeof(c) != TYPE_STRING or not BEHAVIOUR_COMPONENTS.has(c):
+			errors.append("%s: '%s' has unknown behaviour component '%s' (allowed: %s)" % [tid, path, c, BEHAVIOUR_COMPONENTS.keys()])
+			continue
+		if seen.has(c):
+			errors.append("%s: '%s' repeats behaviour component '%s'" % [tid, path, c])
+		seen[c] = true
+		var spec: Dictionary = BEHAVIOUR_COMPONENTS[c]
+		var params := {}
+		for key: Variant in entry:
+			if key == "c":
+				continue
+			if not spec.has(key):
+				errors.append("%s: '%s' (%s) has unknown parameter '%s' (allowed: %s)" % [tid, path, c, key, spec.keys()])
+				continue
+			params[key] = entry[key]
+		_check_object(params, spec, tid, path, table, errors)
+		if c == "firing_position" and params.has("coherency_m") and params.has("extra_m"):
+			errors.append("%s: '%s' (firing_position) sets both coherency_m and extra_m; use one" % [tid, path])
+		if c == "keep_distance" and params.has("min_m") and params.has("max_m") \
+				and to_fixed(params["min_m"]) > to_fixed(params["max_m"]):
+			errors.append("%s: '%s' (keep_distance) min_m is above max_m" % [tid, path])
 
 
 static func _check_object(values: Dictionary, spec: Dictionary, tid: String, path: String, table: TemplateTable, errors: PackedStringArray) -> void:

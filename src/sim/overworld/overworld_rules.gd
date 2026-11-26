@@ -10,7 +10,7 @@ const DEFAULT_BASE_COST: int = 10
 const DEFAULT_ARMY_CAP: int = 6
 const DEFAULT_BATTLEFORCE_SQUADS: int = 4
 const DEFAULT_DETACHMENT_SIGHT: int = 1
-const DEFAULT_CONVOY_MOVEMENT: int = 40
+const DEFAULT_CONVOY_MOVEMENT: int = 30
 ## Item slots: a unit carries at most one item per slot.
 const SLOT_WEAPON: int = 0
 const SLOT_DEFENSE: int = 1

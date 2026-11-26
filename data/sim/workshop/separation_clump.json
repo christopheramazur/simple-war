@@ -1,0 +1,23 @@
+{
+	"id": "separation_clump",
+	"component": "spacing",
+	"doc": "Two rifle squads attack-move from the west flank onto the same point 35 m east, 20 m apart, and clump there. Watch the playback: do the units of both squads pile up on one spot? Explore only: no probes. The spacing probe (minimum gap between a squad's units) is the one to add when the separation rules (U1Q10) land.",
+	"status": "explore",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 3,
+	"turns": 2,
+	"squads": [
+		{"key": "north", "player": 1, "squad": "rifle_squad", "at": [20, 70], "facing": 0},
+		{"key": "south", "player": 1, "squad": "rifle_squad", "at": [20, 90], "facing": 0},
+		{"key": "post", "player": 2, "squad": "rifle_squad", "at": [60, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [
+			{"squad": "north", "type": "attack_move", "x": 55, "y": 80},
+			{"squad": "south", "type": "attack_move", "x": 55, "y": 80}
+		]
+	}
+}

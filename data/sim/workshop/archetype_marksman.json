@@ -1,0 +1,89 @@
+{
+ "id": "archetype_marksman",
+ "component": "behaviour",
+ "doc": "Marksman team (2 marksman rifles, 70 m) attack-moves on an unarmed dummy from 80 m, with a disarmed friendly spotter 40 m short of it (the team's sight is 60 m, the spotter's 45 m, so the marksmen get the target through the spotter). The marksman behaviour (sw-txnj.11, humanity.json marksman_attack_move) keeps the band up to range - 5 = 65 m (keep_distance max_m): the team stops within 5 m of its range, not at its edge. Pinned absolute DPS over the first contact turn; the stop distance is the acceptance check.",
+ "status": "gate",
+ "package": "core",
+ "map": "duel_crossroads",
+ "open": true,
+ "seed": 1,
+ "turns": 2,
+ "probe_stride": 10,
+ "squads": [
+  {
+   "key": "spotter",
+   "player": 1,
+   "squad": "rifle_squad",
+   "at": [
+    45,
+    80
+   ],
+   "facing": 0,
+   "dummy": {
+    "armed": false,
+    "hp": 1000,
+    "stationary": true
+   }
+  },
+  {
+   "key": "marksmen",
+   "player": 1,
+   "squad": "marksman_team",
+   "at": [
+    5,
+    80
+   ],
+   "facing": 0
+  },
+  {
+   "key": "dummy",
+   "player": 2,
+   "squad": "rifle_squad",
+   "at": [
+    85,
+    80
+   ],
+   "facing": 180,
+   "dummy": {
+    "armed": false,
+    "hp": 1000,
+    "stationary": true
+   }
+  }
+ ],
+ "script": {
+  "1": [
+   {
+    "squad": "marksmen",
+    "type": "attack_move",
+    "x": 85,
+    "y": 80
+   }
+  ]
+ },
+ "probes": [
+  {
+   "id": "dps_attack_move",
+   "over": "t1",
+   "squad": "marksmen",
+   "target": "dummy",
+   "dps_engaged": {
+    "min": 2.88,
+    "max": 3.18
+   },
+   "doc": "Team DPS from its first shot at the dummy over turn 1, 3.03 (5%). Pinned by sw-txnj.11."
+  },
+  {
+   "id": "dist_end",
+   "at": "end",
+   "squad": "marksmen",
+   "target": "dummy",
+   "distance": {
+    "min": 65,
+    "max": 70
+   },
+   "doc": "Last frame: the team stops within 5 m of its 70 m range (65-70 m); keep_distance max_m 65 suspends the 70 m edge."
+  }
+ ],
+ "compare": []
+}
