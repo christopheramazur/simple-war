@@ -33,6 +33,12 @@ Right click: move the selection there (Alt: in a new line). Right click an enemy
 %s
 %s
 %s" % [_planning_line(), "1-9: recall a control group · Ctrl+1-9: make one · Shift+1-9: add to one", "F1-F4: go to a camera bookmark · Ctrl+F1-F4: set one"]],
+		["Deployment", "Turn 1 of a battle: place your squads anywhere in your lit area; the hatched areas are the enemy's, and neither side sees the other until Reveal
+Drag one of your squads to place it (a drop outside your area lands on its edge; a cross marks ground it can't stand on, the ghost shows where it goes instead)
+Select several (box or Shift) and drag one of them: the group moves and keeps its shape
+Drag the knob in front of a selected squad, or press E / Shift+E: turn it (eight directions)
+Arrows or the left stick: nudge the selected squads · %s / %s: next / previous squad
+\"Reset to automatic\" puts every squad back. Squads you leave keep their automatic places; turn-1 orders work as in Planning" % [k.text_of(&"next_squad"), k.text_of(&"previous_squad")]],
 		["Controller", _controller_text(k)],
 		["Reaction window", "Marked squads can react to an enemy: click one, or use the Reactions list on the right. Moves are locked until the turn has played"],
 		["Playback", "While a turn plays out: %s or %s skips to its end

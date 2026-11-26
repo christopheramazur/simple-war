@@ -59,16 +59,16 @@
 			"members": [{"unit": "cantor", "count": 4}]}},
 
 		{"id": "jeff_commander", "kind": "commander", "values": {
-			"name": "Jeff", "tags": ["story_essential"], "movement_points": 50, "sight": 3, "squad": "jeff_squad",
+			"name": "Jeff", "tags": ["story_essential"], "movement_points": 45, "sight": 4, "squad": "jeff_squad",
 			"army": ["civilian_group", "cr0_patrol"], "army_cap": 5}},
 
 		{"id": "hex_frontier_town", "kind": "hex_feature", "values": {
-			"name": "Frontier town", "controllable": true, "interaction": "stable", "sight": 2,
+			"name": "Frontier town", "controllable": true, "interaction": "stable", "sight": 3,
 			"produces": [{"squad": "civilian_group", "turns": 2, "cost": 0}]}},
-		{"id": "hex_cliffs", "kind": "hex_feature", "values": {"name": "Cliffs", "impassable": true}},
-		{"id": "hex_angel_blockade", "kind": "hex_feature", "values": {
+		{"id": "hex_cliffs", "kind": "hex_feature", "values": {"layer": "ground", "draw_order": 4, "color": "4a4440", "name": "Cliffs", "impassable": true}},
+		{"id": "hex_angel_blockade", "kind": "hex_feature", "values": {"layout_priority": 1, "color": "d9d2f2", 
 			"name": "Angel blockade", "tags": ["angel"], "guard": ["angel_host"], "dispersal_turns": 3}},
-		{"id": "hex_spaceport", "kind": "hex_feature", "values": {
+		{"id": "hex_spaceport", "kind": "hex_feature", "values": {"layout_priority": 4, "color": "9fb3c8", 
 			"name": "Spaceport", "tags": ["angel"], "sight": 1, "guard": ["angel_host", "angel_choir"],
 			"battlefield": "angelfall_spaceport"}},
 
@@ -200,5 +200,8 @@
 				{"do": "add_var", "name": "shuttles", "value": 1},
 				{"do": "message", "player": 1, "key": "angelfall.shuttle", "text": "A shuttle lifts off."}
 			]}}
-	]
+	],
+"patches": [
+	{"id": "hex_frontier_town", "values": {"layout_priority": 3, "color": "b9a46a"}}
+]
 }

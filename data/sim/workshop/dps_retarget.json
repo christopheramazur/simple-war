@@ -1,0 +1,47 @@
+{
+	"id": "dps_retarget",
+	"component": "targeting",
+	"doc": "A rifle squad 44 m from two unarmed, unkillable dummies stacked 8 m apart. Constant: attack dummy A for two turns. Retarget: attack A, then switch to B at the start of turn 2. Measures what the switch costs in turn 2: total damage, and the seconds to the first shot at B. Orders only land at turn starts in this format, so this is the turn-boundary retarget; a mid-turn retarget needs the Retarget reaction, which this runner does not play.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 2,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "rifles", "player": 1, "squad": "rifle_squad", "at": [41, 80], "facing": 0},
+		{"key": "dummy_a", "player": 2, "squad": "rifle_squad", "at": [85, 76], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}},
+		{"key": "dummy_b", "player": 2, "squad": "rifle_squad", "at": [85, 84], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "rifles", "type": "attack", "target": "dummy_a"}]
+	},
+	"variants": {
+		"retarget": {"doc": "Switches to dummy B at the start of turn 2.",
+			"script": {
+				"1": [{"squad": "rifles", "type": "attack", "target": "dummy_a"}],
+				"2": [{"squad": "rifles", "type": "attack", "target": "dummy_b"}]}},
+		"retarget_mid": {"doc": "Switches to dummy B 5 s (50 ticks) into turn 1, mid-turn: the cost of a retarget within a turn (U1Q2; 01 R9c measured 438 against 453 for 5 s).",
+			"script": {
+				"1": [{"squad": "rifles", "type": "attack", "target": "dummy_a"}],
+				"1@50": [{"squad": "rifles", "type": "attack", "target": "dummy_b"}]}}
+	},
+	"probes": [
+		{"id": "t2_damage", "over": "t2", "squad": "rifles", "damage": {"min": 150}, "variants": "all", "doc": "Turn 2: total damage to any enemy, constant (base) or after the switch (retarget)."},
+		{"id": "b_first_shot", "over": "t2", "squad": "rifles", "target": "dummy_b", "first_shot": {"max": 2}, "variants": ["retarget"], "doc": "Seconds into turn 2 to the first shot at B: the cost of the switch."},
+		{"id": "a_first_shot", "over": "t2", "squad": "rifles", "target": "dummy_a", "first_shot": {"max": 0.5}, "doc": "Turn 2 of the constant target keeps firing at once."},
+		{"id": "t2_dps_engaged", "over": "t2", "squad": "rifles", "dps_engaged": null, "variants": "all"},
+		{"id": "run_damage", "over": "all", "squad": "rifles", "damage": null, "variants": "all", "doc": "Total HP dealt in the run, to either dummy: the whole cost of the retarget (base: A for both turns; retarget_mid: A for 5 s, then B for the rest)."},
+		{"id": "mid_before_a", "over": "t1:0-49", "squad": "rifles", "target": "dummy_a", "damage": null, "variants": ["base", "retarget_mid"], "doc": "Turn 1, first 5 s: damage to A (the same in both: the switch has not happened yet)."},
+		{"id": "mid_after_a", "over": "t1:50-99", "squad": "rifles", "target": "dummy_a", "damage": null, "variants": ["base", "retarget_mid"], "doc": "Turn 1, last 5 s: damage to A. The constant target keeps firing at A; retarget_mid has stopped."},
+		{"id": "mid_after_b", "over": "t1:50-99", "squad": "rifles", "target": "dummy_b", "damage": null, "variants": ["retarget_mid"], "doc": "Turn 1, last 5 s: damage to B after the mid-turn switch."},
+		{"id": "b_first_shot_mid", "over": "t1:50-99", "squad": "rifles", "target": "dummy_b", "first_shot": {"max": 2}, "variants": ["retarget_mid"], "doc": "Seconds from the mid-turn switch to the first shot at B."}
+	],
+	"compare": [
+		{"metric": "t2_damage", "lhs": "retarget", "rhs": "base", "rel": ">=", "factor": 0.9},
+		{"metric": "run_damage", "lhs": "retarget_mid", "rhs": "base", "rel": ">=", "factor": 0.9}
+	]
+}

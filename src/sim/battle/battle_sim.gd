@@ -24,11 +24,17 @@ func execute_turn(state: BattleState) -> void:
 		runner.step(state)
 		if tick_hook.is_valid():
 			tick_hook.call(state)
+	resolve_turn(state)
+	if tick_hook.is_valid():
+		tick_hook.call(state)
+
+
+## The end of an Execute, after its last tick: scores, triggers and the
+## turn's log. Shared with BattleCursor, which steps the ticks itself.
+static func resolve_turn(state: BattleState) -> void:
 	Centroids.update(state)
 	TurnResolution.resolve(state)
 	if state.rules.triggers != null:
 		state.rules.triggers.run(state, state.turn_log)
 	state.turn_log.append_array(state.events.drain())
 	Reactions.clear_all(state)
-	if tick_hook.is_valid():
-		tick_hook.call(state)

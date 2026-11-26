@@ -158,3 +158,42 @@ func test_strided_snapshots_and_manifest() -> void:
 	assert_ne(rep["data_hash"], "")
 	for k in ["scenario", "status", "package", "engine", "seed", "variants", "compare", "result"]:
 		assert_true(rep.has(k), "manifest carries %s" % k)
+
+
+func test_mid_turn_keys_and_variant_place() -> void:
+	var d := _base()
+	d["turns"] = 2
+	d["script"]["1@30"] = [{"squad": "rifles", "type": "hold"}]
+	d["variants"] = {"v": {
+		"script": {"1": [{"squad": "rifles", "type": "move", "x": 20, "y": 70}]},
+		"place": {"rifles": [30, 60]}}}
+	var sc := WorkshopScenario.from_dict(d)
+	assert_true(sc.is_valid(), "\n".join(sc.errors))
+	assert_true(sc.orders.has(Vector2i(1, 30)), "a '1@30' key is a mid-turn order")
+	var base := sc.resolved("base")
+	var v := sc.resolved("v")
+	assert_true(base["script"].has(Vector2i(1, 30)), "the base keeps its mid-turn order")
+	assert_false(v["script"].has(Vector2i(1, 30)), "a variant naming turn 1 replaces its mid-turn orders too")
+	assert_eq(v["script"][1][0]["type"], "move")
+	assert_eq(v["squads"][0]["x"], 30 * ONE, "place moves the squad (fixed point)")
+	assert_eq(v["squads"][0]["y"], 60 * ONE)
+	assert_eq(base["squads"][0]["x"], 50 * ONE, "the base placement is untouched")
+	var bad := _base()
+	bad["script"]["1@0"] = []
+	assert_false(WorkshopScenario.from_dict(bad).is_valid(), "tick 0 is the turn start: use '1'")
+	var late := _base()
+	late["script"]["1@100"] = [{"squad": "rifles", "type": "hold"}]
+	var late_run := WorkshopRun.execute(WorkshopScenario.from_dict(late))
+	assert_false(late_run.is_ok(), "a tick past the turn's ticks is a run error")
+
+
+func test_unchecked_order_is_the_only_way_past_the_sight_check() -> void:
+	var file := "res://data/sim/workshop/table_b_assault.json"
+	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(file))
+	var sc := WorkshopScenario.from_dict(raw, file)
+	assert_true(sc.is_valid(), "\n".join(sc.errors))
+	assert_true(WorkshopRun.execute(sc, "attack").is_ok(), "unchecked: the table B attack from 44 m runs")
+	raw["variants"]["attack"]["script"]["1"][0].erase("unchecked")
+	var checked := WorkshopRun.execute(WorkshopScenario.from_dict(raw, file), "attack")
+	assert_false(checked.is_ok(), "checked: the squad does not see the dummy at 44 m at turn start")
+	assert_true("not visible" in checked.errors[0], checked.errors[0])
