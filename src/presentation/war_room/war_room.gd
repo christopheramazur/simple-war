@@ -1113,9 +1113,19 @@ func planner(eid: int) -> BattlePlanner:
 		var pl := BattlePlanner.new(player)
 		pl.sync(_obs_battle(eid))
 		pl.changed.connect(_on_draft.bind(eid))
-		pl.selection_changed.connect(_queue_refresh)
+		pl.selection_changed.connect(_on_selection.bind(eid))
 		planners[eid] = pl
 	return planners[eid]
+
+
+## The selection changed. In Planning it goes through the drafts as it always
+## has (submit and forecast, which keeps the forecast warm); elsewhere it only
+## redraws, so a selection never queues orders (sw-bafi.2).
+func _on_selection(eid: int) -> void:
+	if _play.is_empty() and session.clock.phase == PulseClock.Phase.PLANNING:
+		_on_draft(eid)
+	else:
+		_queue_refresh()
 
 
 ## Drafts changed: submit them and refresh the forecast. Outside Planning
