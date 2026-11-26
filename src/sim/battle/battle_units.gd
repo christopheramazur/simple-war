@@ -32,12 +32,15 @@ var fired_tick := PackedInt64Array()   ## last tick it fired, -1 never
 var fpos := PackedByteArray()
 var fx := PackedInt64Array()
 var fy := PackedInt64Array()
+## 1 while a unit of another squad stands within 1.5 x their separation
+## distance (Separation, sw-txnj.12; set by each tick's separation pass).
+var crowded := PackedByteArray()
 
 
 func _init() -> void:
 	super(&"unit")
 	for c: StringName in [&"squad", &"tmpl", &"weapon", &"defense", &"slot", &"x", &"y", &"facing", &"speed", &"moving",
 			&"hp", &"hp_max", &"temp_hp", &"cooldown", &"ammo", &"reload", &"acc_hit", &"acc_evade",
-			&"acc_block", &"hits", &"fpos", &"fx", &"fy"]:
+			&"acc_block", &"hits", &"fpos", &"fx", &"fy", &"crowded"]:
 		declare(c, 0)
 	declare(&"fired_tick", -1)

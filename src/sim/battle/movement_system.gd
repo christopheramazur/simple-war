@@ -19,6 +19,9 @@ const CHASE_STEP: int = Fixed.ONE
 ## clear, without planning a route.
 const CHASE_STRAIGHT: int = 32 * Fixed.ONE
 
+## Separation between squads (sw-txnj.12); scratch only, no state.
+var _separation := Separation.new()
+
 
 func system_name() -> StringName:
 	return &"movement"
@@ -30,6 +33,7 @@ func run(ctx: SimContext) -> void:
 	_plan_routes(state)
 	_move_anchors(state)
 	_move_units(state)
+	_separation.run(state)
 
 
 ## Gives every squad that wants to move the leg it walks this tick. A new
@@ -357,8 +361,12 @@ func _move_units(state: BattleState) -> void:
 		var dy := gy - y[row]
 		var dist := Fixed.length(dx, dy)
 		var profile := r.ut_movement[u.tmpl[row]]
-		if dist <= ARRIVE:
-			if at_fpos:
+		# sw-txnj.12: a crowded unit (another squad's unit beside it) stands
+		# within its separation radius of its goal, so it doesn't step back
+		# into that unit (and fire on the move) every other tick.
+		var nudged := u.crowded[row] == 1 and dist <= r.ut_sep[u.tmpl[row]]
+		if dist <= ARRIVE or nudged:
+			if at_fpos and not nudged:
 				# sw-txnj.16: a firing position is validated at the point, so the
 				# unit stands on it. Stopping up to ARRIVE short left a shotgun
 				# just outside its 15 m range, holding 'o' for good.

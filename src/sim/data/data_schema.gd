@@ -29,6 +29,8 @@ const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "app
 const ORDERS: Array[String] = ["hold", "fall_back", "attack"]
 ## Battle orders a squad template names a behaviour for (GDD 02 §2.15 Squad
 ## behaviours), in BattleSquads.Order order: the index is the order's value.
+## Unit size classes (03 §3.2); separation radius per class (ruleset separation_m).
+const SIZE_CLASSES: Array[String] = ["small", "medium", "large", "huge"]
 const BATTLE_ORDERS: Array[String] = ["hold", "move", "attack_move", "attack", "fall_back", "withdraw"]
 ## The closed behaviour vocabulary (GDD 02 §2.15, U1Q12, U1Q29, sw-txnj.9):
 ## component name -> its parameters, in vocabulary (evaluation) order. A
@@ -441,7 +443,7 @@ const KINDS: Dictionary = {
 		"icon": {"type": "string"},
 		"name": {"type": "string"},
 		"hp": {"type": "fixed", "required": true, "min": 1},
-		"size_class": {"type": "string", "enum": ["small", "medium", "large", "huge"]},
+		"size_class": {"type": "string", "enum": SIZE_CLASSES},
 		"defense": {"type": "ref:defense", "required": true},
 		"movement": {"type": "ref:movement", "required": true},
 		"weapon": {"type": "ref:weapon"},
@@ -495,6 +497,11 @@ const KINDS: Dictionary = {
 		## How far past its point an engaged attack-move may close on the
 		## squad it fights, metres (default 15; U1Q29 leash).
 		"chase_leash_m": {"type": "fixed", "min": 0},
+		## Separation radius by unit size class, metres (U1Q10, GDD 02 §2.14
+		## Separation and coherency): a unit closer than this to a unit of
+		## another squad is pushed apart. Defaults small 0.4, medium 0.6,
+		## large 1.2, huge 2.4.
+		"separation_m": {"type": "map:fixed", "keys": SIZE_CLASSES, "min": 0},
 		## How recent a volley must be, in ticks, for the "under fire" pair
 		## relation (SquadRelation; default one second of ticks).
 		"relation_recent_fire_ticks": {"type": "int", "min": 1},

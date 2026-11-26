@@ -8,7 +8,8 @@ extends RefCounted
 ## at (one snapshot):  activity (squad code name), hold ({reason: units}),
 ##   fire (LineOfFire code name to the target), distance (centroids, m),
 ##   within (target centroid inside the squad's longest weapon range),
-##   spacing (nearest two units of the squad, m).
+##   spacing (nearest two units of the squad, m; with a target, the nearest
+##   unit of the squad to a unit of the target, sw-txnj.12).
 ## over (a tick window): damage (HP dealt, to the target if given), dps
 ##   (damage per second), shots, kills, duty (share of armed unit-ticks
 ##   that fired), victims {distinct, max_per_victim, overkill (hits that
@@ -121,11 +122,18 @@ static func _at(snap: Dictionary, kind: String, sid: int, tid: int) -> Variant:
 		"spacing":
 			var xs := PackedInt64Array()
 			var ys := PackedInt64Array()
+			var txs := PackedInt64Array()
+			var tys := PackedInt64Array()
 			for u: Dictionary in snap["units"]:
-				if u["squad"] == sid and u["hp"] > 0:
+				if u["hp"] <= 0:
+					continue
+				if u["squad"] == sid:
 					xs.append(u["x"])
 					ys.append(u["y"])
-			return _min_gap(xs, ys)
+				elif tid >= 0 and u["squad"] == tid:
+					txs.append(u["x"])
+					tys.append(u["y"])
+			return _min_gap(xs, ys) if tid < 0 else _cross_gap(xs, ys, txs, tys)
 	return null
 
 
@@ -145,6 +153,20 @@ static func _min_gap(xs: PackedInt64Array, ys: PackedInt64Array) -> Variant:
 	for i in xs.size():
 		for j in range(i + 1, xs.size()):
 			var d := Fixed.distance(xs[i], ys[i], xs[j], ys[j])
+			if best < 0 or d < best:
+				best = d
+	return milli_of_fixed(best)
+
+
+## Nearest distance from a unit of one set to a unit of the other, m
+## (milli); null if either is empty.
+static func _cross_gap(xs: PackedInt64Array, ys: PackedInt64Array, txs: PackedInt64Array, tys: PackedInt64Array) -> Variant:
+	if xs.is_empty() or txs.is_empty():
+		return null
+	var best := -1
+	for i in xs.size():
+		for j in txs.size():
+			var d := Fixed.distance(xs[i], ys[i], txs[j], tys[j])
 			if best < 0 or d < best:
 				best = d
 	return milli_of_fixed(best)
@@ -188,7 +210,7 @@ static func _over(run: WorkshopRun, frames: PackedInt64Array, kind: String, key:
 		"spacing":
 			var best: Variant = null
 			for f in frames:
-				var g: Variant = _frame_gap(run.recorder.frames[f], sid)
+				var g: Variant = _frame_gap(run.recorder.frames[f], sid, tid)
 				if g != null and (best == null or int(g) < int(best)):
 					best = g
 			return best
@@ -306,14 +328,22 @@ static func _victims(run: WorkshopRun, frames: PackedInt64Array, key: String, ti
 	return {"distinct": per_victim.size() * 1000, "max_per_victim": most * 1000, "overkill": overkill * 1000}
 
 
-static func _frame_gap(frame: PackedInt64Array, sid: int) -> Variant:
+static func _frame_gap(frame: PackedInt64Array, sid: int, tid: int = -1) -> Variant:
 	var xs := PackedInt64Array()
 	var ys := PackedInt64Array()
+	var txs := PackedInt64Array()
+	var tys := PackedInt64Array()
 	for o in range(0, frame.size(), ReplayRecorder.STRIDE):
-		if frame[o + ReplayRecorder.F_SQUAD] == sid and frame[o + ReplayRecorder.F_HP] > 0:
+		if frame[o + ReplayRecorder.F_HP] <= 0:
+			continue
+		var q := frame[o + ReplayRecorder.F_SQUAD]
+		if q == sid:
 			xs.append(frame[o + ReplayRecorder.F_X])
 			ys.append(frame[o + ReplayRecorder.F_Y])
-	return _min_gap(xs, ys)
+		elif tid >= 0 and q == tid:
+			txs.append(frame[o + ReplayRecorder.F_X])
+			tys.append(frame[o + ReplayRecorder.F_Y])
+	return _min_gap(xs, ys) if tid < 0 else _cross_gap(xs, ys, txs, tys)
 
 
 ## Mean position of the squad's living units in a playback frame ([] none).

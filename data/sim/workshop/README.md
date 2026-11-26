@@ -65,7 +65,7 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 - `id`: unique, no dots. Exactly one kind key; its value is the expectation (`null` = report the value only).
 - `at`: `"end"` (the last frame), `"t<turn>"` (after the turn resolved), `"t<turn>:<tick>"` (after that tick of the turn, from 0).
 - `over`: `"all"`, `"t<turn>"`, `"t<a>-t<b>"`, `"t<turn>:<k0>-<k1>"`. Both ends inclusive.
-- `squad`: the squad measured (required). `target`: a squad key (required for `fire`, `distance`, `within`; a filter for `damage`, `dps`, `shots`, `kills`, `victims`).
+- `squad`: the squad measured (required). `target`: a squad key (required for `fire`, `distance`, `within`; a filter for `damage`, `dps`, `shots`, `kills`, `victims`; for `spacing`, the gap to that squad's units).
 - `pending`: true makes this probe non-gating in a gate scenario.
 - `variants`: the variants the expectation holds in: a list, or `"all"`. Default `["base"]`. The value is measured and reported in every variant either way (comparisons use it).
 
@@ -76,7 +76,7 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 | `fire` | at | `LineOfFire` code to the target: `SHOT`, `BLOCKED`, `OUT_OF_RANGE`, `MIN_RANGE`, `NO_TARGET` | a name or a list of names |
 | `distance` | at | centroid to centroid, m | number |
 | `within` | at | the target's centroid is inside the squad's longest living weapon range | true / false |
-| `spacing` | at or over | the nearest two living units of the squad, m (over: the window's minimum) | number |
+| `spacing` | at or over | the nearest two living units of the squad, m; with `target`, the nearest living unit of the squad to a living unit of the target (sw-txnj.12) (over: the window's minimum) | number |
 | `damage` | over | HP dealt by the squad (`squad_damaged`) | number |
 | `dps` | over | damage per second: damage × ticks per second ÷ ticks in the window | number |
 | `shots` | over | shots fired (`squad_fired`) | number |

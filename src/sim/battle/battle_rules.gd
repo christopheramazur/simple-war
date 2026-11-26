@@ -69,6 +69,13 @@ var sq_route_class: PackedInt64Array = PackedInt64Array()
 var route_replan: int = 8 * Fixed.ONE
 ## Fixed. How far past its point an engaged attack-move may close (U1Q29).
 var chase_leash: int = 15 * Fixed.ONE
+## Separation radius by size class, fixed metres (ruleset separation_m,
+## U1Q10, GDD 02 §2.14 Separation and coherency).
+var separation: Dictionary = {}
+## Separation hash cell, fixed metres: 2 m, or the widest crowding distance
+## a template needs (Separation.CROWD_PCT of its radius) if that is more, so
+## the 3 x 3 stencil finds every pair.
+var sep_cell: int = 2 * Fixed.ONE
 ## Ticks. How recent a volley must be for the "under fire" relation (U1 Q6;
 ## default one second). Read models only: no system reads it.
 var recent_fire_ticks: int = 10
@@ -150,6 +157,8 @@ var weapon_index: Dictionary = {}
 var defense_index: Dictionary = {}
 var ut_proficiency: PackedInt64Array = PackedInt64Array()
 var ut_leader: PackedByteArray = PackedByteArray()
+## Separation radius per unit template, fixed metres (its size_class).
+var ut_sep: PackedInt64Array = PackedInt64Array()
 
 # --- squad templates ---
 var squad_ids: PackedStringArray = PackedStringArray()
@@ -635,6 +644,11 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
 	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
 	chase_leash = DataSchema.to_fixed(rs.get("chase_leash_m"), 15 * Fixed.ONE)
+	var sep: Dictionary = rs.get("separation_m", {})
+	var sep_default := {"small": "0.4", "medium": "0.6", "large": "1.2", "huge": "2.4"}
+	separation = {}
+	for k: String in DataSchema.SIZE_CLASSES:
+		separation[k] = DataSchema.to_fixed(sep.get(k, sep_default[k]))
 	recent_fire_ticks = int(rs.get("relation_recent_fire_ticks", tps))
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
@@ -788,6 +802,9 @@ func _compile_units(t: TemplateTable, ids: PackedStringArray, mv: Dictionary, df
 		ut_weapon.append(wp[v["weapon"]] if v.has("weapon") else -1)
 		ut_proficiency.append(int(v.get("proficiency_pct", 100)))
 		ut_leader.append(1 if (v.get("tags", []) as Array).has("leader") else 0)
+		var sep_r: int = separation.get(str(v.get("size_class", "medium")), 0)
+		ut_sep.append(sep_r)
+		sep_cell = maxi(sep_cell, sep_r * Separation.CROWD_PCT / 100)
 		ut_bundles.append(_bundle_list(v))
 	return index
 
