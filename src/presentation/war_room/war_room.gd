@@ -286,6 +286,7 @@ func _build_ui() -> void:
 	_terrain_colors = ContextView.feature_colors(session.templates)
 	_main = ContextView.new()
 	_main.terrain_colors = _terrain_colors
+	_main.feature_info = ContextView.hex_feature_info(session.templates)
 	_main.art = ArtSet.core()
 	_main.commander_ids = session.rules.commander_ids
 	_main.hex_clicked.connect(_on_hex_clicked)
