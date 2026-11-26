@@ -1,6 +1,7 @@
 class_name DefaultKeys
 extends RefCounted
-## Default key sets of the war room and the replay viewer, as GUIDE
+## Default key sets of the war room, the replay viewer and the behaviour
+## workshop, as GUIDE
 ## contexts (sw-ll4.9.2), with default gamepad mappings (sw-dqq). Planning keys live in PlanningInput. Each caller
 ## builds its own instance and enables it while its scene is in the tree;
 ## ControlsHelp reads the same builders for display text.
@@ -30,7 +31,20 @@ static func war_room() -> GuideKeys:
 
 
 static func replay() -> GuideKeys:
-	var g := GuideKeys.new("Replay viewer")
+	return _transport(GuideKeys.new("Replay viewer"))
+
+
+## The behaviour workshop (sw-tho3.8): the replay viewer's transport plus a
+## tick at a time (comma / period) and reloading the scenario file (F5).
+static func workshop() -> GuideKeys:
+	var g := _transport(GuideKeys.new("Behaviour workshop"))
+	g.bind(&"workshop_prev_tick", "Previous tick", [GuideKeys.key(KEY_COMMA, false, false, true), GuideKeys.pad(JOY_BUTTON_LEFT_SHOULDER)], GuideKeys.PULSE)
+	g.bind(&"workshop_next_tick", "Next tick", [GuideKeys.key(KEY_PERIOD, false, false, true), GuideKeys.pad(JOY_BUTTON_RIGHT_SHOULDER)], GuideKeys.PULSE)
+	g.bind(&"workshop_reload", "Reload the scenario file", [GuideKeys.key(KEY_F5, false, false, true), GuideKeys.pad(JOY_BUTTON_START)])
+	return g
+
+
+static func _transport(g: GuideKeys) -> GuideKeys:
 	g.bind(&"replay_toggle", "Play / pause", [GuideKeys.key(KEY_SPACE, false, false, true), GuideKeys.pad(JOY_BUTTON_A)])
 	g.bind(&"replay_faster", "Faster", [GuideKeys.key(KEY_EQUAL, false, false, true), GuideKeys.key(KEY_KP_ADD, false, false, true), GuideKeys.pad(JOY_BUTTON_DPAD_UP)])
 	g.bind(&"replay_slower", "Slower", [GuideKeys.key(KEY_MINUS, false, false, true), GuideKeys.key(KEY_KP_SUBTRACT, false, false, true), GuideKeys.pad(JOY_BUTTON_DPAD_DOWN)])
