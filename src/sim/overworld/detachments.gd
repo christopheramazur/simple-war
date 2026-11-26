@@ -15,7 +15,9 @@ extends RefCounted
 ##     a decided battle scatters, and one with no squads left is gone.
 ##   - Pick-up: a commander of the same player on its hex takes squads back
 ##     during planning (OverworldOrders.transfer_squad).
-##   - Sight: each detachment sees the map's `detachment_sight` radius.
+##   - Bands (U1Q27): a detachment is a band of a kind (OverworldStats.
+##     band_of): a garrison holds a hex, a caravan was sent somewhere. Its
+##     kind gives its sight and movement points (OverworldStats).
 ##   - Convoys (Convoys) are detachments with a destination.
 
 
@@ -52,11 +54,11 @@ static func drop(s: OverworldState, cid: int, p: int) -> int:
 	var d := s.detachments
 	for other in at(s, p):
 		var orow := d.row_of(other)
-		if d.player[orow] == player and not Convoys.is_convoy(s, orow) and d.engagement[orow] < 0:
+		if d.player[orow] == player and OverworldStats.is_garrison(s, orow) and d.engagement[orow] < 0:
 			did = other
 			break
 	if did < 0:
-		did = s.detachments.spawn({&"player": player, &"plot": p})
+		did = s.detachments.spawn({&"player": player, &"plot": p, &"band": s.rules.band_garrison})
 	for id in ids:
 		s.squads.set_value(id, &"holder", -1)
 		s.squads.set_value(id, &"detachment", did)

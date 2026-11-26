@@ -285,15 +285,15 @@ func set_convoy_route(player: int, detachment_id: int, plots: PackedInt64Array) 
 	return err
 
 
-## What a detachment of `player` can enter this turn: {"budget" (the map's
-## convoy movement points), "reach" (plot -> cost)}; {} if not its own or
-## in a battle.
+## What a detachment of `player` can enter this turn: {"budget" (its
+## movement points as a caravan, which sending it makes it), "reach"
+## (plot -> cost)}; {} if not its own or in a battle.
 func convoy_reach(player: int, detachment_id: int) -> Dictionary:
 	var row := state.detachments.row_of(detachment_id)
 	if row < 0 or state.detachments.player[row] != player or state.detachments.engagement[row] >= 0:
 		return {}
-	return {"budget": rules.convoy_mp,
-		"reach": OverworldPath.reach(state, state.detachments.plot[row], rules.convoy_mp, player)}
+	var mp := OverworldStats.movement_of(state, OverworldStats.BAND, detachment_id, rules.band_caravan)
+	return {"budget": mp, "reach": OverworldPath.reach(state, state.detachments.plot[row], mp, player)}
 
 
 ## The cheapest way for a detachment to plot `to`, as the player knows the

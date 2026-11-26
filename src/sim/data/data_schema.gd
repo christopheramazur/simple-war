@@ -93,6 +93,8 @@ const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert", 
 const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
 const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
+## Overworld stats a band's payload may raise (U1Q27, OverworldStats).
+const BAND_STATS: Array[String] = ["sight", "movement_points"]
 
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
@@ -618,6 +620,19 @@ const KINDS: Dictionary = {
 		## Most squads the army holds, besides the commander's own.
 		"army_cap": {"type": "int", "min": 0},
 	},
+	## A band kind (U1Q27): the kinds of commander-less squad groups. The core
+	## kinds are band_garrison (holding a hex) and band_caravan (sent
+	## somewhere). sight: radius in hexes. movement_points: per turn, in the
+	## map's move-cost units. payload_stats: the overworld stats its payload
+	## may raise; caps: stat -> most its payload may add (sw-63wt.3).
+	"band": {
+		"icon": {"type": "string"},
+		"name": {"type": "string"},
+		"sight": {"type": "int", "min": 0},
+		"movement_points": {"type": "int", "min": 1},
+		"payload_stats": {"type": "list:string", "enum": BAND_STATS},
+		"caps": {"type": "map:int", "keys": BAND_STATS},
+	},
 	## A seeded overworld map template (R3Q13): an empty width x height hex
 	## rectangle (odd-r offset rows) that its passes fill with features.
 	## `starts` places each player's starting commanders.
@@ -632,9 +647,9 @@ const KINDS: Dictionary = {
 		## The battlefield engagements are fought on by default: terrain,
 		## zones, victory, and two deployment areas the sides are given.
 		"battle_scenario": {"type": "ref:scenario"},
-		## Sight radius of a detachment (dropped-off squads), in hexes.
+		## Optional overrides (U1Q27): band_garrison's sight and
+		## band_caravan's movement points on this map (unset = the band's).
 		"detachment_sight": {"type": "int", "min": 0},
-		## Movement points a convoy spends each turn.
 		"convoy_movement": {"type": "int", "min": 1},
 		## Skirmish win condition (A2Q2): a side wins when every enemy
 		## commander is defeated (OverworldVictory).
