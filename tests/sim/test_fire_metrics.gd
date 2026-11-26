@@ -54,10 +54,9 @@ func test_rifle_squad_against_passive_no_armour_squad() -> void:
 	var v := _duel()
 	assert_eq(v["fire.raw|1"], 96.0, "display points, not fixed-point")
 	assert_eq(v["fire.dealt|1"], 82.0)
-	# Measured 55, not the 60 the bead expected: volleys every 10 ticks from the
-	# engagement at tick 0, and the sixth volley makes the first kill. Moving the
-	# squads apart (5 to 90 hexes) leaves the gap at 55, so it is the weapon
-	# timing, not the start positions (sw-pd2l.1 notes).
-	assert_eq(v["fire.first_kill_ticks|1"], 55.0)
+	# 60 ticks under today's picker (sw-pd2l.1 acceptance). Before main's
+	# firing-position change (sw-txnj.5, MOVING_TO_FIRE) the first kill came at
+	# 55 ticks: the squad now walks to a firing position before its first shot.
+	assert_eq(v["fire.first_kill_ticks|1"], 60.0)
 	assert_eq(v["fire.dealt|1"] + v["fire.overkill|1"] + v["fire.wasted_damage|1"] + v["fire.mitigation|1"],
 		v["fire.raw|1"], "every queued point is dealt, overkill, wasted or mitigated")
