@@ -35,6 +35,10 @@ STATE = ROOT / "harness" / "data" / "autopilot"
 WEEK = 7 * 86400
 RESULT = re.compile(r"^\s*\**RESULT:?\**:?\s*(done|partial|blocked|escalate)\b[\s\-—–:]*(.*)$", re.I | re.M)
 STOPPED, LIMITED, TIMED_OUT = "stopped", "limit", "timeout"
+# The API could not be reached: claude exhausted its retries and answered with a synthetic, zero-usage message
+# (2026-11-24: 14 beads were each charged two attempts and labelled autopilot-failed during one outage).
+API_DOWN = "api_down"
+API_DOWN_BACKOFF_S = 900
 
 
 def cfg() -> dict:
@@ -310,7 +314,10 @@ def run_claude(c: dict, prompt: str, wt: Path, logf: Path, stop_flag) -> dict:
                     o = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if o.get("type") == "rate_limit_event":
+                if o.get("type") == "system" and o.get("subtype") == "api_retry":
+                    if o.get("attempt", 0) >= o.get("max_retries", 1 << 30):
+                        out["api_down"] = True
+                elif o.get("type") == "rate_limit_event":
                     snaps = snapshots_from(o, time.time())
                     record(snaps)
                     five = next((s for s in snaps if s.window == "five_hour"), None)
@@ -343,6 +350,9 @@ def run_claude(c: dict, prompt: str, wt: Path, logf: Path, stop_flag) -> dict:
     except subprocess.TimeoutExpired:
         out["rc"] = -9
     reader.join(30)
+    if out["end"] == "exit" and out.pop("api_down", False) and not out["result"] and not out["cost_usd"]:
+        out["end"] = API_DOWN
+    out.pop("api_down", None)
     return out
 
 
@@ -413,7 +423,7 @@ def run_bead(c: dict, b: dict, stop_flag=lambda: False) -> dict:
     if t == "default" and "large" in c["claude"] and (res["result"] == "escalate" or res["end"] == TIMED_OUT):
         j["tier"] = "large"  # the next attempt runs on the planning model
     # not the bead's fault (stop, plan limit) or a hand-up to the planning model: does not use up an attempt
-    counts = res["end"] not in (STOPPED, LIMITED) and res["result"] != "escalate"
+    counts = res["end"] not in (STOPPED, LIMITED, API_DOWN) and res["result"] != "escalate"
     j.update(attempts=j["attempts"] + (1 if counts else 0), minutes=round((time.time() - t0) / 60),
              turns=res["turns"], cost_usd=res["cost_usd"], commits=commits, end=res["end"], status="idle")
     outcome = res["result"] or (res["end"] if res["end"] != "exit" else "no_result")
@@ -521,6 +531,9 @@ def run_loop(once: bool = False, bead: str | None = None) -> list[dict]:
             skip.add(b["id"])
         if once or bead:
             break
+        if j.get("outcome") == API_DOWN:  # don't churn through the queue while the API is unreachable
+            log(f"the API could not be reached ({b['id']}); trying again in {API_DOWN_BACKOFF_S // 60} min")
+            _sleep_until(time.time() + API_DOWN_BACKOFF_S)
     if drain_requested():
         (STATE / "DRAIN").unlink(missing_ok=True)
         log("autopilot drained: stopped after the bead")

@@ -136,6 +136,19 @@ def test_session_ends_when_the_five_hour_window_passes_the_stop_line(env, monkey
     assert out["end"] == ap.LIMITED and out["result"] is None
 
 
+def test_unreachable_api_is_api_down(env, monkeypatch):
+    retry = {"type": "system", "subtype": "api_retry", "attempt": 10, "max_retries": 10, "error_status": None}
+    fake_claude(monkeypatch, env, [retry, {"type": "result", "num_turns": 1, "total_cost_usd": 0, "result": ""}])
+    assert ap.run_claude(C, "p", env, env / "log.jsonl", lambda: False)["end"] == ap.API_DOWN
+
+
+def test_a_retry_that_recovers_is_not_api_down(env, monkeypatch):
+    retry = {"type": "system", "subtype": "api_retry", "attempt": 2, "max_retries": 10}
+    fake_claude(monkeypatch, env, [retry, {"type": "result", "num_turns": 3, "total_cost_usd": 0.2,
+                                           "result": "RESULT: done - ok"}])
+    assert ap.run_claude(C, "p", env, env / "log.jsonl", lambda: False)["end"] == "exit"
+
+
 def test_session_ends_on_stop(env, monkeypatch):
     fake_claude(monkeypatch, env, [{"type": "assistant"}], sleep=1.0)
     assert ap.run_claude(C, "p", env, env / "log.jsonl", lambda: True)["end"] == ap.STOPPED
@@ -218,6 +231,14 @@ def test_partial_that_fails_the_gate_stays_on_its_branch(bead):
 def test_done_without_commits_is_not_merged(bead):
     bead["st"]["commits"] = "0"
     assert ap.run_bead(C, {"id": "sw-x"})["outcome"] == "no_commits" and bead["merges"] == []
+
+
+def test_api_down_does_not_use_up_an_attempt_or_label(bead):
+    bead["st"]["session"].update(end=ap.API_DOWN, result=None, rc=1, cost_usd=0)
+    bead["st"]["commits"] = "0"
+    for _ in range(3):
+        j = ap.run_bead(C, {"id": "sw-x"})
+    assert j["outcome"] == ap.API_DOWN and j["attempts"] == 0 and labels(bead["calls"]) == []
 
 
 def test_a_limit_cut_does_not_use_up_an_attempt(bead):

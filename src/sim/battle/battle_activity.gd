@@ -19,8 +19,10 @@ enum Squad { IDLE, MOVING, CLOSING_IN, ENGAGED, READY, HOLDING, FALLING_BACK, WI
 
 ## Why an armed unit did not fire on the last completed tick. NONE = it
 ## fired, or nothing stops it (e.g. its squad has not engaged yet).
+## MOVING_TO_FIRE (sw-txnj.5): under an attack order it is walking to its
+## firing position and has no shot on the way (GDD 02 §2.15).
 enum Hold { NONE, UNARMED, FALLING_BACK, RELOADING, COOLDOWN,
-	NO_MOVING_FIRE, MIN_RANGE, OUT_OF_RANGE, NO_LOS, NOT_SPOTTED, NO_TARGET }
+	NO_MOVING_FIRE, MIN_RANGE, OUT_OF_RANGE, NO_LOS, NOT_SPOTTED, NO_TARGET, MOVING_TO_FIRE }
 
 
 static func squad(state: BattleState, row: int) -> int:
@@ -86,12 +88,14 @@ static func hold(state: BattleState, urow: int) -> int:
 		return Hold.RELOADING
 	if u.cooldown[urow] > 0:
 		return Hold.COOLDOWN
-	var m := r.pick_mode(w, u.moving[urow] == 1)
+	var walking := moving_to_fire(state, urow)
+	var m := CombatSystem.fire_mode(state, urow, CombatSystem.fires_moving(state, urow))
 	if m < 0:
-		return Hold.NO_MOVING_FIRE
+		return Hold.MOVING_TO_FIRE if walking else Hold.NO_MOVING_FIRE
 	var trow := sq.row_of(sq.engaged[row])
 	if trow >= 0 and sq.is_active(trow):
-		return _target_hold(state, urow, trow, w, m)
+		var th := _target_hold(state, urow, trow, w, m)
+		return Hold.MOVING_TO_FIRE if walking and th != Hold.NONE else th
 	# No engagement: is there anything in weapon reach, and is it spotted?
 	var me := BattleSquads.bit(sq.player[row])
 	var in_reach := false
@@ -124,7 +128,7 @@ static func victim(state: BattleState, urow: int) -> int:
 	var trow := sq.row_of(sq.engaged[row])
 	if trow < 0 or not sq.is_active(trow):
 		return -1
-	var m := r.pick_mode(w, u.moving[urow] == 1)
+	var m := CombatSystem.fire_mode(state, urow, CombatSystem.fires_moving(state, urow))
 	if m < 0:
 		return -1
 	var best := -1
@@ -155,6 +159,12 @@ static func unit_report(state: BattleState, urow: int) -> Dictionary:
 		"victim": u.id_at(v) if v >= 0 else -1,
 		"victim_dist": Fixed.distance(u.x[urow], u.y[urow], u.x[v], u.y[v]) if v >= 0 else 0,
 	}
+
+
+## True if the unit holds a firing position it has not reached yet.
+static func moving_to_fire(state: BattleState, urow: int) -> bool:
+	var u := state.units
+	return u.fpos[urow] == FiringPositions.HAS 		and Fixed.distance(u.x[urow], u.y[urow], u.fx[urow], u.fy[urow]) > MovementSystem.ARRIVE
 
 
 static func _fired_last_tick(fired: int, tick: int) -> bool:

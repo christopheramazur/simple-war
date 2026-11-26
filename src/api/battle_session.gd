@@ -33,6 +33,8 @@ var input_log: Array = []
 var initial_snapshot: Dictionary = {}
 
 var _orders: Dictionary = {}
+## Deployment placements this Planning: player -> Array (BattleDeploy).
+var _deploys: Dictionary = {}
 var _opportunities: Array = []
 var _telegraphs: Array = []
 var _execute_pending: bool = false
@@ -60,6 +62,7 @@ func _setup(r: BattleRules, scenario: String, seed_in: int, hash_hex: String, cl
 	data_hash = hash_hex
 	sim = BattleSim.new()
 	state = BattleSetup.create(1, rules, seed_in, jitter)
+	state.deploying = rules.deployment_open
 	bus = PulseBus.new()
 	bus.register_context(state)
 	TransferSystem.new().attach(bus)
@@ -108,6 +111,24 @@ func submit_orders(player: int, orders: Array) -> PackedStringArray:
 	_orders[player] = kept
 	_log(player, "orders", kept)
 	return errors
+
+
+## Replaces the player's deployment placements (Planning, while the battle
+## is deploying; BattleDeploy): [{squad, x, y, facing}]. Returns errors;
+## valid placements are kept. They apply at Reveal; squads not placed keep
+## their automatic places.
+func submit_deployment(player: int, placements: Array) -> PackedStringArray:
+	var errors := PackedStringArray()
+	if clock.phase != PulseClock.Phase.PLANNING or is_over() or not state.deploying:
+		errors.append("deployment is only accepted during planning while the battle is deploying")
+		return errors
+	if not state.players.has(player):
+		errors.append("unknown player")
+		return errors
+	var c := BattleDeploy.check(state, player, placements)
+	_deploys[player] = c["kept"]
+	_log(player, "battle_deploy", c["kept"])
+	return c["errors"]
 
 
 ## Sets a player's auto-off rule for a toggle ability (R8Q2); see
@@ -187,6 +208,8 @@ func submit_reaction(player: int, squad: int, reaction: String, trigger: int) ->
 func _on_phase(phase: PulseClock.Phase, _turn: int) -> void:
 	match phase:
 		PulseClock.Phase.REVEAL:
+			BattleDeploy.reveal(state, _deploys)
+			_deploys.clear()
 			for p in state.players:
 				BattleOrders.apply(state, p, _orders.get(p, []))
 			_orders.clear()
@@ -235,7 +258,9 @@ func observe(player: int) -> Dictionary:
 
 ## The clock-free part of observe, for any battle state (also battles run by
 ## the overworld session on the shared pulse).
-static func observe_state(state: BattleState, player: int) -> Dictionary:
+## While the battle is deploying, squads of players other than `player` and
+## its `allies` are left out even if seen (BattleDeploy.hides).
+static func observe_state(state: BattleState, player: int, allies: PackedInt64Array = PackedInt64Array()) -> Dictionary:
 	var rules := state.rules
 	var sq := state.squads
 	var u := state.units
@@ -247,7 +272,8 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 	for row in sq.count():
 		var sid := sq.id_at(row)
 		var own := sq.player[row] == player
-		if not own and (not sq.is_active(row) or (not all_seeing and sq.seen_by[row] & me == 0)):
+		if not own and (not sq.is_active(row) or (not all_seeing and sq.seen_by[row] & me == 0)
+				or BattleDeploy.hides(state, player, row, allies)):
 			continue
 		visible[sid] = true
 		var d := {
@@ -339,7 +365,26 @@ static func observe_state(state: BattleState, player: int) -> Dictionary:
 		"width": rules.width, "height": rules.height,
 		"squads": squads, "units": units, "zones": zones, "scores": scores, "events": events,
 		"result": state.result.duplicate(true),
+		"deploying": state.deploying, "areas": deploy_areas(state), "area": deploy_area_of(state, player),
 	}
+
+
+## Every side's deployment area (public scenario data): [{player, facing,
+## deploy: [x, y, w, h]}].
+static func deploy_areas(state: BattleState) -> Array:
+	var out := []
+	for side: Dictionary in state.rules.sides:
+		out.append({"player": int(side["player"]), "facing": int(side["facing"]),
+			"deploy": Array(side["deploy"] as PackedInt64Array)})
+	return out
+
+
+## The player's own deployment area [x, y, w, h] ([] for replays and players
+## with no side in the battle).
+static func deploy_area_of(state: BattleState, player: int) -> Array:
+	if player <= 0:
+		return []
+	return Array(BattleDeploy.area(state, player))
 
 
 ## Activity bits of observed units and playback frames (sw-aba).
@@ -371,7 +416,8 @@ func inspect(player: int, squad_id: int) -> Dictionary:
 	if row < 0:
 		return {}
 	var own := state.squads.player[row] == player
-	if not own and (state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not state.squads.is_active(row)):
+	if not own and (state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not state.squads.is_active(row)
+			or BattleDeploy.hides(state, player, row)):
 		return {}
 	return Inspection.squad(state, squad_id, player)
 
@@ -383,7 +429,7 @@ static func _event_visible(e: SimEvent, player: int, visible: Dictionary) -> boo
 	if d.has("player") and not d.has("squad"):
 		return true
 	if e.type in [&"squad_revealed", &"squad_hidden"]:
-		return d["player"] == player
+		return d["player"] == player and (visible.has(d["squad"]) or e.type == &"squad_hidden")
 	for key in ["squad", "target", "by", "trigger"]:
 		if d.has(key) and visible.has(d[key]):
 			return true
@@ -398,7 +444,7 @@ func save() -> PackedByteArray:
 	var data := {
 		"version": SAVE_VERSION, "scenario": scenario_id, "seed": seed_value, "jitter": deploy_jitter, "data_hash": data_hash,
 		"clock_config": _config_dict(clock.config), "initial": initial_snapshot, "inputs": input_log.duplicate(true),
-		"state": state.snapshot(), "clock": clock.snapshot(), "orders": _orders.duplicate(true),
+		"state": state.snapshot(), "clock": clock.snapshot(), "orders": _orders.duplicate(true), "deploys": _deploys.duplicate(true),
 		"opportunities": _opportunities.duplicate(true), "telegraphs": _telegraphs.duplicate(true), "hash": state.state_hash().hex_encode(),
 	}
 	return var_to_bytes(data).compress(FileAccess.COMPRESSION_GZIP)
@@ -422,6 +468,7 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 	Centroids.update(s.state)
 	s.clock.restore(data["clock"])
 	s._orders = data["orders"]
+	s._deploys = data.get("deploys", {})
 	s._opportunities = data["opportunities"]
 	s._telegraphs = data.get("telegraphs", [])
 	s.input_log = data["inputs"]
@@ -454,6 +501,8 @@ func replay_inputs(inputs: Array) -> void:
 				submit_orders(i["player"], i["payload"])
 			"ready":
 				ready(i["player"])
+			"battle_deploy", "deploy":  # "deploy": logs from before sw-bafi.11
+				submit_deployment(i["player"], i["payload"])
 			"advance":
 				advance(i["payload"])
 			"auto_off":

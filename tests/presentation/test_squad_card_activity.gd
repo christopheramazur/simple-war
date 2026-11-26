@@ -65,6 +65,7 @@ func test_the_activity_line_is_the_sims_code_in_words() -> void:
 
 func test_engaged_names_its_target_through_the_panel() -> void:
 	var st := _session.state
+	st.deploying = false  # past the deployment step (BattleDeploy hides enemies until Reveal)
 	var sq := st.squads
 	var enemy := -1
 	var ename := ""

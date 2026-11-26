@@ -1,0 +1,38 @@
+{
+	"id": "table_b_assault",
+	"component": "orders",
+	"doc": "Cross-check of 01 table B, assault squad row (1 rifle at 40 m, 4 shotguns at 15 m) against an unarmed dummy, on the core package. Four placements, as the table ran them: hold at 12 m (x 73); move to the dummy's centre from 60 m; attack-move from 60 m (base); attack from 44 m. The attack variant's order is `unchecked`: the table's runs set orders without the sight check, and the assault squad does not see the dummy at 44 m at turn start, so the check would refuse it. Expectations are table B's DPS1 (6.7, 8.8, 2.0, 2.2) within 5%. Re-pinned by sw-txnj.5 (A3, per-unit firing positions): attack-move and attack now walk the short weapons in. Re-pinned by sw-txnj.16: a unit with a firing position now stands on it (it used to stop up to 1/8 m short, out of the shotguns' 15 m range, and churn 'o'), so attack from 44 m is 9.13 DPS, not 5.66. The B3 target (attack-move at least 0.9 of hold at 12 m) is mixed_range_orders, pending.",
+	"status": "gate",
+	"package": "core",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{"key": "assault", "player": 1, "squad": "assault_squad", "at": [25, 80], "facing": 0},
+		{"key": "dummy", "player": 2, "squad": "rifle_squad", "at": [85, 80], "facing": 180,
+			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
+	],
+	"script": {
+		"1": [{"squad": "assault", "type": "attack_move", "x": 85, "y": 80}]
+	},
+	"variants": {
+		"hold_12": {"doc": "Hold at 12 m (table B's first column).",
+			"place": {"assault": [73, 80]},
+			"script": {"1": [{"squad": "assault", "type": "hold"}]}},
+		"move": {"doc": "Move to the dummy's centre.",
+			"script": {"1": [{"squad": "assault", "type": "move", "x": 85, "y": 80}]}},
+		"attack": {"doc": "Attack the dummy from 44 m (unchecked, see the doc).",
+			"place": {"assault": [41, 80]},
+			"script": {"1": [{"squad": "assault", "type": "attack", "target": "dummy", "unchecked": true}]}}
+	},
+	"probes": [
+		{"id": "dps_attack_move", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.196, "max": 9.058}, "variants": ["base"], "doc": "sw-txnj.11 (assault_attack_move, firing-position coherency +3 m): 8.627 (5%). sw-txnj.5 closing to fire was 8.498; table B was 2.0.."},
+		{"id": "dps_attack_move_a3_floor", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.498}, "variants": ["base"], "doc": "sw-txnj.11 acceptance: attack-move DPS never falls below the A3 number (8.498, sw-txnj.5)."},
+		{"id": "dps_hold_12", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 6.365, "max": 7.035}, "variants": ["hold_12"], "doc": "Table B: 6.7 (5%)."},
+		{"id": "dps_move", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.36, "max": 9.24}, "variants": ["move"], "doc": "Table B: 8.8 (5%)."},
+		{"id": "dps_attack", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.769, "max": 9.693}, "variants": ["attack"], "doc": "sw-txnj.11 (assault_attack, coherency +3 m): 9.231 (5%). sw-txnj.16 (firing position snap on arrival) had 9.126; sw-txnj.5 had 5.664 with shotguns stuck out of range at 16.8 m; table B was 2.2. At least 0.9 of hold 12 m (6.7)."}
+	],
+	"compare": []
+}

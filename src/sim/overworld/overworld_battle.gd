@@ -14,3 +14,6 @@ var state: BattleState
 var links: Dictionary = {}
 ## Pending battle orders this turn: player -> Array.
 var orders: Dictionary = {}
+## Pending deployment placements while the battle is deploying: player ->
+## Array (BattleDeploy), applied at Reveal.
+var deploys: Dictionary = {}

@@ -83,6 +83,7 @@ static func build(t: TemplateTable, hash_hex: String, s: OverworldState, eid: in
 	b.rules = br
 	b.areas = areas
 	b.state = BattleState.new(context_id, br, seed_value)
+	b.state.deploying = br.deployment_open
 	for i in sides.size():
 		var ids := BattleSetup.deploy_side(b.state, sides[i])
 		var mine: Array = owned[i]
@@ -351,7 +352,8 @@ static func to_dict(b: OverworldBattle) -> Dictionary:
 	for sd in b.rules.sides:
 		sides.append(sd.duplicate(true))
 	return {"engagement": b.engagement, "plot": b.plot, "context": b.context_id, "scenario": b.scenario,
-		"sides": sides, "state": b.state.snapshot(), "links": b.links.duplicate(), "orders": b.orders.duplicate(true)}
+		"sides": sides, "state": b.state.snapshot(), "links": b.links.duplicate(), "orders": b.orders.duplicate(true),
+		"deploys": b.deploys.duplicate(true)}
 
 
 static func from_dict(t: TemplateTable, hash_hex: String, d: Dictionary) -> OverworldBattle:
@@ -371,4 +373,5 @@ static func from_dict(t: TemplateTable, hash_hex: String, d: Dictionary) -> Over
 	Centroids.update(b.state)
 	b.links = d["links"]
 	b.orders = d["orders"]
+	b.deploys = d.get("deploys", {})
 	return b
