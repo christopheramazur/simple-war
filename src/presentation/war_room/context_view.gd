@@ -132,9 +132,11 @@ var _layout_src: Dictionary = {}
 var _info: Array = []
 var _info_names: PackedStringArray = PackedStringArray()
 var _info_src: Dictionary = {}
-## Movers standing in their hex's lane: "c<id>" / "d<id>" -> lane slot, and
-## plot -> how many more than the lane holds ("+n"). Built in show_overworld.
-var _lane_slot: Dictionary = {}
+## Movers standing in their hex's lane: commander ID / detachment ID ->
+## lane slot, and plot -> how many more than the lane holds ("+n"). Built
+## in show_overworld.
+var _lane_cmd: Dictionary = {}
+var _lane_det: Dictionary = {}
 var _lane_more: Dictionary = {}
 var _lane_src: Array = []
 ## Side k's unit vector on screen (HexLayout.side_dir), computed once.
@@ -396,7 +398,7 @@ func _draw_overworld() -> void:
 		if walking:
 			c = o + _along(det_play[det["id"]], t)
 		else:
-			var slot: int = _lane_slot.get("d%d" % det["id"], -1)
+			var slot: int = _lane_det.get(det["id"], -1)
 			if slot < 0:
 				continue
 			c = o + _lane_point(det["plot"], slot, k)
@@ -443,7 +445,7 @@ func _draw_overworld() -> void:
 		if cmd_play.has(cmd["id"]):
 			c = o + _along(cmd_play[cmd["id"]], t)
 		else:
-			var slot: int = _lane_slot.get("c%d" % cmd["id"], -1)
+			var slot: int = _lane_cmd.get(cmd["id"], -1)
 			if slot < 0:
 				continue
 			c = o + _lane_point(cmd["plot"], slot, k)
@@ -545,11 +547,11 @@ func _draw_site(f: Dictionary, at: Vector2, r: float, shade: float) -> void:
 	var id := _names[tmpl] if tmpl >= 0 and tmpl < _names.size() else ""
 	var tint := Color(shade, shade, shade)
 	if art != null and not id.is_empty():
-		for field: String in ["icon", "tile"]:
-			if art.has_art(id, field):
-				draw_circle(at, r, BG)
-				draw_texture_rect(art.texture(id, field), Rect2(at - Vector2(r, r), Vector2(r, r) * 2.0), false, tint)
-				return
+		var field := "icon" if art.has_art(id, "icon") else ("tile" if art.has_art(id, "tile") else "")
+		if not field.is_empty():
+			draw_circle(at, r, BG)
+			draw_texture_rect(art.texture(id, field), Rect2(at - Vector2(r, r), Vector2(r, r) * 2.0), false, tint)
+			return
 	draw_circle(at, r, _shaded(_info_of(tmpl)["color"], shade))
 	draw_arc(at, r, 0, TAU, 16, BG, 1.0)
 
@@ -703,10 +705,11 @@ func _ids_on(entry: Dictionary) -> PackedStringArray:
 ## first (in observation order), then garrisons and caravans.
 func _sync_lanes() -> void:
 	var play: Dictionary = _extra.get("play", {})
-	if _lane_src.size() == 2 and is_same(_lane_src[0], _obs) and is_same(_lane_src[1], play) and not _lane_slot.is_empty():
+	if _lane_src.size() == 2 and is_same(_lane_src[0], _obs) and is_same(_lane_src[1], play):
 		return
 	_lane_src = [_obs, play]
-	_lane_slot = {}
+	_lane_cmd = {}
+	_lane_det = {}
 	_lane_more = {}
 	var used := {}
 	var cmd_play: Dictionary = play.get("commanders", {})
@@ -714,18 +717,18 @@ func _sync_lanes() -> void:
 	var movers: Array = []
 	for cmd: Dictionary in _obs.get("commanders", []):
 		if not cmd_play.has(cmd["id"]):
-			movers.append(["c%d" % cmd["id"], int(cmd["plot"])])
+			movers.append([_lane_cmd, cmd["id"], int(cmd["plot"])])
 	for det: Dictionary in _obs.get("detachments", []):
 		if not det_play.has(det["id"]):
-			movers.append(["d%d" % det["id"], int(det["plot"])])
+			movers.append([_lane_det, det["id"], int(det["plot"])])
 	for m: Array in movers:
-		var p: int = m[1]
+		var p: int = m[2]
 		var lay: Dictionary = _layouts.get(p, NO_LAYOUT)
 		var cap: int = (lay["lay"]["lane"] as Array).size() if not lay.is_empty() else HexLayout.lane(PackedInt32Array()).size()
 		var n: int = used.get(p, 0)
 		used[p] = n + 1
 		if n < cap:
-			_lane_slot[m[0]] = _lane_order(n, cap)
+			(m[0] as Dictionary)[m[1]] = _lane_order(n, cap)
 		else:
 			_lane_more[p] = n - cap + 1
 
