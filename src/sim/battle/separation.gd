@@ -194,9 +194,11 @@ func _touch(state: BattleState, ra: int, rb: int, lim: int) -> void:
 	var d := Fixed.length(dx, dy)
 	if d >= lim:
 		return
+	# Half the overlap each, rounded up so the pair ends at least lim apart.
+	var over := (lim - d) / 2 + 1
 	if d == 0:
 		# Same point: along the lower unit ID's facing; that unit steps
-		# forward, the other back. (dx, dy) runs from a to b.
+		# forward, the other back. (dx, dy) runs from a to b, unit length.
 		var lo := a if u.id_at(a) < u.id_at(b) else b
 		var f := u.facing[lo]
 		dx = Fixed.fcos(f)
@@ -205,8 +207,6 @@ func _touch(state: BattleState, ra: int, rb: int, lim: int) -> void:
 		if lo == a:
 			dx = -dx
 			dy = -dy
-	# Half the overlap each, rounded up so the pair ends at least lim apart.
-	var over := (lim - d) / 2 + 1
 	var ox := Fixed.mul_ratio(dx, over, d)
 	var oy := Fixed.mul_ratio(dy, over, d)
 	_px[a] -= ox
