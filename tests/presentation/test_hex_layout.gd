@@ -216,6 +216,9 @@ func test_core_features_carry_drawing_fields() -> void:
 	for fid in ["hex_plains", "hex_road", "hex_village", "hex_mine"]:
 		var c := String(t.values_of(fid).get("color", ""))
 		assert_true(c.is_valid_html_color() and c.length() == 6, "%s colour %s" % [fid, c])
+	assert_eq(int(t.values_of("hex_barracks").get("layout_priority", 0)), 3)
+	assert_eq(int(t.values_of("hex_frontier_town").get("layout_priority", 0)), 3, "frontier town via its patch")
+	assert_eq(String(t.values_of("hex_frontier_town").get("color", "")), "b9a46a")
 	var info := {"hex_road": t.values_of("hex_road")}
 	assert_eq(HexLayout.road_sides(PackedStringArray(["hex_road"]),
 		[["hex_road"], [], [], [], [], []], info), PackedInt32Array([E]))
