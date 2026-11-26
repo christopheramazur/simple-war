@@ -234,7 +234,8 @@ var zn_vp: PackedInt64Array = PackedInt64Array()
 var zn_locked: PackedByteArray = PackedByteArray()
 ## Scripted triggers (TriggerRules, battle context).
 var triggers: TriggerRules
-## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array}
+## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array,
+## placed: [{squad (template index), x, y (fixed), facing, locked}]} (sw-tdz).
 var sides: Array[Dictionary] = []
 var turn_limit: int = 10
 var primary_influence: bool = true
@@ -908,7 +909,9 @@ func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 			"facing": int(s.get("facing", 0)) & Fixed.ANGLE_MASK,
 			"deploy": PackedInt64Array([DataSchema.to_fixed(d["x"]), DataSchema.to_fixed(d["y"]), DataSchema.to_fixed(d["w"]), DataSchema.to_fixed(d["h"])]),
 			"squads": squads,
+			"placed": [],
 		})
+	_compile_placed(sc.get("placed", []))
 	var vic: Dictionary = sc["victory"]
 	turn_limit = int(vic.get("turn_limit", 10))
 	primary_influence = vic.get("primary", "influence") == "influence"
@@ -916,3 +919,54 @@ func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 	annihilation = vic.get("annihilation", true)
 	withdrawal = vic.get("withdrawal", true)
 	loser_hook = (sc.get("end_hooks", {}) as Dictionary).get("loser", "scatter")
+
+
+## Scenario `placed` (sw-tdz, U1Q31): {side, squad, x, y, facing?, locked?}
+## puts a squad of its side at a point. That is its automatic place, which
+## the player may move in the deployment step unless `locked`. Refused: a
+## side the scenario doesn't have, a squad its side doesn't list, a squad
+## placed twice on one side, a point outside its side's area or with no cell
+## the squad can enter there, and two entries on one cell. `facing` defaults
+## to the side's. Called after the sides and the terrain are compiled.
+func _compile_placed(list: Array) -> void:
+	var cells := {}
+	var seen := {}
+	for p: Dictionary in list:
+		var pl := int(p["side"])
+		var what := "scenario '%s': placed squad '%s' on side %d" % [scenario_id, p["squad"], pl]
+		var si := -1
+		for i in sides.size():
+			if int(sides[i]["player"]) == pl:
+				si = i
+		if si < 0:
+			errors.append("%s: no side has player %d" % [what, pl])
+			continue
+		var side := sides[si]
+		var st := squad_index(p["squad"])
+		if not (side["squads"] as PackedInt64Array).has(st):
+			errors.append("%s: the side does not list it" % what)
+			continue
+		var key := "%d|%d" % [pl, st]
+		if seen.has(key):
+			errors.append("%s: squad placed twice" % what)
+			continue
+		seen[key] = true
+		var x := DataSchema.to_fixed(p["x"])
+		var y := DataSchema.to_fixed(p["y"])
+		var rect := side["deploy"] as PackedInt64Array
+		if x < rect[0] or y < rect[1] or x > rect[0] + rect[2] or y > rect[1] + rect[3]:
+			errors.append("%s: outside its side's deployment area" % what)
+			continue
+		if BattleDeploy.open_point_in(self, st, x, y, rect).is_empty():
+			errors.append("%s: no cell the squad can enter in its side's area" % what)
+			continue
+		var cell := "%d,%d" % [Fixed.to_int_floor(x), Fixed.to_int_floor(y)]
+		if cells.has(cell):
+			errors.append("scenario '%s': two placed squads on cell %s" % [scenario_id, cell])
+			continue
+		cells[cell] = true
+		(side["placed"] as Array).append({
+			"squad": st, "x": x, "y": y,
+			"facing": int(p.get("facing", side["facing"])) & Fixed.ANGLE_MASK,
+			"locked": bool(p.get("locked", false)),
+		})

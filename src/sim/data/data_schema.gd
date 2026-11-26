@@ -183,6 +183,16 @@ const OBJECTS: Dictionary = {
 		"squads": {"type": "list:ref:squad", "required": true},
 		"facing": {"type": "int"},
 	},
+	## A squad placed at a point of its side's area (sw-tdz, U1Q31): its
+	## automatic place, which the player may move unless `locked`.
+	"placed": {
+		"side": {"type": "int", "required": true, "min": 1},
+		"squad": {"type": "ref:squad", "required": true},
+		"x": {"type": "fixed", "required": true},
+		"y": {"type": "fixed", "required": true},
+		"facing": {"type": "int"},
+		"locked": {"type": "bool"},
+	},
 	"victory": {
 		"turn_limit": {"type": "int", "min": 1},
 		"primary": {"type": "string", "enum": ["influence", "value"]},
@@ -692,6 +702,8 @@ const KINDS: Dictionary = {
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},
 		"sides": {"type": "list:obj:side", "required": true},
+		## Squads placed at their own points (sw-tdz); the rest deal evenly.
+		"placed": {"type": "list:obj:placed"},
 		"victory": {"type": "obj:victory", "required": true},
 		"end_hooks": {"type": "obj:end_hooks"},
 		"triggers": {"type": "list:ref:trigger"},
