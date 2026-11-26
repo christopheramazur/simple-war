@@ -361,10 +361,12 @@ func _move_units(state: BattleState) -> void:
 		var dy := gy - y[row]
 		var dist := Fixed.length(dx, dy)
 		var profile := r.ut_movement[u.tmpl[row]]
-		# sw-txnj.12: a crowded unit (another squad's unit beside it) stands
-		# within its separation radius of its goal, so it doesn't step back
-		# into that unit (and fire on the move) every other tick.
-		var nudged := u.crowded[row] == 1 and dist <= r.ut_sep[u.tmpl[row]]
+		# sw-txnj.12: a crowded unit (another squad's unit beside it) of a
+		# squad whose anchor stands this tick stands within its separation
+		# radius of its goal, so it doesn't step back into that unit (and
+		# fire on the move) every other tick. A walking squad's units keep
+		# walking.
+		var nudged := u.crowded[row] == 1 and sq.moving[srow] == 0 and dist <= r.ut_sep[u.tmpl[row]]
 		if dist <= ARRIVE or nudged:
 			if at_fpos and not nudged:
 				# sw-txnj.16: a firing position is validated at the point, so the

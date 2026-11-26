@@ -40,6 +40,11 @@ var _px := PackedInt64Array()
 var _py := PackedInt64Array()
 var _keys := PackedInt64Array()
 var _cells := PackedInt64Array()
+var _kx := PackedInt64Array()
+var _ky := PackedInt64Array()
+var _ks := PackedInt64Array()
+var _kr := PackedInt64Array()
+var _krow := PackedInt64Array()
 var _cell_start := PackedInt32Array()
 var _cell_end := PackedInt32Array()
 var _cols: int = 0
@@ -85,16 +90,39 @@ func _pairs(state: BattleState) -> bool:
 	_keys.resize(0)
 	var max_cx := cols - 1
 	var max_cy := rows - 1
+	var ux := u.x
+	var uy := u.y
+	var uhp := u.hp
 	for row in u.count():
-		if u.hp[row] <= 0:
+		if uhp[row] <= 0:
 			continue
-		var cx := clampi(u.x[row] / cell_size, 0, max_cx)
-		var cy := clampi(u.y[row] / cell_size, 0, max_cy)
+		var cx := clampi(ux[row] / cell_size, 0, max_cx)
+		var cy := clampi(uy[row] / cell_size, 0, max_cy)
 		_keys.append(((cy * cols + cx) << ROW_BITS) | row)
 	var m := _keys.size()
 	if m < 2:
 		return false
 	_keys.sort()
+	# Columns in key order, so the pair loops read contiguous locals.
+	var usq := u.squad
+	var utm := u.tmpl
+	var sep := r.ut_sep
+	_kx.resize(m)
+	_ky.resize(m)
+	_ks.resize(m)
+	_kr.resize(m)
+	_krow.resize(m)
+	for k in m:
+		var row := _keys[k] & ROW_MASK
+		_krow[k] = row
+		_kx[k] = ux[row]
+		_ky[k] = uy[row]
+		_ks[k] = usq[row]
+		_kr[k] = sep[utm[row]]
+	var kx := _kx
+	var ky := _ky
+	var ks := _ks
+	var kr := _kr
 	_cells.resize(0)
 	var i := 0
 	while i < m:
@@ -109,63 +137,61 @@ func _pairs(state: BattleState) -> bool:
 	for c in _cells:
 		var s0 := _cell_start[c]
 		var s1 := _cell_end[c]
-		for a in range(s0, s1):
-			var ra := _keys[a] & ROW_MASK
-			for b in range(a + 1, s1):
-				_pair(state, ra, _keys[b] & ROW_MASK)
-		# Forward neighbours: E, SW, S, SE.
+		# The cell itself, then its forward neighbours E, SW, S, SE.
 		var cx := c % cols
-		for k in 4:
-			var nc: int
+		for k in 5:
+			var nc := c
 			match k:
-				0:
+				1:
 					if cx == cols - 1:
 						continue
 					nc = c + 1
-				1:
+				2:
 					if cx == 0:
 						continue
 					nc = c + cols - 1
-				2:
+				3:
 					nc = c + cols
-				_:
+				4:
 					if cx == cols - 1:
 						continue
 					nc = c + cols + 1
 			if nc >= ncell or _cell_start[nc] < 0:
 				continue
-			var n0 := _cell_start[nc]
 			var n1 := _cell_end[nc]
 			for a in range(s0, s1):
-				var ra := _keys[a] & ROW_MASK
-				for b in range(n0, n1):
-					_pair(state, ra, _keys[b] & ROW_MASK)
+				var sa := ks[a]
+				var xa := kx[a]
+				var ya := ky[a]
+				var ra := kr[a]
+				var b0 := a + 1 if k == 0 else _cell_start[nc]
+				for b in range(b0, n1):
+					if ks[b] == sa:
+						continue
+					var lim := maxi(ra, kr[b])
+					var near := lim * CROWD_PCT / 100
+					var dx := kx[b] - xa
+					var dy := ky[b] - ya
+					if absi(dx) >= near or absi(dy) >= near or dx * dx + dy * dy >= near * near:
+						continue
+					_touch(state, _krow[a], _krow[b], lim)
 	for c in _cells:
 		_cell_start[c] = -1
 	return pushes > 0
 
 
-## Pushes rows a and b apart if they belong to different squads and stand
-## closer than the larger of their separation radii; marks both crowded
-## within CROWD_PCT of that.
-func _pair(state: BattleState, ra: int, rb: int) -> void:
+## Rows ra and rb, of different squads, stand within CROWD_PCT of their
+## separation distance `lim`: both are crowded, and pushed apart if closer
+## than lim.
+func _touch(state: BattleState, ra: int, rb: int, lim: int) -> void:
 	var u := state.units
-	if u.squad[ra] == u.squad[rb]:
-		return
 	var a := mini(ra, rb)
 	var b := maxi(ra, rb)
-	var r := state.rules
-	var lim := maxi(r.ut_sep[u.tmpl[a]], r.ut_sep[u.tmpl[b]])
-	var near := lim * CROWD_PCT / 100
-	var dx := u.x[b] - u.x[a]
-	var dy := u.y[b] - u.y[a]
-	if absi(dx) >= near or absi(dy) >= near:
-		return
-	var d := Fixed.length(dx, dy)
-	if d >= near:
-		return
 	_crowd[a] = 1
 	_crowd[b] = 1
+	var dx := u.x[b] - u.x[a]
+	var dy := u.y[b] - u.y[a]
+	var d := Fixed.length(dx, dy)
 	if d >= lim:
 		return
 	if d == 0:

@@ -34,8 +34,8 @@
 			]}}
 	},
 	"probes": [
-		{"id": "gap_arrival", "over": "t1-t2", "squad": "north", "target": "south", "spacing": {"min": 0.35}, "variants": "all",
-			"doc": "While they arrive, a pair may overlap for a tick: a push is capped at the unit's speed (walk per tick when it stands), so two units stepping onto one slot take two ticks to part (0.4 m at worst here)."},
+		{"id": "gap_arrival", "over": "t1-t2", "squad": "north", "target": "south", "spacing": {"min": 0.3}, "variants": "all",
+			"doc": "While they arrive, a pair may overlap for a tick: a push is capped at the unit's speed (walk per tick when it stands), so two units stepping onto one slot take two ticks to part (0.32 m at worst here)."},
 		{"id": "gap_settled", "over": "t3", "squad": "north", "target": "south", "spacing": {"min": 0.6}, "variants": "all",
 			"doc": "Settled, no unit of one squad is closer than 0.6 m (medium) to a unit of the other, on any tick of turn 3 (they arrive late in turn 2)."},
 		{"id": "gap_squads_end", "at": "end", "squad": "north", "target": "south", "spacing": {"min": 0.6, "max": 2.0}, "variants": "all",
