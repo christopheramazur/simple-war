@@ -584,10 +584,43 @@ func _obs() -> Dictionary:
 ## session.observe_battle(player, eid), computed once per refresh.
 func _obs_battle(eid: int) -> Dictionary:
 	if not _caching:
-		return session.observe_battle(player, eid)
+		return _read_battle(eid)
 	if not _obs_cache.has(eid):
-		_obs_cache[eid] = session.observe_battle(player, eid)
+		_obs_cache[eid] = _read_battle(eid)
 	return _obs_cache[eid]
+
+
+## The battle as this player sees it: observe_battle, or before Reveal a joining
+## side's arrival view (_arrival_obs).
+func _read_battle(eid: int) -> Dictionary:
+	var o := session.observe_battle(player, eid)
+	return o if not o.is_empty() else _arrival_obs(eid)
+
+
+## A joining side's view in Planning (sw-bafi.18, C12): no battle observation
+## yet, but its arrival area and the squads arriving at their shown places
+## (session.arrival). Same shape as observe_battle, so the planner and the
+## battle view draw and drag them as own squads; "arrival" marks it, so orders
+## are not submitted and placements go through submit_arrival. {} unless
+## something of this player's arrives there in Planning.
+func _arrival_obs(eid: int) -> Dictionary:
+	if session.clock.phase != PulseClock.Phase.PLANNING:
+		return {}
+	var a := session.arrival(player, eid)
+	var r := _battle_rules(eid)
+	if a.is_empty() or r == null:
+		return {}
+	var squads := []
+	for q: Dictionary in a["squads"]:
+		var st := int(q["tmpl"])
+		var size: int = r.sq_members[st].size()
+		squads.append({"id": q["squad"], "player": player, "template": r.squad_ids[st], "name": r.sq_names[st],
+			"size": size, "alive": size, "destroyed": false, "withdrawn": false, "abilities": [],
+			"x": q["x"], "y": q["y"], "facing": q["facing"], "placed": q["placed"]})
+	var area: Array = a["area"]
+	return {"engagement": eid, "player": player, "phase": session.phase_name(), "arrival": true,
+		"width": r.width, "height": r.height, "deploying": true, "area": area,
+		"areas": [{"player": player, "deploy": area}], "squads": squads, "units": []}
 
 
 func _refresh_inner() -> void:
@@ -1149,6 +1182,9 @@ func _on_selection(eid: int) -> void:
 func _on_draft(eid: int) -> void:
 	if not session.battles.has(eid):
 		return
+	if _obs_battle(eid).get("arrival", false):
+		_queue_refresh()  # a joiner gives no orders before Reveal, only placements
+		return
 	var orders: Array = planner(eid).orders()
 	if session.clock.phase == PulseClock.Phase.PLANNING:
 		_pending.erase(eid)
@@ -1176,15 +1212,19 @@ func _deploy_overlay(pl: BattlePlanner) -> Dictionary:
 
 
 ## Deployment placements changed: submit them (submit_battle_deployment is
-## their only way to the game). The draft stays in the planner either way.
+## their only way to the game; a joiner's arrival placements go through
+## submit_arrival). The draft stays in the planner either way.
 func _on_deploy(eid: int) -> void:
 	var pl: BattlePlanner = planners.get(eid)
 	if pl == null or not session.battles.has(eid) or session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	var placements := pl.deployment()
-	var errs := session.submit_battle_deployment(player, eid, placements)
-	_hud_note = "" if errs.is_empty() else "deployment refused: " + "; ".join(errs)
-	_note("%s deployment: %s%s" % [battle_name(eid), _placements_text(placements),
+	var arriving: bool = _obs_battle(eid).get("arrival", false)
+	var errs: PackedStringArray = session.submit_arrival(player, eid, placements) if arriving \
+		else session.submit_battle_deployment(player, eid, placements)
+	var what := "arrival" if arriving else "deployment"
+	_hud_note = "" if errs.is_empty() else "%s refused: " % what + "; ".join(errs)
+	_note("%s %s: %s%s" % [battle_name(eid), what, _placements_text(placements),
 		"" if errs.is_empty() else " - refused: " + "; ".join(errs)])
 	_queue_refresh()
 
