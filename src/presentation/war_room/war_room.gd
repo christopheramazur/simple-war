@@ -163,6 +163,9 @@ var _play_card_frame: int = -1
 ## The screen's windows (sw-ijp.2): modals, the playback blocker, the hover card.
 var ui: UiRoot
 var _blocker: PlaybackBlocker
+## The side column's scrolling list (commanders, the commander panel, battles):
+## open during overworld playback (sw-bafi.9).
+var _side_scroll: Control
 ## What the player knows about the hex under the cursor.
 var _hover_card: PanelContainer
 var _hover_win: UiWindow
@@ -308,7 +311,7 @@ func _build_ui() -> void:
 	_hover_card.minimum_size_changed.connect(_hover_card.reset_size)
 	_hover_win = UiWindow.new()
 	_hover_win.layer = UiWindow.Layer.HUD
-	_hover_win.contexts = PackedStringArray(["overworld"])
+	_hover_win.contexts = PackedStringArray(["overworld", "playback"])
 	_hover_win.wanted = false
 	_hover_win.add_child(_hover_card)
 	_radial = ReactionRadial.new()
@@ -467,6 +470,9 @@ func _build_ui() -> void:
 	# orders mid-turn). Over a battle the stage is left to the view: a left
 	# click inspects the squad under it, the wheel zooms and middle-drag pans
 	# (sw-bafi.1). Space and Esc still skip.
+	_side_scroll = _commander_box
+	while _side_scroll != null and not _side_scroll is ScrollContainer:
+		_side_scroll = _side_scroll.get_parent() as Control
 	_blocker = PlaybackBlocker.new()
 	_blocker.layer = UiWindow.Layer.BLOCKER
 	_blocker.contexts = PackedStringArray(["playback"])
@@ -528,10 +534,18 @@ func _sync_ui_context() -> void:
 	var view := &"overworld" if contexts.focus == ViewContexts.OVERWORLD else &"battle"
 	layout.set_view(view)
 	ui.context = &"playback" if not _play.is_empty() else view
-	# A battle's stage stays open during playback (inspect, zoom, pan); the
-	# overworld's stage stays covered until C8 (sw-bafi.1).
+	# A battle's stage stays open during playback (inspect, zoom, pan;
+	# sw-bafi.1). On the overworld the side panels' lists open too, so the
+	# commanders, hexes and battles can be inspected: every planning control
+	# in them is disabled with the reason (sw-bafi.9). The footer stays covered.
 	if _blocker != null:
-		_blocker.uncovered = layout.regions.get("stage") if contexts.focus != ViewContexts.OVERWORLD else null
+		var open: Array[Control] = []
+		var stage: Control = layout.regions.get("stage")
+		if stage != null:
+			open.append(stage)
+		if contexts.focus == ViewContexts.OVERWORLD and _side_scroll != null:
+			open.append(_side_scroll)
+		_blocker.uncovered = open
 
 
 func _clear(parent: Node) -> void:
@@ -605,6 +619,7 @@ func _refresh_inner() -> void:
 		_radial.hide()
 	_sync_ui_context()
 	if not _play.is_empty():
+		_refresh_playback_side()
 		_show_play()
 		return
 	_show_main()
@@ -613,11 +628,27 @@ func _refresh_inner() -> void:
 	_refresh_commanders()
 	_refresh_orders()
 	_refresh_reactions()
+	_commander_box.locked_reason = ""
 	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
 	_refresh_log()
 	_refresh_phase_banner()
 	_refresh_battle_panel()
 	_refresh_hud()
+
+
+## Overworld playback leaves the side lists open (sw-bafi.9): they show the
+## selection as it is now, to inspect, with every planning control disabled
+## and the reason on it. The event log waits for the end of the playback. A
+## battle's playback keeps the side panels covered and as they were (C1).
+func _refresh_playback_side() -> void:
+	if contexts.focus != ViewContexts.OVERWORLD:
+		return
+	_refresh_menu()
+	_refresh_commanders()
+	_refresh_orders()
+	_refresh_reactions()
+	_commander_box.locked_reason = PLANNING_ONLY_NOTE
+	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
 
 
 ## The battle camera moved: only the main view redraws.
@@ -733,6 +764,8 @@ func view_next_player() -> void:
 ## What the mouse and keys do in the present context, in one line.
 func hints() -> String:
 	if not _play.is_empty():
+		if contexts.focus == ViewContexts.OVERWORLD:
+			return "Turn %d is playing out.  Space or Esc: skip to the end  ·  click a commander or a hex: inspect it  ·  wheel: zoom  ·  routes and orders: %s" % [int(_play["turn"]), PLANNING_ONLY_NOTE]
 		return "Turn %d is playing out.  Space or Esc: skip to the end  ·  click a squad: its card" % int(_play["turn"])
 	if replay != null:
 		var where := "the recording has ended" if replay.at_end() else "turn %d of %d" % [session.turns_resolved() + 1, replay.turns()]
@@ -877,7 +910,9 @@ func _refresh_hover_card() -> void:
 	if ui == null:
 		return
 	_sync_ui_context()
-	var info := session.inspect_plot(player, _hover_plot) if _hover_plot >= 0 and ui.context == &"overworld" else {}
+	# Overworld playback too: the hex shows what the player knows now (sw-bafi.9).
+	var over := ui.context == &"overworld" or (ui.context == &"playback" and contexts.focus == ViewContexts.OVERWORLD)
+	var info := session.inspect_plot(player, _hover_plot) if _hover_plot >= 0 and over else {}
 	_hover_win.wanted = bool(info.get("known", false))
 	if not _hover_win.wanted:
 		return
@@ -1014,7 +1049,15 @@ func _refresh_commanders() -> void:
 
 func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 	if not _play.is_empty():
-		return  # playback: no orders or selection changes (sw-ll4.27.4)
+		# Playback: a left click selects to inspect (the panels show it with
+		# their actions disabled); a right click would plan, so it is refused
+		# with the reason (sw-bafi.9 U1 C8).
+		_target = {}
+		if button == MOUSE_BUTTON_LEFT and p >= 0:
+			_select_at(p)
+		elif button == MOUSE_BUTTON_RIGHT:
+			_refused_in_playback()
+		return
 	if not _target.is_empty():
 		if p >= 0 and button == MOUSE_BUTTON_LEFT:
 			send_to(p)
@@ -1035,10 +1078,13 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 		else:
 			contexts.deselect_all()
 		return
-	if p < 0:
-		return
-	# A commander first; clicking its hex again selects the garrison or
-	# convoy there (sw-kys.8).
+	if p >= 0:
+		_select_at(p)
+
+
+## A left click on hex p: a commander first; clicking its hex again selects
+## the garrison or convoy there (sw-kys.8); else the hex.
+func _select_at(p: int) -> void:
 	var obs := _obs()
 	var det := -1
 	for d: Dictionary in obs.get("detachments", []):
@@ -1090,6 +1136,8 @@ func _steer(p: int, shift: bool) -> String:
 ## turns as it takes). With `append`, the hex is a waypoint after its
 ## route. "" or why not.
 func steer_to(p: int, append: bool = false) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var did := _own_detachment()
 	if did < 0:
 		return "no convoy selected"
@@ -1105,6 +1153,8 @@ func steer_to(p: int, append: bool = false) -> String:
 
 ## Halts the selected detachment where it is. "" or why not.
 func halt_detachment() -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var did := _own_detachment()
 	if did < 0:
 		return "no convoy selected"
@@ -1410,6 +1460,18 @@ func _refuse_orders() -> void:
 	_queue_refresh()
 
 
+## A planning or activity action (route, rally, supply line, battleforce,
+## activity, pick-up, reaction, reinforcement) while a turn plays out: it is
+## refused, with the reason in the status line (sw-bafi.9 U1 C8). True if
+## refused; nothing in the session or the drafts changes.
+func _refused_in_playback() -> bool:
+	if _play.is_empty():
+		return false
+	_hud_note = PLANNING_ONLY_NOTE
+	_queue_refresh()
+	return true
+
+
 ## GUIDE commands (PlanningInput).
 func _on_command(name: StringName, arg: int) -> void:
 	match name:
@@ -1496,6 +1558,8 @@ func _on_panel_action(action: String, args: Array) -> void:
 
 ## Sends a squad from the commander's army into its battle.
 func send_reserve(cid: int, squad: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var err := session.reinforce(player, cid, squad)
 	_hud_note = err
 	_note("%s: send in squad %d%s" % [EventText.commander(cid), squad & 0xffff, "" if err.is_empty() else " - refused: " + err])
@@ -1599,7 +1663,7 @@ func _on_reaction_chosen(r: String) -> void:
 
 
 func _react(o: Dictionary, r: String) -> void:
-	if o.is_empty():
+	if o.is_empty() or _refused_in_playback():
 		return
 	var err := session.submit_reaction(player, o["engagement"], o["squad"], r, o["trigger"])
 	if err.is_empty():
@@ -1632,6 +1696,9 @@ func _refresh_reactions() -> void:
 			b.text = "%s %s" % [ReactionRadial.glyph(r), r.capitalize()]
 			b.toggle_mode = true
 			b.button_pressed = r == queued
+			if not _play.is_empty():
+				b.disabled = true
+				b.tooltip_text = PLANNING_ONLY_NOTE
 			b.pressed.connect(_react.bind(o, r))
 			row.add_child(b)
 		line.add_child(row)
@@ -1672,6 +1739,10 @@ const DEPLOY_BANNER: String = "Deployment: place your squads; the enemy can't se
 
 ## The status line's reason when an order is asked for during playback (sw-bafi.2).
 const ORDERS_LOCKED_NOTE: String = "Orders open in Planning"
+
+## The reason on every overworld planning or activity control while a turn
+## plays out (disabled buttons' tooltips, refused actions; sw-bafi.9).
+const PLANNING_ONLY_NOTE: String = "Available in Planning"
 
 ## The war room's GUIDE actions (DefaultKeys.war_room), enabled while it is
 ## in the tree. Name -> GUIDEAction is `keys.actions`.
@@ -1816,6 +1887,8 @@ func _own_selected() -> int:
 ## waypoint: the way there starts where the planned route ends. "" or why
 ## not.
 func route_to(p: int, append: bool = false) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1839,6 +1912,8 @@ func route_to(p: int, append: bool = false) -> String:
 
 ## Clears the selected commander's route. "" or why not.
 func clear_route() -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1851,6 +1926,8 @@ func clear_route() -> String:
 ## Sends one of the player's detachments to a plot or a commander (both -1
 ## halts it). "" or why not.
 func rally(detachment: int, to_plot: int, to_commander: int, what: String) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	_hud_note = session.rally(player, detachment, to_plot, to_commander)
 	_note("send %s to %s%s" % [what, _dest_text(to_plot, to_commander), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
 	_queue_refresh()
@@ -1860,6 +1937,8 @@ func rally(detachment: int, to_plot: int, to_commander: int, what: String) -> St
 ## Sends a producing feature's output to a plot or a commander (both -1
 ## clears the line). "" or why not.
 func supply_line(feature: int, to_plot: int, to_commander: int, what: String) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	_hud_note = session.set_supply_line(player, feature, to_plot, to_commander)
 	_note("supply line: %s sends to %s%s" % [what, _dest_text(to_plot, to_commander), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
 	_queue_refresh()
@@ -1875,6 +1954,8 @@ func _dest_text(to_plot: int, to_commander: int) -> String:
 ## Arms "send to" for a detachment ("rally") or a producing feature's
 ## output ("line"): the next hex clicked is where it goes.
 func arm_target(kind: String, id: int, what: String) -> void:
+	if _refused_in_playback():
+		return
 	_target = {"kind": kind, "id": id, "what": what}
 	_hud_note = ""
 	_queue_refresh()
@@ -1883,6 +1964,8 @@ func arm_target(kind: String, id: int, what: String) -> void:
 ## Sends the armed detachment or supply line to plot p, or to the player's
 ## commander standing on it. "" or why not.
 func send_to(p: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	if _target.is_empty():
 		return "nothing to send"
 	var cid := -1
@@ -1908,6 +1991,8 @@ var _hud_note: String = ""
 ## Battleforce for the selected commander: preset "" (strongest first),
 ## "none" (no battleforce: disperses Angels) or a named preset.
 func set_battleforce(preset: String, lead: bool) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1922,6 +2007,8 @@ func set_battleforce(preset: String, lead: bool) -> String:
 ## Plans the selected commander's activity where its route ends (recruit,
 ## hire, refit, ...; "" clears it). Returns "" or why it was refused.
 func set_activity(activity: String, option: String = "") -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -2044,6 +2131,8 @@ func _name_feature(d: Dictionary, obs: Dictionary) -> void:
 ## Moves a detachment's squads on the selected commander's hex into its
 ## army, until the army is full. "" or the first refusal.
 func pick_up(detachment_id: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -2166,6 +2255,7 @@ func _start_play(before: Dictionary, turn: int) -> void:
 	_radial.hide()
 	_refresh_hover_card()
 	_refresh_battle_panel()  # the card shows the turn being played, not the last planning
+	_refresh_playback_side()  # the side lists lock at once (sw-bafi.9)
 	set_process(true)
 	_show_play()
 
@@ -2218,7 +2308,7 @@ func skip_playback() -> void:
 		return
 	_play = {}
 	_play_card_frame = -1
-	if _hud_note == ORDERS_LOCKED_NOTE:
+	if _hud_note in [ORDERS_LOCKED_NOTE, PLANNING_ONLY_NOTE]:
 		_hud_note = ""  # the refusal was for playback; Planning takes orders again
 	_refresh_hover_card()
 	set_process(false)
