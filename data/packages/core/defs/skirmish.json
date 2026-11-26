@@ -6,7 +6,7 @@
 		"base_move_cost": 10,
 		"battleforce": {"squads": 3, "value": 250},
 		"battle_scenario": "ow_field",
-		"convoy_movement": 40,
+		"convoy_movement": 30,
 		"elimination": true,
 		"mirror": true,
 		"passes": [
