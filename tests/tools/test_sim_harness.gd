@@ -135,28 +135,33 @@ func _overworld_run(watch: bool, turns: int) -> Array:
 
 
 func test_factory_overworld_metrics() -> void:
-	var r := _overworld_run(true, 8)
+	# Long enough for one side to lose every commander (A2Q2); which side
+	# depends on the battles (since sw-txnj.12 separation, player 2 wins on turn 11).
+	var turns := 12
+	var r := _overworld_run(true, turns)
 	var x: OverworldSession = r[0]
 	var m: SimMetrics = r[1]
 	var rows := m.overworld(x)
-	assert_eq(x.state.outcome.get("key", ""), "elimination", "player 2 loses every commander (A2Q2)")
-	assert_eq(_val(rows, "won", 1), 1.0)
-	assert_eq(_val(rows, "lost", 2), 1.0)
+	assert_eq(x.state.outcome.get("key", ""), "elimination", "a side loses every commander (A2Q2)")
+	var winner := int(x.state.outcome.get("winner", 0))
+	assert_true(winner in [1, 2], "a winner: %s" % x.state.outcome)
+	assert_eq(_val(rows, "won", winner), 1.0)
+	assert_eq(_val(rows, "lost", 3 - winner), 1.0)
 	for p in [1, 2]:
 		assert_false(is_nan(_val(rows, "feature_turns", p)))
 		assert_false(is_nan(_val(rows, "first_contact_turn", p)))
 		assert_eq(_val(rows, "commanders_start", p), 2.0)
 		assert_eq(_val(rows, "force", p), m.series.filter(func(s: Dictionary) -> bool:
-			return s["metric"] == "force" and s["player"] == p and s["turn"] == 8)[0]["value"], "the last series point is the end state")
+			return s["metric"] == "force" and s["player"] == p and s["turn"] == turns)[0]["value"], "the last series point is the end state")
 	var points := m.series.filter(func(s: Dictionary) -> bool: return s["metric"] == "hexes_explored" and s["player"] == 1)
-	assert_eq(points.size(), 8, "one point per turn")
-	assert_true(points[7]["value"] >= points[0]["value"])
+	assert_eq(points.size(), turns, "one point per turn")
+	assert_true(points[turns - 1]["value"] >= points[0]["value"])
 	for metric in ["fog_pct", "contact", "threat", "enemy_force_seen"]:
-		assert_eq(m.series.filter(func(s: Dictionary) -> bool: return s["metric"] == metric and s["player"] == 2).size(), 8, metric)
+		assert_eq(m.series.filter(func(s: Dictionary) -> bool: return s["metric"] == metric and s["player"] == 2).size(), turns, metric)
 	assert_eq(_val(rows, "feature_turns", 1), _sum_series(m, "features_owned", 1), "feature-turns held")
 	if _val(rows, "battles", 0) > 0:
 		assert_false(is_nan(_val(rows, "battle.value_lost", 1)), "battle metrics summed into the overworld run")
-	var plain: OverworldSession = _overworld_run(false, 8)[0]
+	var plain: OverworldSession = _overworld_run(false, turns)[0]
 	assert_eq(x.state_hash_hex(), plain.state_hash_hex(), "watching an overworld changes nothing")
 
 
