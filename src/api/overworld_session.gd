@@ -761,45 +761,55 @@ func _run_battles() -> void:
 ## first): PLAYBACK_STRIDE ints per unit, and the turn's shot and hit traces
 ## (BattleState.trace_shots). Whatever hook the sim already has still runs.
 func _record_turn(eid: int, b: OverworldBattle) -> void:
+	_playback[eid] = record_turn(_battle_sim, b.state)
+
+
+## Runs one turn of `state` on `sim` and returns its playback record (the
+## format `playback_view` reads): {"rules", "players", "frames", "shots",
+## "volleys", "hits", "start" (BattleCursor.capture)}. The sim's own tick
+## hook still runs, before each frame is taken. Also the capture runner's
+## recorder (sw-tho3.9), for battles outside an overworld.
+static func record_turn(sim: BattleSim, state: BattleState) -> Dictionary:
 	var frames: Array[PackedInt64Array] = []
-	var first_tick := b.state.tick
-	var was := _battle_sim.tick_hook
+	var first_tick := state.tick
+	var ticks := state.rules.ticks_per_turn
+	var was := sim.tick_hook
 	# The turn's start, orders applied, and keyframes, for BattleCursor
 	# (sw-tho3.7).
-	var start := BattleCursor.capture(b.state)
+	var start := BattleCursor.capture(state)
 	var capture := func(st: BattleState) -> void:
 		if was.is_valid():
 			was.call(st)
-		if frames.size() <= b.rules.ticks_per_turn:
+		if frames.size() <= ticks:
 			frames.append(_frame(st))
 			BattleCursor.keyframe(start, st, frames.size() - 1)
-	frames.append(_frame(b.state))
-	_battle_sim.tick_hook = capture
-	b.state.trace_shots = true
-	b.state.shot_trace = PackedInt64Array()
-	b.state.hit_trace = PackedInt64Array()
-	_battle_sim.execute_turn(b.state)
-	b.state.trace_shots = false
-	_battle_sim.tick_hook = was
-	BattleCursor.seal(start, b.state)
+	frames.append(_frame(state))
+	sim.tick_hook = capture
+	state.trace_shots = true
+	state.shot_trace = PackedInt64Array()
+	state.hit_trace = PackedInt64Array()
+	sim.execute_turn(state)
+	state.trace_shots = false
+	sim.tick_hook = was
+	BattleCursor.seal(start, state)
 	var last := frames.size() - 1
 	var shots := []
-	for e in b.state.turn_log:
+	for e in state.turn_log:
 		if e.type == &"squad_fired":
 			shots.append([clampi(e.tick - first_tick + 1, 0, last), int(e.data["squad"]), int(e.data["target"])])
 	# Frame i holds the state after tick first_tick + i - 1, so what happened
 	# in a tick shows from the frame after it.
 	var volleys := []
-	var st := b.state.shot_trace
+	var st := state.shot_trace
 	for o in range(0, st.size(), BattleState.SHOT_STRIDE):
 		volleys.append([clampi(st[o] - first_tick + 1, 0, last), st[o + 1], st[o + 2], st[o + 3] == 1])
 	var hits := []
-	var ht := b.state.hit_trace
+	var ht := state.hit_trace
 	for o in range(0, ht.size(), BattleState.HIT_STRIDE):
 		hits.append([clampi(ht[o] - first_tick + 1, 0, last), ht[o + 1], ht[o + 2], ht[o + 3]])
-	b.state.shot_trace = PackedInt64Array()
-	b.state.hit_trace = PackedInt64Array()
-	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames,
+	state.shot_trace = PackedInt64Array()
+	state.hit_trace = PackedInt64Array()
+	return {"rules": state.rules, "players": state.players.duplicate(), "frames": frames,
 		"shots": shots, "volleys": volleys, "hits": hits, "start": start}
 
 
@@ -883,66 +893,73 @@ static func _frame(st: BattleState) -> PackedInt64Array:
 func playback(player: int) -> Dictionary:
 	PerfRecorder.begin(&"playback_build")
 	var out := {}
-	var all_seeing := player <= 0  # the replay's all-seeing view
-	var me := 0 if all_seeing else BattleSquads.bit(player)
 	for eid: int in _playback:
-		var rec: Dictionary = _playback[eid]
-		if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
-			continue
-		var r: BattleRules = rec["rules"]
-		var frames := []
-		# Per frame, the unit IDs the player saw.
-		var seen := []
-		for f: PackedInt64Array in rec["frames"]:
-			var squads := {}
-			var units := {}
-			for o in range(0, f.size(), PLAYBACK_STRIDE):
-				if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
-					continue
-				var own_unit := f[o + 2] == player
-				if not squads.has(f[o + 1]):
-					squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": [],
-						"activity": f[o + 12] if own_unit else BattleActivity.squad_public(f[o + 12], f[o + 10] & BattleSession.ACT_MOVING != 0)}
-					if own_unit:
-						squads[f[o + 1]]["holds"] = []
-						squads[f[o + 1]]["reload"] = []
-						squads[f[o + 1]]["cooldown"] = []
-						squads[f[o + 1]]["ammo"] = []
-				var d: Dictionary = squads[f[o + 1]]
-				(d["ids"] as Array).append(f[o])
-				(d["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
-				var t := f[o + 7]
-				(d["tmpls"] as Array).append(r.unit_ids[t] if t >= 0 and t < r.unit_ids.size() else "")
-				(d["hp"] as Array).append(clampf(float(f[o + 8]) / maxf(float(f[o + 9]), 1.0), 0.0, 1.0))
-				(d["acts"] as Array).append(f[o + 10])
-				if own_unit:
-					(d["holds"] as Array).append(f[o + 11])
-					(d["reload"] as Array).append(f[o + 13])
-					(d["cooldown"] as Array).append(f[o + 14])
-					(d["ammo"] as Array).append(f[o + 15])
-				units[f[o]] = true
-			frames.append(squads)
-			seen.append(units)
-		var shots := []
-		for sh: Array in rec["shots"]:
-			var at: Dictionary = frames[sh[0]]
-			if at.has(sh[1]) and at.has(sh[2]):
-				shots.append(sh)
-		# A shot is shown when the player saw both units the tick before it
-		# (a victim it killed is gone from the frame it lands in).
-		var volleys := []
-		for v: Array in rec.get("volleys", []):
-			var at: Dictionary = seen[maxi(v[0] - 1, 0)]
-			if at.has(v[1]) and at.has(v[2]):
-				volleys.append(v)
-		var hits := []
-		for h: Array in rec.get("hits", []):
-			if (seen[maxi(h[0] - 1, 0)] as Dictionary).has(h[1]):
-				hits.append(h)
-		out[eid] = {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots,
-			"volleys": volleys, "hits": hits}
+		var v := playback_view(_playback[eid], player)
+		if not v.is_empty():
+			out[eid] = v
 	PerfRecorder.end(&"playback_build")
 	return out
+
+
+## One `record_turn` record as `player` saw it (0 or less: all-seeing), in
+## the `playback` entry format; {} when the player did not fight in it.
+static func playback_view(rec: Dictionary, player: int) -> Dictionary:
+	var all_seeing := player <= 0  # the replay's all-seeing view
+	var me := 0 if all_seeing else BattleSquads.bit(player)
+	if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
+		return {}
+	var r: BattleRules = rec["rules"]
+	var frames := []
+	# Per frame, the unit IDs the player saw.
+	var seen := []
+	for f: PackedInt64Array in rec["frames"]:
+		var squads := {}
+		var units := {}
+		for o in range(0, f.size(), PLAYBACK_STRIDE):
+			if f[o + 2] != player and not all_seeing and f[o + 6] & me == 0:
+				continue
+			var own_unit := f[o + 2] == player
+			if not squads.has(f[o + 1]):
+				squads[f[o + 1]] = {"player": f[o + 2], "facing": f[o + 5], "ids": [], "units": [], "tmpls": [], "hp": [], "acts": [],
+					"activity": f[o + 12] if own_unit else BattleActivity.squad_public(f[o + 12], f[o + 10] & BattleSession.ACT_MOVING != 0)}
+				if own_unit:
+					squads[f[o + 1]]["holds"] = []
+					squads[f[o + 1]]["reload"] = []
+					squads[f[o + 1]]["cooldown"] = []
+					squads[f[o + 1]]["ammo"] = []
+			var d: Dictionary = squads[f[o + 1]]
+			(d["ids"] as Array).append(f[o])
+			(d["units"] as Array).append(Vector2(f[o + 3], f[o + 4]) / float(Fixed.ONE))
+			var t := f[o + 7]
+			(d["tmpls"] as Array).append(r.unit_ids[t] if t >= 0 and t < r.unit_ids.size() else "")
+			(d["hp"] as Array).append(clampf(float(f[o + 8]) / maxf(float(f[o + 9]), 1.0), 0.0, 1.0))
+			(d["acts"] as Array).append(f[o + 10])
+			if own_unit:
+				(d["holds"] as Array).append(f[o + 11])
+				(d["reload"] as Array).append(f[o + 13])
+				(d["cooldown"] as Array).append(f[o + 14])
+				(d["ammo"] as Array).append(f[o + 15])
+			units[f[o]] = true
+		frames.append(squads)
+		seen.append(units)
+	var shots := []
+	for sh: Array in rec["shots"]:
+		var at: Dictionary = frames[sh[0]]
+		if at.has(sh[1]) and at.has(sh[2]):
+			shots.append(sh)
+	# A shot is shown when the player saw both units the tick before it
+	# (a victim it killed is gone from the frame it lands in).
+	var volleys := []
+	for v: Array in rec.get("volleys", []):
+		var at: Dictionary = seen[maxi(v[0] - 1, 0)]
+		if at.has(v[1]) and at.has(v[2]):
+			volleys.append(v)
+	var hits := []
+	for h: Array in rec.get("hits", []):
+		if (seen[maxi(h[0] - 1, 0)] as Dictionary).has(h[1]):
+			hits.append(h)
+	return {"rules": r, "width": r.width, "height": r.height, "frames": frames, "shots": shots,
+		"volleys": volleys, "hits": hits}
 
 
 ## Battles begin at the start of a turn (R2Q1): every engagement without one

@@ -86,6 +86,12 @@ var _hover_squad: int = -1
 ## how far through it (0..1); empty when the view shows the present.
 var _play: Dictionary = {}
 var _play_t: float = 0.0
+## The playback frame shown exactly (show_playback_frame); -1 = from _play_t.
+var _play_frame: int = -1
+## What the last battle draw put on screen, in view pixels (sw-tho3.9, for
+## the capture runner and layout lint): [{"kind": "label" | "footprint",
+## "squad", "player", "rect": Rect2}] in draw order.
+var drawn: Array[Dictionary] = []
 ## The played-back turn's effects (sw-aba), built once per playback entry.
 var _fx: BattleFx
 var _fx_src: Dictionary = {}
@@ -196,6 +202,7 @@ func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}, inspected: i
 	_overlay = {"terrain": rec["rules"], "inspected": inspected}
 	_play = rec
 	_play_t = clampf(t, 0.0, 1.0)
+	_play_frame = -1
 	if _fx == null or not is_same(_fx_src, rec):
 		PerfRecorder.begin(&"fx_build")
 		_fx = BattleFx.from_playback(rec)
@@ -203,6 +210,16 @@ func show_playback(rec: Dictionary, t: float, obs: Dictionary = {}, inspected: i
 		_fx_src = rec
 	_clear_hover()
 	queue_redraw()
+
+
+## show_playback at exactly frame `frame` of the record (0 = the turn's
+## start), with no float rounding: the capture runner's stills and strips,
+## where BattleFx must show the same moment every time (sw-tho3.9).
+func show_playback_frame(rec: Dictionary, frame: int, obs: Dictionary = {}, inspected: int = -1) -> void:
+	var n := maxi((rec.get("frames", []) as Array).size() - 1, 0)
+	var f := clampi(frame, 0, n)
+	show_playback(rec, float(f) / float(n) if n > 0 else 0.0, obs, inspected)
+	_play_frame = f
 
 
 func _draw() -> void:
@@ -534,6 +551,7 @@ func plot_at(pos: Vector2) -> int:
 # --- battle ------------------------------------------------------------------
 
 func _draw_battle() -> void:
+	drawn = []
 	var area := battle_area()
 	if area.size == Vector2.ZERO:
 		return
@@ -665,7 +683,7 @@ func _battle_squads() -> Array:
 		info[sq["id"]] = sq
 	if not _play.is_empty():
 		var frames: Array = _play["frames"]
-		var f := _play_t * (frames.size() - 1)
+		var f := _frame_f()
 		var i := mini(int(f), frames.size() - 1)
 		var a: Dictionary = frames[i]
 		var b: Dictionary = frames[mini(i + 1, frames.size() - 1)]
@@ -853,11 +871,19 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 		draw_arc(c, r + 3.0, 0, TAU, 28, SELECT, 2.0)
 	elif marked:
 		draw_arc(c, r + 3.0, 0, TAU, 28, Color(1, 1, 1, 0.7), 1.0)
+	var foot := Rect2(c, Vector2.ZERO)
+	for p: Vector2 in d["pts"]:
+		foot = foot.expand(area.position + p * k)
+	drawn.append({"kind": "footprint", "squad": d["id"], "player": d["player"], "rect": foot.grow(halo)})
 	if compact or not d.has("name"):
 		return r
 	top -= halo + (5.0 if is_selected or marked else 0.0)
 	var text := "%s %d/%d · P%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0)), int(d["player"])]
 	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, TEXT if is_selected or marked else Color(TEXT, 0.75))
+	var tsz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11)
+	var tw_drawn := minf(tsz.x, 140.0)
+	drawn.append({"kind": "label", "squad": d["id"], "player": d["player"],
+		"rect": Rect2(Vector2(c.x - tw_drawn / 2.0, top - 7 - font.get_ascent(11)), Vector2(tw_drawn, tsz.y))})
 	if sprite != null and not per_unit:  # no unit art: one badge by the label
 		var tw := minf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, 140.0)
 		draw_texture_rect(sprite, Rect2(Vector2(c.x - tw * 0.5 - 18, top - 21), Vector2(16, 16)), false)
@@ -961,6 +987,8 @@ func _activity_glyph(i: int, c: Vector2, r: float, col: Color) -> void:
 
 ## The playback moment as a frame index (float).
 func _frame_f() -> float:
+	if _play_frame >= 0:
+		return float(_play_frame)
 	return _play_t * float(maxi((_play.get("frames", []) as Array).size() - 1, 0))
 
 
@@ -1027,7 +1055,7 @@ func _draw_zones(font: Font, area: Rect2, k: float) -> void:
 ## firing squad to its target, fading.
 func _draw_shots(pos: Dictionary) -> void:
 	var frames: Array = _play["frames"]
-	var f := _play_t * (frames.size() - 1)
+	var f := _frame_f()
 	for sh: Array in _play.get("shots", []):
 		var age := f - float(sh[0])
 		if age < 0.0 or age > 3.0 or not pos.has(sh[1]) or not pos.has(sh[2]):

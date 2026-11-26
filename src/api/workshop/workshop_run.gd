@@ -51,6 +51,8 @@ var debug: bool = false
 var debug_frames: Dictionary = {}
 ## The debug capture's own route planner (the battle's cache is untouched).
 var _debug_routes: BattleRoute
+## The sim the run plays on (execute's `sim`; a fresh BattleSim by default).
+var _sim: BattleSim
 
 var _turn: int = 0
 var _k: int = 0
@@ -70,9 +72,13 @@ static func loader_for(package: String) -> PackageLoader:
 
 ## Builds the battle and, when `play`, runs it (false: placed, not run).
 ## `with_debug` records a WorkshopDebug frame per frame (debug_frames).
+## `sim` (optional) is the BattleSim to play on: the capture runner passes
+## one that records playback (CaptureSim, sw-tho3.9); its tick hook is
+## replaced by the run's.
 static func execute(sc: WorkshopScenario, variant_name: String = WorkshopScenario.BASE, play: bool = true,
-		with_debug: bool = false) -> WorkshopRun:
+		with_debug: bool = false, sim: BattleSim = null) -> WorkshopRun:
 	var run := WorkshopRun.new()
+	run._sim = sim
 	run.scenario = sc
 	run.variant = variant_name
 	run.debug = with_debug
@@ -188,7 +194,7 @@ func _play(script: Dictionary) -> void:
 	recorder.players = state.players.duplicate()
 	_frame(state, 0, -1, -1)
 	snapshots[0] = BattleProbe.snapshot(state, 0)
-	var sim := BattleSim.new()
+	var sim := _sim if _sim != null else BattleSim.new()
 	sim.tick_hook = _on_tick
 	for t in range(1, scenario.turns + 1):
 		if state.is_over():
