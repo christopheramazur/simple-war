@@ -6,8 +6,11 @@ extends RefCounted
 ##   indirect: a member's weapon has an indirect fire mode -> the back edge;
 ##   concealed: an ability (or the template) gives concealment -> the
 ##     nearest cover cell (a feature with cover or concealment) in the area;
-##     with no cover cell in reach, it is placed by its range like any other;
-##   short: range at most `short_range` m -> the front edge.
+##     with no cover cell in reach it keeps its automatic place (pushed to
+##     the front in the open it is found and lost: on duel_crossroads that
+##     cut player 1's wins from 4 of 5 to 1 of 5);
+##   short: main_range (the weapon most members carry) at most
+##     `short_range` m -> the front edge.
 ## Every other squad keeps its automatic place (no placement), as do locked
 ## squads. A placed squad keeps the lateral coordinate of its automatic
 ## place, so the even spread across the area is kept and squads don't stack.
@@ -54,13 +57,11 @@ func place(obs: Dictionary, rules: BattleRules, player: int) -> Array:
 		if st < 0:
 			continue
 		var at := PackedInt64Array()
-		match role(rules, st, int(d.get("range", 0))):
+		match role(rules, st):
 			"indirect":
 				at = _edge(area, fwd, -1, int(d["x"]), int(d["y"]))
 			"concealed":
 				at = _cover(rules, st, area, int(d["x"]), int(d["y"]), taken)
-				if at.is_empty() and int(d.get("range", 0)) <= Fixed.from_int(short_range):
-					at = _edge(area, fwd, 1, int(d["x"]), int(d["y"]))
 			"short":
 				at = _edge(area, fwd, 1, int(d["x"]), int(d["y"]))
 		if at.is_empty():
@@ -70,8 +71,11 @@ func place(obs: Dictionary, rules: BattleRules, player: int) -> Array:
 
 
 ## A squad template's deployment role: "indirect", "concealed", "short" or
-## "" (keeps its automatic place). `range_fx`: the squad's range (fixed).
-func role(rules: BattleRules, st: int, range_fx: int) -> String:
+## "" (keeps its automatic place). Short is by main_range, not the squad's
+## longest weapon: an assault squad's sergeant carries a rifle, its
+## breachers shotguns.
+func role(rules: BattleRules, st: int) -> String:
+	var range_fx := main_range(rules, st)
 	for ut: int in rules.sq_members[st]:
 		var w := int(rules.ut_weapon[ut])
 		if w >= 0 and rules.indirect(w):
@@ -81,6 +85,21 @@ func role(rules: BattleRules, st: int, range_fx: int) -> String:
 	if range_fx > 0 and range_fx <= Fixed.from_int(short_range):
 		return "short"
 	return ""
+
+
+## The range (fixed) of the weapon most members of a squad template carry
+## (ties: the shorter); 0 if none is armed.
+static func main_range(rules: BattleRules, st: int) -> int:
+	var count := {}
+	for ut: int in rules.sq_members[st]:
+		var w := int(rules.ut_weapon[ut])
+		if w >= 0:
+			count[w] = int(count.get(w, 0)) + 1
+	var best := -1
+	for w: int in count:
+		if best < 0 or count[w] > count[best] or (count[w] == count[best] and rules.wp_range[w] < rules.wp_range[best]):
+			best = w
+	return rules.wp_range[best] if best >= 0 else 0
 
 
 ## Whether a squad template has concealment: a base concealment stat, or an
