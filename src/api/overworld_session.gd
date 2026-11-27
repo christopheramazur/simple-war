@@ -481,7 +481,7 @@ func forecast_battle(player: int, engagement_id: int, orders: Array) -> Dictiona
 	var b: OverworldBattle = battles.get(engagement_id)
 	if clock.phase != PulseClock.Phase.PLANNING or b == null or not b.state.players.has(player):
 		return {}
-	return IntentForecast.run(b.state, _battle_sim, player, orders)
+	return IntentForecast.run(b.state, _battle_sim, player, orders, b.deploys.get(player, []))
 
 
 ## forecast_battle as a job for a worker thread (IntentForecast.job): an
@@ -491,7 +491,7 @@ func forecast_job(player: int, engagement_id: int, orders: Array) -> Callable:
 	var b: OverworldBattle = battles.get(engagement_id)
 	if clock.phase != PulseClock.Phase.PLANNING or b == null or not b.state.players.has(player):
 		return Callable()
-	return IntentForecast.job(b.state, player, orders)
+	return IntentForecast.job(b.state, player, orders, b.deploys.get(player, []))
 
 
 ## Sends a squad from a staying commander's army into its battle. `place`

@@ -1233,6 +1233,7 @@ func _on_deploy(eid: int) -> void:
 		return
 	var placements := pl.deployment()
 	var errs := session.submit_battle_deployment(player, eid, placements)
+	_forecast(eid, pl.orders())  # the ghosts start from the placed squads (sw-bafi.17)
 	_hud_note = "" if errs.is_empty() else "deployment refused: " + "; ".join(errs)
 	_note("%s deployment: %s%s" % [battle_name(eid), _placements_text(placements),
 		"" if errs.is_empty() else " - refused: " + "; ".join(errs)])
