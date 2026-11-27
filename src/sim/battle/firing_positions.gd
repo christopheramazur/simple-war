@@ -266,9 +266,18 @@ static func update(state: BattleState) -> void:
 
 
 ## Hysteresis per squad: fp_stop = 1 holds the anchor for firing positions.
-## `lacking[row]`: its living armed units that are NONE or LACKS.
-static func _anchors(state: BattleState, targets: Dictionary, lacking: PackedInt64Array) -> void:
+## `lacking[row]`: its living armed units that are NONE or LACKS (update
+## keeps the count; empty: counted here from the fpos column).
+static func _anchors(state: BattleState, targets: Dictionary, lacking: PackedInt64Array = PackedInt64Array()) -> void:
 	var sq := state.squads
+	if lacking.is_empty():
+		var u := state.units
+		lacking.resize(sq.count())
+		for row in targets:
+			for urow in Centroids.units_of(state, row):
+				var p := u.fpos[urow]
+				if (p == NONE or p == LACKS) and u.hp[urow] > 0 and u.weapon[urow] >= 0:
+					lacking[row] += 1
 	var stop: PackedByteArray = sq.take_column(&"fp_stop")
 	var lack: PackedInt64Array = sq.take_column(&"fp_lack")
 	for row in sq.count():
