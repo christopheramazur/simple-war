@@ -604,37 +604,54 @@ func _obs_battle(eid: int) -> Dictionary:
 	return _obs_cache[eid]
 
 
-## The battle as this player sees it: observe_battle, or before Reveal a joining
-## side's arrival view (_arrival_obs).
+## The battle as this player sees it: observe_battle with, in Planning, the
+## squads of its arriving at the next Reveal merged in (_merge_arrival); a
+## joining side, with no battle observation yet, sees only those.
 func _read_battle(eid: int) -> Dictionary:
-	var o := session.observe_battle(player, eid)
-	return o if not o.is_empty() else _arrival_obs(eid)
+	return _merge_arrival(eid, session.observe_battle(player, eid))
 
 
-## A joining side's view in Planning (sw-bafi.18, C12): no battle observation
-## yet, but its arrival area and the squads arriving at their shown places
-## (session.arrival). Same shape as observe_battle, so the planner and the
-## battle view draw and drag them as own squads; "arrival" marks it, so orders
-## are not submitted and placements go through submit_arrival. {} unless
-## something of this player's arrives there in Planning.
-func _arrival_obs(eid: int) -> Dictionary:
+## Adds this player's arrivals in Planning (sw-bafi.18 joiners, sw-bafi.19
+## reinforcements of a side already fighting) to a battle observation: the
+## squads of session.arrival as own squads at their shown places, marked
+## "arriving", under display IDs (ARRIVAL_BASE + overworld ID, so they never
+## meet a battle squad's ID), and the area as "arrival_area". The planner
+## places them like deployment; _on_deploy maps the IDs back for
+## submit_arrival. A joiner's view (no observation) is built from the arrival
+## alone and marked "arrival", so it sends no orders. `obs` unchanged when
+## nothing of this player's arrives there in Planning.
+func _merge_arrival(eid: int, obs: Dictionary) -> Dictionary:
 	if session.clock.phase != PulseClock.Phase.PLANNING:
-		return {}
+		return obs
 	var a := session.arrival(player, eid)
 	var r := _battle_rules(eid)
 	if a.is_empty() or r == null:
-		return {}
+		return obs
 	var squads := []
 	for q: Dictionary in a["squads"]:
 		var st := int(q["tmpl"])
 		var size: int = r.sq_members[st].size()
-		squads.append({"id": q["squad"], "player": player, "template": r.squad_ids[st], "name": r.sq_names[st],
-			"size": size, "alive": size, "destroyed": false, "withdrawn": false, "abilities": [],
-			"x": q["x"], "y": q["y"], "facing": q["facing"], "placed": q["placed"]})
-	var area: Array = a["area"]
-	return {"engagement": eid, "player": player, "phase": session.phase_name(), "arrival": true,
-		"width": r.width, "height": r.height, "deploying": true, "area": area,
-		"areas": [{"player": player, "deploy": area}], "squads": squads, "units": []}
+		squads.append({"id": ARRIVAL_BASE + int(q["squad"]), "player": player, "template": r.squad_ids[st],
+			"name": r.sq_names[st], "size": size, "alive": size, "destroyed": false, "withdrawn": false,
+			"abilities": [], "x": q["x"], "y": q["y"], "facing": q["facing"], "placed": q["placed"], "arriving": true})
+	var out := obs.duplicate()
+	if obs.is_empty():
+		out = {"engagement": eid, "player": player, "phase": session.phase_name(), "arrival": true,
+			"width": r.width, "height": r.height, "deploying": false, "areas": [], "squads": [], "units": []}
+	out["squads"] = (out.get("squads", []) as Array) + squads
+	out["arrival_area"] = a["area"]
+	return out
+
+
+## Arrival placements from the planner (display IDs) for submit_arrival
+## (overworld IDs).
+static func _arrival_placements(placements: Array) -> Array:
+	var out := []
+	for d: Dictionary in placements:
+		var e := d.duplicate()
+		e["squad"] = int(d["squad"]) - ARRIVAL_BASE
+		out.append(e)
+	return out
 
 
 func _refresh_inner() -> void:
@@ -815,7 +832,12 @@ func hints() -> String:
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		return "Reaction window: click a marked squad to react  ·  Space: play the turn"
 	var pl := _focused_planner()
-	if deploying_now(pl) and not _attack_armed:
+	if deploying_now(pl) and not pl.deploying and not _attack_armed:
+		if pl.selection.is_empty():
+			return ARRIVAL_HINT
+		if not pl.selection.filter(pl.can_place).is_empty():
+			return "Arrival: drag a selected arriving squad to place the group (offsets kept)  ·  Drag the knob or E / Shift+E: turn (8 directions)  ·  Arrows or left stick: nudge  ·  Arriving squads take orders after the Reveal  ·  Space: end turn"
+	elif deploying_now(pl) and not _attack_armed:
 		if pl.selection.is_empty():
 			return "Deployment: drag one of your squads inside your lit area to place it  ·  Left click or drag a box: select squads  ·  Turn-1 orders work as in Planning  ·  Space: end turn (squads you leave keep their automatic places)"
 		return "Deployment: drag a selected squad to place the group (offsets kept)  ·  Drag the knob or E / Shift+E: turn (8 directions)  ·  Arrows or left stick: nudge  ·  Right click: turn-1 move  ·  Space: end turn"
@@ -983,7 +1005,7 @@ func _refresh_phase_banner() -> void:
 	var ph := session.clock.phase
 	if session.state.outcome.is_empty() and deploying_now(_focused_planner()):
 		_phase_banner.visible = true
-		_phase_text.text = DEPLOY_BANNER
+		_phase_text.text = DEPLOY_BANNER if _focused_planner().deploying else ARRIVAL_BANNER
 		return
 	_phase_banner.visible = ph == PulseClock.Phase.REACTION and session.state.outcome.is_empty()
 	if _phase_banner.visible:
@@ -1258,25 +1280,33 @@ func deploying_now(pl: BattlePlanner) -> bool:
 func _deploy_overlay(pl: BattlePlanner) -> Dictionary:
 	if not deploying_now(pl):
 		return {}
-	return {"player": player, "areas": pl.areas, "own": pl.own_squads(), "snap": pl.snap}
+	return {"player": player, "areas": pl.areas, "own": pl.placeable(), "snap": pl.snap}
 
 
-## Deployment placements changed: submit them (submit_battle_deployment is
-## their only way to the game; a joiner's arrival placements go through
-## submit_arrival). The draft stays in the planner either way.
+## Deployment placements changed: submit them. Battle squads' placements go
+## through submit_battle_deployment while the battle deploys, arriving
+## squads' through submit_arrival (their only ways to the game). The draft
+## stays in the planner either way.
 func _on_deploy(eid: int) -> void:
 	var pl: BattlePlanner = planners.get(eid)
 	if pl == null or not session.battles.has(eid) or session.clock.phase != PulseClock.Phase.PLANNING:
 		return
-	var placements := pl.deployment()
-	var arriving: bool = _obs_battle(eid).get("arrival", false)
-	var errs: PackedStringArray = session.submit_arrival(player, eid, placements) if arriving \
-		else session.submit_battle_deployment(player, eid, placements)
-	_forecast(eid, pl.orders())  # the ghosts start from the placed squads (sw-bafi.17)
-	var what := "arrival" if arriving else "deployment"
-	_hud_note = "" if errs.is_empty() else "%s refused: " % what + "; ".join(errs)
-	_note("%s %s: %s%s" % [battle_name(eid), what, _placements_text(placements),
-		"" if errs.is_empty() else " - refused: " + "; ".join(errs)])
+	var errs := PackedStringArray()
+	var parts := PackedStringArray()
+	if pl.deploying and pl.area.size != Vector2.ZERO:
+		var placements := pl.deployment()
+		var e := session.submit_battle_deployment(player, eid, placements)
+		errs.append_array(e)
+		parts.append("deployment: %s%s" % [_placements_text(placements), "" if e.is_empty() else " - refused: " + "; ".join(e)])
+	if pl.arrival_area.size != Vector2.ZERO:
+		var placements := _arrival_placements(pl.arrival())
+		var e := session.submit_arrival(player, eid, placements)
+		errs.append_array(e)
+		parts.append("arrival: %s%s" % [_placements_text(placements), "" if e.is_empty() else " - refused: " + "; ".join(e)])
+	if not _obs_battle(eid).get("arrival", false):
+		_forecast(eid, pl.orders())  # the ghosts start from the placed squads (sw-bafi.17)
+	_hud_note = "" if errs.is_empty() else "placement refused: " + "; ".join(errs)
+	_note("%s %s" % [battle_name(eid), "; ".join(parts)])
 	_queue_refresh()
 
 
@@ -1615,11 +1645,12 @@ func _refresh_orders() -> void:
 		return
 	_add_reserves(contexts.focus)
 	if deploying_now(pl):
-		_orders_box.add_child(_title("Deployment (%d placed)" % pl.placements.size()))
+		var what := "Deployment" if pl.deploying else "Arrival"
+		_orders_box.add_child(_title("%s (%d placed)" % [what, pl.placements.size()]))
 		var reset := Button.new()
 		reset.name = "ResetDeployment"
 		reset.text = "Reset to automatic"
-		reset.tooltip_text = "Put every squad back in its automatic place in your deployment area"
+		reset.tooltip_text = "Put every squad back in its automatic place in your %s area" % what.to_lower()
 		reset.disabled = pl.placements.is_empty()
 		reset.pressed.connect(reset_deployment)
 		_orders_box.add_child(reset)
@@ -1777,6 +1808,12 @@ const PAN_STEP: float = 60.0
 
 ## The phase banner while the focused battle deploys (sw-bafi.12).
 const DEPLOY_BANNER: String = "Deployment: place your squads; the enemy can't see them until Reveal"
+## The banner while only arriving squads can be placed (sw-bafi.19).
+const ARRIVAL_BANNER: String = "Arrival: place your arriving squads in your arrival area; they enter the battle at the Reveal"
+const ARRIVAL_HINT: String = "Arrival: drag an arriving squad inside your lit arrival area to place it  ·  Left click or drag a box: select squads  ·  Space: end turn (squads you leave arrive at their automatic places)"
+## Display IDs of arriving squads in the battle view: this plus the overworld
+## squad ID, above any battle squad ID (_merge_arrival).
+const ARRIVAL_BASE: int = 1 << 48
 
 ## The status line's reason when an order is asked for during playback (sw-bafi.2).
 const ORDERS_LOCKED_NOTE: String = "Orders open in Planning"
@@ -1849,7 +1886,7 @@ func _on_pan(dir: Vector2) -> void:
 	# Deploying with squads selected: the arrows and the left stick nudge
 	# them instead (pad placement until sw-wut).
 	var pl := _focused_planner()
-	if deploying_now(pl) and not pl.selection.is_empty():
+	if deploying_now(pl) and not pl.selection.filter(pl.can_place).is_empty():
 		pl.nudge(dir)
 		return
 	_main.pan_camera(dir * PAN_STEP)
