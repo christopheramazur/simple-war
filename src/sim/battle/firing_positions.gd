@@ -349,6 +349,14 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, tgt: Pac
 	var max_x := Fixed.from_int(r.width) - 1
 	var max_y := Fixed.from_int(r.height) - 1
 	var profile := r.ut_movement[state.units.tmpl[urow]]
+	# MovementSystem._blocked, read once: the cost row of the unit's profile.
+	var cost_row := profile * r.feature_count()
+	var mv_cost := r.mv_cost
+	var terrain := r.terrain
+	var width := r.width
+	var height := r.height
+	var rng2 := sh[0]
+	var mn2 := sh[1]
 	var toward := Fixed.atan2(sq.cy[trow] - gy, sq.cx[trow] - gx)
 	var spread := Fixed.ANGLE_HALF / (ANGLES - 1)
 	# The directions are the same on every ring: their cos and sin once.
@@ -374,9 +382,25 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, tgt: Pac
 			var cdy := py - ay
 			if cdx * cdx + cdy * cdy > r2:
 				continue
-			if MovementSystem._blocked(r, profile, px, py):
+			# _shot, its range test first (cheap; the conditions are all
+			# required, so the order doesn't change the answer).
+			var best := -1
+			var best_d := 1 << 62
+			for i in range(0, tgt.size(), 2):
+				var tdx := tgt[i] - px
+				var tdy := tgt[i + 1] - py
+				var d := tdx * tdx + tdy * tdy
+				if d > rng2 or d < mn2:
+					continue
+				if d < best_d:
+					best_d = d
+					best = i
+			if best < 0:
 				continue
-			if _shot(r, tgt, sh, px, py):
+			var cell := clampi(py >> Fixed.FRAC_BITS, 0, height - 1) * width + clampi(px >> Fixed.FRAC_BITS, 0, width - 1)
+			if mv_cost[cost_row + terrain[cell]] <= 0:
+				continue
+			if sh[2] != 0 or r.los(px, py, tgt[best], tgt[best + 1]):
 				fx[urow] = px
 				fy[urow] = py
 				return HAS
