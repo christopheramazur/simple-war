@@ -268,6 +268,7 @@ func forecast_copy() -> BattleRules:
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			c.set(p.name, get(p.name))
 	c.routes = BattleRoute.new()
+	c.los_memo = {}
 	return c
 
 
@@ -337,13 +338,50 @@ const MAX_STAMP_DEPTH: int = 3
 const AWARENESS: int = 8 * Fixed.ONE
 
 
+## Exact integer form of `Fixed.distance(...) <= AWARENESS`: Fixed.length
+## rounds the square root to nearest, so it is <= A exactly when the squared
+## length is <= A * A + A. Saves the square root on every trace (sw-03qj).
+const AWARENESS_SQ_LIMIT: int = AWARENESS * AWARENESS + AWARENESS
+## Entries before the blocker-walk memo starts over (a cache: clearing it
+## never changes an answer).
+const LOS_MEMO_MAX: int = 1 << 18
+
+## Blocker-walk answers per (from cell, to cell), sw-03qj. The walk reads
+## only the two cells and the terrain, so the memo is exact; the awareness
+## check above it still reads the exact points. Terrain is fixed once a
+## battle is set up: code that changes terrain after a trace calls
+## clear_los_memo(). Not hashed or saved. A forecast copy starts its own
+## memo (forecast_copy), since copies may run on a worker thread.
+var los_memo: Dictionary = {}
+
+
+func clear_los_memo() -> void:
+	los_memo.clear()
+
+
 func los(ax: int, ay: int, bx: int, by: int) -> bool:
-	if Fixed.distance(ax, ay, bx, by) <= AWARENESS:
+	var ex := bx - ax
+	var ey := by - ay
+	if ex * ex + ey * ey <= AWARENESS_SQ_LIMIT:
 		return true
 	var x0 := clampi(Fixed.to_int_floor(ax), 0, width - 1)
 	var y0 := clampi(Fixed.to_int_floor(ay), 0, height - 1)
 	var x1 := clampi(Fixed.to_int_floor(bx), 0, width - 1)
 	var y1 := clampi(Fixed.to_int_floor(by), 0, height - 1)
+	var cells := width * height
+	var key := (y0 * width + x0) * cells + y1 * width + x1
+	var hit: Variant = los_memo.get(key)
+	if hit != null:
+		return hit
+	var sight := _walk_los(x0, y0, x1, y1)
+	if los_memo.size() >= LOS_MEMO_MAX:
+		los_memo.clear()
+	los_memo[key] = sight
+	return sight
+
+
+## The blocker walk between two cells (the endpoints themselves never block).
+func _walk_los(x0: int, y0: int, x1: int, y1: int) -> bool:
 	var dx := absi(x1 - x0)
 	var dy := -absi(y1 - y0)
 	var sx := 1 if x0 < x1 else -1
