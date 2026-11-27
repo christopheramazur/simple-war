@@ -48,6 +48,11 @@ const MAX_RINGS: int = 3
 const ANGLES: int = 7
 const CADENCE: int = BattleRules.BH_CADENCE
 const SEARCH_CAP: int = 2
+## Re-evaluations (units that already lack a position or can't have one) per
+## tick per battle; first evaluations are never capped (sw-txnj.15, sw-0jm5).
+const EVAL_CAP: int = 3
+## _evaluate's code for "lacks, and its ring search is due" (never stored).
+const DUE: int = 4
 const STAND_OFF: int = BattleRules.BH_STAND_OFF
 const REACH_SLACK: int = 10 * Fixed.ONE
 const HYSTERESIS_S: int = BattleRules.BH_HYSTERESIS_S
@@ -113,6 +118,7 @@ static func _engaging_rows(state: BattleState) -> PackedInt64Array:
 	var seen_by := sq.seen_by
 	var player := sq.player
 	var stand_firing := r.bh_stand_firing
+	var erow := sq.rows_of(engaged)
 	var keep_min := r.bh_keep_min
 	var keep_max := r.bh_keep_max
 	for row in n:
@@ -125,10 +131,10 @@ static func _engaging_rows(state: BattleState) -> PackedInt64Array:
 				continue
 		elif o != BattleSquads.Order.ATTACK_MOVE:
 			continue
-		var i := r.bh_at(tmpl[row], o)
+		var i := tmpl[row] * BattleRules.BH_ORDERS + o  # r.bh_at
 		if stand_firing[i] == 0:
 			continue
-		var trow := sq.row_of(e)
+		var trow := erow[row]
 		if trow < 0 or destroyed[trow] != 0 or withdrawn[trow] != 0 or alive[trow] == 0:
 			continue
 		if seen_by[trow] & (1 << player[row]) == 0:
@@ -160,10 +166,13 @@ static func update(state: BattleState) -> void:
 	var stand := _standing_modes(r)
 	var shots := {}
 	var due := PackedInt64Array()
-	var due_r := PackedInt64Array()
-	var due_t := PackedInt64Array()
+	var again := PackedInt64Array()
 	var targets := {}
 	var engage := _engaging_rows(state)
+	# Living armed units per squad that lack a position (LACKS or NONE), kept
+	# up to date through both passes, for the anchors.
+	var lacking := PackedInt64Array()
+	lacking.resize(sq.count())
 	for row in sq.count():
 		var trow := engage[row]
 		var units := Centroids.units_of(state, row)
@@ -206,64 +215,60 @@ static func update(state: BattleState) -> void:
 					var sh := _shooter(r, w, m, stand_off)
 					if not _shot(r, tgt, sh, fx[urow], fy[urow]):
 						p = LACKS
-			if p == NONE or (p != HAS and on_cadence):
-				var sh := _shooter(r, w, m, stand_off)
+			if p == NONE:
+				# A first evaluation always runs now, so a squad that engages
+				# standing doesn't step forward first.
 				if frame.is_empty():
 					frame = _slot_frame(state, row)
-				var slot := _slot_at(frame, uslot[urow])
-				var odx := ux[urow] - ax
-				var ody := uy[urow] - ay
-				var reach := r.wp_range[w] + radius + REACH_SLACK
-				var cdx := sq.cx[trow] - slot[0]
-				var cdy := sq.cy[trow] - slot[1]
-				if cdx * cdx + cdy * cdy > reach * reach + reach:
-					# Too far for any ring to reach: Fixed.distance(slot,
-					# centroid) > reach, without the square root (it rounds to
-					# nearest, so it exceeds reach exactly when the squared
-					# length exceeds reach * reach + reach).
+				p = _evaluate(state, urow, row, trow, tgt, _shooter(r, w, m, stand_off), _slot_at(frame, uslot[urow]), fx, fy)
+				if p == DUE:
 					p = LACKS
-				elif odx * odx + ody * ody <= r2 and _shot(r, tgt, sh, ux[urow], uy[urow]):
-					# The own spot, inside coherency.
-					fx[urow] = ux[urow]
-					fy[urow] = uy[urow]
-					p = HAS
-				elif _shot(r, tgt, sh, slot[0], slot[1]):
-					fx[urow] = slot[0]
-					fy[urow] = slot[1]
-					p = HAS
-				elif _min_blocked(tgt, sh, slot):
-					p = UNACHIEVABLE
-				else:
-					if p == NONE:
-						p = LACKS
 					due.append(urow)
-					due_r.append(row)
-					due_t.append(trow)
+			elif p != HAS and on_cadence:
+				# A re-evaluation is budgeted (EVAL_CAP per tick); a deferred
+				# unit keeps its code.
+				again.append(urow)
+			if p == LACKS:
+				lacking[row] += 1
 			fpos[urow] = p
+	var n_again := again.size()
+	var start := tick % maxi(n_again, 1)
+	for i in mini(EVAL_CAP, n_again):
+		var urow := again[(start + i) % n_again]
+		var row := sq.row_of(u.squad[urow])
+		var trow := engage[row]
+		var w := weapon[urow]
+		var sh := _shooter(r, w, stand[w], r.bh_stand_off[bh(state, row)])
+		var slot := _slot_at(_slot_frame(state, row), uslot[urow])
+		var p := _evaluate(state, urow, row, trow, shots[trow], sh, slot, fx, fy)
+		if p == DUE:
+			p = LACKS
+			due.append(urow)
+		lacking[row] += int(p == LACKS) - int(fpos[urow] == LACKS)
+		fpos[urow] = p
 	var n := due.size()
 	if n > 0:
-		var start := tick % n
+		var first := tick % n
 		for i in mini(SEARCH_CAP, n):
-			var k := (start + i) % n
-			var urow := due[k]
-			var row := due_r[k]
-			var trow := due_t[k]
+			var urow := due[(first + i) % n]
+			var row := sq.row_of(u.squad[urow])
+			var trow := engage[row]
 			var w := weapon[urow]
 			var sh := _shooter(r, w, stand[w], r.bh_stand_off[bh(state, row)])
-			fpos[urow] = _search(state, urow, row, trow, shots[trow], sh, fx, fy)
+			var p := _search(state, urow, row, trow, shots[trow], sh, fx, fy)
+			if p != LACKS:
+				lacking[row] -= 1
+			fpos[urow] = p
 	u.put_column(&"fpos", fpos)
 	u.put_column(&"fx", fx)
 	u.put_column(&"fy", fy)
-	_anchors(state, targets)
+	_anchors(state, targets, lacking)
 
 
 ## Hysteresis per squad: fp_stop = 1 holds the anchor for firing positions.
-static func _anchors(state: BattleState, targets: Dictionary) -> void:
+## `lacking[row]`: its living armed units that are NONE or LACKS.
+static func _anchors(state: BattleState, targets: Dictionary, lacking: PackedInt64Array) -> void:
 	var sq := state.squads
-	var u := state.units
-	var hp := u.hp
-	var weapon := u.weapon
-	var fpos := u.fpos
 	var stop: PackedByteArray = sq.take_column(&"fp_stop")
 	var lack: PackedInt64Array = sq.take_column(&"fp_lack")
 	for row in sq.count():
@@ -271,13 +276,7 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 			stop[row] = 0
 			lack[row] = -1
 			continue
-		var lacking := false
-		for urow in Centroids.units_of(state, row):
-			var p := fpos[urow]
-			if (p == NONE or p == LACKS) and hp[urow] > 0 and weapon[urow] >= 0:
-				lacking = true
-				break
-		if not lacking:
+		if lacking[row] == 0:
 			stop[row] = 1
 			lack[row] = -1
 			continue
@@ -288,6 +287,41 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 		stop[row] = 0
 	sq.put_column(&"fp_stop", stop)
 	sq.put_column(&"fp_lack", lack)
+
+
+## Evaluates unit `urow` of squad `row` against squad `trow` (living
+## positions `tgt`, shooter `sh`, formation slot point `slot`): its own spot
+## inside coherency, then its slot. Writes fx, fy on success. Returns HAS,
+## UNACHIEVABLE, LACKS (too far for any ring to reach: no search), or DUE
+## (lacks, and its ring search is due).
+static func _evaluate(state: BattleState, urow: int, row: int, trow: int, tgt: PackedInt64Array, sh: PackedInt64Array, slot: PackedInt64Array, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
+	var r := state.rules
+	var sq := state.squads
+	var u := state.units
+	var radius := r.bh_coherency[bh(state, row)]
+	var reach := r.wp_range[u.weapon[urow]] + radius + REACH_SLACK
+	var cdx := sq.cx[trow] - slot[0]
+	var cdy := sq.cy[trow] - slot[1]
+	if cdx * cdx + cdy * cdy > reach * reach + reach:
+		# Too far for any ring to reach: Fixed.distance(slot, centroid) >
+		# reach, without the square root (it rounds to nearest, so it exceeds
+		# reach exactly when the squared length exceeds reach * reach + reach).
+		return LACKS
+	var x := u.x[urow]
+	var y := u.y[urow]
+	var odx := x - sq.ax[row]
+	var ody := y - sq.ay[row]
+	if odx * odx + ody * ody <= radius * radius and _shot(r, tgt, sh, x, y):
+		fx[urow] = x
+		fy[urow] = y
+		return HAS
+	if _shot(r, tgt, sh, slot[0], slot[1]):
+		fx[urow] = slot[0]
+		fy[urow] = slot[1]
+		return HAS
+	if _min_blocked(tgt, sh, slot):
+		return UNACHIEVABLE
+	return DUE
 
 
 ## What MovementSystem.slot_point needs of squad `row`, read once: [shape,
