@@ -20,6 +20,11 @@ extends RefCounted
 ## (`deploy_changed`, `deployment()`), submitted through
 ## submit_battle_deployment only; orders drafted meanwhile start from the
 ## placed positions.
+##
+## Arrival (U1 C12, sw-bafi.18): a joining side drafts the same way before
+## Reveal. The owner syncs it with an observation shaped like observe_battle
+## (its arrival area as the one area, the arriving squads as own squads, the
+## squads' overworld IDs), and submits `deployment()` through submit_arrival.
 
 ## The orders or groups changed (a draft to submit).
 signal changed
