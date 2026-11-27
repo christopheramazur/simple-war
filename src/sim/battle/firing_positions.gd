@@ -93,6 +93,54 @@ static func engaging(state: BattleState, row: int, closing: bool = false) -> int
 	return trow
 
 
+## engaging(state, row) for every squad row at once, from columns read once
+## (sw-0jm5: the per-row version reads a dozen properties per call). Must
+## agree with engaging() row for row (test_engaging_rows_matches_engaging).
+static func _engaging_rows(state: BattleState) -> PackedInt64Array:
+	var sq := state.squads
+	var r := state.rules
+	var n := sq.count()
+	var out := PackedInt64Array()
+	out.resize(n)
+	out.fill(-1)
+	var destroyed := sq.destroyed
+	var withdrawn := sq.withdrawn
+	var alive := sq.alive
+	var engaged := sq.engaged
+	var order := sq.order
+	var target := sq.target
+	var tmpl := sq.tmpl
+	var seen_by := sq.seen_by
+	var player := sq.player
+	var stand_firing := r.bh_stand_firing
+	var keep_min := r.bh_keep_min
+	var keep_max := r.bh_keep_max
+	for row in n:
+		var e := engaged[row]
+		if e < 0 or alive[row] == 0 or destroyed[row] != 0 or withdrawn[row] != 0:
+			continue
+		var o := order[row]
+		if o == BattleSquads.Order.ATTACK:
+			if e != target[row]:
+				continue
+		elif o != BattleSquads.Order.ATTACK_MOVE:
+			continue
+		var i := r.bh_at(tmpl[row], o)
+		if stand_firing[i] == 0:
+			continue
+		var trow := sq.row_of(e)
+		if trow < 0 or destroyed[trow] != 0 or withdrawn[trow] != 0 or alive[trow] == 0:
+			continue
+		if seen_by[trow] & (1 << player[row]) == 0:
+			continue
+		if keep_min[i] >= 0 or keep_max[i] >= 0:
+			var d := Fixed.distance(sq.ax[row], sq.ay[row], sq.cx[trow], sq.cy[trow])
+			if d < keep_min[i] or (keep_max[i] >= 0 and d > keep_max[i]):
+				continue
+		out[row] = trow
+	return out
+
+
 static func update(state: BattleState) -> void:
 	var sq := state.squads
 	var u := state.units
@@ -108,14 +156,16 @@ static func update(state: BattleState) -> void:
 	var ux := u.x
 	var uy := u.y
 	var fired := u.fired_tick
+	var uslot := u.slot
 	var stand := _standing_modes(r)
 	var shots := {}
 	var due := PackedInt64Array()
 	var due_r := PackedInt64Array()
 	var due_t := PackedInt64Array()
 	var targets := {}
+	var engage := _engaging_rows(state)
 	for row in sq.count():
-		var trow := engaging(state, row)
+		var trow := engage[row]
 		var units := Centroids.units_of(state, row)
 		if trow < 0:
 			for urow in units:
@@ -133,6 +183,7 @@ static func update(state: BattleState) -> void:
 		var stand_off := r.bh_stand_off[bhi]
 		var ax := sq.ax[row]
 		var ay := sq.ay[row]
+		var frame := PackedInt64Array()
 		for urow in units:
 			var w := weapon[urow]
 			if hp[urow] <= 0 or w < 0:
@@ -157,11 +208,19 @@ static func update(state: BattleState) -> void:
 						p = LACKS
 			if p == NONE or (p != HAS and on_cadence):
 				var sh := _shooter(r, w, m, stand_off)
-				var slot := MovementSystem.slot_point(state, urow, row)
+				if frame.is_empty():
+					frame = _slot_frame(state, row)
+				var slot := _slot_at(frame, uslot[urow])
 				var odx := ux[urow] - ax
 				var ody := uy[urow] - ay
-				if Fixed.distance(slot[0], slot[1], sq.cx[trow], sq.cy[trow]) > r.wp_range[w] + radius + REACH_SLACK:
-					# Too far for any ring to reach.
+				var reach := r.wp_range[w] + radius + REACH_SLACK
+				var cdx := sq.cx[trow] - slot[0]
+				var cdy := sq.cy[trow] - slot[1]
+				if cdx * cdx + cdy * cdy > reach * reach + reach:
+					# Too far for any ring to reach: Fixed.distance(slot,
+					# centroid) > reach, without the square root (it rounds to
+					# nearest, so it exceeds reach exactly when the squared
+					# length exceeds reach * reach + reach).
 					p = LACKS
 				elif odx * odx + ody * ody <= r2 and _shot(r, tgt, sh, ux[urow], uy[urow]):
 					# The own spot, inside coherency.
@@ -231,6 +290,27 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 	sq.put_column(&"fp_lack", lack)
 
 
+## What MovementSystem.slot_point needs of squad `row`, read once: [shape,
+## members, spacing, cos and sin of its facing, anchor x, y, map max x, y].
+static func _slot_frame(state: BattleState, row: int) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var st := sq.tmpl[row]
+	var members := sq.form_size[row]
+	if members <= 0:
+		members = r.sq_members[st].size()
+	var facing := sq.facing[row]
+	return PackedInt64Array([r.sq_shape[st], members, r.sq_spacing[st], Fixed.fcos(facing), Fixed.fsin(facing),
+		sq.ax[row], sq.ay[row], Fixed.from_int(r.width) - 1, Fixed.from_int(r.height) - 1])
+
+
+## MovementSystem.slot_point for formation slot `slot` of the squad `frame`
+## (see _slot_frame) describes.
+static func _slot_at(frame: PackedInt64Array, slot: int) -> PackedInt64Array:
+	var off := Formation.offset_cs(frame[0], slot, frame[1], frame[2], frame[3], frame[4])
+	return PackedInt64Array([mini(maxi(frame[5] + off[0], 0), frame[7]), mini(maxi(frame[6] + off[1], 0), frame[8])])
+
+
 ## True if the unit's slot is too far from the target for any ring to reach.
 static func _too_far(state: BattleState, urow: int, row: int, trow: int) -> bool:
 	var sq := state.squads
@@ -263,7 +343,7 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, tgt: Pac
 			break
 	if not any:
 		return LACKS
-	var slot := MovementSystem.slot_point(state, urow, row)
+	var slot := _slot_at(_slot_frame(state, row), state.units.slot[urow])
 	var gx := slot[0]
 	var gy := slot[1]
 	var max_x := Fixed.from_int(r.width) - 1
