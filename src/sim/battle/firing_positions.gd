@@ -29,8 +29,18 @@ extends RefCounted
 ##   the due list rotated by the tick (stateless round robin). A unit whose
 ##   slot is beyond range + coherency + REACH_SLACK of the target centroid
 ##   lacks a position without a search. The own spot and the slot are tried
-##   uncapped (a unit's first evaluation among them, so a squad that engages
-##   standing doesn't step forward first); only ring searches are capped.
+##   on a unit's first evaluation uncapped (so a squad that engages standing
+##   doesn't step forward first). Re-evaluations of units that lack a
+##   position or can't have one are capped at EVAL_CAP per tick per battle
+##   (sw-txnj.15, sw-0jm5), taken from the list of those due rotated by the
+##   tick; a deferred unit keeps its code until a later tick picks it. A unit
+##   losing its position is re-evaluated under the same cap.
+## - Cost, exact (sw-0jm5): columns and each target squad's living positions
+##   are read once per tick, engaging() runs batched (_engaging_rows), slots
+##   come from one formation frame per squad, and the ring search is skipped
+##   when no target unit is within range + coherency of the anchor.
+##   Measured with docs/design/u1/scripts/fp/fp_cost.gd at 40 squads: 1.40
+##   -> 0.77 ms/t exact, 0.60 with EVAL_CAP; fp_dps.gd is the sign-off.
 ## - Anchor (fp_stop): stops once no armed unit is NONE or LACKS; once stopped
 ##   it moves again only after some unit has lacked a position for
 ##   HYSTERESIS_S (fp_lack = the tick the lack began, -1 none).
