@@ -1,0 +1,14 @@
+{
+	"name": "tune_p2_short0",
+	"text": "Tuning (sw-bafi.20): player 2 by role with the short-range role off (indirect and concealed only).",
+	"controllers": {
+		"2": {
+			"deploy": {
+				"process": "role",
+				"params": {
+					"short_range": 0
+				}
+			}
+		}
+	}
+}
