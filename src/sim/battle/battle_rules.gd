@@ -67,6 +67,11 @@ var rt_cost: Array[PackedInt32Array] = []
 var sq_route_class: PackedInt64Array = PackedInt64Array()
 ## Fixed. How far an attack target may move before the route is planned again.
 var route_replan: int = 8 * Fixed.ONE
+## Fixed. How far past its point an engaged attack-move may close (U1Q29).
+var chase_leash: int = 15 * Fixed.ONE
+## Ticks. How recent a volley must be for the "under fire" relation (U1 Q6;
+## default one second). Read models only: no system reads it.
+var recent_fire_ticks: int = 10
 ## Plans and caches routes for this battlefield. Not state: see BattleRoute.
 ## The only mutable part of the rules: concurrent forecasts must not share
 ## its writes, so they plan into a private copy (forecast_copy).
@@ -154,7 +159,47 @@ var sq_cr: PackedInt64Array = PackedInt64Array()
 var sq_sight: PackedInt64Array = PackedInt64Array()
 var sq_shape: PackedInt64Array = PackedInt64Array()
 var sq_spacing: PackedInt64Array = PackedInt64Array()
+## Coherency radius per squad template, fixed metres (sw-txnj.4): explicit
+## `formation.coherency`, else the formation's half-width + 4 m.
+var sq_coherency: PackedInt64Array = PackedInt64Array()
 var sq_archetype: PackedInt64Array = PackedInt64Array()
+## Squad behaviours (GDD 02 §2.15, sw-txnj.9), compiled per squad template x
+## battle order: index bh_at(template, order), order = BattleSquads.Order
+## (DataSchema.BATTLE_ORDERS). A template's `behaviours` map names one per
+## order; unset orders, and components a behaviour leaves out, take the
+## default, which is the built closing-to-fire behaviour (sw-txnj.5): the
+## formation's coherency, a 5 m stand-off past a minimum range, re-evaluation
+## every 5 ticks, 1 s hysteresis, the ruleset's chase leash under Attack-move
+## only, moving fire allowed, units standing while they fire. Read by
+## MovementSystem, FiringPositions and CombatSystem for the squad's current
+## order (sw-txnj.10); bh_separate waits for separation (§2.14).
+const BH_ORDERS: int = 6
+const BH_STAND_OFF: int = 5 * Fixed.ONE
+const BH_CADENCE: int = 5
+const BH_HYSTERESIS_S: int = 1
+## Behaviour template ID per entry, "" = the default.
+var bh_ids: PackedStringArray = PackedStringArray()
+## Coherency radius for firing positions, fixed metres.
+var bh_coherency: PackedInt64Array = PackedInt64Array()
+## Stand-off kept beyond a weapon's minimum range, fixed metres.
+var bh_stand_off: PackedInt64Array = PackedInt64Array()
+## Firing-position re-evaluation interval, ticks.
+var bh_cadence: PackedInt64Array = PackedInt64Array()
+## How long a unit lacks a position before a stopped anchor moves, ticks.
+var bh_hysteresis: PackedInt64Array = PackedInt64Array()
+## keep_distance band to the engaged squad, fixed metres; -1 = unbounded.
+var bh_keep_min: PackedInt64Array = PackedInt64Array()
+var bh_keep_max: PackedInt64Array = PackedInt64Array()
+## Chase leash past the order point, fixed metres; -1 = none.
+var bh_leash: PackedInt64Array = PackedInt64Array()
+## 1 = moving fire modes may fire under this order.
+var bh_fire_on_move: PackedByteArray = PackedByteArray()
+## 1 = units with a shot stand while they fire / the squad stands while a
+## unit reloads.
+var bh_stand_firing: PackedByteArray = PackedByteArray()
+var bh_stand_reloading: PackedByteArray = PackedByteArray()
+## Separation radius, fixed metres; -1 = the size-class default (§2.14).
+var bh_separate: PackedInt64Array = PackedInt64Array()
 ## Member unit template indices, expanded (one entry per model), leader first.
 var sq_members: Array[PackedInt64Array] = []
 ## Innate bundles (EffectRules indices) applied at spawn, per template.
@@ -174,6 +219,9 @@ var sq_pool_drift: PackedInt64Array = PackedInt64Array()
 
 # --- scenario ---
 var ticks_per_turn: int = 100
+## Scenario `deployment`: true = open (a deployment step in turn-1 Planning,
+## BattleDeploy), false = fixed (squads start at their automatic places).
+var deployment_open: bool = true
 var zone_ids: PackedStringArray = PackedStringArray()
 var zn_x: PackedInt64Array = PackedInt64Array()
 var zn_y: PackedInt64Array = PackedInt64Array()
@@ -186,7 +234,8 @@ var zn_vp: PackedInt64Array = PackedInt64Array()
 var zn_locked: PackedByteArray = PackedByteArray()
 ## Scripted triggers (TriggerRules, battle context).
 var triggers: TriggerRules
-## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array}
+## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array,
+## placed: [{squad (template index), x, y (fixed), facing, locked}]} (sw-tdz).
 var sides: Array[Dictionary] = []
 var turn_limit: int = 10
 var primary_influence: bool = true
@@ -586,6 +635,8 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_gen = Fixed.round_div(DataSchema.to_fixed(rs.get("morale_rate_per_s"), 0) * morale_interval, tps)
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
 	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
+	chase_leash = DataSchema.to_fixed(rs.get("chase_leash_m"), 15 * Fixed.ONE)
+	recent_fire_ticks = int(rs.get("relation_recent_fire_ticks", tps))
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
 	_pool_defaults = rs.get("pool_defaults", {})
@@ -766,6 +817,9 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 					others.append(ui)
 		leaders.append_array(others)
 		sq_members.append(leaders)
+		var default_coherency := Formation.half_width(sq_shape[-1], leaders.size(), sq_spacing[-1]) + Fixed.from_int(4)
+		sq_coherency.append(DataSchema.to_fixed(form["coherency"]) if form.has("coherency") else default_coherency)
+		_compile_behaviours(t, tid, v.get("behaviours", {}), sq_coherency[-1])
 		sq_bundles.append(_bundle_list(v))
 		sq_keywords.append(PackedStringArray(v.get("keywords", [])))
 		var abl := PackedInt64Array()
@@ -786,8 +840,51 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 			sq_pool_drift.append(Fixed.round_div(drift_pct * cap, 100 * tps))
 
 
+## Index into the bh_* arrays of squad template `st` under `order`
+## (BattleSquads.Order).
+func bh_at(st: int, order: int) -> int:
+	return st * BH_ORDERS + order
+
+
+## Appends one bh_* entry per battle order for the squad template `tid`
+## (sw-txnj.9): the default, overridden by the components of the behaviour
+## its `behaviours` map names for that order.
+func _compile_behaviours(t: TemplateTable, tid: String, by_order: Dictionary, coherency: int) -> void:
+	for o in BH_ORDERS:
+		var order_name: String = DataSchema.BATTLE_ORDERS[o]
+		var bid := str(by_order.get(order_name, ""))
+		var comps := {}
+		if not bid.is_empty():
+			if not t.has(bid) or t.kind_of(bid) != "behaviour":
+				errors.append("%s: behaviours/%s names unknown behaviour '%s'" % [tid, order_name, bid])
+				bid = ""
+			else:
+				for entry: Dictionary in t.values_of(bid).get("components", []):
+					comps[str(entry.get("c", ""))] = entry
+		bh_ids.append(bid)
+		var fp: Dictionary = comps.get("firing_position", {})
+		if fp.has("coherency_m"):
+			bh_coherency.append(DataSchema.to_fixed(fp["coherency_m"]))
+		else:
+			bh_coherency.append(maxi(coherency + DataSchema.to_fixed(fp.get("extra_m"), 0), 0))
+		bh_stand_off.append(DataSchema.to_fixed(fp.get("stand_off_m"), BH_STAND_OFF))
+		bh_cadence.append(int(fp.get("cadence_ticks", BH_CADENCE)))
+		bh_hysteresis.append(Fixed.to_int_floor(DataSchema.to_fixed(fp.get("hysteresis_s"), Fixed.from_int(BH_HYSTERESIS_S)) * tps))
+		var kd: Dictionary = comps.get("keep_distance", {})
+		bh_keep_min.append(DataSchema.to_fixed(kd.get("min_m"), -1))
+		bh_keep_max.append(DataSchema.to_fixed(kd.get("max_m"), -1))
+		var default_leash := chase_leash if o == BattleSquads.Order.ATTACK_MOVE else -1
+		bh_leash.append(DataSchema.to_fixed(comps["leash"].get("chase_m"), default_leash) if comps.has("leash") else default_leash)
+		bh_fire_on_move.append(1 if comps.get("fire_on_move", {}).get("allow", true) else 0)
+		var sw: Dictionary = comps.get("stand_while", {})
+		bh_stand_firing.append(1 if sw.get("firing", true) else 0)
+		bh_stand_reloading.append(1 if sw.get("reloading", false) else 0)
+		bh_separate.append(DataSchema.to_fixed(comps["separate"].get("radius_m"), -1) if comps.has("separate") else -1)
+
+
 func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 	ticks_per_turn = int(sc["ticks_per_turn"])
+	deployment_open = sc.get("deployment", "open") != "fixed"
 	if not _compile_terrain(t, sc):
 		return
 	for r: Dictionary in sc.get("terrain", []):
@@ -812,7 +909,9 @@ func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 			"facing": int(s.get("facing", 0)) & Fixed.ANGLE_MASK,
 			"deploy": PackedInt64Array([DataSchema.to_fixed(d["x"]), DataSchema.to_fixed(d["y"]), DataSchema.to_fixed(d["w"]), DataSchema.to_fixed(d["h"])]),
 			"squads": squads,
+			"placed": [],
 		})
+	_compile_placed(sc.get("placed", []))
 	var vic: Dictionary = sc["victory"]
 	turn_limit = int(vic.get("turn_limit", 10))
 	primary_influence = vic.get("primary", "influence") == "influence"
@@ -820,3 +919,54 @@ func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 	annihilation = vic.get("annihilation", true)
 	withdrawal = vic.get("withdrawal", true)
 	loser_hook = (sc.get("end_hooks", {}) as Dictionary).get("loser", "scatter")
+
+
+## Scenario `placed` (sw-tdz, U1Q31): {side, squad, x, y, facing?, locked?}
+## puts a squad of its side at a point. That is its automatic place, which
+## the player may move in the deployment step unless `locked`. Refused: a
+## side the scenario doesn't have, a squad its side doesn't list, a squad
+## placed twice on one side, a point outside its side's area or with no cell
+## the squad can enter there, and two entries on one cell. `facing` defaults
+## to the side's. Called after the sides and the terrain are compiled.
+func _compile_placed(list: Array) -> void:
+	var cells := {}
+	var seen := {}
+	for p: Dictionary in list:
+		var pl := int(p["side"])
+		var what := "scenario '%s': placed squad '%s' on side %d" % [scenario_id, p["squad"], pl]
+		var si := -1
+		for i in sides.size():
+			if int(sides[i]["player"]) == pl:
+				si = i
+		if si < 0:
+			errors.append("%s: no side has player %d" % [what, pl])
+			continue
+		var side := sides[si]
+		var st := squad_index(p["squad"])
+		if not (side["squads"] as PackedInt64Array).has(st):
+			errors.append("%s: the side does not list it" % what)
+			continue
+		var key := "%d|%d" % [pl, st]
+		if seen.has(key):
+			errors.append("%s: squad placed twice" % what)
+			continue
+		seen[key] = true
+		var x := DataSchema.to_fixed(p["x"])
+		var y := DataSchema.to_fixed(p["y"])
+		var rect := side["deploy"] as PackedInt64Array
+		if x < rect[0] or y < rect[1] or x > rect[0] + rect[2] or y > rect[1] + rect[3]:
+			errors.append("%s: outside its side's deployment area" % what)
+			continue
+		if BattleDeploy.open_point_in(self, st, x, y, rect).is_empty():
+			errors.append("%s: no cell the squad can enter in its side's area" % what)
+			continue
+		var cell := "%d,%d" % [Fixed.to_int_floor(x), Fixed.to_int_floor(y)]
+		if cells.has(cell):
+			errors.append("scenario '%s': two placed squads on cell %s" % [scenario_id, cell])
+			continue
+		cells[cell] = true
+		(side["placed"] as Array).append({
+			"squad": st, "x": x, "y": y,
+			"facing": int(p.get("facing", side["facing"])) & Fixed.ANGLE_MASK,
+			"locked": bool(p.get("locked", false)),
+		})

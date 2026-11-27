@@ -1,0 +1,31 @@
+{
+	"_doc": "Hex layout table (GDD 03 §3.5, U1Q21-U1Q22; HexLayout). Points are thousandths of the hex circumradius from its centre, y down; the hex is pointy-top, side k faces -60*k degrees on screen and its midpoint is 866 out.",
+	"site_radius": 180,
+	"slots": [
+		[[0, -80]],
+		[[-260, -80], [260, -80]],
+		[[0, -320], [-260, 120], [260, 120]],
+		[[-260, -300], [260, -300], [-260, 160], [260, 160]],
+		[[0, -100], [-300, -380], [300, -380], [-300, 240], [300, 240]],
+		[[420, -80], [210, -444], [-210, -444], [-420, -80], [-210, 284], [210, 284]],
+		[[0, -80], [420, -80], [210, -444], [-210, -444], [-420, -80], [-210, 284], [210, 284]]
+	],
+	"lane": {
+		"points": [[-260, 620], [0, 620], [260, 620]],
+		"token_radius": 100,
+		"road_reach": 520
+	},
+	"road": {
+		"half_width": 110,
+		"group_shift": 300,
+		"group_scale": 85,
+		"clearance": 290,
+		"shrink_step": 10,
+		"min_scale": 60
+	},
+	"labels": {
+		"glyph_below": 24,
+		"rings_from": 48,
+		"names_from": 96
+	}
+}

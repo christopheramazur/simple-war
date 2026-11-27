@@ -53,9 +53,18 @@ static func plan_for(session: OverworldSession, p: int, controller: Object) -> v
 				session.set_output(p, e["feature"], e["output"])
 			if e.has("commander"):
 				session.set_supply_line(p, e["feature"], -1, e["commander"])
+	var eids: Array = session.battles.keys()
+	eids.sort()
+	if controller.has_method("deploy"):
+		for eid: int in eids:
+			var dobs := session.observe_battle(p, eid)
+			if dobs.get("deploying", false):
+				if controller.has_method("set_battle_rules"):
+					controller.set_battle_rules((session.battles[eid] as OverworldBattle).state.rules)
+				var placements: Array = controller.deploy(dobs)
+				if not placements.is_empty():  # none: the automatic places (no log entry)
+					session.submit_battle_deployment(p, eid, placements)
 	if controller.has_method("battle_orders"):
-		var eids: Array = session.battles.keys()
-		eids.sort()
 		for eid: int in eids:
 			var bo := session.observe_battle(p, eid)
 			if not bo.is_empty():

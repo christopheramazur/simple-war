@@ -6,6 +6,7 @@
 			"morale_interval_ticks": 10,
 			"morale_rate_per_s": "0.4",
 			"morale_leech_pct": 10,
+			"chase_leash_m": 15,
 			"pool_defaults": {
 				"stamina": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},
 				"instinct": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},

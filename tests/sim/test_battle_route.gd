@@ -52,6 +52,13 @@ func _walk(s: BattleState, sid: int, turns: int) -> Array:
 	return trail
 
 
+## True once the anchor is within the arrival radius of x, y (sw-txnj.4: a
+## squad that slows for stragglers can finish a turn short of a floored cell).
+func _arrived(s: BattleState, sid: int, x: int, y: int) -> bool:
+	var row := s.squads.row_of(sid)
+	return Fixed.distance(s.squads.ax[row], s.squads.ay[row], x * ONE, y * ONE) <= MovementSystem.ARRIVE
+
+
 func _anchor(s: BattleState, sid: int) -> Vector2i:
 	var row := s.squads.row_of(sid)
 	return Vector2i(Fixed.to_int_floor(s.squads.ax[row]), Fixed.to_int_floor(s.squads.ay[row]))
@@ -71,8 +78,8 @@ func test_a_squad_walks_round_a_wall() -> void:
 	var s: BattleState = made[0]
 	var sid: int = made[1]
 	assert_eq(BattleOrders.apply(s, 1, [{"squad": sid, "type": "move", "x": 40 * ONE, "y": 30 * ONE}]).size(), 0)
-	var trail := _walk(s, sid, 4)
-	assert_eq(_anchor(s, sid), Vector2i(40, 30), "it arrives on the far side")
+	var trail := _walk(s, sid, 8)
+	assert_true(_arrived(s, sid, 40, 30), "it arrives on the far side")
 	var wall := r.feature_ids.find("wall")
 	var highest := 40
 	for cell: Vector2i in trail:
@@ -267,7 +274,7 @@ func test_units_never_enter_a_wall_while_the_squad_skirts_it() -> void:
 		for u in st.units.count():
 			if r.feature_at(st.units.x[u], st.units.y[u]) == wall:
 				inside.append(u)
-	for _t in 5:
+	for _t in 8:
 		sim.execute_turn(s)
 	assert_eq(inside.size(), 0, "a unit stood in the wall %d times" % inside.size())
-	assert_eq(_anchor(s, made[1]), Vector2i(40, 30))
+	assert_true(_arrived(s, made[1], 40, 30), "the squad arrives")

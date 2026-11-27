@@ -23,7 +23,8 @@ const BASE := "base"
 ## Probe kinds read from one snapshot (`at`) and over a window (`over`);
 ## spacing works both ways.
 const AT_KINDS: Array[String] = ["activity", "hold", "fire", "distance", "within", "spacing"]
-const OVER_KINDS: Array[String] = ["damage", "dps", "shots", "duty", "victims", "kills", "spacing", "moved"]
+const OVER_KINDS: Array[String] = ["damage", "dps", "dps_engaged", "first_shot", "shooters", "first_shot_ticks",
+		"shots", "duty", "victims", "kills", "spacing", "moved"]
 const NEEDS_TARGET: Array[String] = ["fire", "distance", "within"]
 const VICTIM_KEYS: Array[String] = ["distinct", "max_per_victim", "overkill"]
 ## LineOfFire.check codes by name.
@@ -31,7 +32,8 @@ const FIRE_CODES: Array[String] = ["out_of_range", "shot", "blocked", "min_range
 const RELS: Array[String] = [">=", "<=", ">", "<", "=="]
 ## Patch stats: per unit (hp fixed, ammo whole) or a squad pool (fixed).
 const PATCH_STATS: Array[String] = ["hp", "ammo", "stamina", "instinct", "morale", "prowess", "legend"]
-const ORDER_KEYS: Array[String] = ["squad", "type", "x", "y", "target", "run", "abilities"]
+const ORDER_KEYS: Array[String] = ["squad", "type", "x", "y", "target", "run", "abilities", "unchecked"]
+const VARIANT_KEYS: Array[String] = ["script", "patch", "place", "doc"]
 
 var path: String = ""
 var id: String = ""
@@ -51,9 +53,12 @@ var probe_stride: int = 1
 ## [{key, player, squad, x, y (fixed), facing (angle), dummy {armed, hp
 ## (fixed, -1 = own), stationary}, patch {stat: fixed or int}}]
 var squads: Array = []
-## turn -> [order with squad/target keys; x, y fixed]
+## turn (int) or (turn, tick) Vector2i -> [order with squad/target keys; x, y
+## fixed]. A Vector2i key is a mid-turn order: it takes effect after `tick`
+## ticks of that turn have run (file key "<turn>@<tick>").
 var orders: Dictionary = {}
-## name -> {script: {turn: orders}, patch: {key: {stat: value}}}
+## name -> {script: {turn: orders}, patch: {key: {stat: value}}, place:
+## {key: [x, y] fixed}}
 var variants: Dictionary = {}
 ## [{id, kind, squad, target, pending, variants (the expectation holds in
 ## these; default base), at {turn, tick} | over {t0, k0, t1, k1}, expect}]
@@ -115,8 +120,9 @@ func variant_names() -> PackedStringArray:
 
 
 ## The squads and script a variant runs: its `script` turns replace the base
-## script's turns (whole turns; other turns stay), and its `patch` merges
-## shallowly over each squad's base patch (stat by stat). {} if unknown.
+## script's turn (its start orders and its mid-turn orders alike; other turns
+## stay), its `patch` merges shallowly over each squad's base patch (stat by
+## stat), and its `place` moves squads. {} if unknown.
 func resolved(variant: String) -> Dictionary:
 	if variant != BASE and not variants.has(variant):
 		return {}
@@ -124,12 +130,26 @@ func resolved(variant: String) -> Dictionary:
 	var sc: Dictionary = orders.duplicate(true)
 	if variant != BASE:
 		var v: Dictionary = variants[variant]
-		for t: int in v["script"]:
-			sc[t] = (v["script"][t] as Array).duplicate(true)
+		var turns_named := {}
+		for k: Variant in v["script"]:
+			turns_named[turn_of(k)] = true
+		for bk: Variant in sc.keys():
+			if turns_named.has(turn_of(bk)):
+				sc.erase(bk)
+		for k: Variant in v["script"]:
+			sc[k] = (v["script"][k] as Array).duplicate(true)
 		for d: Dictionary in sq:
 			var p: Dictionary = v["patch"].get(d["key"], {})
 			(d["patch"] as Dictionary).merge(p, true)
+			if v["place"].has(d["key"]):
+				d["x"] = v["place"][d["key"]][0]
+				d["y"] = v["place"][d["key"]][1]
 	return {"squads": sq, "script": sc}
+
+
+## The turn a script key belongs to: an int turn, or the turn of a (turn, tick).
+static func turn_of(k: Variant) -> int:
+	return (k as Vector2i).x if typeof(k) == TYPE_VECTOR2I else int(k)
 
 
 # --- quantization ------------------------------------------------------------
@@ -313,7 +333,9 @@ func _read_patch(v: Variant, f: String) -> Dictionary:
 	return out
 
 
-## {"<turn>": [orders]} -> {turn: [orders]}; squad and target stay keys.
+## {"<turn>": [orders], "<turn>@<tick>": [orders]} -> {turn: [orders],
+## Vector2i(turn, tick): [orders]}; squad and target stay keys. A mid-turn
+## key takes effect after `tick` ticks of that turn (1 .. ticks - 1).
 func _read_script(v: Variant, f: String, keys: Dictionary) -> Dictionary:
 	var out := {}
 	if typeof(v) != TYPE_DICTIONARY:
@@ -321,10 +343,15 @@ func _read_script(v: Variant, f: String, keys: Dictionary) -> Dictionary:
 		return out
 	for tk: String in v:
 		var tf := "%s.%s" % [f, tk]
-		if not tk.is_valid_int() or int(tk) < 1:
-			_err(tf, "the key must be a turn number (1, 2, ...)")
+		var parts := tk.split("@")
+		var ok := parts.size() <= 2 and parts[0].is_valid_int() and int(parts[0]) >= 1
+		if parts.size() == 2:
+			ok = ok and parts[1].is_valid_int() and int(parts[1]) >= 1
+		if not ok:
+			_err(tf, "the key must be a turn number (1, 2, ...) or \"<turn>@<tick>\" (tick >= 1)")
 			continue
-		var t := int(tk)
+		var t := int(parts[0])
+		var key: Variant = t if parts.size() == 1 else Vector2i(t, int(parts[1]))
 		if t > turns:
 			_err(tf, "turn %d is past the scenario's %d turns" % [t, turns])
 		if typeof(v[tk]) != TYPE_ARRAY:
@@ -335,7 +362,7 @@ func _read_script(v: Variant, f: String, keys: Dictionary) -> Dictionary:
 			var o: Variant = _read_order(v[tk][i], "%s[%d]" % [tf, i], keys)
 			if o != null:
 				orders.append(o)
-		out[t] = orders
+		out[key] = orders
 	return out
 
 
@@ -375,6 +402,11 @@ func _read_order(o: Variant, f: String, keys: Dictionary) -> Variant:
 	for k: String in ["run", "abilities"]:
 		if o.has(k):
 			out[k] = o[k]
+	if o.has("unchecked"):
+		if typeof(o["unchecked"]) != TYPE_BOOL:
+			_err(f + ".unchecked", "must be true or false")
+			return null
+		out["unchecked"] = o["unchecked"]
 	return out
 
 
@@ -392,8 +424,21 @@ func _read_variants(v: Variant, keys: Dictionary) -> void:
 			_err(f, "must be an object {script, patch}")
 			continue
 		for k: String in d:
-			if not k in ["script", "patch", "doc"]:
-				_err("%s.%s" % [f, k], "unknown field (script, patch, doc)")
+			if not k in VARIANT_KEYS:
+				_err("%s.%s" % [f, k], "unknown field (%s)" % ", ".join(VARIANT_KEYS))
+		var place := {}
+		var lv: Variant = d.get("place", {})
+		if typeof(lv) != TYPE_DICTIONARY:
+			_err(f + ".place", "must be an object {squad key: [x, y]}")
+		else:
+			for key: String in lv:
+				var at: Variant = lv[key]
+				if not keys.has(key):
+					_err("%s.place.%s" % [f, key], "not a squad key")
+				elif typeof(at) != TYPE_ARRAY or (at as Array).size() != 2 or not _is_num(at[0]) or not _is_num(at[1]):
+					_err("%s.place.%s" % [f, key], "must be [x, y] in metres")
+				else:
+					place[key] = [to_fixed(at[0]), to_fixed(at[1])]
 		var patch := {}
 		var pv: Variant = d.get("patch", {})
 		if typeof(pv) != TYPE_DICTIONARY:
@@ -404,7 +449,7 @@ func _read_variants(v: Variant, keys: Dictionary) -> void:
 					_err("%s.patch.%s" % [f, key], "not a squad key")
 				else:
 					patch[key] = _read_patch(pv[key], "%s.patch.%s" % [f, key])
-		variants[name] = {"script": _read_script(d.get("script", {}), f + ".script", keys), "patch": patch}
+		variants[name] = {"script": _read_script(d.get("script", {}), f + ".script", keys), "patch": patch, "place": place}
 
 
 ## "end" | "t<turn>" (after it resolved) | "t<turn>:<tick>" -> {turn, tick};

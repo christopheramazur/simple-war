@@ -144,6 +144,7 @@ func test_session_inspect_respects_visibility() -> void:
 	assert_eq(s.inspect(1, theirs), {}, "enemy out of sight: nothing")
 	assert_eq(s.inspect(1, 999), {})
 	var row := s.state.squads.row_of(theirs)
+	s.state.deploying = false  # past the deployment step (BattleDeploy hides enemies until Reveal)
 	s.state.squads.set_value(theirs, &"seen_by", s.state.squads.seen_by[row] | BattleSquads.bit(1))
 	var v := s.inspect(1, theirs)
 	assert_eq(v["id"], theirs, "seen: inspectable")

@@ -15,8 +15,11 @@ extends RefCounted
 ##           cheapest affordable route as the player knows the map.
 ## Battles:  every engagement becomes a battle at the start of the next
 ##           turn (OverworldBattles) and runs one battle turn per overworld
-##           turn on the same pulse: submit_battle_orders, reinforce and
-##           leave_battle in Planning; observe_battle shows one;
+##           turn on the same pulse: submit_battle_orders, reinforce,
+##           submit_battle_deployment (while the battle is deploying),
+##           submit_arrival (placing squads that arrive at the next Reveal,
+##           a joining side's included; arrival shows that player its area)
+##           and leave_battle in Planning; observe_battle shows one;
 ##           forecast_battle previews drafted orders (intent ghosts).
 ## Clock:    the shared PulseClock (R2Q3). Reveal sends reinforcements in
 ##           and applies every battle's orders. While any battle runs (and
@@ -79,7 +82,8 @@ var keep_playback: bool = false
 ## Off for headless runs: a battle with no reaction ability then skips the
 ## forecast's scratch turn (sw-kd5).
 var want_telegraphs: bool = true
-## Engagement ID -> {"rules", "players", "frames", "shots"} of the last turn.
+## Engagement ID -> {"rules", "players", "frames", "shots", "volleys",
+## "hits", "start" (BattleCursor.capture)} of the last turn.
 var _playback: Dictionary = {}
 ## Engagement ID -> player -> worst own SIMPL band index last recorded (at
 ## the battle's start and after each of its turns): the glance summary's
@@ -427,6 +431,49 @@ func submit_battle_orders(player: int, engagement_id: int, orders: Array) -> Pac
 	return errs
 
 
+## Deployment placements for one of the player's battles while it is
+## deploying (BattleDeploy): [{squad, x, y, facing}]. Replaces the player's
+## earlier draft for that battle; valid placements are kept and apply at the
+## Reveal (squads not placed keep their automatic places, so an empty draft
+## at the timeout is automatic deployment). Returns errors. Planning only.
+func submit_battle_deployment(player: int, engagement_id: int, placements: Array) -> PackedStringArray:
+	var errs := PackedStringArray()
+	var err := _planning(player)
+	var b: OverworldBattle = battles.get(engagement_id)
+	if err.is_empty() and (b == null or not b.state.players.has(player)):
+		err = "not in that battle"
+	if err.is_empty() and not b.state.deploying:
+		err = "the battle is not deploying"
+	if not err.is_empty():
+		errs.append(err)
+		return errs
+	var c := BattleDeploy.check(b.state, player, placements)
+	b.deploys[player] = c["kept"]
+	_deploy_draft_changed(engagement_id)
+	_sync_deploying()
+	_log(player, "battle_deploy", {"engagement": engagement_id, "placements": c["kept"]})
+	return c["errors"]
+
+
+## Tells the clock how many battles each player deploys in this Planning
+## (a non-empty draft), for the deployment bonus (GDD 02 §2.2 Time).
+func _sync_deploying() -> void:
+	for p in _players:
+		var n := 0
+		for eid: int in battles:
+			var b: OverworldBattle = battles[eid]
+			if b.state.players.has(p) and not (b.deploys.get(p, []) as Array).is_empty():
+				n += 1
+		clock.set_deploying(p, n)
+
+
+## A deployment draft changed: the battle's cached reaction-window forecasts
+## are stale. (C4's forecast_battle cache clears here too once it lands.)
+func _deploy_draft_changed(engagement_id: int) -> void:
+	_opportunities.erase(engagement_id)
+	_telegraphs.erase(engagement_id)
+
+
 ## The planning forecast for one of the player's battles (IntentForecast):
 ## the coming battle turn with these drafted orders, as the player knows
 ## it. Nothing is submitted or changed. Planning only ({} otherwise).
@@ -447,19 +494,106 @@ func forecast_job(player: int, engagement_id: int, orders: Array) -> Callable:
 	return IntentForecast.job(b.state, player, orders)
 
 
-## Sends a squad from a staying commander's army into its battle.
-func reinforce(player: int, commander_id: int, squad_id: int) -> String:
+## Sends a squad from a staying commander's army into its battle. `place`
+## ({x, y, facing}, optional) is where it arrives, inside the player's area
+## (OverworldBattles.place_error); without one it arrives at the automatic
+## place. A bad place refuses the whole order.
+func reinforce(player: int, commander_id: int, squad_id: int, place: Dictionary = {}) -> String:
 	var err := _planning(player)
+	var b: OverworldBattle = null
 	if err.is_empty():
 		var eid := state.commanders.get_value(commander_id, &"engagement") if state.commanders.is_alive(commander_id) else -1
-		var b: OverworldBattle = battles.get(eid)
+		b = battles.get(eid)
 		if b == null:
 			err = "is not in a battle"
-		else:
+		elif not place.is_empty():
+			err = OverworldBattles.place_error(state, b, player, squad_id, place)
+		if err.is_empty():
 			err = OverworldOrders.reinforce(state, player, commander_id, squad_id, _in_field(b, commander_id))
 	if err.is_empty():
-		_log(player, "reinforce", {"commander": commander_id, "squad": squad_id})
+		var payload := {"commander": commander_id, "squad": squad_id}
+		if not place.is_empty():
+			b.places[squad_id] = {"x": place["x"], "y": place["y"], "facing": place["facing"]}
+			payload["place"] = b.places[squad_id].duplicate()
+		_log(player, "reinforce", payload)
 	return err
+
+
+## Places the player's squads arriving in a battle at the next Reveal (a
+## joining side's battleforce, reinforcements on the way):
+## [{squad (overworld ID), x, y, facing}], inside the player's area
+## (arrival). Replaces the player's earlier placements there; valid ones
+## are kept and squads not placed arrive at their automatic places. Returns
+## errors. Planning only.
+func submit_arrival(player: int, engagement_id: int, placements: Array) -> PackedStringArray:
+	var errs := PackedStringArray()
+	var err := _planning(player)
+	var b: OverworldBattle = battles.get(engagement_id)
+	var mine := {}
+	if err.is_empty() and b != null:
+		for id: int in OverworldBattles.arriving(state, b):
+			if OverworldArmies.player_of(state, id) == player:
+				mine[id] = true
+	if err.is_empty() and mine.is_empty():
+		err = "nothing of yours arrives in that battle"
+	if not err.is_empty():
+		errs.append(err)
+		return errs
+	for id: int in mine:
+		b.places.erase(id)
+	var kept := []
+	for i in placements.size():
+		var pc: Variant = placements[i]
+		var e := ""
+		if typeof(pc) != TYPE_DICTIONARY or typeof((pc as Dictionary).get("squad")) != TYPE_INT:
+			e = "squad must be an int"
+		elif not mine.has(pc["squad"]):
+			e = "not a squad of yours arriving there"
+		elif b.places.has(pc["squad"]):
+			e = "squad placed twice"
+		else:
+			e = OverworldBattles.place_error(state, b, player, pc["squad"], pc)
+		if not e.is_empty():
+			errs.append("placement %d: %s" % [i, e])
+			continue
+		var d := {"x": pc["x"], "y": pc["y"], "facing": pc["facing"]}
+		b.places[pc["squad"]] = d
+		var k := d.duplicate()
+		k["squad"] = pc["squad"]
+		kept.append(k)
+	_log(player, "arrival", {"engagement": engagement_id, "placements": kept})
+	return errs
+
+
+## Where the player's squads arrive in a battle at the next Reveal, for that
+## player only ({} if nothing of theirs arrives): {"facing", "area" [x, y,
+## w, h] (fixed), "joining" (the player becomes a new side), "squads":
+## [{"squad" (overworld ID), "tmpl" (battle squad template), "x", "y",
+## "facing", "placed"}]} with each squad's placement or automatic place.
+func arrival(player: int, engagement_id: int) -> Dictionary:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if b == null or player <= 0:
+		return {}
+	var ids := []
+	for id: int in OverworldBattles.arriving(state, b):
+		if OverworldArmies.player_of(state, id) == player:
+			ids.append(id)
+	if ids.is_empty():
+		return {}
+	var a := OverworldBattles.arrival_area_of(state, b, player)
+	var d: PackedInt64Array = a["deploy"]
+	var joining := not b.state.players.has(player)
+	var squads := []
+	for i in ids.size():
+		var id: int = ids[i]
+		var st := b.rules.squad_index(rules.squad_ids[state.squads.get_value(id, &"tmpl")])
+		var spot := OverworldBattles.default_spot(d, i, ids.size() if joining else 0)
+		var e := {"squad": id, "tmpl": st, "x": spot[0], "y": spot[1], "facing": a["facing"], "placed": false}
+		var pc: Dictionary = b.places.get(id, {})
+		if not pc.is_empty():
+			e.merge({"x": pc["x"], "y": pc["y"], "facing": pc["facing"], "placed": true}, true)
+		squads.append(e)
+	return {"facing": a["facing"], "area": Array(d), "joining": joining, "squads": squads}
 
 
 ## Reaction opportunities for the player during the reaction window, across
@@ -661,6 +795,7 @@ func _pump() -> void:
 		last_events = OverworldTurn.resolve(state)
 		PerfRecorder.end(&"sim_overworld")
 		_start_battles()
+		_plan_arrivals()
 		if rules.triggers != null:
 			rules.triggers.run(state, state.events.all(), false)  # battles starting, guards dispersed
 		_count_battles()
@@ -681,6 +816,8 @@ func _reveal_battles() -> void:
 	ids.sort()
 	for eid: int in ids:
 		var b: OverworldBattle = battles[eid]
+		BattleDeploy.reveal(b.state, b.deploys)
+		b.deploys = {}
 		OverworldBattles.reinforce(state, b)
 		var n := OverworldBattles.NEUTRAL
 		if b.state.players.has(n):
@@ -688,6 +825,14 @@ func _reveal_battles() -> void:
 		for p in b.state.players:
 			BattleOrders.apply(b.state, p, b.orders.get(p, []))
 		b.orders = {}
+
+
+## Planning starts: fix where each joining side arrives (C12).
+func _plan_arrivals() -> void:
+	var ids: Array = battles.keys()
+	ids.sort()
+	for eid: int in ids:
+		OverworldBattles.plan_arrivals(state, battles[eid])
 
 
 ## Each player's battle count drives its bonus time (R3Q1).
@@ -730,11 +875,15 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	var frames: Array[PackedInt64Array] = []
 	var first_tick := b.state.tick
 	var was := _battle_sim.tick_hook
+	# The turn's start, orders applied, and keyframes, for BattleCursor
+	# (sw-tho3.7).
+	var start := BattleCursor.capture(b.state)
 	var capture := func(st: BattleState) -> void:
 		if was.is_valid():
 			was.call(st)
 		if frames.size() <= b.rules.ticks_per_turn:
 			frames.append(_frame(st))
+			BattleCursor.keyframe(start, st, frames.size() - 1)
 	frames.append(_frame(b.state))
 	_battle_sim.tick_hook = capture
 	b.state.trace_shots = true
@@ -743,6 +892,7 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	_battle_sim.execute_turn(b.state)
 	b.state.trace_shots = false
 	_battle_sim.tick_hook = was
+	BattleCursor.seal(start, b.state)
 	var last := frames.size() - 1
 	var shots := []
 	for e in b.state.turn_log:
@@ -761,7 +911,51 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 	b.state.shot_trace = PackedInt64Array()
 	b.state.hit_trace = PackedInt64Array()
 	_playback[eid] = {"rules": b.rules, "players": b.state.players.duplicate(), "frames": frames,
-		"shots": shots, "volleys": volleys, "hits": hits}
+		"shots": shots, "volleys": volleys, "hits": hits, "start": start}
+
+
+## A BattleCursor over the last recorded turn of battle `eid` (needs
+## keep_playback): the full, all-seeing state at any tick of that turn. Its
+## seek(i) matches playback frame i. Unavailable (never null) when nothing
+## was recorded. Tooling and the all-seeing replay only: it shows hidden
+## squads, so callers filter by what a player saw. One cursor per recorded
+## turn, kept with the record (so it is dropped when the playback is).
+func turn_cursor(eid: int) -> BattleCursor:
+	var rec: Dictionary = _playback.get(eid, {})
+	if not rec.has("cursor"):
+		rec["cursor"] = BattleCursor.new(rec.get("start", {}), rec.get("rules"))
+	return rec["cursor"]
+
+
+## The battle tick a playback frame shows (sw-bafi.5). Frame i is the state
+## after i ticks of the turn, before the turn resolves (frame 0 the turn's
+## start, frame `ticks` the last tick): the recorder's tick hook captures.
+## Frames index the playback, so any pacing of it (sw-ll4.26.6) reaches the
+## same tick.
+static func tick_of_frame(frame: int, ticks: int) -> int:
+	return clampi(frame, 0, ticks)
+
+
+## SquadRelation.facts(a, b) at playback frame `frame` of battle `eid`'s last
+## turn, as `player` sees it (0 or less: all-seeing). The state is the
+## turn's BattleCursor at that frame's tick, so it is exactly the state the
+## live battle had then. [] when the battle has no playback this turn, the
+## player did not fight in it, the frame is out of range, or the turn has no
+## usable snapshot (an old record): never an error.
+func playback_relation(player: int, eid: int, frame: int, a: int, b: int) -> Array:
+	var rec: Dictionary = _playback.get(eid, {})
+	if rec.is_empty():
+		return []
+	var viewer := maxi(player, 0)
+	if viewer != 0 and not (rec["players"] as PackedInt64Array).has(viewer):
+		return []
+	if frame < 0 or frame >= (rec["frames"] as Array).size():
+		return []
+	var c := turn_cursor(eid)
+	var st := c.seek_unresolved(tick_of_frame(frame, c.ticks))
+	if st == null:
+		return []
+	return SquadRelation.facts(st, viewer, a, b)
 
 
 ## Ints per unit in a playback frame: ID, squad, player, x, y, squad facing,
@@ -923,7 +1117,7 @@ func observe_battle(player: int, engagement_id: int) -> Dictionary:
 	var b: OverworldBattle = battles.get(engagement_id)
 	if b == null or (player > 0 and not b.state.players.has(player)):
 		return {}
-	var o := BattleSession.observe_state(b.state, player)
+	var o := BattleSession.observe_state(b.state, player, _allies(b, player))
 	o["engagement"] = engagement_id
 	o["phase"] = phase_name()
 	var mine := {}
@@ -996,9 +1190,19 @@ func inspect_battle(player: int, engagement_id: int, squad_id: int) -> Dictionar
 	if row < 0:
 		return {}
 	var own := b.state.squads.player[row] == player
-	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)):
+	if not own and (b.state.squads.seen_by[row] & BattleSquads.bit(player) == 0 or not b.state.squads.is_active(row)
+			or BattleDeploy.hides(b.state, player, row, _allies(b, player))):
 		return {}
 	return Inspection.squad(b.state, squad_id, player)
+
+
+## The other players in battle b on the player's team (OverworldState.teams).
+func _allies(b: OverworldBattle, player: int) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	for p in b.state.players:
+		if p != player and not state.hostile(p, player):
+			out.append(p)
+	return out
 
 
 ## What `player` knows about one hex, for inspecting it (hover cards, the
@@ -1164,6 +1368,8 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 	var bd: Dictionary = data.get("battles", {})
 	for eid: int in bd:
 		var b := OverworldBattles.from_dict(templates, hash_hex, bd[eid])
+		if not (bd[eid] as Dictionary).has("arrivals") and s.clock.phase == PulseClock.Phase.PLANNING:
+			OverworldBattles.plan_arrivals(s.state, b)  # a save from before C12
 		s.battles[eid] = b
 		s.bus.register_context(b.state)
 	s._next_context = data.get("next_context", 100)
@@ -1257,8 +1463,14 @@ func _replay(inputs: Array) -> void:
 				set_battleforce(i["player"], p["commander"], p["preset"], p["squads"], p["lead"])
 			"battle_orders":
 				submit_battle_orders(i["player"], p["engagement"], p["orders"])
+			"battle_deploy":
+				# A draft for a battle that is gone by now is refused here and
+				# never logged, so it leaves no effect on replay.
+				submit_battle_deployment(i["player"], p["engagement"], p["placements"])
 			"reinforce":
-				reinforce(i["player"], p["commander"], p["squad"])
+				reinforce(i["player"], p["commander"], p["squad"], p.get("place", {}))
+			"arrival":
+				submit_arrival(i["player"], p["engagement"], p["placements"])
 			"leave":
 				leave_battle(i["player"], p["commander"])
 			"reaction":

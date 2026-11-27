@@ -1,0 +1,141 @@
+{
+	"id": "mixed_range_orders",
+	"component": "orders",
+	"doc": "The assault squad (a mixed-range squad: sergeant and breachers) against an unarmed, unkillable rifle dummy 60 m away, on the core package. Variants: attack-move from 60 m, move to the dummy's centre, attack from 60 m, and move to 12 m then hold. Measures dps_engaged (DPS from the first shot) per order: 01's table B (the owner's experience: attack-move and attack stall the shotguns out of range). Gated since sw-txnj.5 (closing to fire): attack-move must reach at least 0.9 of hold at 12 m.",
+	"status": "gate",
+	"package": "core",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"probe_stride": 10,
+	"squads": [
+		{
+			"key": "assault",
+			"player": 1,
+			"squad": "assault_squad",
+			"at": [
+				25,
+				80
+			],
+			"facing": 0
+		},
+		{
+			"key": "dummy",
+			"player": 2,
+			"squad": "rifle_squad",
+			"at": [
+				85,
+				80
+			],
+			"facing": 180,
+			"dummy": {
+				"armed": false,
+				"hp": 1000,
+				"stationary": true
+			}
+		}
+	],
+	"script": {
+		"1": [
+			{
+				"squad": "assault",
+				"type": "attack_move",
+				"x": 85,
+				"y": 80
+			}
+		]
+	},
+	"variants": {
+		"move": {
+			"doc": "Move to the dummy's centre.",
+			"script": {
+				"1": [
+					{
+						"squad": "assault",
+						"type": "move",
+						"x": 85,
+						"y": 80
+					}
+				]
+			}
+		},
+		"attack": {
+			"doc": "Walks to 25 m from the dummy, then attacks it from turn 3 (an attack needs the target seen at the turn's start, which the assault squad does not get at 44 m; table B's attack column was 44 m).",
+			"script": {
+				"1": [
+					{
+						"squad": "assault",
+						"type": "move",
+						"x": 60,
+						"y": 80
+					}
+				],
+				"3": [
+					{
+						"squad": "assault",
+						"type": "attack",
+						"target": "dummy"
+					}
+				]
+			}
+		},
+		"hold_12": {
+			"doc": "Move to 12 m from the dummy, then hold from turn 3 (the squad centroid at 12 m leaves its rear units out of range; see mixed_range_hold for the table's own placement).",
+			"script": {
+				"1": [
+					{
+						"squad": "assault",
+						"type": "move",
+						"x": 73,
+						"y": 80
+					}
+				],
+				"3": [
+					{
+						"squad": "assault",
+						"type": "hold"
+					}
+				]
+			}
+		}
+	},
+	"probes": [
+		{
+			"id": "dps_engaged",
+			"over": "all",
+			"squad": "assault",
+			"target": "dummy",
+			"dps_engaged": null,
+			"variants": "all",
+			"doc": "Table B's DPS1 for each order."
+		},
+		{
+			"id": "damage",
+			"over": "all",
+			"squad": "assault",
+			"target": "dummy",
+			"damage": null,
+			"variants": "all"
+		},
+		{
+			"id": "shooters",
+			"over": "all",
+			"squad": "assault",
+			"target": "dummy",
+			"shooters": null,
+			"variants": "all",
+			"doc": "Units that fired at all in 30 s (shotguns that never reach range do not)."
+		}
+	],
+	"compare": [
+		{
+			"metric": "dps_engaged",
+			"lhs": "base",
+			"rhs": "hold_12",
+			"rel": ">=",
+			"factor": 0.9,
+			"doc": "B3 acceptance: attack-move must reach 0.9 of hold at 12 m."
+		}
+	]
+}

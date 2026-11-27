@@ -13,7 +13,9 @@ extends RefCounted
 ##      spec's shaping), "hold_turns" (3), "fuzz" (0-100, % of the best
 ##      score), "fuzz_seed", "think_ms" (2000)}
 ## Processes: overworld utility (default), expand, scripted, idle; battle
-## utility (default), zone, evacuation, scripted, idle. A missing section
+## utility (default), zone, evacuation, scripted, idle; "deploy": {"process":
+## "auto" (default, the automatic places) | "role" (UtilityDeploy), "params"}
+## (or just the process name). A missing section
 ## gets its default, so every profile plays both layers. A scripted
 ## section's params may name a "then" section that takes over after its
 ## last step (a scripted opening handing over, R7Q15).
@@ -46,6 +48,7 @@ var _rng: SimRng
 var _mask_spec: Dictionary = {}
 var _hold := 3
 var _leaders: Dictionary = {}  # overworld squad ID of each own commander's own squad
+var _deployer: UtilityDeploy  # null = automatic places
 
 static var _default_mask: Dictionary = {}
 
@@ -66,6 +69,11 @@ func _init(player_id: int, profile_in: Dictionary = {}, seed_value: int = 0) -> 
 	reinforce = bproc != "idle" and bproc != "evacuation" 		and float((_battle_section.get("params", {}) as Dictionary).get("reinforce", 1)) > 0.0
 	if _overworld is UtilityOverworld:
 		(_overworld as UtilityOverworld).reinforcing = reinforce
+	var dsec: Variant = profile.get("deploy", {})
+	if dsec is String:
+		dsec = {"process": dsec}
+	if dsec is Dictionary and String((dsec as Dictionary).get("process", "auto")) == "role":
+		_deployer = UtilityDeploy.new((dsec as Dictionary).get("params", {}))
 
 
 func _make_overworld(section: Dictionary) -> Object:
@@ -234,6 +242,19 @@ func reinforcements(obs: Dictionary, rules: OverworldRules) -> Array:
 		for s: Array in spare:
 			out.append({"commander": int(c["id"]), "squad": s[1]})
 	return out
+
+
+## Deployment placements for a deploying battle ([{squad, x, y, facing}]).
+## With the profile's "deploy" section {"process": "role"} the squads are
+## placed by role (UtilityDeploy, sw-bafi.16; needs the battle's rules, which
+## the headless runners give first). The default, "auto", leaves deployment
+## to the automatic places: an empty list, which the headless runners do not
+## submit (nothing is logged), so input logs and results are unchanged
+## (sw-bafi.11).
+func deploy(obs: Dictionary) -> Array:
+	if _deployer == null or not fault.is_empty():
+		return []
+	return _timed(func() -> Variant: return _deployer.place(obs, _rules, player), int(obs.get("turn", 0)))
 
 
 func battle_orders(obs: Dictionary) -> Array:

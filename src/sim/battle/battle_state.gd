@@ -10,6 +10,15 @@ var effects: BattleEffects
 var abilities: BattleAbilities
 ## Turns resolved so far.
 var turn: int = 0
+## True from the build of a battle whose scenario deployment is open until
+## Reveal applies the placements (BattleDeploy). While set, players see no
+## enemy squad. Saved, and hashed only while set (so a battle with no
+## deployment step hashes as before).
+var deploying: bool = false
+## Squad IDs a scenario placed locked (sw-tdz): BattleDeploy refuses their
+## placements. Set when the battle is built from the rules, so it is not
+## saved (a save rebuilds the battle first).
+var pinned: Dictionary = {}
 ## Player IDs in this battle, ascending.
 var players: PackedInt64Array = PackedInt64Array()
 ## Zone runtime (index = rules zone index). owner 0 = nobody.
@@ -117,7 +126,10 @@ func _snapshot_extra(snap: Dictionary) -> void:
 		"ledger": ledger.duplicate(), "result": result.duplicate(true),
 		"zone_locked": zone_locked.duplicate(), "vars": vars.duplicate(), "fired": fired.duplicate(),
 		"auto_off_rules": auto_off_rules.duplicate(true), "reveals": reveals.duplicate(true),
+		"fx_had_mods": fx_had_mods,
 	}
+	if deploying:
+		snap["battle"]["deploying"] = true
 
 
 func _restore_extra(snap: Dictionary) -> void:
@@ -130,11 +142,15 @@ func _restore_extra(snap: Dictionary) -> void:
 	value_score = (b["value_score"] as Dictionary).duplicate()
 	ledger = (b["ledger"] as Dictionary).duplicate()
 	result = (b["result"] as Dictionary).duplicate(true)
+	deploying = bool(b.get("deploying", false))
 	zone_locked = (b.get("zone_locked", rules.zn_locked) as PackedByteArray).duplicate()
 	vars = (b.get("vars", {}) as Dictionary).duplicate()
 	fired = (b.get("fired", {}) as Dictionary).duplicate()
 	auto_off_rules = (b.get("auto_off_rules", {}) as Dictionary).duplicate(true)
 	reveals = (b.get("reveals", []) as Array).duplicate(true)
+	# Not hashed, but EffectSystem reads it on the next tick: a restore that
+	# lost it would skip returning maxima to base (sw-tho3.7).
+	fx_had_mods = bool(b.get("fx_had_mods", false))
 
 
 ## Hash includes battle-level state beyond the tables.
@@ -161,5 +177,7 @@ func state_hash() -> PackedByteArray:
 		h.update(zone_locked)
 	if not reveals.is_empty():
 		text += "RV" + JSON.stringify(reveals)
+	if deploying:
+		text += "DEPLOYING;"
 	h.update(text.to_utf8_buffer())
 	return h.finish()
