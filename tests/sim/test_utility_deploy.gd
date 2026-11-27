@@ -55,14 +55,17 @@ func _forest(r: BattleRules) -> void:
 			r.terrain[y * r.width + x] = f
 
 
-## The heavy weapons team's weapon fires indirect.
+## The heavy weapons team's LMG (its longest weapon; its troopers carry the
+## rifles the rifle squads do) fires indirect.
 func _indirect_heavy(r: BattleRules) -> void:
 	var st := r.squad_ids.find("heavy_weapons_team")
+	var w := -1
 	for ut: int in r.sq_members[st]:
-		var w := int(r.ut_weapon[ut])
-		if w >= 0:
-			for m in range(r.wp_mode_start[w], r.wp_mode_start[w] + r.wp_mode_count[w]):
-				r.md_indirect[m] = 1
+		var uw := int(r.ut_weapon[ut])
+		if uw >= 0 and (w < 0 or r.wp_range[uw] > r.wp_range[w]):
+			w = uw
+	for m in range(r.wp_mode_start[w], r.wp_mode_start[w] + r.wp_mode_count[w]):
+		r.md_indirect[m] = 1
 
 
 func test_default_profile_keeps_automatic_places() -> void:
@@ -87,10 +90,11 @@ func test_roles() -> void:
 
 func test_short_range_forward_keeping_lateral_place() -> void:
 	var s := _make()
-	# 40 m counts as short here, so the rifle squads (40 m) move; the scout
-	# (concealed, no cover in the area) keeps its automatic place.
+	# 40 m counts as short here, so the rifle squads (40 m) and the heavy
+	# weapons team (two LMGs, two rifles: a tie goes to the shorter) move;
+	# the scout (concealed, no cover in the area) keeps its automatic place.
 	var pl := _by_squad(_role_pc(s, 1, {"short_range": 40}).deploy(s.observe(1)))
-	assert_eq(pl.size(), 2)
+	assert_eq(pl.size(), 3)
 	assert_false(pl.has(int(_squad(s, 1, "scout_team")["id"])))
 	var rifle := _squad(s, 1, "rifle_squad")
 	var p: Dictionary = pl[int(rifle["id"])]
