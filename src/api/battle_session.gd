@@ -292,6 +292,7 @@ static func observe_state(state: BattleState, player: int, allies: PackedInt64Ar
 			d["engaged"] = sq.engaged[row]
 			d["hp_lost"] = sq.hp_lost[row]
 			d["hp_max"] = sq.hp_max[row]
+			d["locked"] = state.pinned.has(sid)  # the scenario places it (BattleDeploy)
 			d["abilities"] = Abilities.view(state, sid)
 			var pools := {}
 			for p in 5:
