@@ -97,10 +97,21 @@ static func update(state: BattleState) -> void:
 	var sq := state.squads
 	var u := state.units
 	var r := state.rules
+	var tick := state.tick
 	var fpos: PackedByteArray = u.take_column(&"fpos")
 	var fx: PackedInt64Array = u.take_column(&"fx")
 	var fy: PackedInt64Array = u.take_column(&"fy")
+	# Columns read once per tick (sw-0jm5): a property read per unit per tick
+	# was the cost of this pass, not the rules it applies.
+	var hp := u.hp
+	var weapon := u.weapon
+	var ux := u.x
+	var uy := u.y
+	var fired := u.fired_tick
+	var stand := _standing_modes(r)
+	var shots := {}
 	var due := PackedInt64Array()
+	var due_r := PackedInt64Array()
 	var due_t := PackedInt64Array()
 	var targets := {}
 	for row in sq.count():
@@ -111,48 +122,76 @@ static func update(state: BattleState) -> void:
 				fpos[urow] = NONE
 			continue
 		targets[row] = trow
-		var radius := MovementSystem.coherency_m(state, row)
+		var tgt: PackedInt64Array = shots.get(trow, PackedInt64Array())
+		if tgt.is_empty():
+			tgt = _living(state, trow)
+			shots[trow] = tgt
+		var bhi := bh(state, row)
+		var radius := r.bh_coherency[bhi]
 		var r2 := radius * radius
-		var cadence := maxi(r.bh_cadence[bh(state, row)], 1)
+		var cadence := maxi(r.bh_cadence[bhi], 1)
+		var stand_off := r.bh_stand_off[bhi]
+		var ax := sq.ax[row]
+		var ay := sq.ay[row]
 		for urow in units:
-			var w := u.weapon[urow]
-			if u.hp[urow] <= 0 or w < 0:
+			var w := weapon[urow]
+			if hp[urow] <= 0 or w < 0:
 				fpos[urow] = NONE
 				continue
-			if r.pick_mode(w, false) < 0:
+			var m := stand[w]
+			if m < 0:
 				fpos[urow] = UNACHIEVABLE
 				continue
 			var p := fpos[urow]
-			var on_cadence := (state.tick + urow) % cadence == 0
+			var on_cadence := (tick + urow) % cadence == 0
 			if p == HAS:
-				var dx := fx[urow] - sq.ax[row]
-				var dy := fy[urow] - sq.ay[row]
+				var dx := fx[urow] - ax
+				var dy := fy[urow] - ay
 				if dx * dx + dy * dy > r2:
 					p = LACKS
-				elif on_cadence and u.fired_tick[urow] < state.tick - cadence 						and not point_shot(state, urow, trow, fx[urow], fy[urow]):
+				elif on_cadence and fired[urow] < tick - cadence:
 					# A unit that fired within the cadence has its shot: the
 					# fire pass just checked it (no trace needed).
-					p = LACKS
+					var sh := _shooter(r, w, m, stand_off)
+					if not _shot(r, tgt, sh, fx[urow], fy[urow]):
+						p = LACKS
 			if p == NONE or (p != HAS and on_cadence):
-				if _too_far(state, urow, row, trow):
+				var sh := _shooter(r, w, m, stand_off)
+				var slot := MovementSystem.slot_point(state, urow, row)
+				var odx := ux[urow] - ax
+				var ody := uy[urow] - ay
+				if Fixed.distance(slot[0], slot[1], sq.cx[trow], sq.cy[trow]) > r.wp_range[w] + radius + REACH_SLACK:
+					# Too far for any ring to reach.
 					p = LACKS
-				elif _near(state, urow, row, trow, fx, fy):
+				elif odx * odx + ody * ody <= r2 and _shot(r, tgt, sh, ux[urow], uy[urow]):
+					# The own spot, inside coherency.
+					fx[urow] = ux[urow]
+					fy[urow] = uy[urow]
 					p = HAS
-				elif _min_blocked(state, urow, row, trow):
+				elif _shot(r, tgt, sh, slot[0], slot[1]):
+					fx[urow] = slot[0]
+					fy[urow] = slot[1]
+					p = HAS
+				elif _min_blocked(tgt, sh, slot):
 					p = UNACHIEVABLE
 				else:
 					if p == NONE:
 						p = LACKS
 					due.append(urow)
+					due_r.append(row)
 					due_t.append(trow)
 			fpos[urow] = p
 	var n := due.size()
 	if n > 0:
-		var start := state.tick % n
+		var start := tick % n
 		for i in mini(SEARCH_CAP, n):
 			var k := (start + i) % n
 			var urow := due[k]
-			fpos[urow] = _search(state, urow, sq.row_of(u.squad[urow]), due_t[k], fx, fy)
+			var row := due_r[k]
+			var trow := due_t[k]
+			var w := weapon[urow]
+			var sh := _shooter(r, w, stand[w], r.bh_stand_off[bh(state, row)])
+			fpos[urow] = _search(state, urow, row, trow, shots[trow], sh, fx, fy)
 	u.put_column(&"fpos", fpos)
 	u.put_column(&"fx", fx)
 	u.put_column(&"fy", fy)
@@ -163,6 +202,9 @@ static func update(state: BattleState) -> void:
 static func _anchors(state: BattleState, targets: Dictionary) -> void:
 	var sq := state.squads
 	var u := state.units
+	var hp := u.hp
+	var weapon := u.weapon
+	var fpos := u.fpos
 	var stop: PackedByteArray = sq.take_column(&"fp_stop")
 	var lack: PackedInt64Array = sq.take_column(&"fp_lack")
 	for row in sq.count():
@@ -172,7 +214,8 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 			continue
 		var lacking := false
 		for urow in Centroids.units_of(state, row):
-			if u.hp[urow] > 0 and u.weapon[urow] >= 0 and (u.fpos[urow] == NONE or u.fpos[urow] == LACKS):
+			var p := fpos[urow]
+			if (p == NONE or p == LACKS) and hp[urow] > 0 and weapon[urow] >= 0:
 				lacking = true
 				break
 		if not lacking:
@@ -196,55 +239,55 @@ static func _too_far(state: BattleState, urow: int, row: int, trow: int) -> bool
 	return Fixed.distance(slot[0], slot[1], sq.cx[trow], sq.cy[trow]) > reach
 
 
-## The first two candidates, cheap enough to test uncapped: the unit's own
-## spot (inside coherency), then its slot. Writes fx, fy on success.
-static func _near(state: BattleState, urow: int, row: int, trow: int, fx: PackedInt64Array, fy: PackedInt64Array) -> bool:
-	var sq := state.squads
-	var u := state.units
-	var radius := MovementSystem.coherency_m(state, row)
-	var odx := u.x[urow] - sq.ax[row]
-	var ody := u.y[urow] - sq.ay[row]
-	if odx * odx + ody * ody <= radius * radius and point_shot(state, urow, trow, u.x[urow], u.y[urow]):
-		fx[urow] = u.x[urow]
-		fy[urow] = u.y[urow]
-		return true
-	var slot := MovementSystem.slot_point(state, urow, row)
-	if point_shot(state, urow, trow, slot[0], slot[1]):
-		fx[urow] = slot[0]
-		fy[urow] = slot[1]
-		return true
-	return false
-
-
-## The ring search (own spot and slot already tried by _near); writes fx, fy
-## on success. Returns the new fpos code.
-static func _search(state: BattleState, urow: int, row: int, trow: int, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
+## The ring search (own spot and slot already tried); writes fx, fy on
+## success. Returns the new fpos code. `tgt` and `sh` as for _shot.
+static func _search(state: BattleState, urow: int, row: int, trow: int, tgt: PackedInt64Array, sh: PackedInt64Array, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
 	var r := state.rules
 	var sq := state.squads
-	var u := state.units
 	var radius := MovementSystem.coherency_m(state, row)
 	var r2 := radius * radius
 	var ax := sq.ax[row]
 	var ay := sq.ay[row]
+	# Exact prune (sw-0jm5): a candidate lies within coherency of the anchor
+	# and shoots only at a target unit within range of it, so when every
+	# target unit is farther than range + coherency from the anchor, every
+	# candidate fails.
+	var reach := radius + r.wp_range[state.units.weapon[urow]]
+	var reach2 := reach * reach
+	var any := false
+	for i in range(0, tgt.size(), 2):
+		var tdx := tgt[i] - ax
+		var tdy := tgt[i + 1] - ay
+		if tdx * tdx + tdy * tdy <= reach2:
+			any = true
+			break
+	if not any:
+		return LACKS
 	var slot := MovementSystem.slot_point(state, urow, row)
 	var gx := slot[0]
 	var gy := slot[1]
 	var max_x := Fixed.from_int(r.width) - 1
 	var max_y := Fixed.from_int(r.height) - 1
-	var profile := r.ut_movement[u.tmpl[urow]]
+	var profile := r.ut_movement[state.units.tmpl[urow]]
 	var toward := Fixed.atan2(sq.cy[trow] - gy, sq.cx[trow] - gx)
 	var spread := Fixed.ANGLE_HALF / (ANGLES - 1)
+	# The directions are the same on every ring: their cos and sin once.
+	var dir_x := PackedInt64Array()
+	var dir_y := PackedInt64Array()
+	for j in ANGLES:
+		# 0, +1, -1, +2, -2 ... across the forward half circle.
+		var idx := (j + 1) / 2
+		var sgn := 1 if j % 2 == 1 else -1
+		var ang := (toward + sgn * idx * spread) & Fixed.ANGLE_MASK
+		dir_x.append(Fixed.fcos(ang))
+		dir_y.append(Fixed.fsin(ang))
 	for k in range(1, MAX_RINGS + 1):
 		var rad := k * STEP
 		if rad > radius:
 			break
 		for j in ANGLES:
-			# 0, +1, -1, +2, -2 ... across the forward half circle.
-			var idx := (j + 1) / 2
-			var sgn := 1 if j % 2 == 1 else -1
-			var ang := (toward + sgn * idx * spread) & Fixed.ANGLE_MASK
-			var px := gx + Fixed.mul(rad, Fixed.fcos(ang))
-			var py := gy + Fixed.mul(rad, Fixed.fsin(ang))
+			var px := gx + Fixed.mul(rad, dir_x[j])
+			var py := gy + Fixed.mul(rad, dir_y[j])
 			if px < 0 or py < 0 or px > max_x or py > max_y:
 				continue
 			var cdx := px - ax
@@ -253,7 +296,7 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, fx: Pack
 				continue
 			if MovementSystem._blocked(r, profile, px, py):
 				continue
-			if point_shot(state, urow, trow, px, py):
+			if _shot(r, tgt, sh, px, py):
 				fx[urow] = px
 				fy[urow] = py
 				return HAS
@@ -264,19 +307,16 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, fx: Pack
 ## True if every living target unit is inside the unit's minimum range (plus
 ## its squad's stand-off) from its slot: advancing can't help, so it has no
 ## achievable position and doesn't hold the anchor.
-static func _min_blocked(state: BattleState, urow: int, row: int, trow: int) -> bool:
-	var mn := _min_range(state, urow)
-	if mn <= 0:
+static func _min_blocked(tgt: PackedInt64Array, sh: PackedInt64Array, slot: PackedInt64Array) -> bool:
+	var mn2 := sh[1]
+	if mn2 <= 0:
 		return false
-	var u := state.units
-	var slot := MovementSystem.slot_point(state, urow, row)
 	var near := 1 << 62
-	for t in Centroids.units_of(state, trow):
-		if u.hp[t] > 0:
-			var ddx := u.x[t] - slot[0]
-			var ddy := u.y[t] - slot[1]
-			near = mini(near, ddx * ddx + ddy * ddy)
-	return near < mn * mn
+	for i in range(0, tgt.size(), 2):
+		var ddx := tgt[i] - slot[0]
+		var ddy := tgt[i + 1] - slot[1]
+		near = mini(near, ddx * ddx + ddy * ddy)
+	return near < mn2
 
 
 static func _min_range(state: BattleState, urow: int) -> int:
@@ -293,28 +333,73 @@ static func _min_range(state: BattleState, urow: int) -> int:
 ## nearest such unit.
 static func point_shot(state: BattleState, urow: int, trow: int, px: int, py: int) -> bool:
 	var r := state.rules
-	var u := state.units
-	var w := u.weapon[urow]
-	var m := r.pick_mode(w, false)
-	if w < 0 or m < 0:
+	var w := state.units.weapon[urow]
+	if w < 0:
 		return false
-	var rng := r.wp_range[w]
+	var m := r.pick_mode(w, false)
+	if m < 0:
+		return false
 	var mn := _min_range(state, urow)
-	var rng2 := rng * rng
-	var mn2 := mn * mn
+	var rng := r.wp_range[w]
+	var sh := PackedInt64Array([rng * rng, mn * mn, r.md_indirect[m]])
+	return _shot(r, _living(state, trow), sh, px, py)
+
+
+## Standing fire mode per weapon (BattleRules.pick_mode(w, false)), -1 none.
+static func _standing_modes(r: BattleRules) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	out.resize(r.wp_range.size())
+	for w in out.size():
+		out[w] = r.pick_mode(w, false)
+	return out
+
+
+## What a standing shot by weapon `w` (standing mode `m`) of a squad with
+## `stand_off` needs: [range squared, minimum range (stand-off included)
+## squared, 1 if the mode is indirect].
+static func _shooter(r: BattleRules, w: int, m: int, stand_off: int) -> PackedInt64Array:
+	var rng := r.wp_range[w]
+	var mn := r.wp_min_range[w]
+	if mn > 0:
+		mn += stand_off
+	else:
+		mn = 0
+	return PackedInt64Array([rng * rng, mn * mn, 1 if r.md_indirect[m] != 0 else 0])
+
+
+## Positions of squad `trow`'s living units, x and y interleaved, in unit
+## order: read once per tick per target squad.
+static func _living(state: BattleState, trow: int) -> PackedInt64Array:
+	var u := state.units
+	var hp := u.hp
+	var ux := u.x
+	var uy := u.y
+	var out := PackedInt64Array()
+	for t in Centroids.units_of(state, trow):
+		if hp[t] > 0:
+			out.append(ux[t])
+			out.append(uy[t])
+	return out
+
+
+## point_shot against the living target positions `tgt` (see _living) for a
+## shooter `sh` (see _shooter): by squared distance, the first nearest unit
+## within range and outside minimum range; any one for an indirect mode, else
+## one line of fire trace to it.
+static func _shot(r: BattleRules, tgt: PackedInt64Array, sh: PackedInt64Array, px: int, py: int) -> bool:
+	var rng2 := sh[0]
+	var mn2 := sh[1]
 	var best := -1
 	var best_d := 1 << 62
-	for t in Centroids.units_of(state, trow):
-		if u.hp[t] <= 0:
-			continue
-		var dx := u.x[t] - px
-		var dy := u.y[t] - py
+	for i in range(0, tgt.size(), 2):
+		var dx := tgt[i] - px
+		var dy := tgt[i + 1] - py
 		var d := dx * dx + dy * dy
 		if d > rng2 or d < mn2:
 			continue
-		if r.md_indirect[m] != 0:
+		if sh[2] != 0:
 			return true
 		if d < best_d:
 			best_d = d
-			best = t
-	return best >= 0 and r.los(px, py, u.x[best], u.y[best])
+			best = i
+	return best >= 0 and r.los(px, py, tgt[best], tgt[best + 1])
