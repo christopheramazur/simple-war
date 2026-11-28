@@ -88,8 +88,33 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 ## distribution sums these per victim (GDD 02 §2.6 Remaining HP), so a
 ## shooter stops on a unit only once its expected damage covers it.
 ## Temporary HP and absorption are not counted (they are not part of "through").
+## A unit with no modifier on the two stats _mitigate reads gets the value for
+## its defence profile, damage type and damage from BattleRules.preview_memo
+## (a pure function of the rules), so fire distribution does not re-run the
+## pipeline for every candidate on every shot (sw-pd2l.4).
 static func preview(state: BattleState, row: int, damage: int, dtype: int) -> int:
+	var r := state.rules
+	if not _modded(state, row, r.resist_stats[dtype]):
+		var key := (damage << 24) | (dtype << 16) | state.units.defense[row]
+		var e: Variant = r.preview_memo.get(key)
+		if e == null:
+			e = _mitigate(state, row, damage, dtype, {}, [])
+			r.preview_memo[key] = e
+		return e
 	return _mitigate(state, row, damage, dtype, {}, [])
+
+
+## True when a modifier (the unit's squad's or its own) touches the unit's
+## resistance to this type or its flat defence.
+static func _modded(state: BattleState, row: int, resist: StringName) -> bool:
+	if state.squad_mods.is_empty() and state.unit_mods.is_empty():
+		return false
+	var u := state.units
+	var sm: Variant = state.squad_mods.get(u.squad[row])
+	if sm != null and ((sm as Dictionary).has(resist) or (sm as Dictionary).has(&"defense.flat")):
+		return true
+	var um: Variant = state.unit_mods.get(u.id_at(row))
+	return um != null and ((um as Dictionary).has(resist) or (um as Dictionary).has(&"defense.flat"))
 
 
 ## Resistance, flat, percentage and floor (R7Q1 steps 3-6), in that order.

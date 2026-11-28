@@ -197,7 +197,9 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var m := fire_mode(state, urow, is_moving)
 		if m < 0:
 			continue
-		if is_moving and TargetPolicy.pick(state, urow, targets, w, m, pending, volley) >= 0:
+		# Any target in reach, under either policy: a focus pick is -1 exactly
+		# when nearest is, and nearest is the cheap test.
+		if is_moving and TargetPolicy.nearest(state, urow, targets, w, m, pending) >= 0:
 			fired_moving = true
 		# Readiness gate: the timer pass already ticked this tick; a timer
 		# that reached 0 means the unit may fire now. Never tick here too.

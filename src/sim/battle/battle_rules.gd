@@ -34,6 +34,9 @@ var morale_gen: int = 0
 var morale_leech_pct: int = 10
 var sinks: Dictionary = {}
 var floats: Dictionary = {}
+## DamagePipeline.preview of an unmodified unit, by (damage << 24 | type << 16
+## | defence profile). A pure function of these rules; filled lazily.
+var preview_memo: Dictionary = {}
 ## Targeting policy, an index in DataSchema.FIRE_POLICIES (ruleset
 ## fire.policy, default nearest). A squad's fire_policy column overrides it.
 var fire_policy: int = 0
@@ -288,6 +291,7 @@ func forecast_copy() -> BattleRules:
 			c.set(p.name, get(p.name))
 	c.routes = BattleRoute.new()
 	c.los_cache = PackedInt64Array()
+	c.preview_memo = {}
 	c.los_ready()
 	return c
 

@@ -26,11 +26,13 @@ extends RefCounted
 ## raises the volley's kills (then useful damage), at most PLAN_PASSES rounds.
 ## The plan assumes every planned shot hits (a miss changes nothing).
 ##
-## Cost per shooter: one pass over the targets (a second, in-radius pass for
-## area modes), the shot gate (and its line of sight) only for a candidate
-## that beats the best so far. Expected damage is memoised in the Volley (one
-## per squad per tick), so DamagePipeline.preview runs once per target and
-## hit size, not once per shooter.
+## Cost per shooter: one pass over the targets, the range test before
+## anything else, the shot gate (and its line of sight) only for a candidate
+## that beats the best so far. Area modes read the splash sets the Volley
+## builds once per radius (O(|T|^2) per volley). Expected damage comes from
+## DamagePipeline.preview, memoised in the rules for unmodified units, so a
+## pick costs about one nearest pass (perf gate: CombatSystem within +15% of
+## nearest on duel_crossroads).
 
 const NEAREST: int = 0
 const FOCUS: int = 1
@@ -39,11 +41,10 @@ const PLAN_PASSES: int = 2
 const _KILL_SHIFT: int = 40
 
 
-## One squad's volley this tick: its policy, the expected-damage memo and the
+## One squad's volley this tick: its policy, the area splash sets and the
 ## area plan (shooter unit row -> victim unit row). Built by begin_volley.
 class Volley extends RefCounted:
 	var policy: int = NEAREST
-	var expected: Dictionary = {}
 	var plan: Dictionary = {}
 	## radius -> {victim row: PackedInt64Array of the living target rows its
 	## splash reaches, itself first}. Hits apply after fire, so the set of
@@ -70,22 +71,21 @@ static func begin_volley(state: BattleState, row: int, targets: PackedInt64Array
 
 ## The victim for the shooter at urow among `targets` (unit rows of one
 ## squad), or -1 if none is in reach. Without a volley the shooter's squad
-## policy is resolved and nothing is memoised or planned (read models, tests).
+## policy is resolved and nothing is planned (read models, tests).
 static func pick(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary, volley: Volley = null) -> int:
 	var policy := volley.policy if volley != null else squad_policy(state, state.squads.row_of(state.units.squad[urow]))
 	if policy != FOCUS:
 		return nearest(state, urow, targets, w, m, pending)
-	var memo: Dictionary = volley.expected if volley != null else {}
 	var r := state.rules
 	if r.md_aoe[m] <= 0:
-		return _focus(state, urow, targets, w, m, pending, memo)
+		return _focus(state, urow, targets, w, m, pending)
 	var dmg := hit_damage(state, urow, m)
 	var reach := _reach(state, volley, targets, r.md_aoe[m])
 	if volley != null and volley.plan.has(urow):
 		var pv: int = volley.plan[urow]
-		if reach.has(pv) and _area_score(state, reach[pv], dmg, r.wp_type[w], pending, memo) > 0:
+		if reach.has(pv) and _area_score(state, reach[pv], dmg, r.wp_type[w], pending) > 0:
 			return pv
-	var best := _best_area(state, urow, targets, w, m, dmg, pending, memo, reach)
+	var best := _best_area(state, urow, targets, w, m, dmg, pending, reach)
 	return best if best >= 0 else nearest(state, urow, targets, w, m, pending)
 
 
@@ -136,23 +136,36 @@ static func hit_damage(state: BattleState, urow: int, m: int) -> int:
 	return dmg
 
 
-## Kill priority with the best-fit tie-break (single-target modes).
-static func _focus(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary, memo: Dictionary) -> int:
+## Kill priority with the best-fit tie-break (single-target modes). The
+## range test (cheap) runs before the expected damage; the full shot gate
+## (line of sight) only for a candidate that beats the best so far. With no
+## pick, the nearest fallback runs only over the targets skipped before the
+## gate (covered, or no damage through): every other one in range failed it.
+static func _focus(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary) -> int:
 	var u := state.units
-	var dmg := hit_damage(state, urow, m)
-	var dtype := state.rules.wp_type[w]
+	var r := state.rules
+	var dmg := -1  # hit_damage, once a target is in range
+	var dtype := r.wp_type[w]
 	var best := -1
 	var best_fin := false
 	var best_key := 0
 	var best_id := 0
+	var skipped := PackedInt64Array()
 	for t in targets:
 		if u.hp[t] <= 0:
 			continue
+		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
+		if not _in_range(r, w, d):
+			continue
 		var rem := u.hp[t] - int(pending.get(t, 0))
 		if rem <= 0:
+			skipped.append(t)
 			continue
-		var e := _expected(state, t, dmg, dtype, memo)
+		if dmg < 0:
+			dmg = hit_damage(state, urow, m)
+		var e := _expected(state, t, dmg, dtype)
 		if e <= 0:
+			skipped.append(t)
 			continue
 		var fin := e >= rem
 		# Lower is better: the overshoot of a finishing hit, else what is left.
@@ -163,14 +176,20 @@ static func _focus(state: BattleState, urow: int, targets: PackedInt64Array, w: 
 				continue
 			if fin == best_fin and (key > best_key or (key == best_key and id >= best_id)):
 				continue
-		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
 		if CombatSystem.shot_gate(state, urow, t, w, m, d) != CombatSystem.GATE_OK:
 			continue
 		best = t
 		best_fin = fin
 		best_key = key
 		best_id = id
-	return best if best >= 0 else nearest(state, urow, targets, w, m, pending)
+	if best >= 0 or skipped.is_empty():
+		return best
+	return nearest(state, urow, skipped, w, m, pending)
+
+
+## The range half of CombatSystem.shot_gate (no line of sight).
+static func _in_range(r: BattleRules, w: int, d: int) -> bool:
+	return d <= r.wp_range[w] and d >= r.wp_min_range[w]
 
 
 ## Area modes: the victim whose radius holds the most units the hit would
@@ -178,7 +197,7 @@ static func _focus(state: BattleState, urow: int, targets: PackedInt64Array, w: 
 ## victim in reach does useful damage. The splash set is the one
 ## CombatSystem._fire_squad queues: every living target within the radius of
 ## the victim, the victim included.
-static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, dmg: int, pending: Dictionary, memo: Dictionary, reach: Dictionary) -> int:
+static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, dmg: int, pending: Dictionary, reach: Dictionary) -> int:
 	var u := state.units
 	var dtype := state.rules.wp_type[w]
 	var best := -1
@@ -187,13 +206,15 @@ static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array,
 	for v in targets:
 		if u.hp[v] <= 0:
 			continue
-		var score := _area_score(state, reach[v], dmg, dtype, pending, memo)
+		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[v], u.y[v])
+		if not _in_range(state.rules, w, d):
+			continue
+		var score := _area_score(state, reach[v], dmg, dtype, pending)
 		if score <= 0:
 			continue
 		var id := u.id_at(v)
 		if best >= 0 and (score < best_score or (score == best_score and id >= best_id)):
 			continue
-		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[v], u.y[v])
 		if CombatSystem.shot_gate(state, urow, v, w, m, d) != CombatSystem.GATE_OK:
 			continue
 		best = v
@@ -205,7 +226,7 @@ static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array,
 ## (kills << _KILL_SHIFT) + useful damage of one hit on victim v: kills are
 ## the units in the radius the hit finishes, useful damage its expected
 ## damage on each uncovered unit, up to that unit's remaining HP.
-static func _area_score(state: BattleState, splash: PackedInt64Array, dmg: int, dtype: int, pending: Dictionary, memo: Dictionary) -> int:
+static func _area_score(state: BattleState, splash: PackedInt64Array, dmg: int, dtype: int, pending: Dictionary) -> int:
 	var u := state.units
 	var kills := 0
 	var useful := 0
@@ -213,7 +234,7 @@ static func _area_score(state: BattleState, splash: PackedInt64Array, dmg: int, 
 		var rem := u.hp[o] - int(pending.get(o, 0))
 		if rem <= 0:
 			continue
-		var e := _expected(state, o, dmg, dtype, memo)
+		var e := _expected(state, o, dmg, dtype)
 		useful += mini(e, rem)
 		if e >= rem:
 			kills += 1
@@ -221,9 +242,9 @@ static func _area_score(state: BattleState, splash: PackedInt64Array, dmg: int, 
 
 
 ## Adds (sign 1) or removes (sign -1) one hit's splash on victim v in `planned`.
-static func _splash(state: BattleState, splash: PackedInt64Array, dmg: int, dtype: int, planned: Dictionary, memo: Dictionary, sign: int) -> void:
+static func _splash(state: BattleState, splash: PackedInt64Array, dmg: int, dtype: int, planned: Dictionary, sign: int) -> void:
 	for o in splash:
-		planned[o] = int(planned.get(o, 0)) + sign * _expected(state, o, dmg, dtype, memo)
+		planned[o] = int(planned.get(o, 0)) + sign * _expected(state, o, dmg, dtype)
 
 
 ## Each living target's splash set for one radius (see Volley.near), built
@@ -259,6 +280,8 @@ static func _plan_area(state: BattleState, row: int, targets: PackedInt64Array, 
 	for urow in Centroids.units_of(state, row):
 		if u.hp[urow] <= 0 or u.weapon[urow] < 0 or u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
+		if not _has_area(r, u.weapon[urow]):
+			continue
 		var m := CombatSystem.fire_mode(state, urow, CombatSystem.fires_moving(state, urow))
 		if m < 0 or r.md_aoe[m] <= 0:
 			continue
@@ -268,16 +291,15 @@ static func _plan_area(state: BattleState, row: int, targets: PackedInt64Array, 
 	var n := shooters.size()
 	if n < 2:
 		return
-	var memo := volley.expected
 	var dmgs := PackedInt64Array()
 	var choice := PackedInt64Array()
 	var planned := {}
 	for i in n:
 		dmgs.append(hit_damage(state, shooters[i], ms[i]))
 		var reach := _reach(state, volley, targets, r.md_aoe[ms[i]])
-		choice.append(_best_area(state, shooters[i], targets, ws[i], ms[i], dmgs[i], planned, memo, reach))
+		choice.append(_best_area(state, shooters[i], targets, ws[i], ms[i], dmgs[i], planned, reach))
 		if choice[i] >= 0:
-			_splash(state, reach[choice[i]], dmgs[i], r.wp_type[ws[i]], planned, memo, 1)
+			_splash(state, reach[choice[i]], dmgs[i], r.wp_type[ws[i]], planned, 1)
 	for _pass in PLAN_PASSES:
 		var changed := false
 		for i in n:
@@ -285,13 +307,13 @@ static func _plan_area(state: BattleState, row: int, targets: PackedInt64Array, 
 				continue
 			var reach := _reach(state, volley, targets, r.md_aoe[ms[i]])
 			var dtype := r.wp_type[ws[i]]
-			_splash(state, reach[choice[i]], dmgs[i], dtype, planned, memo, -1)
-			var alt := _best_area(state, shooters[i], targets, ws[i], ms[i], dmgs[i], planned, memo, reach)
-			if alt >= 0 and alt != choice[i] and _area_score(state, reach[alt], dmgs[i], dtype, planned, memo) \
-					> _area_score(state, reach[choice[i]], dmgs[i], dtype, planned, memo):
+			_splash(state, reach[choice[i]], dmgs[i], dtype, planned, -1)
+			var alt := _best_area(state, shooters[i], targets, ws[i], ms[i], dmgs[i], planned, reach)
+			if alt >= 0 and alt != choice[i] and _area_score(state, reach[alt], dmgs[i], dtype, planned) \
+					> _area_score(state, reach[choice[i]], dmgs[i], dtype, planned):
 				choice[i] = alt
 				changed = true
-			_splash(state, reach[choice[i]], dmgs[i], dtype, planned, memo, 1)
+			_splash(state, reach[choice[i]], dmgs[i], dtype, planned, 1)
 		if not changed:
 			break
 	for i in n:
@@ -299,12 +321,16 @@ static func _plan_area(state: BattleState, row: int, targets: PackedInt64Array, 
 			volley.plan[shooters[i]] = choice[i]
 
 
-## Expected effective damage of one hit on unit row t (DamagePipeline.preview),
-## memoised per volley by target, damage type and hit size.
-static func _expected(state: BattleState, t: int, dmg: int, dtype: int, memo: Dictionary) -> int:
-	var key := t | (dtype << 20) | (dmg << 24)
-	var e: Variant = memo.get(key)
-	if e == null:
-		e = DamagePipeline.preview(state, t, dmg, dtype)
-		memo[key] = e
-	return e
+## True when one of weapon w's fire modes has an area (a cheap test before
+## the unit's fire mode is resolved).
+static func _has_area(r: BattleRules, w: int) -> bool:
+	for m in range(r.wp_mode_start[w], r.wp_mode_start[w] + r.wp_mode_count[w]):
+		if r.md_aoe[m] > 0:
+			return true
+	return false
+
+
+## Expected effective damage of one hit on unit row t (DamagePipeline.preview,
+## which memoises unmodified units in the rules).
+static func _expected(state: BattleState, t: int, dmg: int, dtype: int) -> int:
+	return DamagePipeline.preview(state, t, dmg, dtype)

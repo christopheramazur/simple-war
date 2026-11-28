@@ -88,3 +88,22 @@ func test_armoured_unit_is_not_covered_by_raw_damage_it_survives() -> void:
 	var expected := DamagePipeline.preview(s, u, 10 * ONE, 0)
 	assert_false(TargetPolicy.covered(s.units, u, {u: expected}), "expected damage 7.2 does not cover 8 HP")
 	assert_true(TargetPolicy.covered(s.units, u, {u: 10 * ONE}), "raw damage would (the old rule)")
+
+
+func test_memoised_preview_never_serves_a_modified_unit() -> void:
+	# preview memoises unmodified units in the rules by (damage, type,
+	# defence profile) (sw-pd2l.4); a flat-defence modifier must bypass it.
+	var s := _empty()
+	var sid := _place(s, 2, "chi_operatives", 20, 20)
+	var u := _unit_of(s, sid, 1)
+	var id := s.units.id_at(u)
+	var plain := DamagePipeline.preview(s, u, 10 * ONE, 0)
+	assert_eq(DamagePipeline.preview(s, u, 10 * ONE, 0), plain, "memo hit equals the first call")
+	s.unit_mods = {id: {&"defense.flat": [StatModifier.make("defense.flat", StatModifier.Kind.FLAT, 2 * ONE, "test#0")]}}
+	var modded := DamagePipeline.preview(s, u, 10 * ONE, 0)
+	assert_lt(modded, plain, "the modifier lowers the preview")
+	s.units.set_value(id, &"hp", 100 * ONE)
+	s.units.set_value(id, &"acc_block", 0)
+	assert_eq(modded, DamagePipeline.apply(s, u, 10 * ONE, 0, 0)["through"], "and preview still equals apply")
+	s.unit_mods = {}
+	assert_eq(DamagePipeline.preview(s, u, 10 * ONE, 0), plain, "unmodified again: the memo value")
