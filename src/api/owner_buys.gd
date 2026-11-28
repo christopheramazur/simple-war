@@ -20,9 +20,10 @@ extends RefCounted
 ##
 ## Candidates are taken best first while the Value held covers them and the
 ## feature is under its purchases-per-turn limit (the plan itself may spend up
-## to all the Value held; the resolver then pays in order). Skipped: a feature whose hex
-## has an engagement or a hostile commander or detachment on it (the resolver
-## would cancel the buy). Ties go to the lower feature ID, then the option ID.
+## to all the Value held; the resolver then pays in order). Skipped: a feature
+## whose hex has an engagement or a hostile commander or detachment on it (the
+## resolver would cancel the buy). Ties go to the lower feature ID, then the
+## option ID.
 
 ## The share of the Value held a buy must leave (0.5: a buy costs at most half).
 const KEEP_SHARE := 0.5
