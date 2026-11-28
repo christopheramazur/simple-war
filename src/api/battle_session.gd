@@ -168,7 +168,7 @@ func advance(ms: int) -> void:
 func forecast(player: int, orders: Array) -> Dictionary:
 	if clock.phase != PulseClock.Phase.PLANNING or not state.players.has(player):
 		return {}
-	return IntentForecast.run(state, sim, player, orders)
+	return IntentForecast.run(state, sim, player, orders, _deploys.get(player, []))
 
 
 ## Reaction opportunities for the player during the reaction window.

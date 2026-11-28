@@ -46,3 +46,4 @@ simple-war.code-workspace
 
 # Generated per checkout and left untracked on main (sw-8dzf); tracking it breaks the autopilot fast-forward (sw-bafi.9).
 tests/sim/test_archetype_behaviours.gd.uid
+tests/sim/test_battle_placed.gd.uid

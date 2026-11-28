@@ -247,3 +247,24 @@ func test_standalone_deployment_adds_planning_time() -> void:
 	assert_eq(s.clock.remaining_ms(1), base + 15000, "one battle deployed in")
 	s.submit_deployment(1, [{"squad": sid, "x": 0, "y": 0, "facing": 0}])
 	assert_eq(s.clock.remaining_ms(1), base, "a draft with nothing kept is no deployment")
+
+
+## sw-bafi.17: the planning forecast runs from the player's drafted places
+## (the copy only; the battle is untouched), and its job form agrees.
+func test_forecast_starts_from_the_drafted_places() -> void:
+	var s := _make()
+	var sid: int = _ids(s, 1)[1]
+	var row := s.state.squads.row_of(sid)
+	var before := s.state.state_hash()
+	var plain: Dictionary = s.forecast(1, [])
+	s.submit_deployment(1, [{"squad": sid, "x": _f(12.5), "y": _f(70.5), "facing": 0}])
+	var want := BattleDeploy.open_point_in(s.rules, s.state.squads.tmpl[row], _f(12.5), _f(70.5), BattleDeploy.area(s.state, 1))
+	var fc: Dictionary = s.forecast(1, [])
+	assert_eq(s.state.state_hash(), before, "the draft is not applied to the battle")
+	var pts: PackedInt64Array = fc["ghosts"][sid]
+	assert_lt(absi(pts[0] - want[0]), _f(3.0), "the ghost starts at the placed x")
+	assert_lt(absi(pts[1] - want[1]), _f(3.0), "the ghost starts at the placed y")
+	var auto: PackedInt64Array = plain["ghosts"][sid]
+	assert_gt(absi(auto[0] - want[0]) + absi(auto[1] - want[1]), _f(3.0), "the automatic place is elsewhere")
+	var job := IntentForecast.job(s.state, 1, [], s._deploys.get(1, []))
+	assert_eq(job.call(), fc, "the job form gives the same forecast")

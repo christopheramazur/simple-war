@@ -1,0 +1,22 @@
+{
+	"name": "tune_both_short0",
+	"text": "Tuning (sw-bafi.20): both sides by role with the short-range role off (zone profiles).",
+	"controllers": {
+		"1": {
+			"deploy": {
+				"process": "role",
+				"params": {
+					"short_range": 0
+				}
+			}
+		},
+		"2": {
+			"deploy": {
+				"process": "role",
+				"params": {
+					"short_range": 0
+				}
+			}
+		}
+	}
+}
