@@ -111,7 +111,8 @@ def test_interactive_walk_answers_skips_and_quits(monkeypatch):
     monkeypatch.setattr(human, "load", lambda i: i)
     monkeypatch.setattr(cmd, "_route", lambda i, a, act, commit: routed.append((i.id, a, act)) or ["ok"])
     monkeypatch.setattr(cmd.sys.stdin, "isatty", lambda: True, raising=False)
-    answers = iter(["go ahead", "and test it", "", "n", "", ":q"])
+    # leading blank lines (stray Enters) are ignored, not a skip; :s skips; :q quits
+    answers = iter(["", "", "go ahead", "and test it", "", "n", "", ":s", ":q"])
     monkeypatch.setattr("builtins.input", lambda *_: next(answers))
     r = cmd.run(SimpleNamespace(action=None, list=False, no_commit=True))
     assert routed == [("sw-c", "go ahead\nand test it", "note")]

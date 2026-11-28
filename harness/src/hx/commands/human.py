@@ -60,21 +60,43 @@ def _show(i: human.Item, n: int, total: int) -> None:
         print("\nWaiting on this: " + "; ".join(f"{b['id']} {b['title'][:60]}" for b in i.blocks))
 
 
+def _drain() -> None:
+    """Drop keys typed while hx was busy (routing runs bd and git for a few seconds), so a stray Enter pressed
+    during the wait never becomes the next bead's answer."""
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            while msvcrt.kbhit():
+                msvcrt.getwch()
+        else:
+            import termios
+            termios.tcflush(sys.stdin, termios.TCIFLUSH)
+    except Exception:  # not a console (mintty pipe, tests): nothing to drop
+        pass
+
+
 def _read_answer() -> str | None:
-    """Lines until an empty one. '' = skip, None = quit."""
-    print("\nYour answer (end with an empty line). Empty = skip · :show = whole bead · :q = quit")
+    """Lines until an empty one ends a started answer. Blank lines before the first word are ignored, so a stray
+    Enter never skips a bead. Returns ":s" to skip, ":show", or None to quit."""
+    _drain()
+    print("\nYour answer (an empty line after it sends it) · :s = skip · :show = whole bead · :q = quit")
     lines: list[str] = []
     while True:
         try:
             ln = input("> " if not lines else "  ")
         except EOFError:
             return None if not lines else "\n".join(lines)
-        if not lines and ln.strip() == ":q":
+        cmd = ln.strip().lower()
+        if not lines and cmd in (":q", ":quit"):
             return None
-        if not lines and ln.strip() == ":show":
+        if not lines and cmd in (":s", ":skip"):
+            return ":s"
+        if not lines and cmd == ":show":
             return ":show"
         if not ln.strip():
-            return "\n".join(lines)
+            if lines:
+                return "\n".join(lines)
+            continue
         lines.append(ln)
 
 
@@ -82,6 +104,7 @@ def _ask_action(i: human.Item) -> str | None:
     d = human.default_action(i)
     hint = {"release": "r = release to agents", "close": "c = close as decided", "note": "n = note only"}
     opts = " · ".join(("[" + hint[a] + "]") if a == d else hint[a] for a in human.ACTIONS)
+    _drain()
     while True:
         try:
             v = input(f"Then? {opts} · x = discard: ").strip().lower()
@@ -135,7 +158,7 @@ def run(args) -> Result:
             print(human._bd("show", i.id).stdout)
         if ans is None:
             break
-        if not ans.strip():
+        if ans == ":s":
             skipped += 1
             continue
         action = _ask_action(i)
@@ -143,6 +166,7 @@ def run(args) -> Result:
             print("  discarded")
             skipped += 1
             continue
+        print(f"  routing {i.id} ({action})…", flush=True)
         for line in _route(i, ans, action, not args.no_commit):
             print("  ✓ " + line)
         answered += 1
