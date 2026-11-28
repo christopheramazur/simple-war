@@ -300,7 +300,8 @@ static func _order(state: BattleState, srow: int, e: Dictionary, tgts: Array) ->
 				return
 			var trow := sq.row_of(tgts[0][0])
 			if trow >= 0 and sq.is_active(trow):
-				BattleOrders.set_order(state, srow, BattleSquads.Order.ATTACK, sq.cx[trow], sq.cy[trow], sq.id_at(trow), 0)
+				# A retarget keeps the squad's run flag: a running squad stays running.
+				BattleOrders.set_order(state, srow, BattleSquads.Order.ATTACK, sq.cx[trow], sq.cy[trow], sq.id_at(trow), sq.run[srow])
 
 
 static func _expiry(state: BattleState, bd: Dictionary) -> int:

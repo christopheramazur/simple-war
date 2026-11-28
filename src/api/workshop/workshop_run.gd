@@ -51,6 +51,14 @@ var debug: bool = false
 var debug_frames: Dictionary = {}
 ## The debug capture's own route planner (the battle's cache is untouched).
 var _debug_routes: BattleRoute
+## With `debug`, also what the behaviour workshop plays and inspects
+## (sw-tho3.8): per frame an OverworldSession.playback_frame, and per turn
+## a BattleCursor record (BattleCursor.capture, keyframed and sealed), or {}
+## for a turn with mid-turn scripted orders, which a cursor cannot replay.
+var playback_frames: Array[PackedInt64Array] = []
+var cursor_records: Dictionary = {}
+var _cursors: Dictionary = {}
+var _start: Dictionary = {}
 
 var _turn: int = 0
 var _k: int = 0
@@ -121,6 +129,7 @@ func _build(squads: Array) -> bool:
 			_err("open: package '%s' has no 'open' feature" % scenario.package)
 			return false
 		rules.terrain.fill(ground)
+		rules.clear_los_memo()
 		rules.facing.fill(0)
 	state = BattleSetup.create(1, rules, scenario.seed_value)
 	for i in squads.size():
@@ -198,7 +207,11 @@ func _play(script: Dictionary) -> void:
 		_turn = t
 		_k = 0
 		_seen = 0
+		_start = BattleCursor.capture(state) if debug and not _has_timed(t) else {}
 		sim.execute_turn(state)
+		if debug:
+			BattleCursor.seal(_start, state)
+			cursor_records[t] = _start
 		turns_run = t
 		turn_hashes.append(state.state_hash_hex())
 	final_hash = state.state_hash_hex()
@@ -249,6 +262,7 @@ func _on_tick(st: BattleState) -> void:
 		if _k % scenario.probe_stride == 0 or _want.has("%d:%d" % [_turn, _k]):
 			snapshots[f] = BattleProbe.snapshot(st, 0)
 		_k += 1
+		BattleCursor.keyframe(_start, st, _k)
 		# Mid-turn orders: given once _k ticks of this turn have run.
 		var due := Vector2i(_turn, _k)
 		if _timed.has(due):
@@ -266,6 +280,7 @@ func _frame(st: BattleState, turn: int, tick: int, abs_tick: int) -> int:
 		if _debug_routes == null:
 			_debug_routes = BattleRoute.new()
 		debug_frames[f] = WorkshopDebug.capture(st, _debug_routes)
+		playback_frames.append(OverworldSession.playback_frame(st))
 	frame_turn.append(turn)
 	frame_tick.append(tick)
 	frame_abs.append(abs_tick)
@@ -294,6 +309,81 @@ func _frame(st: BattleState, turn: int, tick: int, abs_tick: int) -> int:
 		duty_armed[key] = a
 		duty_fired[key] = b
 	return f
+
+
+func _has_timed(turn: int) -> bool:
+	for k: Vector2i in _timed:
+		if k.x == turn:
+			return true
+	return false
+
+
+## The whole run as one OverworldSession.playback entry, all-seeing (needs
+## `debug`): every frame, the squads' shots and each volley and hit landing
+## at the frame that shows the state after its tick. {} without frames.
+func playback() -> Dictionary:
+	if playback_frames.is_empty():
+		return {}
+	var at_tick := {}
+	for f in frame_abs.size():
+		if frame_abs[f] >= 0:
+			at_tick[frame_abs[f]] = f
+	var shots := []
+	for f in events.size():
+		for e: Dictionary in events[f]:
+			if e["type"] == &"squad_fired":
+				shots.append([f, int(e["data"]["squad"]), int(e["data"]["target"])])
+	var volleys := []
+	var st := state.shot_trace
+	for o in range(0, st.size(), BattleState.SHOT_STRIDE):
+		if at_tick.has(st[o]):
+			volleys.append([at_tick[st[o]], st[o + 1], st[o + 2], st[o + 3] == 1])
+	var hits := []
+	var ht := state.hit_trace
+	for o in range(0, ht.size(), BattleState.HIT_STRIDE):
+		if at_tick.has(ht[o]):
+			hits.append([at_tick[ht[o]], ht[o + 1], ht[o + 2], ht[o + 3]])
+	return OverworldSession.playback_entry({"rules": rules, "frames": playback_frames, "shots": shots,
+		"volleys": volleys, "hits": hits}, 0)
+
+
+## The full battle state frame `f` shows, re-simulated on a private copy by
+## the turn's BattleCursor (one per turn, made on first use); null when the
+## frame's turn has no usable cursor (see cursor_reason). Read-only use: the
+## next call may change or replace it. Frame 0 is turn 1 at tick 0 (its
+## start orders applied: same positions); a tick frame (turn t, tick k) is
+## the state after k + 1 ticks, unresolved; a turn's last frame is the
+## resolved end.
+func state_at(f: int) -> BattleState:
+	var c := cursor_of(f)
+	if c == null or not c.available():
+		return null
+	var k := frame_tick[f]
+	if frame_turn[f] == 0:
+		return c.seek_unresolved(0)
+	if k < 0:
+		return c.seek(c.ticks)
+	return c.seek_unresolved(k + 1)
+
+
+## The BattleCursor for frame `f`'s turn (null when out of range).
+func cursor_of(f: int) -> BattleCursor:
+	if f < 0 or f >= frame_turn.size():
+		return null
+	var t := maxi(frame_turn[f], 1)
+	if not _cursors.has(t):
+		_cursors[t] = BattleCursor.new(cursor_records.get(t, {}), rules)
+	return _cursors[t]
+
+
+## Why frame `f` has no cursor state ("" when it has one).
+func cursor_reason(f: int) -> String:
+	var c := cursor_of(f)
+	if c == null:
+		return "no such frame"
+	if not c.available() and _has_timed(maxi(frame_turn[f], 1)):
+		return "turn %d has mid-turn scripted orders, which the cursor cannot replay" % maxi(frame_turn[f], 1)
+	return c.reason
 
 
 ## The frame at (turn, tick); "end" (turn -1) = the last frame; -1 if the

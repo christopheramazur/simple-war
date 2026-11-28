@@ -24,10 +24,10 @@ import tempfile
 import threading
 import time
 import tomllib
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
-from hx import background, quota, swarm
+from hx import background, clock, quota, swarm
 from hx.swarm import ROOT, file_lock, git
 
 CFG = ROOT / "harness" / "config" / "autopilot.toml"
@@ -46,7 +46,7 @@ def cfg() -> dict:
 
 
 def now() -> datetime:
-    return datetime.now(timezone.utc)
+    return clock.now()  # AEST: nothing reads these times back, people read them
 
 
 def _append(p: Path, text: str) -> None:
@@ -56,7 +56,7 @@ def _append(p: Path, text: str) -> None:
 
 
 def log(msg: str) -> None:
-    _append(STATE / "autopilot.log", f"{now():%Y-%m-%d %H:%M:%S}Z {msg}\n")
+    _append(STATE / "autopilot.log", f"{clock.stamp(fmt='%Y-%m-%d %H:%M:%S')} {msg}\n")
 
 
 def event(kind: str, **kw) -> None:
@@ -383,11 +383,17 @@ def prepare_worktree(bead: str) -> tuple[Path, str, bool]:
     swarm.fill_gitlinks(wt)
     if continued:
         save_wip(wt, bead, "uncommitted work from the previous attempt")
+        # A resumed bead often waited on another bead to land (a dependency, or a blocked "needs X on main"):
+        # bring main in so the session starts from it. A conflict is left for the session (and the merge gate).
+        with file_lock("git"):
+            if git("merge", "--no-edit", "-q", "-m", f"Merge main into {branch}", "main", cwd=wt).returncode:
+                git("merge", "--abort", cwd=wt)
+                log(f"{bead}: main does not merge cleanly into {branch}; the session starts from the old branch")
     return wt, branch, continued
 
 
 def _note(bead: str, text: str) -> None:
-    swarm._bd("update", bead, f"--append-notes=autopilot {now():%Y-%m-%d %H:%M}Z: {text}")
+    swarm._bd("update", bead, f"--append-notes=autopilot {clock.stamp()}: {text}")
 
 
 def run_bead(c: dict, b: dict, stop_flag=lambda: False) -> dict:
@@ -511,7 +517,7 @@ def run_loop(once: bool = False, bead: str | None = None) -> list[dict]:
                 continue
         if decision == "wait":
             if why != last_wait:
-                event("wait", why=why, until=datetime.fromtimestamp(until, timezone.utc).isoformat(timespec="minutes"))
+                event("wait", why=why, until=clock.local(until).isoformat(timespec="minutes"))
                 log(f"waiting: {why}")
                 last_wait = why
             if once:
@@ -598,7 +604,7 @@ def status() -> dict:
     s = json.loads(s_file.read_text(encoding="utf-8")) if s_file.exists() else {}
     return {"pid": pid(), "current": s.get("current"), "since": s.get("since"), "gate": decision, "why": why,
             "readings": {w: {"pct": r.used_pct, "age_min": round((time.time() - r.ts) / 60),
-                             "resets": datetime.fromtimestamp(r.resets_at, timezone.utc).isoformat(timespec="minutes")}
+                             "resets": clock.local(r.resets_at).isoformat(timespec="minutes")}
                          for w, r in latest.items()},
             "recent": [{k: j.get(k) for k in ("bead", "outcome", "attempts", "minutes", "turns", "finished")}
                        for j in sorted(jobs(), key=lambda j: j.get("finished") or "", reverse=True)[:8]]}

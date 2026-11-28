@@ -30,6 +30,15 @@
 			],
 			"victory": {"turn_limit": 8, "primary": "value", "score_target": 0, "annihilation": true, "withdrawal": true},
 			"end_hooks": {"loser": "scatter"}}},
+		{"id": "deploy_drill", "parent": "duel_crossroads", "values": {
+			"name": "Drill: Deployment",
+			"map": "deploy_drill_map",
+			"sides": [
+				{"player": 1, "facing": 0, "deploy": {"x": 5, "y": 15, "w": 25, "h": 70},
+					"squads": ["rifle_squad", "assault_squad", "mortar_team", "marksman_team", "scout_team"]},
+				{"player": 2, "facing": 32768, "deploy": {"x": 170, "y": 15, "w": 25, "h": 70},
+					"squads": ["rifle_squad", "assault_squad", "mortar_team", "marksman_team", "scout_team"]}
+			]}},
 		{"id": "hangar_drill", "parent": "duel_crossroads", "values": {
 			"name": "Drill: Hangars",
 			"zones": [

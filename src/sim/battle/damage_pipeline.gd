@@ -9,8 +9,9 @@ extends RefCounted
 
 ## Applies one hit of `damage` of `dtype` to unit row `row`. `cover_pct` is
 ## the terrain cover evasion at the target's position.
-## Returns {evaded, blocked, resisted, flat, percent, floored, to_temp, to_hp,
-##          absorbed, killed, terms: Array[[step, value]]}.
+## Returns {evaded, blocked, resisted, flat, percent, floored, through, to_temp,
+##          to_hp, absorbed, killed, terms: Array[[step, value]]}. `through` is
+## the damage left after every defence (0 when evaded), before temporary HP.
 
 
 static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_pct: int) -> Dictionary:
@@ -19,7 +20,7 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 	var prof := u.defense[row]
 	var nt := r.damage_types.size()
 	var out := {"evaded": false, "blocked": 0, "resisted": 0, "flat": 0, "percent": 0,
-		"floored": 0, "to_temp": 0, "to_hp": 0, "absorbed": 0, "killed": false, "terms": []}
+		"floored": 0, "through": 0, "to_temp": 0, "to_hp": 0, "absorbed": 0, "killed": false, "terms": []}
 	var terms: Array = out["terms"]
 	terms.append(["incoming", damage])
 
@@ -77,6 +78,7 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 		terms.append(["floor", floor_v - d])
 		d = floor_v
 	d = maxi(d, 0)
+	out["through"] = d
 
 	var tmp: PackedInt64Array = u.take_column(&"temp_hp")
 	var soak := mini(tmp[row], d)

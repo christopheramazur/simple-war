@@ -80,6 +80,11 @@
 		"name": "Siege captain", "movement_points": 50, "sight": 3,
 		"squad": "engineer_team", "army": ["mortar_team"], "army_cap": 4}},
 
+	{"id": "band_garrison", "kind": "band", "values": {
+		"name": "Garrison", "sight": 1, "movement_points": 30, "payload_stats": [], "caps": {}}},
+	{"id": "band_caravan", "kind": "band", "values": {
+		"name": "Caravan", "sight": 3, "movement_points": 30, "payload_stats": ["sight"], "caps": {"sight": 2}}},
+
 	{"id": "preset_recon", "kind": "battleforce_preset", "values": {
 		"name": "Recon", "prefer": ["scout"]}},
 	{"id": "preset_assault", "kind": "battleforce_preset", "values": {

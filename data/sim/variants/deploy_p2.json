@@ -1,0 +1,9 @@
+{
+	"name": "deploy_p2",
+	"text": "Player 2 deploys by role (UtilityDeploy); player 1 keeps the automatic places. Both play the baseline profiles otherwise. The mirror of deploy_smart, for side bias.",
+	"controllers": {
+		"2": {
+			"deploy": "role"
+		}
+	}
+}

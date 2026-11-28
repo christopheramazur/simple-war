@@ -154,6 +154,7 @@
 			"name": "Angelfall: the spaceport",
 			"ruleset": "standard",
 			"width": 160, "height": 100, "ticks_per_turn": 100,
+			"deployment": "fixed",
 			"terrain_default": "open",
 			"terrain": [
 				{"feature": "road", "x": 0, "y": 48, "w": 160, "h": 4},
