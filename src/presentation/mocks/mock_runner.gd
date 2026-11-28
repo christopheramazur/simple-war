@@ -52,6 +52,9 @@ func _process(_delta: float) -> bool:
 		push_error("mock_runner: could not save %s (%d)" % [path, err])
 	else:
 		print("mock_runner: wrote %s (%dx%d)" % [path, img.get_width(), img.get_height()])
+		var layout := _layout(mock, img, path)
+		if not layout.is_empty():
+			print("mock_runner: layout %s" % layout)
 		for variant in CvdSim.VARIANTS:
 			var vpath := path.get_basename() + "_" + variant + ".png"
 			var verr := CvdSim.simulate(img, variant).save_png(vpath)
@@ -60,6 +63,43 @@ func _process(_delta: float) -> bool:
 			else:
 				print("mock_runner: variant %s" % vpath)
 	return true
+
+
+## A mock that shows a battle (a ContextView) also gets <name>_layout.json
+## beside its PNG: the label and footprint rectangles it drew, in image
+## pixels, for `hx visual lint` (sw-tho3.12). Other mocks get none.
+func _layout(mock: Control, img: Image, path: String) -> String:
+	var views: Array[ContextView] = []
+	_find_views(mock, views)
+	if views.is_empty():
+		return ""
+	var rects: Array = []
+	for v in views:
+		var origin := v.global_position
+		for d: Dictionary in v.drawn:
+			var r: Rect2 = d["rect"]
+			var rec := {"kind": d["kind"], "squad": d["squad"], "player": d["player"], "frame": 0,
+				"rect": [snappedf(origin.x + r.position.x, 0.01), snappedf(origin.y + r.position.y, 0.01),
+					snappedf(r.size.x, 0.01), snappedf(r.size.y, 0.01)]}
+			if d.has("fg"):
+				var fg: Color = d["fg"]
+				rec["fg"] = [snappedf(fg.r, 0.0001), snappedf(fg.g, 0.0001), snappedf(fg.b, 0.0001), snappedf(fg.a, 0.0001)]
+			rects.append(rec)
+	var lay_path := path.get_basename() + "_layout.json"
+	var lay := {"image": path.get_file(), "size": [img.get_width(), img.get_height()], "rects": rects}
+	var f := FileAccess.open(lay_path, FileAccess.WRITE)
+	if f == null:
+		push_error("mock_runner: could not write %s" % lay_path)
+		return ""
+	f.store_string(JSON.stringify(lay, "	"))
+	return lay_path
+
+
+static func _find_views(n: Node, out: Array[ContextView]) -> void:
+	if n is ContextView:
+		out.append(n)
+	for c in n.get_children():
+		_find_views(c, out)
 
 
 ## Autoloads (addons) may draw their own UI; keep only the mock visible.

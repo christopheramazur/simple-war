@@ -104,7 +104,8 @@ var _play_t: float = 0.0
 var _play_frame: int = -1
 ## What the last battle draw put on screen, in view pixels (sw-tho3.9, for
 ## the capture runner and layout lint): [{"kind": "label" | "footprint",
-## "squad", "player", "rect": Rect2}] in draw order.
+## "squad", "player", "rect": Rect2, "fg": Color (labels: the text colour,
+## alpha included)}] in draw order.
 var drawn: Array[Dictionary] = []
 ## The played-back turn's effects (sw-aba), built once per playback entry.
 var _fx: BattleFx
@@ -1277,10 +1278,11 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 		return r
 	top -= halo + (5.0 if is_selected or marked else 0.0)
 	var text := "%s %d/%d · P%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0)), int(d["player"])]
-	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, TEXT if is_selected or marked else Color(TEXT, 0.75))
+	var fg := TEXT if is_selected or marked else Color(TEXT, 0.75)
+	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, fg)
 	var tsz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11)
 	var tw_drawn := minf(tsz.x, 140.0)
-	drawn.append({"kind": "label", "squad": d["id"], "player": d["player"],
+	drawn.append({"kind": "label", "squad": d["id"], "player": d["player"], "fg": fg,
 		"rect": Rect2(Vector2(c.x - tw_drawn / 2.0, top - 7 - font.get_ascent(11)), Vector2(tw_drawn, tsz.y))})
 	if sprite != null and not per_unit:  # no unit art: one badge by the label
 		var tw := minf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, 140.0)

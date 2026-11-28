@@ -179,8 +179,12 @@ func _take_cell(img: Image) -> void:
 	var frame: int = _cur["shot"]["frames"][_cell]
 	for d: Dictionary in _view.drawn:
 		var r: Rect2 = d["rect"]
-		_rects.append({"kind": d["kind"], "squad": d["squad"], "player": d["player"], "frame": frame,
-			"rect": [snappedf(r.position.x + dx, 0.01), snappedf(r.position.y, 0.01), snappedf(r.size.x, 0.01), snappedf(r.size.y, 0.01)]})
+		var rec := {"kind": d["kind"], "squad": d["squad"], "player": d["player"], "frame": frame,
+			"rect": [snappedf(r.position.x + dx, 0.01), snappedf(r.position.y, 0.01), snappedf(r.size.x, 0.01), snappedf(r.size.y, 0.01)]}
+		if d.has("fg"):
+			var fg: Color = d["fg"]
+			rec["fg"] = [snappedf(fg.r, 0.0001), snappedf(fg.g, 0.0001), snappedf(fg.b, 0.0001), snappedf(fg.a, 0.0001)]
+		_rects.append(rec)
 
 
 func _finish_shot() -> void:
@@ -208,7 +212,7 @@ func _finish_shot() -> void:
 		else:
 			print("capture_runner: wrote %s" % images[k])
 	if (shot["layout"] as Dictionary).has(kind):
-		var lay := {"shot": shot["id"], "kind": kind, "size": [img.get_width(), img.get_height()],
+		var lay := {"shot": shot["id"], "kind": kind, "image": images[kind], "size": [img.get_width(), img.get_height()],
 			"cell": shot["cell"], "rects": _rects}
 		CaptureJob._write_text(_out.path_join(shot["layout"][kind]), CaptureJob.to_json(lay))
 
