@@ -18,6 +18,9 @@ const CHASE_STEP: int = Fixed.ONE
 ## A chasing squad this close to its target walks straight when the line is
 ## clear, without planning a route.
 const CHASE_STRAIGHT: int = 32 * Fixed.ONE
+## A cluster member whose place by its lead's leg end is blocked tries this
+## many points closer to the lead (sw-txnj.14).
+const FOLLOW_STEPS: int = 8
 
 ## Separation between squads (sw-txnj.12); scratch only, no state.
 var _separation := Separation.new()
@@ -30,8 +33,9 @@ func system_name() -> StringName:
 func run(ctx: SimContext) -> void:
 	var state := ctx as BattleState
 	FiringPositions.update(state)
-	_plan_routes(state)
-	_move_anchors(state)
+	var leads := cluster_leads(state)
+	_plan_routes(state, leads)
+	_move_anchors(state, leads)
 	_move_units(state)
 	_separation.run(state)
 
@@ -40,7 +44,13 @@ func run(ctx: SimContext) -> void:
 ## leg is planned when the squad has none, when its destination has changed
 ## (an attack target must move route_replan first), or when it has walked
 ## the leg it had.
-func _plan_routes(state: BattleState) -> void:
+## A member of an order cluster (sw-txnj.14) walking its order point while
+## its lead walks a waypoint leg takes the lead's leg instead, kept at its
+## offset from the lead (_follow_leg); it re-derives it when the lead plans
+## a new leg (a member that reaches its leg's end waits there for it).
+func _plan_routes(state: BattleState, leads: Dictionary = {}) -> void:
+	if leads.is_empty():
+		leads = cluster_leads(state)
 	var r := state.rules
 	var sq := state.squads
 	# Tie-breaks run in each side's canonical frame (sw-0nl): a side facing
@@ -53,12 +63,35 @@ func _plan_routes(state: BattleState) -> void:
 	var wy: PackedInt64Array = sq.take_column(&"wy")
 	var rx: PackedInt64Array = sq.take_column(&"rx")
 	var ry: PackedInt64Array = sq.take_column(&"ry")
+	# Rows that walk their order point, and rows given a new leg this tick.
+	# A lead is the lowest row of its cluster, so it is planned first.
+	var on_point := {}
+	var planned := {}
 	for row in sq.count():
 		if not sq.is_active(row) or sq.alive[row] == 0:
 			continue
 		var dest := _destination(state, row)
 		if dest.is_empty():
 			continue
+		if dest[0] == sq.tx[row] and dest[1] == sq.ty[row]:
+			on_point[row] = true
+		var lead := _lead_of(state, leads, row)
+		var fresh := lead >= 0 and planned.has(lead)
+		if lead >= 0 and on_point.has(row) and on_point.has(lead) and route[lead] == 1:
+			if route[row] == 0 or fresh or rx[row] != dest[0] or ry[row] != dest[1]:
+				var follow := _follow_leg(state, row, lead, wx[lead], wy[lead])
+				if not follow.is_empty():
+					wx[row] = follow[0]
+					wy[row] = follow[1]
+					route[row] = 1
+					rx[row] = dest[0]
+					ry[row] = dest[1]
+					planned[row] = true
+					continue
+				# No straight line to the lead's leg: plan its own way.
+				route[row] = 0
+			else:
+				continue
 		# Chasing a squad (Attack, or Attack-move closing on its engaged
 		# squad) replans only once the target has moved route_replan.
 		var chasing := sq.order[row] == BattleSquads.Order.ATTACK 			or (sq.order[row] == BattleSquads.Order.ATTACK_MOVE and sq.engaged[row] >= 0)
@@ -73,8 +106,11 @@ func _plan_routes(state: BattleState) -> void:
 				# (a fresh plan each tick, uncached) cost ~1 ms/tick at 200
 				# units (sw-txnj.5).
 				plan = route[row] == 1 or drift > (CHASE_STEP if chasing else ARRIVE)
+		# A cluster member re-plans when its lead does (onto its last leg).
+		plan = plan or fresh
 		if not plan:
 			continue
+		planned[row] = true
 		if chasing and Fixed.distance(sq.ax[row], sq.ay[row], dest[0], dest[1]) <= CHASE_STRAIGHT 				and r.routes.straight_clear(r, r.sq_route_class[sq.tmpl[row]], sq.ax[row], sq.ay[row], dest[0], dest[1]):
 			# A short chase on clear ground walks straight: a fresh plan from
 			# a new cell each time is uncached (~2 ms, sw-txnj.5).
@@ -97,16 +133,46 @@ func _plan_routes(state: BattleState) -> void:
 	sq.put_column(&"ry", ry)
 
 
-func _move_anchors(state: BattleState) -> void:
+## Each walking squad steps toward its leg's end at its pace. An order
+## cluster (sw-txnj.14) walks at the pace of its slowest walking member, and
+## while a member lags the lead by more than its coherency radius (straggles)
+## the rest of the cluster walks at half that pace, the way an anchor waits
+## for its units (sw-txnj.4).
+func _move_anchors(state: BattleState, leads: Dictionary = {}) -> void:
+	if leads.is_empty():
+		leads = cluster_leads(state)
 	var r := state.rules
 	var sq := state.squads
-	# Who walks this tick, decided before the anchor columns are taken
-	# (_destination reads them).
+	# Who walks this tick and how fast, decided before the anchor columns are
+	# taken (_destination reads them).
 	var walks := PackedByteArray()
 	walks.resize(sq.count())
+	var speeds := PackedInt64Array()
+	speeds.resize(sq.count())
+	var pace := {}
+	var lagging := {}
+	var stragglers := {}
 	for row in sq.count():
-		if sq.is_active(row) and sq.alive[row] > 0 and not _destination(state, row).is_empty():
-			walks[row] = 1
+		if not sq.is_active(row) or sq.alive[row] == 0:
+			continue
+		var dest := _destination(state, row)
+		if dest.is_empty():
+			continue
+		walks[row] = 1
+		var speed := _squad_speed(state, row, sq.ax[row], sq.ay[row])
+		# sw-txnj.4: the anchor waits for stragglers, at half speed, while any
+		# unit is out of coherency, so squads don't string out around corners.
+		if out_of_coherency(state, row, sq.ax[row], sq.ay[row]):
+			speed = speed / 2
+		speeds[row] = speed
+		var c := _cluster_of(state, leads, row)
+		if c < 0 or Fixed.distance(sq.ax[row], sq.ay[row], sq.wx[row], sq.wy[row]) <= ARRIVE:
+			continue
+		pace[c] = mini(pace.get(c, speed), speed)
+		var lead: int = leads[c]
+		if lead != row and dest[0] == sq.tx[row] and dest[1] == sq.ty[row] and straggles(state, row, lead):
+			lagging[c] = true
+			stragglers[row] = true
 	var ax: PackedInt64Array = sq.take_column(&"ax")
 	var ay: PackedInt64Array = sq.take_column(&"ay")
 	var facing: PackedInt64Array = sq.take_column(&"facing")
@@ -123,11 +189,12 @@ func _move_anchors(state: BattleState) -> void:
 			if sq.order[row] == BattleSquads.Order.WITHDRAW and sq.route[row] == 2:
 				withdrawn_rows.append(row)
 			continue
-		var speed := _squad_speed(state, row, ax[row], ay[row])
-		# sw-txnj.4: the anchor waits for stragglers, at half speed, while any
-		# unit is out of coherency, so squads don't string out around corners.
-		if out_of_coherency(state, row, ax[row], ay[row]):
-			speed = speed / 2
+		var speed := speeds[row]
+		var c := _cluster_of(state, leads, row)
+		if pace.has(c):
+			speed = pace[c]
+			if lagging.has(c) and not stragglers.has(row):
+				speed = speed / 2
 		if speed <= 0:
 			continue
 		var step := mini(speed, dist)
@@ -152,6 +219,86 @@ func _move_anchors(state: BattleState) -> void:
 	sq.put_column(&"moving", moving)
 	for row in withdrawn_rows:
 		_withdraw(state, row)
+
+
+## Order clusters (sw-txnj.14, GDD 02 §2.14 Clusters): cluster value -> its
+## lead row, the lowest active row of the cluster still on a move or
+## attack-move order. A lead that dies or takes another order hands the lead
+## to the next row, so the plan survives it.
+static func cluster_leads(state: BattleState) -> Dictionary:
+	var sq := state.squads
+	var leads := {}
+	for row in sq.count():
+		var c := sq.cluster[row]
+		if c >= 0 and not leads.has(c) and _clustered(state, row):
+			leads[c] = row
+	return leads
+
+
+static func _clustered(state: BattleState, row: int) -> bool:
+	var sq := state.squads
+	return sq.cluster[row] >= 0 and sq.is_active(row) and sq.alive[row] > 0 \
+		and (sq.order[row] == BattleSquads.Order.MOVE or sq.order[row] == BattleSquads.Order.ATTACK_MOVE)
+
+
+## The cluster value of a squad in a live cluster (the lead too), or -1.
+static func _cluster_of(state: BattleState, leads: Dictionary, row: int) -> int:
+	if not _clustered(state, row) or not leads.has(state.squads.cluster[row]):
+		return -1
+	return state.squads.cluster[row]
+
+
+## The lead row of a cluster member, or -1 (not in a cluster, or the lead).
+static func _lead_of(state: BattleState, leads: Dictionary, row: int) -> int:
+	var c := _cluster_of(state, leads, row)
+	if c < 0 or leads[c] == row:
+		return -1
+	return leads[c]
+
+
+## A member's place by its lead: the lead's (x, y) plus the member's offset
+## from the lead, the difference of their order points; empty off the map.
+static func cluster_place(state: BattleState, row: int, lead: int, x: int, y: int) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var px := x + sq.tx[row] - sq.tx[lead]
+	var py := y + sq.ty[row] - sq.ty[lead]
+	if px < 0 or py < 0 or px >= Fixed.from_int(r.width) or py >= Fixed.from_int(r.height):
+		return PackedInt64Array()
+	return PackedInt64Array([px, py])
+
+
+## A member's leg while its lead walks to (lx, ly): its place by that point,
+## else the point nearest it on the line from there to (lx, ly), in
+## FOLLOW_STEPS steps, that it can stand on and walk to straight (the
+## members close up on the lead to file through a doorway), else empty (it
+## plans its own way).
+static func _follow_leg(state: BattleState, row: int, lead: int, lx: int, ly: int) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var cls: int = r.sq_route_class[sq.tmpl[row]]
+	var ox := sq.tx[row] - sq.tx[lead]
+	var oy := sq.ty[row] - sq.ty[lead]
+	var w := Fixed.from_int(r.width)
+	var h := Fixed.from_int(r.height)
+	for k in range(FOLLOW_STEPS, -1, -1):
+		var px := lx + ox * k / FOLLOW_STEPS
+		var py := ly + oy * k / FOLLOW_STEPS
+		if px < 0 or py < 0 or px >= w or py >= h or not r.routes.passable(r, cls, px, py):
+			continue
+		if r.routes.straight_clear(r, cls, sq.ax[row], sq.ay[row], px, py):
+			return PackedInt64Array([px, py])
+	return PackedInt64Array()
+
+
+## True if a cluster member lags its lead: it is farther from its order
+## point than the lead is from its own by more than its coherency radius
+## (straight lines). A member ahead of the lead, waiting at a doorway, never
+## holds the cluster back.
+static func straggles(state: BattleState, row: int, lead: int) -> bool:
+	var sq := state.squads
+	var behind := Fixed.distance(sq.ax[row], sq.ay[row], sq.tx[row], sq.ty[row]) 		- Fixed.distance(sq.ax[lead], sq.ay[lead], sq.tx[lead], sq.ty[lead])
+	return behind > coherency_m(state, row)
 
 
 ## Coherency radius of a squad, fixed metres (sw-txnj.4, U1Q29): data per

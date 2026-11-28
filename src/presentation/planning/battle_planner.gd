@@ -77,6 +77,9 @@ var _height: int = 0
 var _own: Dictionary = {}
 ## Visible enemy squads: ID -> {"x", "y"}.
 var _enemy: Dictionary = {}
+## Last order-cluster key handed out (sw-txnj.14): a multi-select move is one
+## shared order, so its squads share a key and the sim moves them as a group.
+var _cluster_key: int = 0
 
 
 func _init(player: int) -> void:
@@ -235,6 +238,7 @@ func move_to(at: Vector2, new_formation: bool = false, attack: bool = false) -> 
 	var side := Vector2(-dir.y, dir.x)
 	var spacing := float(FORMATION_SPACING) / Fixed.ONE
 	var ordered := sel.duplicate()
+	_cluster_key += 1
 	if new_formation:
 		ordered.sort_custom(func(a: int, b: int) -> bool: return _pos(a).dot(side) < _pos(b).dot(side))
 	for i in ordered.size():
@@ -242,7 +246,10 @@ func move_to(at: Vector2, new_formation: bool = false, attack: bool = false) -> 
 		var p := at + (_pos(id) - centre)
 		if new_formation:
 			p = at + side * spacing * (i - (ordered.size() - 1) / 2.0)
-		_draft(id, {"type": "attack_move" if attack else "move", "x": _fx(p.x, _width), "y": _fx(p.y, _height)})
+		var o := {"type": "attack_move" if attack else "move", "x": _fx(p.x, _width), "y": _fx(p.y, _height)}
+		if ordered.size() > 1:
+			o["cluster"] = _cluster_key
+		_draft(id, o)
 	changed.emit()
 
 

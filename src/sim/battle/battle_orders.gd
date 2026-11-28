@@ -5,11 +5,15 @@ extends RefCounted
 ##
 ## Order dict (all positions are raw fixed ints):
 ##   {"squad": id, "type": "hold"|"move"|"attack_move"|"attack"|"fall_back"|"withdraw",
-##    "x": fx, "y": fy, "target": squad_id, "run": bool,
+##    "x": fx, "y": fy, "target": squad_id, "run": bool, "cluster": int,
 ##    "abilities": [{"id": ability, "on": bool} | {"id": ability, "target": squad_id}]}
 ## Abilities are planning orders validated against their activation
 ## (E3Q7); toggles such as Detection and Concealment switch at execute
 ## start (R8Q2). See Abilities.validate_use.
+## "cluster" (optional, move and attack-move only) marks one shared order:
+## the move and attack-move orders in one list with the same cluster key form
+## an order cluster (GDD 02 §2.14 Clusters, sw-txnj.14). The key means
+## nothing beyond the list.
 
 const TYPES: Dictionary = {
 	"hold": BattleSquads.Order.HOLD,
@@ -30,6 +34,7 @@ const FALL_BACK_DISTANCE: int = 20 * Fixed.ONE
 static func apply(state: BattleState, player: int, orders: Array) -> PackedStringArray:
 	var errors := PackedStringArray()
 	var moved := PackedInt64Array()
+	var clusters := {}
 	for i in orders.size():
 		var o: Variant = orders[i]
 		var err := validate(state, player, o)
@@ -38,9 +43,34 @@ static func apply(state: BattleState, player: int, orders: Array) -> PackedStrin
 			continue
 		_apply_one(state, o)
 		if o.get("type", "hold") in ["move", "attack_move"]:
-			moved.append(state.squads.row_of(o["squad"]))
+			var row := state.squads.row_of(o["squad"])
+			moved.append(row)
+			if o.has("cluster"):
+				if not clusters.has(o["cluster"]):
+					clusters[o["cluster"]] = PackedInt64Array()
+				clusters[o["cluster"]].append(row)
+	for rows: PackedInt64Array in clusters.values():
+		_form_cluster(state, rows)
 	_spread_points(state, moved)
 	return errors
+
+
+## Order clusters (sw-txnj.14): the rows given one shared order share one
+## cluster value, the squad ID of the lowest row. Squads still holding that
+## value from an earlier order leave it. A cluster of one is no cluster.
+static func _form_cluster(state: BattleState, rows: PackedInt64Array) -> void:
+	if rows.size() < 2:
+		return
+	var sq := state.squads
+	rows.sort()
+	var id := sq.id_at(rows[0])
+	var col: PackedInt64Array = sq.take_column(&"cluster")
+	for r in col.size():
+		if col[r] == id:
+			col[r] = -1
+	for r in rows:
+		col[r] = id
+	sq.put_column(&"cluster", col)
 
 
 ## Squad footprints (GDD 02 §2.14, sw-txnj.13). The squads in `moved` have
@@ -163,6 +193,8 @@ static func validate(state: BattleState, player: int, o: Variant) -> String:
 			return "invalid target"
 		if state.squads.seen_by[trow] & BattleSquads.bit(player) == 0 or BattleDeploy.hides(state, player, trow):
 			return "target not visible"
+	if o.has("cluster") and typeof(o["cluster"]) != TYPE_INT:
+		return "cluster must be an integer"
 	if o.has("run") and typeof(o["run"]) != TYPE_BOOL:
 		return "run must be true or false"
 	var abl: Variant = o.get("abilities", [])
@@ -198,6 +230,10 @@ static func _apply_one(state: BattleState, o: Dictionary) -> void:
 			tx = 0 if _own_edge_is_west(state, sq.player[row]) else Fixed.from_int(state.rules.width)
 			ty = sq.cy[row]
 	set_order(state, row, t, tx, ty, target, run)
+	# A new order leaves any cluster; apply forms this order's clusters.
+	var cl: PackedInt64Array = sq.take_column(&"cluster")
+	cl[row] = -1
+	sq.put_column(&"cluster", cl)
 	for a: Dictionary in o.get("abilities", []):
 		# Re-checked: an earlier entry may have spent the cost or charge.
 		if Abilities.validate_use(state, row, a).is_empty():

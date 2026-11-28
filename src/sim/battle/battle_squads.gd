@@ -54,6 +54,10 @@ var moving := PackedByteArray()
 ## began lacking one, -1 none (hysteresis).
 var fp_stop := PackedByteArray()
 var fp_lack := PackedInt64Array()
+## Order cluster (sw-txnj.14, GDD 02 §2.14 Clusters): squads given one shared
+## order hold the squad ID of the cluster's first lead, -1 none. The lead
+## each tick is the cluster's lowest active row (MovementSystem.cluster_leads).
+var cluster := PackedInt64Array()
 var reaction := PackedInt64Array()      ## queued reaction (ability index), -1 none
 var reaction_trigger := PackedInt64Array()  ## enemy squad ID that triggers it
 var dmg_dealt := PackedInt64Array()     ## remainder accumulators for "per 10" Legend floats
@@ -78,7 +82,7 @@ func _init() -> void:
 			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
 			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:
 		declare(c, 0)
-	for c: StringName in [&"target", &"engaged", &"fired_tick", &"reaction", &"reaction_trigger", &"fp_lack"]:
+	for c: StringName in [&"target", &"engaged", &"fired_tick", &"reaction", &"reaction_trigger", &"fp_lack", &"cluster"]:
 		declare(c, -1)
 
 
