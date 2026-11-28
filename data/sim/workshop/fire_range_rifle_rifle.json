@@ -121,6 +121,46 @@
 				"attack_move"
 			],
 			"doc": "Distinct ticks on which a unit fired its first shot: 1 is a lockstep opening, more is the movement-driven stagger (U1Q28)."
+		},
+		{
+			"id": "focus_first_kill",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"first_kill": 10,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_mean_kill",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"mean_kill": 35,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_wipe",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"wipe": 60,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_waste",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"waste": 0.146,
+			"variants": [
+				"focus"
+			]
 		}
 	],
 	"variants": {

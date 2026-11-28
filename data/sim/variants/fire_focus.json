@@ -1,0 +1,5 @@
+{
+	"name": "fire_focus",
+	"text": "Ruleset fire.policy = focus (kill priority, best fit, area plan; sw-pd2l.4) for every squad: the perf and outcome check against nearest.",
+	"patches": {"standard": {"fire": {"policy": "focus"}}}
+}

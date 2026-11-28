@@ -70,6 +70,46 @@
 			"squad": "shooters",
 			"target": "targets",
 			"waste": 0
+		},
+		{
+			"id": "focus_first_kill",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"first_kill": 25,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_mean_kill",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"mean_kill": 38,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_wipe",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"wipe": 50,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_waste",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"waste": 0.0,
+			"variants": [
+				"focus"
+			]
 		}
 	],
 	"variants": {

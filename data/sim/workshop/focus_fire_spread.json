@@ -107,6 +107,79 @@
 			"squad": "shooters",
 			"target": "prey_a",
 			"waste": 0.146
+		},
+		{
+			"id": "focus_first_kill_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"first_kill": 10,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_mean_kill_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"mean_kill": 35,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_wipe_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"wipe": 60,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_first_kill_b",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_b",
+			"first_kill": 80,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_wipe_b",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_b",
+			"wipe": 130,
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_victims",
+			"over": "all",
+			"squad": "shooters",
+			"victims": {
+				"distinct": 16,
+				"max_per_victim": 13,
+				"overkill": 4
+			},
+			"variants": [
+				"focus"
+			]
+		},
+		{
+			"id": "focus_waste_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"waste": 0.146,
+			"variants": [
+				"focus"
+			]
 		}
 	],
 	"variants": {
