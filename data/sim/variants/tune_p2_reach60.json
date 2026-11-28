@@ -1,0 +1,14 @@
+{
+	"name": "tune_p2_reach60",
+	"text": "Tuning (sw-bafi.20): player 2 by role, cover reach 60 cells.",
+	"controllers": {
+		"2": {
+			"deploy": {
+				"process": "role",
+				"params": {
+					"cover_reach": 60
+				}
+			}
+		}
+	}
+}

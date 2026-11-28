@@ -1,0 +1,14 @@
+{
+	"name": "tune_p2_short15",
+	"text": "Tuning (sw-bafi.20): player 2 by role, short range 15 m.",
+	"controllers": {
+		"2": {
+			"deploy": {
+				"process": "role",
+				"params": {
+					"short_range": 15
+				}
+			}
+		}
+	}
+}

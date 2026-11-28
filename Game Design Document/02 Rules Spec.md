@@ -33,7 +33,7 @@ The simulation's rules. This document is authoritative over the code: if they di
    - **Marks and queue:** reactable squads are marked with "!" (or the queued reaction's glyph). Clicking one opens the radial: each reaction is a glyph plus its name. The side panel lists every opportunity across battles as the queue, and clicking an entry jumps to its battle and squad. A selected reactable squad (clicked, or picked from the queue) shows what it would react to: a dashed line to each triggering enemy, ringed and labelled "trigger".
    - **Timing:** the window doesn't draw on reserve time and can be asymmetric, with more battles giving more time (R3Q1). It is configurable off (R2Q4).
    - **Auto-reactions:** conditional-trigger orders are rejected as too deep; contextual auto-reactions are intended to exist only as upgrades or unit abilities (R2Q4).
-   - **Order at Reveal** (proposed): deployments, then vision, then reinforcements, then orders; the reaction window then opens on what is visible.
+   - **Order at Reveal** (U1Q30, draft 03 as written): deployments, then vision, then reinforcements, then orders; the reaction window then opens on what is visible.
 4. **Execute:** time-sliced simulated resolution (R1Q8). Watching playback isn't timed. Ranked may skip straight to results (R3Q2).
    - **Watching is reading, not acting** (R3Q2 as amended by U1Q32): playback only shows a turn that has already resolved, so watching never changes it. During playback of a battle or of the overworld:
      - **Allowed:** every camera control (pan, zoom, centre, follow) and every information view: hover tooltips, the hex and feature panels, squad cards, inspection windows, battle relations, the glossary, and selecting things to inspect them.
@@ -80,7 +80,7 @@ Cross-context changes (reinforcements, transfers, battle results) apply at fixed
   - **Fighting:** a detachment dropped onto guards, or meeting hostile forces, is pulled into the engagement. Its strongest squads fight, within the battleforce caps. The commander that dropped it stays free.
   - **Results:** survivors stay on the hex. A detachment on the losing side of a decided battle scatters, and one with no squads left is gone. Draws leave it.
   - **Pick-up:** during planning, a commander of the same player on the hex takes squads back into its army, within its cap. An emptied detachment is gone.
-  - **Fog:** a detachment is a sight source (`detachment_sight`). Enemies in sight see that it is there, but never what it holds.
+  - **Fog:** a detachment is a sight source: a garrison sees 1 hex, a caravan 3 (its band kind, U1Q27). Enemies in sight see that it is there, but never what it holds.
 
 ## 2.4 Battles
 ### Start and duration
@@ -120,9 +120,9 @@ A battle starts with a deployment step: each side places its squads inside its d
 - **Reveal** (proposed): placements apply first, in canonical order (players ascending, then squad ID), then vision is computed, then reinforcements and orders apply as usual. The reaction window that follows sees the revealed deployment. An enemy seen at Reveal is a valid trigger (§2.2 "Only visible triggers").
 - **Joining late** (proposed): a player who becomes a new side (Joining late, above) deploys the same way into its arrival area in the Planning before it arrives. The arrival area is chosen when that Planning starts (squads don't move between Execute and Reveal) and shown to that player only. When two sides join in the same Reveal, they are resolved in ascending player order: each later joiner treats the areas of those before it as occupied, so they do not land on each other.
 - **Reinforcements** (proposed): a squad sent as a reinforcement may be given a place (and facing) inside its side's deployment area when it is sent. Otherwise it arrives at the area's centre as today. It appears at Reveal.
-- **Scenario switch** (proposed): a scenario's `deployment` is `open` (default) or `fixed` (no step: squads start at their automatic places, for scripted and tutorial battles; Story battles stay `fixed` until the tutorial teaches deployment). An ambush start that skips deployment is a later option.
-- **Determinism** (proposed): placements are inputs like orders (validated by the sim, logged, saved with the battle and replayed). Automatic places are exactly today's deployment, so a battle with no placement input runs as before.
-- **Time** (proposed): deployment uses the Planning timer. A player gets `deployment_bonus` extra seconds (clock config; default 15 s, 10 s ranked) for each battle they deploy in that Planning, on top of the parallel-battle bonus.
+- **Scenario switch** (U1Q30): a scenario's `deployment` is `open` (default) or `fixed` (no step: squads start at their automatic places, for scripted and tutorial battles; Story battles stay `fixed` until the tutorial teaches deployment). An ambush start that skips deployment is a later option.
+- **Determinism** (U1Q30): placements are inputs like orders (validated by the sim, logged, saved with the battle and replayed). Automatic places are exactly today's deployment, so a battle with no placement input runs as before.
+- **Time** (U1Q30): deployment uses the Planning timer. A player gets `deployment_bonus` extra seconds (clock config; default 15 s, 10 s ranked) for each battle they deploy in that Planning, on top of the parallel-battle bonus.
 
 ### Victory conditions (R7Q6)
 These are data. The starting set:
@@ -365,12 +365,12 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **Control:** a commander that passes through or ends on an unguarded hex takes its controllable features.
   - **Pathfinding** for route drafting is the cheapest path, with ties broken by plot index. It doesn't avoid guards, because the player sees the feature but never what its forces will do, and it never continues through a battle tile.
 - **Fog of war** (R8Q4):
-  - **Sight sources:** commanders, convoys, controlled features and detachments each have a sight radius in hexes. A source always sees its own hex, so every controlled hex gives at least self-vision (U1Q26).
+  - **Sight sources:** commanders, controlled features, garrisons and caravans each have a sight radius in hexes (their effective sight, `OverworldStats`). A source always sees its own hex, so every controlled hex gives at least self-vision (U1Q26).
   - **Allies:** vision is shared with allies.
   - **Memory:** explored hexes keep their last-seen state.
   - **Battle hexes:** their contents are hidden without sight.
   - **Sight:**
-    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't. Detachments are sources too.
+    - **Radius only:** sight is a radius in hexes; overworld terrain doesn't block it yet. Every source sees its own hex. An owned feature is a source; a neutral one isn't. Garrisons and caravans are sources too.
     - **Memory** records each explored hex's features (and owners) and the turn they were last seen. It's recorded at the start and end of every turn and around every hex a commander enters, so hexes glimpsed on the way are explored too. Commanders are never remembered, only seen.
     - **Battle tiles are public:** every player knows where battles are, because a route onto one ends there. What's in a battle (who and why) needs sight.
     - **Orders use what the player knows.** Pathfinding, route costs and planned activities see unexplored hexes as open ground and explored ones as last seen. Movement uses the truth, so a route into an unseen lake stops at its shore without banking.
@@ -388,20 +388,20 @@ Battlefield presence: a squad's effect on the shape and flow of battle beyond ra
   - **No supply line:** produced squads join the owner's detachment holding the feature's hex, which garrisons it until a commander picks them up.
   - **Supply lines:** the owner sends a feature's output to a plot or to one of its commanders. Each squad leaves as a convoy on that line, and changing the line redirects convoys already on it. Capturing the feature resets its output and progress, and its line lapses.
   - **Rallies:** a player sends any of its detachments to a plot or a commander, which makes it a convoy; rallying it nowhere halts it. Survivors of a commander that left its battle rally to it (R8Q3).
-  - **Steering:** a player selects any of its garrisons or convoys and moves it like a commander. It follows a route of hexes, through waypoints, at the map's `convoy_movement` points a turn. A route may take several turns, and it is used up as the convoy walks. A steered convoy takes the player's way, guards and all. Right-clicking one of the player's commanders sends the convoy to join its army.
+  - **Steering:** a player selects any of its garrisons or convoys and moves it like a commander. It follows a route of hexes, through waypoints, at its movement points as a caravan. Steering makes it a caravan. A route may take several turns, and it is used up as the convoy walks. A steered convoy takes the player's way, guards and all. Right-clicking one of the player's commanders sends the convoy to join its army.
   - **What convoys can't do:** convoys and garrisons never take controllable features, pick up caches or perform hex activities (recruit, hire, refit, convert, battle). Only commanders do. A convoy still fights what it meets.
-  - **Convoy movement:** a convoy is a detachment with a destination. Each turn it walks the cheapest path it knows, around hexes it knows are guarded, for the map's `convoy_movement` points. It moves on the commanders' timeline, after commanders at equal times.
-  - **Caravans** (U1Q27; proposed, Round U1, awaiting review; the convoy bullet above stays until it lands): a squad group without a commander is a **band**. A band is either a **garrison** (holding a hex) or a **caravan** (made to travel; "convoy" is an alias). The kind is data (`band` templates) and gives the band its base sight and movement points.
+  - **Caravans** (U1Q27; band kinds and sight landed with sw-63wt.2, payload with sw-63wt.3): a squad group without a commander is a **band**. A band is either a **garrison** (holding a hex) or a **caravan** (made to travel; "convoy" is an alias). The kind is data (`band` templates) and gives the band its base sight and movement points.
     - **Becoming a caravan:** a garrison sent somewhere (rally, steering, a supply line) becomes a caravan. A caravan that halts stays a caravan: it keeps its sight and can be steered again.
+    - **Holding a hex:** a halted caravan holds its hex like any detachment: it fights what enters, and a commander there picks squads up from it. It is not the hex's garrison, though: drop-offs, production and arriving caravans join the garrison (or form one beside it), never a halted caravan.
     - **Becoming a garrison:** a caravan that reaches its plot joins the player's garrison there, or becomes that garrison if there is none.
     - **Walking:** each turn a caravan walks the cheapest path it knows, around hexes it knows are guarded, for its movement points. It moves on the commanders' timeline, after commanders at equal times.
     - **Payload:** what a band carries are components: its squads, their equipped items, and its War Chest. Each squad (and each item it equips) may add to the band's overworld stats (`overworld` contributions). A scout team adds 1 sight to a caravan, up to the band kind's cap.
     - **Effective stats:** systems read a band's effective sight and movement (base + payload, capped), never the raw data. Its tooltip shows each term.
   - **Meeting a commander:** a convoy sent to a commander walks to where that commander's planned route ends this turn, not to where it stood. A commander that enters the hex of a convoy sent to it picks the convoy up there and carries on.
   - **Interception:** like any detachment, a convoy entering a hex with hostile forces or guards, or entered by a hostile commander, is pulled into an engagement and stops. Survivors of a battle it wins carry on.
-  - **Arrival:** at its plot, a convoy holds the hex, joining the player's detachment there. At its commander's hex, its squads join the army up to the cap, and the rest halt there. A convoy whose commander is gone halts where it is.
+  - **Arrival:** at its plot, a convoy becomes a garrison, joining the player's garrison there. At its commander's hex, its squads join the army up to the cap, and the rest halt there. A convoy whose commander is gone halts where it is.
   - **Merging:** after movement, convoys of one player on the same hex and line merge into one.
-  - **Fog:** convoys are sight sources like detachments. Enemies in sight see a convoy and where it moves, but not what it holds or where it's going.
+  - **Fog:** caravans are sight sources (3 hexes by default, the `band_caravan` kind). Enemies in sight see a convoy and where it moves, but not what it holds or where it's going.
   - **Items:** an option may produce items instead of a squad (`count` per batch). They go into the War Chest of the receiving detachment or convoy, and travel the same supply lines.
 
 ### Economy (R2Q15, R5Q11, R6Q15)

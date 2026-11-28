@@ -22,7 +22,7 @@ from pathlib import Path
 
 import duckdb
 
-from hx import paths
+from hx import clock, paths
 
 RUNNER = "res://src/api/sim_runner.gd"
 VARIANT_DIR = "data/sim/variants"
@@ -252,12 +252,15 @@ def metric_table(con: duckdb.DuckDBPyConnection, batch_id: str, metric: str) -> 
 
 def batches(con: duckdb.DuckDBPyConnection, limit: int = 10) -> list[dict]:
     rows = con.execute("""
-        SELECT b.batch_id, strftime(b.started_at, '%Y-%m-%d %H:%M') AS started_at, b.scenarios, b.variants, b.seeds, count(r.run_id) AS runs,
+        SELECT b.batch_id, epoch(b.started_at) AS started_at, b.scenarios, b.variants, b.seeds, count(r.run_id) AS runs,
                count(*) FILTER (WHERE r.status <> 'ok') AS failed, round(b.wall_s, 1) AS wall_s
         FROM sim_batch b LEFT JOIN sim_run r USING (batch_id)
         GROUP BY ALL ORDER BY max(b.started_at) DESC LIMIT ?""", [limit]).fetchall()
     cols = ["batch_id", "started_at", "scenarios", "variants", "seeds", "runs", "failed", "wall_s"]
-    return [dict(zip(cols, r)) for r in rows]
+    out = [dict(zip(cols, r)) for r in rows]
+    for d in out:  # stored UTC, shown in AEST
+        d["started_at"] = clock.stamp(d["started_at"]) if d["started_at"] is not None else None
+    return out
 
 
 def latest_batch(con: duckdb.DuckDBPyConnection) -> str | None:

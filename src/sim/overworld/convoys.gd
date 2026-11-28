@@ -12,11 +12,19 @@ extends RefCounted
 ##   - Supply lines: the owner sends a feature's output to a plot or to one
 ##     of its commanders. Each produced squad leaves as a convoy on that line;
 ##     convoys on one hex along the same line merge.
+##   - Bands (U1Q27): a detachment sent anywhere (a rally, steering, a
+##     supply line) becomes a caravan (OverworldStats.band_of). A caravan
+##     that halts stays a caravan: it keeps its sight and movement and can
+##     be sent on again. It still holds its hex like any detachment (it
+##     blocks and fights what enters, commanders pick squads up from it),
+##     but it is not the hex's garrison: drop-offs, production and arriving
+##     caravans join the garrison, never a halted caravan. A caravan that
+##     reaches its plot joins the garrison there or becomes it.
 ##   - Rallies: a detachment sent to a plot or commander becomes a convoy.
 ##     The survivors of a commander that left its battle rally to it (R8Q3).
 ##   - Movement: a convoy is a detachment with a destination. Each turn it
 ##     walks the cheapest path it knows (avoiding hexes it knows are
-##     guarded) for the map's `convoy_movement` points, on the commanders'
+##     guarded) for its movement points (OverworldStats), on the commanders'
 ##     timeline (OverworldMovement). Like any detachment, it fights what it
 ##     meets: entering a hostile hex, or being entered, starts an engagement
 ##     (interception).
@@ -156,6 +164,7 @@ static func set_route(s: OverworldState, player: int, did: int, plots: PackedInt
 	d.set_value(did, &"dest_plot", plots[plots.size() - 1])
 	d.set_value(did, &"dest_commander", -1)
 	d.set_value(did, &"line", -1)
+	d.set_value(did, &"band", s.rules.band_caravan)
 	s.convoy_routes[did] = plots.duplicate()
 	return ""
 
@@ -175,9 +184,13 @@ static func rally(s: OverworldState, player: int, did: int, plot: int, commander
 		var err := _dest(s, player, plot, commander)
 		if not err.is_empty():
 			return err
+	if plot < 0 and commander < 0:
+		_stop(s, did)
+		return ""
 	d.set_value(did, &"dest_plot", plot if commander < 0 else -1)
 	d.set_value(did, &"dest_commander", commander)
 	d.set_value(did, &"line", -1)
+	d.set_value(did, &"band", s.rules.band_caravan)
 	s.convoy_routes.erase(did)
 	return ""
 
@@ -243,15 +256,16 @@ static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int, item
 	for row in d.count():
 		if d.plot[row] != p or d.player[row] != owner or d.engagement[row] >= 0:
 			continue
-		if (sl.is_empty() and not is_convoy(s, row)) or (not sl.is_empty() and d.line[row] == fid):
+		if (sl.is_empty() and OverworldStats.is_garrison(s, row)) or (not sl.is_empty() and d.line[row] == fid):
 			did = d.id_at(row)
 			break
 	if did < 0:
-		var v := {&"player": owner, &"plot": p}
+		var v := {&"player": owner, &"plot": p, &"band": s.rules.band_garrison}
 		if not sl.is_empty():
 			v[&"dest_plot"] = sl["plot"]
 			v[&"dest_commander"] = sl["commander"]
 			v[&"line"] = fid
+			v[&"band"] = s.rules.band_caravan
 		did = d.spawn(v)
 	if sq < 0:
 		WarChest.add(s, item, count, -1, did, -1)
@@ -303,11 +317,12 @@ static func plan(s: OverworldState, did: int, masks: Dictionary) -> Array:
 		path = OverworldPath.find(s, d.plot[row], to, player, masks[player])
 	var plots := PackedInt64Array()
 	var times := PackedInt64Array()
+	var budget := OverworldStats.movement_of(s, OverworldStats.BAND, did)
 	var t := 0
 	var at := d.plot[row]
 	for p in path:
 		var cost := s.move_cost(p)
-		if cost < 0 or not Hex.adjacent(at, p, s.rules.width) or t + cost > s.rules.convoy_mp:
+		if cost < 0 or not Hex.adjacent(at, p, s.rules.width) or t + cost > budget:
 			break
 		t += cost
 		plots.append(p)
@@ -387,8 +402,8 @@ static func settle(s: OverworldState) -> void:
 	WarChest.seize_all(s)
 
 
-## Arrived at its plot: it holds the hex, joining the player's detachment
-## already holding it.
+## Arrived at its plot: it holds the hex as a garrison, joining the
+## player's garrison already holding it.
 static func _arrive(s: OverworldState, did: int) -> void:
 	var d := s.detachments
 	var row := d.row_of(did)
@@ -396,9 +411,10 @@ static func _arrive(s: OverworldState, did: int) -> void:
 	var player := d.player[row]
 	s.events.push(&"convoy_arrived", {"detachment": did, "player": player, "plot": p}, s.tick)
 	_stop(s, did)
+	d.set_value(did, &"band", s.rules.band_garrison)
 	for other in Detachments.at(s, p):
 		var orow := d.row_of(other)
-		if other != did and d.player[orow] == player and not is_convoy(s, orow) and d.engagement[orow] < 0:
+		if other != did and d.player[orow] == player and OverworldStats.is_garrison(s, orow) and d.engagement[orow] < 0:
 			for id in Detachments.squads_of(s, did):
 				s.squads.set_value(id, &"detachment", other)
 			WarChest.hand_over(s, did, -1, other)
@@ -431,7 +447,12 @@ static func _trim_routes(s: OverworldState) -> void:
 			s.convoy_routes[did] = route
 
 
+## Clears the destination. The band kind is pinned first, so a halted
+## caravan stays a caravan even in a row that had none (derived).
 static func _stop(s: OverworldState, did: int) -> void:
+	var row := s.detachments.row_of(did)
+	if s.detachments.band[row] < 0:
+		s.detachments.set_value(did, &"band", OverworldStats.band_of(s, row))
 	s.convoy_routes.erase(did)
 	s.detachments.set_value(did, &"dest_plot", -1)
 	s.detachments.set_value(did, &"dest_commander", -1)
@@ -444,7 +465,8 @@ static func rally_survivors(s: OverworldState, cid: int, p: int, squads: PackedI
 	if squads.is_empty():
 		return
 	var player := s.commanders.get_value(cid, &"player")
-	var did := s.detachments.spawn({&"player": player, &"plot": p, &"dest_commander": cid})
+	var did := s.detachments.spawn({&"player": player, &"plot": p, &"dest_commander": cid,
+		&"band": s.rules.band_caravan})
 	for id in squads:
 		s.squads.set_value(id, &"holder", -1)
 		s.squads.set_value(id, &"detachment", did)
