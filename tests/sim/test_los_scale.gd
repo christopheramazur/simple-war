@@ -280,3 +280,58 @@ func _attack_moving(r: BattleRules, n: int) -> BattleState:
 		BattleOrders.set_order(s, rb, BattleSquads.Order.ATTACK_MOVE, s.squads.cx[ra], s.squads.cy[ra], -1, 0)
 	Centroids.update(s)
 	return s
+
+
+## VisionSystem's grid and per-tick observer columns (sw-arse) give the
+## seen_by masks the old pair-by-pair loop gives, with concealment and
+## detection in play, at several ticks of a closing battle.
+func test_vision_grid_matches_the_pair_rule() -> void:
+	var r := _crossroads()
+	Stats.warm(r)
+	r.routes.warm(r)
+	# Concealed scouts and marksmen, detecting heavy weapons, so every branch
+	# of the reach rule runs.
+	r.sq_concealment[r.squad_index("scout_team")] = 45
+	r.sq_concealment[r.squad_index("marksman_team")] = 20
+	r.sq_detection[r.squad_index("heavy_weapons_team")] = 30 * ONE
+	var s := _attack_moving(r, 24)
+	var sim := BattleSim.new()
+	var vs := VisionSystem.new()
+	var wrong := 0
+	var seen_some := false
+	s.begin_turn()
+	for t in 240:
+		if t > 0 and t % r.ticks_per_turn == 0:
+			s.begin_turn()
+		sim.runner.step(s)
+		if t % 20 != 0:
+			continue
+		var want := _pair_seen(s, vs)
+		vs.run(s)
+		for row in s.squads.count():
+			if s.squads.seen_by[row] != want[row]:
+				wrong += 1
+			if s.squads.seen_by[row] != BattleSquads.bit(s.squads.player[row]):
+				seen_some = true
+	assert_eq(wrong, 0, "same seen_by as the pair rule")
+	assert_true(seen_some, "squads saw enemies")
+
+
+## The pre-sw-arse loop: every pair of squads through VisionSystem._sees.
+func _pair_seen(state: BattleState, vs: VisionSystem) -> PackedInt64Array:
+	var sq := state.squads
+	var n := sq.count()
+	var out := PackedInt64Array()
+	out.resize(n)
+	for t in n:
+		if not sq.is_active(t):
+			continue
+		var mask := BattleSquads.bit(sq.player[t])
+		var ct := vs.concealment_pct(state, t)
+		for o in n:
+			if o == t or not sq.is_active(o) or sq.alive[o] == 0 or sq.player[o] == sq.player[t]:
+				continue
+			if vs._sees(state, o, t, ct):
+				mask |= BattleSquads.bit(sq.player[o])
+		out[t] = mask | vs._revealed(state, t)
+	return out

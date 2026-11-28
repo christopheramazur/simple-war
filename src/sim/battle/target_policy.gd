@@ -10,7 +10,10 @@ extends RefCounted
 
 
 ## Nearest living target in range and sight, preferring ones whose queued
-## damage doesn't already cover their HP. -1 if none in reach.
+## damage doesn't already cover their HP. -1 if none in reach. The shot gate
+## (and its line of sight) runs only for a target nearer than the best so far
+## (sw-arse): both tests must pass for a target to be taken, so testing the
+## cheap one first picks the same unit with fewer traces.
 static func pick(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary) -> int:
 	var u := state.units
 	var best := -1
@@ -21,10 +24,10 @@ static func pick(state: BattleState, urow: int, targets: PackedInt64Array, w: in
 		if u.hp[t] <= 0:
 			continue
 		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
-		if CombatSystem.shot_gate(state, urow, t, w, m, d) != CombatSystem.GATE_OK:
-			continue
 		var is_covered := covered(u, t, pending)
 		if (is_covered and d >= fallback_d) or (not is_covered and d >= best_d):
+			continue
+		if CombatSystem.shot_gate(state, urow, t, w, m, d) != CombatSystem.GATE_OK:
 			continue
 		if is_covered:
 			fallback_d = d
