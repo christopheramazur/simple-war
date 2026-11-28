@@ -521,11 +521,6 @@ const KINDS: Dictionary = {
 		## How far past its point an engaged attack-move may close on the
 		## squad it fights, metres (default 15; U1Q29 leash).
 		"chase_leash_m": {"type": "fixed", "min": 0},
-		## Firing-position budgets by battle size (sw-arse, proposed): 0 or
-		## absent keeps the per-battle caps fixed; N > 0 adds one more
-		## search and re-evaluation budget per N living squads beyond the
-		## first N (GDD 02 §2.15 Built).
-		"fp_search_scale_squads": {"type": "int", "min": 0},
 		## Separation radius by unit size class, metres (U1Q10, GDD 02 §2.14
 		## Separation and coherency): a unit closer than this to a unit of
 		## another squad is pushed apart. Defaults small 0.4, medium 0.6,

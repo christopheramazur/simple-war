@@ -6,9 +6,7 @@ extends SceneTree
 ## and shots per side, units lost, and the share of armed unit-ticks under
 ## attack orders that held a firing position. Compare two builds of
 ## firing_positions.gd by running this on each.
-## Run: harness/bin/hx godot run docs/design/u1/scripts/fp/fp_dps.gd -- [ticks] [fp_search_scale_squads]
-## (sw-arse: the second argument sets the proposed ruleset flag; 0, the
-## default, is today's fixed budgets.)
+## Run: harness/bin/hx godot run docs/design/u1/scripts/fp/fp_dps.gd -- [ticks]
 
 const MC := preload("res://docs/design/u1/scripts/movement_cost/movement_cost.gd")
 
@@ -17,12 +15,10 @@ func _initialize() -> void:
 	Fixed.warm()
 	var args := OS.get_cmdline_user_args()
 	var ticks := int(args[0]) if args.size() > 0 else 600
-	var fp_scale := int(args[1]) if args.size() > 1 else 0
 	var l := PackageLoader.load_dirs(PackedStringArray(["res://data/packages/core"]))
 	for n in [12, 24, 40]:
 		var mc = MC.new()
 		mc.rules = BattleRules.compile(l.templates, "duel_crossroads", l.data_hash)
-		mc.rules.fp_search_scale = fp_scale
 		Stats.warm(mc.rules)
 		mc.rules.routes.warm(mc.rules)
 		mc.mix = PackedStringArray(["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"])

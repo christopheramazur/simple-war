@@ -336,17 +336,3 @@ func _pair_seen(state: BattleState, vs: VisionSystem) -> PackedInt64Array:
 		out[t] = mask | vs._revealed(state, t)
 	return out
 
-
-## fp_search_scale_squads (sw-arse, proposed): off by default, so the
-## per-battle firing-position budgets stay fixed; set to N, a battle gets
-## ceil(living squads / N) times them, so up to N squads nothing changes.
-func test_firing_position_budget_scales_only_when_set() -> void:
-	var r := _crossroads()
-	assert_eq(r.fp_search_scale, 0, "core data leaves it off")
-	var s := _attack_moving(r, 24)
-	assert_eq(FiringPositions.budget_scale(s), 1, "off: one budget")
-	r.fp_search_scale = 24
-	assert_eq(FiringPositions.budget_scale(s), 1, "24 squads, one per 24: one budget")
-	r.fp_search_scale = 10
-	assert_eq(FiringPositions.budget_scale(s), 3, "24 squads, one per 10: three")
-	r.fp_search_scale = 0

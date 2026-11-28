@@ -241,10 +241,9 @@ static func update(state: BattleState) -> void:
 			if p == LACKS:
 				lacking[row] += 1
 			fpos[urow] = p
-	var budget := budget_scale(state)
 	var n_again := again.size()
 	var start := tick % maxi(n_again, 1)
-	for i in mini(EVAL_CAP * budget, n_again):
+	for i in mini(EVAL_CAP, n_again):
 		var urow := again[(start + i) % n_again]
 		var row := sq.row_of(u.squad[urow])
 		var trow := engage[row]
@@ -260,7 +259,7 @@ static func update(state: BattleState) -> void:
 	var n := due.size()
 	if n > 0:
 		var first := tick % n
-		for i in mini(SEARCH_CAP * budget, n):
+		for i in mini(SEARCH_CAP, n):
 			var urow := due[(first + i) % n]
 			var row := sq.row_of(u.squad[urow])
 			var trow := engage[row]
@@ -274,21 +273,6 @@ static func update(state: BattleState) -> void:
 	u.put_column(&"fx", fx)
 	u.put_column(&"fy", fy)
 	_anchors(state, targets, lacking)
-
-
-## How many times SEARCH_CAP and EVAL_CAP this tick's battle gets: 1 unless
-## the ruleset sets fp_search_scale_squads = N, then ceil(living squads / N)
-## (sw-arse; proposed, awaiting sign-off).
-static func budget_scale(state: BattleState) -> int:
-	var per := state.rules.fp_search_scale
-	if per <= 0:
-		return 1
-	var sq := state.squads
-	var living := 0
-	for row in sq.count():
-		if sq.alive[row] > 0 and sq.is_active(row):
-			living += 1
-	return maxi(1, (living + per - 1) / per)
 
 
 ## Hysteresis per squad: fp_stop = 1 holds the anchor for firing positions.

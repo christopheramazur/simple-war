@@ -69,11 +69,6 @@ var sq_route_class: PackedInt64Array = PackedInt64Array()
 var route_replan: int = 8 * Fixed.ONE
 ## Fixed. How far past its point an engaged attack-move may close (U1Q29).
 var chase_leash: int = 15 * Fixed.ONE
-## Ruleset fp_search_scale_squads (sw-arse, proposed, awaiting sign-off):
-## 0 keeps FiringPositions' per-battle budgets fixed (today); N > 0 gives a
-## battle one more SEARCH_CAP and EVAL_CAP per N living squads beyond the
-## first N (FiringPositions.budget_scale).
-var fp_search_scale: int = 0
 ## Separation radius by size class, fixed metres (ruleset separation_m,
 ## U1Q10, GDD 02 §2.14 Separation and coherency).
 var separation: Dictionary = {}
@@ -799,7 +794,6 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
 	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
 	chase_leash = DataSchema.to_fixed(rs.get("chase_leash_m"), 15 * Fixed.ONE)
-	fp_search_scale = int(rs.get("fp_search_scale_squads", 0))
 	var sep: Dictionary = rs.get("separation_m", {})
 	var sep_default := {"small": "0.4", "medium": "0.6", "large": "1.2", "huge": "2.4"}
 	separation = {}

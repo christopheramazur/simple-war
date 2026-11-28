@@ -15,7 +15,8 @@ extends SceneTree
 ##
 ## Run: harness/bin/hx godot run docs/design/u1/scripts/fp/los_scale.gd --timeout 1800 -- \
 ##   [--squads 40,80,160] [--battles 1,2,4] [--ticks 300] [--trace] [--reps 1]
-##   [--fp-scale N] (ruleset fp_search_scale_squads) [--quality] (shots, damage,
+##   [--fp-scale N] (scales the firing-position budgets: the sw-arse trial, which
+##   needs that trial's code; ignored without it) [--quality] (shots, damage,
 ##   losses and the share of armed unit-ticks holding a firing position, on
 ##   battle 0; it costs time, so compare timings without it). --reps takes the
 ##   median wall time.
@@ -151,7 +152,8 @@ func _rules(n: int, traced: bool) -> BattleRules:
 		for p in base.get_property_list():
 			if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 				r.set(p.name, base.get(p.name))
-		r.los_cache = PackedInt64Array()
+		r.set("los_cache", PackedInt64Array())
+		r.set("los_memo", {})
 	var t := _tiles(n)
 	if t != Vector2i(1, 1):
 		var w := base.width
@@ -169,7 +171,8 @@ func _rules(n: int, traced: bool) -> BattleRules:
 		r.facing = fac
 		r.routes = BattleRoute.new()
 	r.clear_los_memo()
-	r.fp_search_scale = fp_scale
+	if fp_scale > 0:
+		r.set("fp_search_scale", fp_scale)
 	Stats.warm(r)
 	r.routes.warm(r)
 	return r
@@ -303,8 +306,7 @@ func _replay(r: TraceRules, ticks: int) -> String:
 	for p in r.get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and p.name != "trace" and p.name != "tag":
 			base.set(p.name, r.get(p.name))
-	base.los_cache = PackedInt64Array()
-	base.los_dist = PackedByteArray()
+	base.clear_los_memo()
 	var ref := PackedByteArray()
 	ref.resize(m)
 	var t0 := Time.get_ticks_usec()
