@@ -1,0 +1,8 @@
+# hx visual diff (sw-tho3.13, U1 B13a): golden-image tolerances. Code: harness/src/hx/golden.py.
+
+[golden]
+# A pixel counts as changed when its largest channel difference (0-255, every channel) is above this.
+# Absorbs driver and GPU rounding; identical captures always diff to 0 regardless.
+max_channel_delta = 8
+# A shot is over tolerance (a regression) when more than this share of its pixels is changed.
+max_changed_share = 0.01
