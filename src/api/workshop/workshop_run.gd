@@ -59,8 +59,6 @@ var playback_frames: Array[PackedInt64Array] = []
 var cursor_records: Dictionary = {}
 var _cursors: Dictionary = {}
 var _start: Dictionary = {}
-## The sim the run plays on (execute's `sim`; a fresh BattleSim by default).
-var _sim: BattleSim
 
 var _turn: int = 0
 var _k: int = 0
@@ -69,6 +67,8 @@ var _last_tick: int = -1
 var _want: Dictionary = {}
 ## Vector2i(turn, tick) -> orders given after that many ticks of the turn.
 var _timed: Dictionary = {}
+## The sim the run plays on (execute's `sim`; a fresh BattleSim by default).
+var _sim: BattleSim
 
 
 ## The package's loader, cached per process (content is read-only).
