@@ -292,10 +292,11 @@ func test_points_to_drop_reads_the_given_floors() -> void:
 	assert_eq(BattleRules.points_to_drop(19 * ONE, cap, floors), -1, "below the first floor is Broken")
 
 
-## sw-03qj: the memoized LoS answers what the uncached rule answers. The
-## reference is the exact distance test plus the blocker walk, read here
-## without the memo. The shared fixture rules are restored afterwards.
-func test_los_memo_answers_like_the_walk() -> void:
+## sw-03qj, sw-arse: the cached LoS (jump walk, answer cache) answers what
+## the uncached rule answers. The reference is the exact distance test plus
+## the blocker walk. The shared fixture rules are restored afterwards. More
+## in test_los_scale.gd.
+func test_los_cache_answers_like_the_walk() -> void:
 	var r := _rules()
 	var blocker := -1
 	for f in r.f_blocks_los.size():
@@ -333,18 +334,6 @@ func test_los_memo_answers_like_the_walk() -> void:
 		assert_eq(r.los(ax, ay, bx, by), reference, "trace %d" % i)
 		assert_eq(r.los(ax, ay, bx, by), reference, "repeat of trace %d" % i)
 	assert_gt(blocked, 0, "the sample includes blocked traces")
-	assert_gt(r.los_memo.size(), 0, "answers are memoized")
+	assert_lt(r.los_cache.count(-1), r.los_cache.size(), "answers are cached")
 	r.terrain = saved
-	r.clear_los_memo()
-
-
-func test_forecast_copy_starts_with_its_own_los_memo() -> void:
-	var r := _rules()
-	r.clear_los_memo()
-	r.los(0, 0, 60 * ONE, 60 * ONE)
-	var c := r.forecast_copy()
-	assert_eq(c.los_memo.size(), 0, "a copy starts empty")
-	c.los(0, 0, 60 * ONE, 60 * ONE)
-	assert_gt(c.los_memo.size(), 0, "the copy memoizes on its own")
-	assert_gt(r.los_memo.size(), 0, "the original keeps its memo")
 	r.clear_los_memo()

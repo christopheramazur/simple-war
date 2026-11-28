@@ -272,12 +272,16 @@ func is_valid() -> bool:
 ## on a worker thread, a run on the caller's) must never share its writes
 ## (sw-ll4.26.2).
 func forecast_copy() -> BattleRules:
+	# The line-of-sight field is shared read-only: build it here, on the
+	# caller's thread, never lazily from two threads at once.
+	los_ready()
 	var c := BattleRules.new()
 	for p in get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			c.set(p.name, get(p.name))
 	c.routes = BattleRoute.new()
-	c.los_memo = {}
+	c.los_cache = PackedInt64Array()
+	c.los_ready()
 	return c
 
 
@@ -351,21 +355,84 @@ const AWARENESS: int = 8 * Fixed.ONE
 ## rounds the square root to nearest, so it is <= A exactly when the squared
 ## length is <= A * A + A. Saves the square root on every trace (sw-03qj).
 const AWARENESS_SQ_LIMIT: int = AWARENESS * AWARENESS + AWARENESS
-## Entries before the blocker-walk memo starts over (a cache: clearing it
-## never changes an answer).
-const LOS_MEMO_MAX: int = 1 << 18
+## Slots in the line-of-sight answer cache (a power of two; 8 bytes each).
+const LOS_CACHE_SLOTS: int = 1 << 13
+## The longest jump the distance field stores (it is a byte).
+const LOS_DIST_MAX: int = 255
 
-## Blocker-walk answers per (from cell, to cell), sw-03qj. The walk reads
-## only the two cells and the terrain, so the memo is exact; the awareness
-## check above it still reads the exact points. Terrain is fixed once a
+## Line of sight at scale (sw-arse). Derived from the terrain: never hashed
+## or saved, so a restored or forecast battle rebuilds the same thing.
+## - los_dist: per cell, the Chebyshev distance to the nearest cell that
+##   blocks line of sight (0 on one, capped at LOS_DIST_MAX); width * height
+##   bytes. The blocker walk visits cells one apart in Chebyshev distance
+##   along its major axis, so from a cell d away from every blocker it skips
+##   d - 1 cells: a walk over open ground is a few jumps (_jump_los).
+## - los_cache: answers per (from cell, to cell), direct mapped,
+##   LOS_CACHE_SLOTS slots of (key << 1 | answer), -1 empty: 64 KiB per
+##   battle, where the sw-03qj dictionary memo could grow to 2^18 entries. A
+##   cache: an overwritten slot never changes an answer.
+## Both are built on the first trace (los_ready). Terrain is fixed once a
 ## battle is set up: code that changes terrain after a trace calls
-## clear_los_memo(). Not hashed or saved. A forecast copy starts its own
-## memo (forecast_copy), since copies may run on a worker thread.
-var los_memo: Dictionary = {}
+## clear_los_memo(). A forecast copy shares the field (read only) and starts
+## its own cache (forecast_copy), since copies may run on a worker thread.
+var los_dist: PackedByteArray = PackedByteArray()
+var los_cache: PackedInt64Array = PackedInt64Array()
 
 
+## Drops the derived line-of-sight data and rebuilds it from the terrain.
 func clear_los_memo() -> void:
-	los_memo.clear()
+	los_dist = PackedByteArray()
+	los_cache = PackedInt64Array()
+	los_ready()
+
+
+## Builds the line-of-sight field and cache if they are missing. Call it
+## before handing the rules to another thread (forecast_copy does).
+func los_ready() -> void:
+	if los_cache.size() != LOS_CACHE_SLOTS:
+		los_cache = PackedInt64Array()
+		los_cache.resize(LOS_CACHE_SLOTS)
+		los_cache.fill(-1)
+	var n := width * height
+	if los_dist.size() == n:
+		return
+	var d := PackedByteArray()
+	d.resize(n)
+	for c in n:
+		d[c] = 0 if f_blocks_los[terrain[c]] == 1 else LOS_DIST_MAX
+	# Two chamfer passes with unit weights: exact for the Chebyshev metric.
+	var w := width
+	for y in height:
+		for x in w:
+			var c := y * w + x
+			var v := d[c]
+			if v == 0:
+				continue
+			if x > 0:
+				v = mini(v, d[c - 1] + 1)
+			if y > 0:
+				v = mini(v, d[c - w] + 1)
+				if x > 0:
+					v = mini(v, d[c - w - 1] + 1)
+				if x < w - 1:
+					v = mini(v, d[c - w + 1] + 1)
+			d[c] = v
+	for y in range(height - 1, -1, -1):
+		for x in range(w - 1, -1, -1):
+			var c := y * w + x
+			var v := d[c]
+			if v == 0:
+				continue
+			if x < w - 1:
+				v = mini(v, d[c + 1] + 1)
+			if y < height - 1:
+				v = mini(v, d[c + w] + 1)
+				if x < w - 1:
+					v = mini(v, d[c + w + 1] + 1)
+				if x > 0:
+					v = mini(v, d[c + w - 1] + 1)
+			d[c] = v
+	los_dist = d
 
 
 func los(ax: int, ay: int, bx: int, by: int) -> bool:
@@ -373,23 +440,67 @@ func los(ax: int, ay: int, bx: int, by: int) -> bool:
 	var ey := by - ay
 	if ex * ex + ey * ey <= AWARENESS_SQ_LIMIT:
 		return true
-	var x0 := clampi(Fixed.to_int_floor(ax), 0, width - 1)
-	var y0 := clampi(Fixed.to_int_floor(ay), 0, height - 1)
-	var x1 := clampi(Fixed.to_int_floor(bx), 0, width - 1)
-	var y1 := clampi(Fixed.to_int_floor(by), 0, height - 1)
-	var cells := width * height
-	var key := (y0 * width + x0) * cells + y1 * width + x1
-	var hit: Variant = los_memo.get(key)
-	if hit != null:
-		return hit
-	var sight := _walk_los(x0, y0, x1, y1)
-	if los_memo.size() >= LOS_MEMO_MAX:
-		los_memo.clear()
-	los_memo[key] = sight
+	# Fixed.to_int_floor, inlined: los runs hundreds of times per tick.
+	var x0 := clampi(ax >> Fixed.FRAC_BITS, 0, width - 1)
+	var y0 := clampi(ay >> Fixed.FRAC_BITS, 0, height - 1)
+	var x1 := clampi(bx >> Fixed.FRAC_BITS, 0, width - 1)
+	var y1 := clampi(by >> Fixed.FRAC_BITS, 0, height - 1)
+	if los_cache.size() != LOS_CACHE_SLOTS or los_dist.size() != width * height:
+		los_ready()
+	var key := (y0 * width + x0) * (width * height) + y1 * width + x1
+	var slot := (key ^ (key >> 13) ^ (key >> 27)) & (LOS_CACHE_SLOTS - 1)
+	var e := los_cache[slot]
+	if e >= 0 and e >> 1 == key:
+		return e & 1 == 1
+	var sight := _jump_los(x0, y0, x1, y1)
+	los_cache[slot] = (key << 1) | (1 if sight else 0)
 	return sight
 
 
-## The blocker walk between two cells (the endpoints themselves never block).
+## _walk_los with jumps over open ground (sw-arse); same answer for every
+## pair of cells (test_jump_los_answers_like_the_walk). The walk's i-th cell
+## has a closed form: with a = |dx| >= b = |dy| it is (x0 + sx * i, y0 + sy *
+## floor((2bi + a) / 2a)), and the same with the axes swapped when b > a
+## (the walk's tie-breaks; test_walk_cells_have_a_closed_form). Cells i and
+## i + k are k apart in Chebyshev distance, so from a cell at distance d
+## from every blocker the next blocker is cell i + d at the earliest. Reads
+## los_dist (los_ready first).
+func _jump_los(x0: int, y0: int, x1: int, y1: int) -> bool:
+	var a := absi(x1 - x0)
+	var b := absi(y1 - y0)
+	var sx := 1 if x0 < x1 else -1
+	var sy := 1 if y0 < y1 else -1
+	var dist := los_dist
+	var w := width
+	var blocked := 0
+	var i := 1
+	var a2 := 2 * a
+	var b2 := 2 * b
+	if a >= b:
+		while i < a:
+			var d := dist[(y0 + sy * ((b2 * i + a) / a2)) * w + x0 + sx * i]
+			if d == 0:
+				blocked += 1
+				if blocked > LOS_DEPTH:
+					return false
+				i += 1
+			else:
+				i += d
+	else:
+		while i < b:
+			var d := dist[(y0 + sy * i) * w + x0 + sx * ((a2 * i + b) / b2)]
+			if d == 0:
+				blocked += 1
+				if blocked > LOS_DEPTH:
+					return false
+				i += 1
+			else:
+				i += d
+	return true
+
+
+## The blocker walk between two cells (the endpoints themselves never
+## block): the reference rule, which _jump_los answers for the sim.
 func _walk_los(x0: int, y0: int, x1: int, y1: int) -> bool:
 	var dx := absi(x1 - x0)
 	var dy := -absi(y1 - y0)
