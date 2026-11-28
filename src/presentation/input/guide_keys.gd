@@ -99,6 +99,14 @@ static func stick(axis: JoyAxis, positive: bool) -> GUIDEInputJoyAxis1D:
 	return i
 
 
+## Both axes of a stick as one 2D input (a cursor or a move vector).
+static func stick_pair(x: JoyAxis, y: JoyAxis) -> GUIDEInputJoyAxis2D:
+	var i := GUIDEInputJoyAxis2D.new()
+	i.x = x
+	i.y = y
+	return i
+
+
 ## Device-neutral name of a gamepad input: "Dpad left", "Left stick left".
 static func pad_text(i: GUIDEInput) -> String:
 	if i is GUIDEInputJoyButton:

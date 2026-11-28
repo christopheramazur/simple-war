@@ -128,6 +128,7 @@ var _reacted: Dictionary = {}
 var _turn_seen: int = -1
 var _attack_armed: bool = false
 var _planning_input: PlanningInput
+var _gamepad_cursor: GamepadCursor
 var _radial: ReactionRadial
 var _radial_opp: Dictionary = {}
 var _orders_box: VBoxContainer
@@ -323,6 +324,10 @@ func _build_ui() -> void:
 	_planning_input = PlanningInput.new()
 	_planning_input.command.connect(_on_command)
 	add_child(_planning_input)
+	# Pad cursor (sw-wut): drives the same pointer path as the mouse, so it
+	# goes last to draw over the panels.
+	_gamepad_cursor = GamepadCursor.new()
+	add_child(_gamepad_cursor)
 	_hud = UiTheme.label("", "HudLabel", true)
 	_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panels["hud"] = _hud

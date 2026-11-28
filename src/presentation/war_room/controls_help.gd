@@ -49,9 +49,9 @@ Clicks issue no orders — the turn has already resolved" % [end, cancel]],
 	]
 
 
-## The gamepad bindings of the same actions, by device-neutral names. The
-## pad has no free cursor yet: squads are picked by cycling, and orders that
-## need a target point (move, attack) still use the mouse (sw-dqq).
+## The gamepad bindings of the same actions, by device-neutral names. Squads
+## are picked by cycling or by the pad cursor (sw-wut, GamepadCursor): the
+## right stick moves a pointer, and the buttons click where it stands.
 static func _controller_text(k: GuideKeys) -> String:
 	var p := PlanningInput.new()
 	var orders: PackedStringArray = []
@@ -60,12 +60,14 @@ static func _controller_text(k: GuideKeys) -> String:
 	p.free()
 	return "Pan: %s, %s, %s, %s (left stick)
 Zoom: %s / %s
+Cursor (right stick): a pointer for the battle. %s clicks where it stands; hold it and move to drag a box or a squad; %s is a right click (move or attack)
 %s: end the turn or skip playback · %s / %s: next / previous battle · %s: leave a battle · %s: follow commander
 %s / %s: select next / previous own squad (battle) · %s: show or hide its card
 %s: focus the buttons and the Reactions list, then the Dpad walks them and %s presses one
 %s: deselect everything · Hold %s: route via the planned route
 Orders: %s" % [k.pad_text_of(&"pan_up"), k.pad_text_of(&"pan_down"), k.pad_text_of(&"pan_left"), k.pad_text_of(&"pan_right"),
 		k.pad_text_of(&"zoom_in"), k.pad_text_of(&"zoom_out"),
+		GuideKeys.pad_text(GuideKeys.pad(JOY_BUTTON_A)), GuideKeys.pad_text(GuideKeys.pad(JOY_BUTTON_RIGHT_SHOULDER)),
 		k.pad_text_of(&"end_turn"), k.pad_text_of(&"next_battle"), k.pad_text_of(&"previous_battle"), k.pad_text_of(&"cancel"), k.pad_text_of(&"follow"),
 		k.pad_text_of(&"next_squad"), k.pad_text_of(&"previous_squad"), k.pad_text_of(&"inspect_squad"),
 		k.pad_text_of(&"focus_controls"), k.pad_text_of(&"inspect_squad"),
