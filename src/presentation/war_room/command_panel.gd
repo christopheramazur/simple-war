@@ -28,6 +28,10 @@ var player: int = 1
 var commander: int = -1
 var plot: int = -1
 var detachment: int = -1
+## While a turn plays out: the reason every action control here is disabled
+## ("Available in Planning"); "" in Planning (sw-bafi.9 U1 C8). The panel
+## still shows everything, so the selection can be inspected.
+var locked_reason: String = ""
 
 
 ## Shows the selected commander (`commander_id`, -1 for none), or else the
@@ -41,6 +45,21 @@ func show_selection(of_session: OverworldSession, for_player: int, commander_id:
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
+	_build()
+	if not locked_reason.is_empty():
+		_lock(self)
+
+
+## Disables every action control under `node`, its tooltip saying why.
+func _lock(node: Node) -> void:
+	for c in node.get_children():
+		if c is BaseButton:
+			(c as BaseButton).disabled = true
+			(c as Control).tooltip_text = locked_reason
+		_lock(c)
+
+
+func _build() -> void:
 	var cid := commander
 	var obs := session.observe(player)
 	if cid < 0 and detachment >= 0:

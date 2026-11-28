@@ -6,6 +6,12 @@ extends RefCounted
 ## are taken out of the copy, so the forecast never reveals them; other
 ## players' drafts are secret, so their squads keep their current orders.
 ## Read-only: the real state is never touched.
+##
+## Deployment (sw-bafi.17): while the battle deploys, the player's own draft
+## of placements (`deploys`: BattleDeploy's kept list) is applied to the copy
+## before the turn runs, so the ghosts start where the player placed the
+## squads. Only the player's placements are used; the copy stays deploying,
+## so orders are checked as they were at submit time.
 
 ## Ghost positions per squad over the turn (the last one is its end).
 const SAMPLES: int = 5
@@ -20,11 +26,11 @@ const SAMPLES: int = 5
 ## `squad_damaged` totals the real HealthSystem emits on the scratch run, so
 ## they equal what the turn executes when orders and enemy orders hold
 ## (sw-abk, R1Q3). They assume the enemy keeps its current orders.
-static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) -> Dictionary:
+static func run(state: BattleState, sim: BattleSim, player: int, orders: Array, deploys: Array = []) -> Dictionary:
 	Stats.warm(state.rules)
 	Fixed.warm()
 	state.rules.routes.warm(state.rules)
-	return _forecast(_copy(state), sim, player, orders)
+	return _forecast(_prepared(state, player, deploys), sim, player, orders)
 
 
 ## The same forecast as a job for a worker thread (sw-j4u): the copy is
@@ -33,13 +39,21 @@ static func run(state: BattleState, sim: BattleSim, player: int, orders: Array) 
 ## only reads what is shared (the compiled rules data), so it may run while
 ## the caller carries on. The caller must not run the real battle until it
 ## is done.
-static func job(state: BattleState, player: int, orders: Array) -> Callable:
+static func job(state: BattleState, player: int, orders: Array, deploys: Array = []) -> Callable:
 	Stats.warm(state.rules)
 	Fixed.warm()
 	state.rules.routes.warm(state.rules)
-	var scratch := _copy(state)
+	var scratch := _prepared(state, player, deploys)
 	var o := orders.duplicate(true)
 	return func() -> Dictionary: return _forecast(scratch, BattleSim.new(), player, o)
+
+
+## A scratch copy with the player's deployment draft applied (sw-bafi.17).
+static func _prepared(state: BattleState, player: int, deploys: Array) -> BattleState:
+	var scratch := _copy(state)
+	if not deploys.is_empty():
+		BattleDeploy.apply(scratch, player, deploys)
+	return scratch
 
 
 static func _copy(state: BattleState) -> BattleState:

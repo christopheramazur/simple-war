@@ -59,6 +59,8 @@ static func plan_for(session: OverworldSession, p: int, controller: Object) -> v
 		for eid: int in eids:
 			var dobs := session.observe_battle(p, eid)
 			if dobs.get("deploying", false):
+				if controller.has_method("set_battle_rules"):
+					controller.set_battle_rules((session.battles[eid] as OverworldBattle).state.rules)
 				var placements: Array = controller.deploy(dobs)
 				if not placements.is_empty():  # none: the automatic places (no log entry)
 					session.submit_battle_deployment(p, eid, placements)

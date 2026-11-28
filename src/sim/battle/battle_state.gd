@@ -15,6 +15,10 @@ var turn: int = 0
 ## enemy squad. Saved, and hashed only while set (so a battle with no
 ## deployment step hashes as before).
 var deploying: bool = false
+## Squad IDs a scenario placed locked (sw-tdz): BattleDeploy refuses their
+## placements. Set when the battle is built from the rules, so it is not
+## saved (a save rebuilds the battle first).
+var pinned: Dictionary = {}
 ## Player IDs in this battle, ascending.
 var players: PackedInt64Array = PackedInt64Array()
 ## Zone runtime (index = rules zone index). owner 0 = nobody.

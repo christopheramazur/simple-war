@@ -233,7 +233,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		_after_fire(state, u, urow, row, m, w)
 	if shots_total > 0:
 		state.events.push(&"squad_fired", {"squad": sq.id_at(row), "target": sq.id_at(trow),
-			"shots": shots_total, "hits": hits_total}, state.tick)
+			"shots": shots_total, "hits": hits_total, "victims": pending.size()}, state.tick)
 
 
 func _queue(state: BattleState, urow: int, row: int, trow: int, victim: int, dmg: int, dtype: int, pending: Dictionary) -> void:

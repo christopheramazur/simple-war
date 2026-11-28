@@ -62,7 +62,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 
 ## 3.5 Battle and campaign content
 - **Scenario:** battlefield, deployment, zones, victory conditions, scoring mode (primary and tiebreaker), turn limit, and end-of-battle hooks (R7Q5, R7Q6).
-  - **Deployment** (U1Q9, U1Q30, U1Q31; Rules Spec §2.4 Deployment): `deployment` is `open` (default: sides place their squads in their areas before turn 1) or `fixed` (no deployment step) (proposed). Each side's `deploy` rectangle is where it may place.
+  - **Deployment** (U1Q9, U1Q30, U1Q31; Rules Spec §2.4 Deployment): `deployment` is `open` (default: sides place their squads in their areas before turn 1) or `fixed` (no deployment step) (U1Q30). Each side's `deploy` rectangle is where it may place.
   - **Placed squads** (U1Q31, sw-tdz):
     - **Storage:** the scenario's `placed` list, entries `{side, squad, x, y, facing?}`; `facing` defaults to the side's.
     - **Inside the area:** a placed point must lie inside its side's deployment area.
