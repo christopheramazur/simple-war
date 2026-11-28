@@ -1,7 +1,7 @@
 {
 	"id": "fire_range_rifle_chi",
 	"component": "targeting",
-	"doc": "Rifle squad on HOLD, 30 m from a passive CHI operatives squad (carapace: block, resist and flat reduction) (U1 04 §1.3 CHI row). Waste includes defence mitigation, so it is not the no_armour waste.",
+	"doc": "Rifle squad on HOLD, 30 m from a passive CHI operatives squad (carapace: block, resist and flat reduction) (U1 04 §1.3 CHI row). Waste includes defence mitigation, so it is not the no_armour waste. Shooters pick on expected damage through the armour (sw-pd2l.3): mean_kill 72 -> 65, wipe 90 -> 80, waste 0.569 -> 0.483 (era 10); first_kill stays 30.",
 	"status": "gate",
 	"package": "rules-fixture",
 	"map": "duel_crossroads",
@@ -55,21 +55,21 @@
 			"over": "all",
 			"squad": "shooters",
 			"target": "targets",
-			"mean_kill": 72
+			"mean_kill": 65
 		},
 		{
 			"id": "wipe",
 			"over": "all",
 			"squad": "shooters",
 			"target": "targets",
-			"wipe": 90
+			"wipe": 80
 		},
 		{
 			"id": "waste",
 			"over": "all",
 			"squad": "shooters",
 			"target": "targets",
-			"waste": 0.569
+			"waste": 0.483
 		}
 	]
 }

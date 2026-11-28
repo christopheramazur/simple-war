@@ -35,7 +35,8 @@ static func pick(state: BattleState, urow: int, targets: PackedInt64Array, w: in
 	return best if best >= 0 else fallback
 
 
-## True when damage already queued on the unit covers its HP (ignoring
-## defences, which only lower it).
+## True when the expected damage already queued on the unit covers its HP.
+## `pending` holds each queued hit through the victim's defences without
+## evasion and block (DamagePipeline.preview), so armour counts (sw-pd2l.3).
 static func covered(u: BattleUnits, t: int, pending: Dictionary) -> bool:
 	return int(pending.get(t, 0)) >= u.hp[t]

@@ -249,7 +249,9 @@ func _queue(state: BattleState, urow: int, row: int, trow: int, victim: int, dmg
 	var u := state.units
 	var sq := state.squads
 	Health.queue(state, u.id_at(urow), sq.id_at(row), u.id_at(victim), sq.id_at(trow), dmg, dtype)
-	pending[victim] = int(pending.get(victim, 0)) + dmg
+	# Shooters see expected effective damage (GDD 02 §2.6 Remaining HP): the
+	# hit through the victim's defences, without evasion and block.
+	pending[victim] = int(pending.get(victim, 0)) + DamagePipeline.preview(state, victim, dmg, dtype)
 
 
 ## Real-time weapon timers (GDD 02 §2.6): every living armed unit's reload
