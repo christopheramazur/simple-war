@@ -27,7 +27,7 @@ Gameplay lives in data, never in scenes (AGENTS.md §5). Official content ships 
 | Total Hit Points | |
 | Formation Profile | Formation, coherence, stance or mode. Spacing (proposed, U1Q10), and a coherency radius per formation (U1Q29; default proposed: half-width + 4 m) that bounds units' firing positions (Rules Spec §2.15) |
 | Behaviours | `behaviours`: per battle order (`hold`, `move`, `attack_move`, `attack`, `fall_back`, `withdraw`), a behaviour template ID (Rules Spec §2.15; U1Q12, built sw-txnj.9). Inherited and merged like any map. Unset orders, and components a behaviour leaves out, use the default behaviour (today's closing to fire); core `humanity_squad` names `line_attack_move` and `line_attack` |
-| Fire discipline | Proposed (U1Q17): `fire.discipline_pct` (default 60) and `fire.coordination_pct` (default 70); squad stats `squad.fire.discipline_pct`, `squad.fire.coordination_pct` (Rules Spec §2.8 Prowess) |
+| Fire discipline | Proposed (U1Q17; sw-pd2l.5, U1Q-P2, U1Q-P4, U1Q-P5): ruleset `fire.policy` is `nearest` (default), `focus` or `prowess` (Rules Spec §2.6); `fire.discipline_pct` (default 58) and `fire.coordination_pct` (default 70). Squad template `fire` object: `discipline_pct` and `coordination_pct` (0–100), `datalink` (bool; ignores efficacy, so coordination stays at its value). Stats `squad.fire.discipline_pct` and `squad.fire.coordination_pct` (effects may modify them). Content: `hf_militia` discipline 30; `cr0_patrol` coordination 100 with `datalink` (Rules Spec §2.8 Prowess) |
 | Keywords | Static (R6Q9) |
 | Statuses | Transient, produced by the effect language (R6Q9) |
 | Value | Recruitment and scoring value; may later split battleforce value from purchase value (R6Q15) |
