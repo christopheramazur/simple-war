@@ -28,6 +28,10 @@ extends RefCounted
 ##   shots:   [{tick, squad, target, shots, hits}]   (squad_fired)
 ##   hits:    [{tick, squad, target, damage, kills}] (squad_damaged)
 ##   casualties: [{tick, unit, squad, by}]            (unit_killed)
+##   relations: [{a, b, facts}]  SquadRelation.facts(state, viewer, a, b) for
+##            each engaged pair the snapshot shows (a squad's target, with
+##            both squads listed; sw-tho3.16). A pair with an unseen squad is
+##            left out entirely.
 ## Values are raw fixed where a field says fixed.
 
 ## How many recent ticks the shot, hit and casualty lists cover.
@@ -101,6 +105,29 @@ static func snapshot(state: BattleState, viewer: int = 0) -> Dictionary:
 		"squads": squads, "units": units, "fire": _fire(state, live, full),
 	}
 	out.merge(_recent(state, visible, all_seeing))
+	out["relations"] = _relations(state, viewer, squads, visible)
+	return out
+
+
+## Pair relations for each engaged pair the snapshot shows: a squad's target
+## names the other end, and both must be listed (fog-safe by construction, the
+## same rule as the squad list). Each pair is read once, both directions from
+## SquadRelation.facts.
+static func _relations(state: BattleState, viewer: int, squads: Array, visible: Dictionary) -> Array:
+	var out: Array = []
+	var done := {}
+	for d: Dictionary in squads:
+		if not d.has("target"):
+			continue
+		var a: int = d["id"]
+		var b: int = d["target"]
+		if b < 0 or b == a or not visible.has(b):
+			continue
+		var key := Vector2i(mini(a, b), maxi(a, b))
+		if done.has(key):
+			continue
+		done[key] = true
+		out.append({"a": a, "b": b, "facts": SquadRelation.facts(state, viewer, a, b)})
 	return out
 
 

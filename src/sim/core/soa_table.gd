@@ -86,6 +86,23 @@ func row_of(id: int) -> int:
 	return _slot_row[slot_of(id)] if is_alive(id) else -1
 
 
+## row_of for every ID of `ids` (-1 for none or dead), in one call
+## (sw-0jm5: a pass over every row resolves its references at once).
+func rows_of(ids: PackedInt64Array) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	out.resize(ids.size())
+	var n := _slot_row.size()
+	for i in ids.size():
+		var id := ids[i]
+		var row := -1
+		if id >= 0:
+			var slot := id & SLOT_MASK
+			if slot < n and _slot_gen[slot] == id >> 32 and _slot_row[slot] >= 0:
+				row = _slot_row[slot]
+		out[i] = row
+	return out
+
+
 ## ID of the entity in a row.
 func id_at(row: int) -> int:
 	var slot := _row_slot[row]

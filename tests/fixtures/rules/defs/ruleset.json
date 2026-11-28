@@ -17,7 +17,7 @@
 			"sinks": {
 				"stamina_run_per_s": 4,
 				"stamina_per_hp_lost_pct": 1,
-				"instinct_fire_moving": 1,
+				"instinct_fire_moving_per_s": 2,
 				"instinct_reaction": 10,
 				"prowess_readying_per_s": 2
 			},

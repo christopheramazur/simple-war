@@ -15,6 +15,11 @@ extends RefCounted
 ##   that fired), victims {distinct, max_per_victim, overkill (hits that
 ##   landed on a victim already dead that tick)}, spacing (the window's
 ##   minimum), moved (centroid displacement, m).
+## Fire timing and waste (U1 D2, draft 04 §1.3): first_kill, mean_kill and
+##   wipe are battle ticks (absolute, 0 = the first tick; mean_kill rounded
+##   to a whole tick, half up), null when none;
+##   waste is the share of the squad's queued damage that did not reduce HP
+##   (raw − dealt) ÷ raw, mitigation included.
 
 
 ## {"value": Variant, "error": String}. value null = not measurable.
@@ -198,6 +203,8 @@ static func _over(run: WorkshopRun, frames: PackedInt64Array, kind: String, key:
 			return total * 1000
 		"first_shot", "first_shot_ticks", "shooters", "dps_engaged":
 			return _shot_value(run, frames, kind, key, sid, tid)
+		"first_kill", "mean_kill", "wipe", "waste":
+			return _kill_value(run, frames, kind, sid, tid)
 		"duty":
 			var armed := 0
 			var fired := 0
@@ -221,6 +228,54 @@ static func _over(run: WorkshopRun, frames: PackedInt64Array, kind: String, key:
 				return null
 			return milli_of_fixed(Fixed.distance(c0[0], c0[1], c1[0], c1[1]))
 	return null
+
+
+## Kill timing (by the squad on the target, or on any target) and waste.
+static func _kill_value(run: WorkshopRun, frames: PackedInt64Array, kind: String, sid: int, tid: int) -> Variant:
+	if kind == "waste":
+		var raw := 0
+		var dealt := 0
+		for f in frames:
+			for e: Dictionary in run.events[f]:
+				if e["type"] == &"squad_damaged":
+					var d: Dictionary = e["data"]
+					if d["squad"] == sid and (tid < 0 or d["target"] == tid):
+						raw += int(d["raw"])
+						dealt += int(d["damage"])
+		return null if raw <= 0 else Fixed.round_div((raw - dealt) * 1000, raw)
+	var ticks: Array[int] = []
+	for f in frames:
+		for e: Dictionary in run.events[f]:
+			if e["type"] == &"unit_killed":
+				var d: Dictionary = e["data"]
+				if d["by"] == sid and (tid < 0 or d["squad"] == tid):
+					ticks.append(run.frame_abs[f])
+	if ticks.is_empty():
+		return null
+	match kind:
+		"first_kill":
+			return ticks.min() * 1000
+		"mean_kill":
+			# Whole ticks, half up (the draft 04 table's rounding).
+			var sum := 0
+			for t: int in ticks:
+				sum += t
+			var n := ticks.size()
+			return (2 * sum + n) / (2 * n) * 1000
+		"wipe":
+			# The target squad has no living unit left at the window's last tick.
+			if tid < 0 or _living(run.recorder.frames[frames[frames.size() - 1]], tid) > 0:
+				return null
+			return ticks.max() * 1000
+	return null
+
+
+static func _living(frame: PackedInt64Array, sid: int) -> int:
+	var n := 0
+	for o in range(0, frame.size(), ReplayRecorder.STRIDE):
+		if frame[o + ReplayRecorder.F_SQUAD] == sid and frame[o + ReplayRecorder.F_HP] > 0:
+			n += 1
+	return n
 
 
 ## Firing-start probes, read from the shot trace in the window (sw-tho3.4):

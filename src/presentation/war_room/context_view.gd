@@ -24,7 +24,8 @@ signal deploy_dragged(ids: Array, anchor: int, delta: Vector2)
 ## Deployment: the facing handle of `ids` dragged to point at `toward` (metres).
 signal deploy_faced(ids: Array, toward: Vector2)
 
-const HEX_SIZE: float = 26.0
+## Hex circumradius in px at zoom 1 (GDD 04 §4.8 hex view, U1Q20).
+const HEX_SIZE: float = 64.0
 ## Pixels per battlefield metre when the ground is drawn from textures (ArtSet).
 const GROUND_PX: int = ArtSet.GROUND_PX
 const ONE: float = 65536.0
@@ -40,16 +41,16 @@ const REACH: Color = Color(1.0, 1.0, 1.0, 0.16)
 const TURN: float = 65536.0
 ## Side colours come from TeamPalette at draw time (sw-ijp.5): the chosen
 ## preset is a setting, so a palette switch redraws without new state here.
-## Plot colour: the first listed feature present wins; else plains.
-const FEATURE_COLORS: Array = [
-	["hex_spaceport", Color("9fb3c8")], ["hex_angel_blockade", Color("d9d2f2")], ["hex_cliffs", Color("4a4440")],
-	["hex_frontier_town", Color("b9a46a")],
-	["hex_lake", Color("2d4f6e")], ["hex_village", Color("b9a46a")], ["hex_barracks", Color("9a7f5e")],
-	["hex_depot", Color("8f8a6c")], ["hex_mine", Color("6f6a64")], ["hex_bandit_camp", Color("7a4a42")],
-	["hex_shrine", Color("8d7aa8")], ["hex_supply_cache", Color("c8b25c")], ["hex_arms_cache", Color("c8b25c")],
-	["hex_ore_deposit", Color("75706a")], ["hex_road", Color("8b8476")], ["hex_hills", Color("6e6a52")],
-	["hex_forest", Color("3f5a40")], ["hex_plains", Color("5d6b4c")],
-]
+## A known hex without a ground feature.
+const GROUND: Color = Color("3a4236")
+const NO_LAYOUT: Dictionary = {}
+const NO_INFO: Dictionary = {"layer": "site", "draw_order": 0, "priority": 0,
+	"connects": [], "color": Color("808080"), "name": "", "turns": []}
+
+## Hex feature template ID -> its drawing values (hex_feature_info): the
+## hex view composes a hex from these (ground by draw_order, path strips,
+## sites by layout_priority; GDD 03 §3.5 drawing fields).
+var feature_info: Dictionary = {}
 
 ## Battle terrain colours: feature ID -> Color, from the content's own
 ## `color` (GDD 03 §3.5; `feature_colors`). A feature not listed gets a
@@ -119,6 +120,31 @@ var _handles: Dictionary = {}
 var _terrain_rules: BattleRules
 var _terrain_tex: ImageTexture
 var _terrain_names: PackedStringArray = PackedStringArray()
+## Hex view layout cache (GDD 04 §4.8): plot -> {"key", "ground" (template
+## index or -1), "paths" ([template index, sides]), "sites" (indices into
+## the plot's observed features, input order), "lay" (HexLayout.compute),
+## "names" (the sites' names, for the hover plate)}. Rebuilt per plot in
+## show_overworld when its inputs (its known features, its neighbours'
+## roads, so fog) change; draws only read it.
+var _layouts: Dictionary = {}
+var _layout_src: Dictionary = {}
+## feature_info by template index (_names), and what it was built from.
+var _info: Array = []
+var _info_names: PackedStringArray = PackedStringArray()
+var _info_src: Dictionary = {}
+## Movers standing in their hex's lane: commander ID / detachment ID ->
+## lane slot, and plot -> how many more than the lane holds ("+n"). Built
+## in show_overworld.
+var _lane_cmd: Dictionary = {}
+var _lane_det: Dictionary = {}
+var _lane_more: Dictionary = {}
+var _lane_src: Array = []
+## Side k's unit vector on screen (HexLayout.side_dir), computed once.
+var _sides: PackedVector2Array = PackedVector2Array()
+## Detail bands by on-screen radius (data/ui/hex_layout.json "labels").
+var _glyph_below: float = 24.0
+var _rings_from: float = 48.0
+var _names_from: float = 96.0
 
 
 ## Every feature's colour in a package: its `color`, else one made from
@@ -138,6 +164,32 @@ static func feature_color(id: String, values: Dictionary) -> Color:
 	return Color.from_hsv(float(absi(id.hash()) % 360) / 360.0, 0.35, 0.45)
 
 
+## Every hex feature's drawing values in a package (GDD 03 §3.5): template
+## ID -> hex_info.
+static func hex_feature_info(t: TemplateTable) -> Dictionary:
+	var out := {}
+	for id in t.ids():
+		if t.kind_of(id) == "hex_feature" and not t.is_abstract(id):
+			out[id] = hex_info(id, t.values_of(id))
+	return out
+
+
+## One hex feature's drawing values: "layer", "draw_order", "priority"
+## (layout_priority), "connects", "color" (its `color`, else one made from
+## its ID), "name", "turns" (each `produces` option's turns, for the
+## progress pip).
+static func hex_info(id: String, v: Dictionary) -> Dictionary:
+	var turns: Array = []
+	for opt: Variant in v.get("produces", []):
+		turns.append(maxi(int((opt as Dictionary).get("turns", 1)), 1) if opt is Dictionary else 1)
+	var connects: Array = []
+	for c: Variant in v.get("connects", []):
+		connects.append(str(c))
+	return {"layer": str(v.get("layer", "site")), "draw_order": int(v.get("draw_order", 0)),
+		"priority": int(v.get("layout_priority", 0)), "connects": connects,
+		"color": feature_color(id, v), "name": str(v.get("name", id)), "turns": turns}
+
+
 func _terrain_color(f: String) -> Color:
 	return terrain_colors[f] if terrain_colors.has(f) else feature_color(f, {})
 
@@ -146,6 +198,12 @@ func _init() -> void:
 	clip_contents = true
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	for k in HexLayout.SIDES:
+		_sides.append(HexLayout.side_dir(k))
+	var bands: Dictionary = HexLayout.table().get("labels", {})
+	_glyph_below = float(bands.get("glyph_below", _glyph_below))
+	_rings_from = float(bands.get("rings_from", _rings_from))
+	_names_from = float(bands.get("names_from", _names_from))
 
 
 ## Shows the overworld: `obs` from OverworldSession.observe, `names` the
@@ -177,6 +235,8 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 		_battles[ctx.battle_plot(eid)] = eid
 	_routes = obs.get("routes", {})
 	_convoy_routes = obs.get("convoy_routes", {})
+	_sync_layouts()
+	_sync_lanes()
 	queue_redraw()
 
 
@@ -255,64 +315,39 @@ func _draw_overworld() -> void:
 		return
 	var o := _origin()
 	var s := _hex_size()
+	var k := s / 1000.0  # px per thousandth of the radius (HexLayout units)
 	var plots: Dictionary = _obs.get("plots", {})
+	var production: Dictionary = _obs.get("production", {})
 	var play: Dictionary = _extra.get("play", {})
 	var t: float = _extra.get("t", 1.0)
 	var reach: Dictionary = {} if not play.is_empty() else _extra.get("reach", {})
 	var font := get_theme_default_font()
 	var fs := int(clampf(s * 0.42, 9.0, 16.0))
+	var road: Dictionary = HexLayout.table().get("road", NO_LAYOUT)
+	var half_w := maxf(float(road.get("half_width", 110)) * k, 1.0)
 	for p in _width * _height:
 		var c := o + _centre(p)
 		if c.x < -s * 2 or c.y < -s * 2 or c.x > size.x + s * 2 or c.y > size.y + s * 2:
 			continue
-		var col := FOG
+		var known := plots.has(p)
 		var shade := 1.0
-		var tile: Texture2D = null
-		var whole := false
-		var icon: Texture2D = null
-		if plots.has(p):
-			col = _plot_color(plots[p])
-			if art != null:
-				var tid := _plot_art_id(plots[p], "tile")
-				if not tid.is_empty():
-					tile = art.texture(tid, "tile")
-					whole = art.shaped(tid, "tile")
-				icon = _plot_art(plots[p], "icon")
-			if not plots[p]["visible"]:
-				col = col.darkened(0.45)
-				shade *= 0.55
+		if known and not plots[p]["visible"]:
+			shade *= 0.55
 		# With a commander selected, what it can't reach this turn is dimmed.
 		if not reach.is_empty() and not reach.has(p):
-			col = col.darkened(0.35)
 			shade *= 0.65
 		var pts := _hex_points(c, s * 0.97)
-		if tile != null and whole:  # a pre-cut hex: drawn over the hex's box
-			draw_colored_polygon(pts, FOG)
-			draw_texture_rect(tile, Rect2(c - Vector2(sqrt(3.0) * s, 2.0 * s) * 0.5, Vector2(sqrt(3.0) * s, 2.0 * s)), false, Color(shade, shade, shade))
-		elif tile != null:
-			var uvs := PackedVector2Array()
-			for q in pts:
-				uvs.append((q - c) / (s * 2.0) + Vector2(0.5, 0.5))
-			draw_colored_polygon(pts, Color(shade, shade, shade), uvs, tile)
-		else:
-			draw_colored_polygon(pts, col)
-		if icon != null:
-			var h := s * 0.6
-			draw_texture_rect(icon, Rect2(c - Vector2(h, h * 1.1), Vector2(h, h) * 2.0), false, Color(shade, shade, shade))
-		if plots.has(p) and (icon != null or whole):
-			var owner := _plot_owner(plots[p])
-			if owner > 0:
-				var dot := c + Vector2(s * 0.48, -s * 0.42)
-				var rr := maxf(s * 0.14, 3.0)
-				var oc: Color = TeamPalette.color(owner, TEXT)
-				if owner == 2:  # square: side identity without colour (sw-ijp.5)
-					draw_rect(Rect2(dot - Vector2(rr, rr), Vector2(rr, rr) * 2.0), oc)
-					draw_rect(Rect2(dot - Vector2(rr, rr), Vector2(rr, rr) * 2.0), BG, false, 1.0)
-				else:
-					draw_circle(dot, rr, oc)
-					draw_arc(dot, rr, 0, TAU, 12, BG, 1.0)
+		var lay: Dictionary = _layouts.get(p, NO_LAYOUT)
+		_draw_ground(lay, c, s, pts, shade)
+		if not lay.is_empty():
+			for path: Array in lay["paths"]:
+				var col := _shaded(_info_of(path[0])["color"], shade)
+				for side: int in path[1]:
+					draw_line(c, c + _sides[side] * (HexLayout.APOTHEM * k), col, half_w * 2.0)
+				draw_circle(c, half_w * (1.0 if not (path[1] as PackedInt32Array).is_empty() else 1.6), col)
+			_draw_sites(plots[p], lay, c, s, k, shade, production, font, fs)
 		if reach.has(p):
-			draw_colored_polygon(_hex_points(c, s * 0.97), REACH)
+			draw_colored_polygon(pts, REACH)
 			if s >= 20.0:
 				draw_string(font, c + Vector2(-s * 0.5, s * 0.62), str(reach[p]), HORIZONTAL_ALIGNMENT_CENTER, s, maxi(fs - 3, 8), Color(1, 1, 1, 0.6))
 		pts.append(pts[0])
@@ -323,6 +358,13 @@ func _draw_overworld() -> void:
 			draw_polyline(pts, SELECT, 2.5)
 		if p == _hover_plot:
 			draw_polyline(pts, Color(1, 1, 1, 0.5), 1.5)
+	# Labels after every hex, so the next row's ground never covers them:
+	# at most one plate per hex (GDD 04 §4.8 detail bands).
+	for p: int in _layouts:
+		var c := o + _centre(p)
+		if c.x < -s * 2 or c.y < -s * 2 or c.x > size.x + s * 2 or c.y > size.y + s * 2:
+			continue
+		_draw_site_plate(p, plots[p], _layouts[p], c, s, font, fs)
 	# Glance summaries after every hex: a label under a battle hex would be
 	# painted over by the next row's fill (sw-1jy.5).
 	for p: int in _battles:
@@ -343,15 +385,25 @@ func _draw_overworld() -> void:
 			if not route.is_empty():
 				draw_arc(prev, s * 0.2, 0, TAU, 12, SELECT, 2.0)
 		_draw_route_preview(o, s, font, fs)
-	# Garrisons (squares) and convoys (diamonds, with their destination):
+	# Movers stand in their hex's lane (HexLayout.lane): along the lower
+	# edge, or on the road. Up to the lane's size, then "+n".
+	var rt := _token_radius(k)
+	var badges := s >= _rings_from
+	# Garrisons (squares) and caravans (diamonds, with their destination):
 	# squads without a commander (sw-ip8.7).
 	var det_play: Dictionary = play.get("detachments", {})
 	for det: Dictionary in _obs.get("detachments", []):
 		var walking: bool = det_play.has(det["id"])
-		var at := o + (_along(det_play[det["id"]], t) if walking else _centre(det["plot"]))
-		var c := at + Vector2(s * 0.42, s * 0.38)
+		var c: Vector2
+		if walking:
+			c = o + _along(det_play[det["id"]], t)
+		else:
+			var slot: int = _lane_det.get(det["id"], -1)
+			if slot < 0:
+				continue
+			c = o + _lane_point(det["plot"], slot, k)
 		var col: Color = TeamPalette.color(det["player"], TEXT)
-		var h := s * 0.22
+		var h := rt * 0.8
 		if det.get("convoy", false) or walking:
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h * 1.3), c + Vector2(h * 1.3, 0), c + Vector2(0, h * 1.3), c + Vector2(-h * 1.3, 0)]), col)
 			var dest := int(det.get("dest_plot", -1))
@@ -375,42 +427,318 @@ func _draw_overworld() -> void:
 		if det["id"] == _selected_det:
 			draw_arc(c, h * 1.9, 0, TAU, 20, SELECT, 2.5)
 		var n := (det.get("squads", []) as Array).size()
-		if n > 0:
-			draw_string(font, c + Vector2(h + 2, h), "P%d %d" % [int(det["player"]), n], HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TEXT)
+		if n > 0 and badges:
+			draw_string(font, c + Vector2(h + 2, h), "P%d %d" % [int(det["player"]), n], HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(fs - 3, 8), TEXT)
 	# Walkers that are gone when the turn ends (a convoy that reached its
 	# commander) are still seen walking there.
 	for g: Dictionary in play.get("gone", []):
 		var at := o + _along(g["walk"], t)
 		var col: Color = TeamPalette.color(g["player"], TEXT)
 		if g.get("convoy", true):
-			var c := at + Vector2(s * 0.42, s * 0.38)
-			var h := s * 0.22
-			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -h * 1.3), c + Vector2(h * 1.3, 0), c + Vector2(0, h * 1.3), c + Vector2(-h * 1.3, 0)]), col)
+			var h := rt * 0.8
+			draw_colored_polygon(PackedVector2Array([at + Vector2(0, -h * 1.3), at + Vector2(h * 1.3, 0), at + Vector2(0, h * 1.3), at + Vector2(-h * 1.3, 0)]), col)
 		else:
-			draw_circle(at, s * 0.36, Color(col, 0.6))
+			draw_circle(at, rt, Color(col, 0.6))
 	var cmd_play: Dictionary = play.get("commanders", {})
 	for cmd: Dictionary in _obs.get("commanders", []):
-		var c := o + (_along(cmd_play[cmd["id"]], t) if cmd_play.has(cmd["id"]) else _centre(cmd["plot"]))
-		var r := s * 0.36
+		var c: Vector2
+		if cmd_play.has(cmd["id"]):
+			c = o + _along(cmd_play[cmd["id"]], t)
+		else:
+			var slot: int = _lane_cmd.get(cmd["id"], -1)
+			if slot < 0:
+				continue
+			c = o + _lane_point(cmd["plot"], slot, k)
+		var r := rt
 		var pc: Color = TeamPalette.color(cmd["player"], TEXT)
 		draw_circle(c, r, pc)
 		var face := _commander_icon(cmd)
 		if face != null:
 			draw_circle(c, r * 0.86, BG)
 			draw_texture_rect(face, Rect2(c - Vector2(r, r) * 0.95, Vector2(r, r) * 1.9), false)
-		var pb := c + Vector2(r * 0.9, -r * 0.8)  # side number: identity without colour (sw-ijp.5)
-		draw_circle(pb, maxf(fs * 0.5, 5.0), pc)
-		draw_string(font, pb + Vector2(-fs * 0.5, fs * 0.35), str(cmd["player"]), HORIZONTAL_ALIGNMENT_CENTER, fs, maxi(fs - 2, 8), BG)
 		if cmd["id"] == _selected:
 			draw_arc(c, r + 3.0, 0, TAU, 20, SELECT, 2.5)
+		if not badges:
+			continue
+		var bf := maxi(int(r * 0.9), 8)
+		var br := maxf(bf * 0.55, 4.0)
+		var pb := c + Vector2(r * 0.9, -r * 0.8)  # side number: identity without colour (sw-ijp.5)
+		draw_circle(pb, br, pc)
+		draw_string(font, pb + Vector2(-bf * 0.5, bf * 0.35), str(cmd["player"]), HORIZONTAL_ALIGNMENT_CENTER, bf, bf, BG)
 		if cmd.has("army"):  # own and allied: squads besides the commander's own
 			var n := (cmd["army"] as Array).filter(func(q: Dictionary) -> bool: return not q.get("own", false)).size()
-			if face != null:
-				var b := c + Vector2(r * 0.85, r * 0.75)
-				draw_circle(b, maxf(fs * 0.55, 5.0), pc)
-				draw_string(font, b + Vector2(-fs * 0.5, fs * 0.35), str(n), HORIZONTAL_ALIGNMENT_CENTER, fs, maxi(fs - 2, 8), BG)
-			else:
-				draw_string(font, c + Vector2(-r * 0.45, r * 0.45), str(n), HORIZONTAL_ALIGNMENT_CENTER, r * 0.9, fs, BG)
+			var b := c + Vector2(r * 0.85, r * 0.75)
+			draw_circle(b, br, pc)
+			draw_string(font, b + Vector2(-bf * 0.5, bf * 0.35), str(n), HORIZONTAL_ALIGNMENT_CENTER, bf, bf, BG)
+	# More movers than the lane holds: "+n" after the last token.
+	for p: int in _lane_more:
+		var lay: Dictionary = _layouts.get(p, NO_LAYOUT)
+		var lane: Array = lay["lay"]["lane"] if not lay.is_empty() else HexLayout.lane(PackedInt32Array())
+		var at := o + _lane_point(p, lane.size() - 1, k) + Vector2(rt + 2.0, rt * 0.5)
+		draw_string(font, at, "+%d" % _lane_more[p], HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(fs - 2, 8), TEXT)
+
+
+## A known hex's ground: the ground feature with the highest draw_order
+## (its tile art, else its colour); an unknown hex is fog.
+func _draw_ground(lay: Dictionary, c: Vector2, s: float, pts: PackedVector2Array, shade: float) -> void:
+	if lay.is_empty():
+		draw_colored_polygon(pts, FOG)
+		return
+	var g: int = lay["ground"]
+	if g < 0:
+		draw_colored_polygon(pts, _shaded(GROUND, shade))
+		return
+	var id := _names[g]
+	if art != null and art.has_art(id, "tile"):
+		var tile := art.texture(id, "tile")
+		if art.shaped(id, "tile"):  # a pre-cut hex: drawn over the hex's box
+			draw_colored_polygon(pts, FOG)
+			draw_texture_rect(tile, Rect2(c - Vector2(sqrt(3.0) * s, 2.0 * s) * 0.5, Vector2(sqrt(3.0) * s, 2.0 * s)), false, Color(shade, shade, shade))
+		else:
+			var uvs := PackedVector2Array()
+			for q in pts:
+				uvs.append((q - c) / (s * 2.0) + Vector2(0.5, 0.5))
+			draw_colored_polygon(pts, Color(shade, shade, shade), uvs, tile)
+		return
+	draw_colored_polygon(pts, _shaded(_info_of(g)["color"], shade))
+
+
+## A hex's sites by detail band (GDD 04 §4.8): below _glyph_below one glyph
+## (its first site and a count); from it every site in its slot; from
+## _rings_from with owner rings and progress pips. Below _rings_from the
+## hex carries one owner mark.
+func _draw_sites(entry: Dictionary, lay: Dictionary, c: Vector2, s: float, k: float, shade: float,
+		production: Dictionary, font: Font, fs: int) -> void:
+	var sites: PackedInt32Array = lay["sites"]
+	var feats: Array = entry["features"]
+	if not sites.is_empty():
+		var hl: Dictionary = lay["lay"]
+		var order: PackedInt32Array = hl["order"]
+		if s < _glyph_below:
+			var r := maxf(s * 0.38, 3.0)
+			_draw_site(feats[sites[order[0]]], c, r, shade)
+			if sites.size() > 1 and s >= 12.0:
+				draw_string(font, c + Vector2(r * 0.6, r * 1.6), str(sites.size()), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, TEXT)
+		else:
+			var r := maxf(float(hl["radius"]) * k, 3.0)
+			var points: Array = hl["points"]
+			for i in order:
+				var f: Dictionary = feats[sites[i]]
+				var at := c + Vector2(points[i]) * k
+				_draw_site(f, at, r, shade)
+				if s >= _rings_from:
+					var owner := int(f.get("owner", 0))
+					if owner > 0:
+						_owner_ring(at, r + 1.5, owner)
+					if production.has(f["id"]):
+						_progress_pip(f, production[f["id"]], at + Vector2(r * 0.8, -r * 0.8), maxf(r * 0.32, 3.0))
+			if int(hl["overflow"]) > 0:
+				var last := c + Vector2(points[order[order.size() - 1]]) * k
+				draw_string(font, last + Vector2(r, r), "+%d" % int(hl["overflow"]), HORIZONTAL_ALIGNMENT_LEFT, -1, maxi(fs - 3, 8), TEXT)
+	if s < _rings_from:
+		var owner := _plot_owner(entry)
+		if owner > 0:
+			_owner_mark(c + Vector2(s * 0.48, -s * 0.42), maxf(s * 0.12, 2.5), owner)
+
+
+## One site: its icon art, else its tile art, else a disc of its colour.
+func _draw_site(f: Dictionary, at: Vector2, r: float, shade: float) -> void:
+	var tmpl := int(f["tmpl"])
+	var id := _names[tmpl] if tmpl >= 0 and tmpl < _names.size() else ""
+	var tint := Color(shade, shade, shade)
+	if art != null and not id.is_empty():
+		var field := "icon" if art.has_art(id, "icon") else ("tile" if art.has_art(id, "tile") else "")
+		if not field.is_empty():
+			draw_circle(at, r, BG)
+			draw_texture_rect(art.texture(id, field), Rect2(at - Vector2(r, r), Vector2(r, r) * 2.0), false, tint)
+			return
+	draw_circle(at, r, _shaded(_info_of(tmpl)["color"], shade))
+	draw_arc(at, r, 0, TAU, 16, BG, 1.0)
+
+
+## A site's owner: a ring of the side's colour; side 2 a square, so sides
+## differ without colour (sw-ijp.5).
+func _owner_ring(at: Vector2, r: float, owner: int) -> void:
+	var oc: Color = TeamPalette.color(owner, TEXT)
+	if owner == 2:
+		draw_rect(Rect2(at - Vector2(r, r), Vector2(r, r) * 2.0), oc, false, 2.0)
+	else:
+		draw_arc(at, r, 0, TAU, 20, oc, 2.0)
+
+
+## A hex's owner mark (coarse bands): a dot, a square for side 2.
+func _owner_mark(at: Vector2, r: float, owner: int) -> void:
+	var oc: Color = TeamPalette.color(owner, TEXT)
+	if owner == 2:
+		draw_rect(Rect2(at - Vector2(r, r), Vector2(r, r) * 2.0), oc)
+		draw_rect(Rect2(at - Vector2(r, r), Vector2(r, r) * 2.0), BG, false, 1.0)
+	else:
+		draw_circle(at, r, oc)
+		draw_arc(at, r, 0, TAU, 12, BG, 1.0)
+
+
+## How far an own producing site is towards its next output: a pie.
+func _progress_pip(f: Dictionary, prod: Dictionary, at: Vector2, r: float) -> void:
+	var turns: Array = _info_of(int(f["tmpl"]))["turns"]
+	var opt := int(prod.get("output", 0))
+	var whole: int = turns[opt] if opt >= 0 and opt < turns.size() else 1
+	var frac := clampf(float(prod.get("progress", 0)) / float(maxi(whole, 1)), 0.0, 1.0)
+	draw_circle(at, r, BG)
+	if frac > 0.0:
+		draw_arc(at, r * 0.5, -PI / 2.0, -PI / 2.0 + TAU * frac, 12, SELECT, r)
+	draw_arc(at, r, 0, TAU, 12, SELECT, 1.0)
+
+
+## A hex's one label plate: every site's name on the hovered or selected
+## hex; from _names_from the owned sites' names.
+func _draw_site_plate(p: int, entry: Dictionary, lay: Dictionary, c: Vector2, s: float, font: Font, fs: int) -> void:
+	var text := ""
+	if p == _hover_plot or p == _selected_plot:
+		text = lay["names"]
+	elif s >= _names_from:
+		var owned := PackedStringArray()
+		var feats: Array = entry["features"]
+		for i: int in lay["sites"]:
+			if int(feats[i].get("owner", 0)) > 0:
+				owned.append(_info_of(int(feats[i]["tmpl"]))["name"])
+		text = " · ".join(owned)
+	if text.is_empty():
+		return
+	var px := maxi(fs - 3, 9)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var at := c + Vector2(-w * 0.5 - 3.0, -s * 0.86)
+	draw_rect(Rect2(at, Vector2(w + 6.0, px + 4.0)), Color(BG, 0.8))
+	draw_string(font, at + Vector2(3.0, px), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, TEXT)
+
+
+func _token_radius(k: float) -> float:
+	return maxf(float(HexLayout.table().get("lane", NO_LAYOUT).get("token_radius", 100)) * k, 4.0)
+
+
+## Lane slot `slot` of plot p, relative to the origin.
+func _lane_point(p: int, slot: int, k: float) -> Vector2:
+	var lay: Dictionary = _layouts.get(p, NO_LAYOUT)
+	var lane: Array = lay["lay"]["lane"] if not lay.is_empty() else HexLayout.lane(PackedInt32Array())
+	return _centre(p) + Vector2(lane[clampi(slot, 0, lane.size() - 1)]) * k
+
+
+static func _shaded(col: Color, shade: float) -> Color:
+	return Color(col.r * shade, col.g * shade, col.b * shade, col.a)
+
+
+func _info_of(tmpl: int) -> Dictionary:
+	return _info[tmpl] if tmpl >= 0 and tmpl < _info.size() else NO_INFO
+
+
+## Brings the layout cache up to the observation: only plots whose inputs
+## changed are laid out again (HexLayout.cache_key plus the drawn ground,
+## paths and feature IDs).
+func _sync_layouts() -> void:
+	if _names != _info_names or not is_same(feature_info, _info_src):
+		_info_names = _names
+		_info_src = feature_info
+		_info = []
+		for id in _names:
+			_info.append(feature_info.get(id, NO_INFO))
+		_layouts.clear()
+		_layout_src = {}
+	var plots: Dictionary = _obs.get("plots", {})
+	if is_same(plots, _layout_src):
+		return
+	_layout_src = plots
+	for p: int in _layouts.keys():
+		if not plots.has(p):
+			_layouts.erase(p)
+	var here_of := {}
+	for p: int in plots:
+		here_of[p] = _ids_on(plots[p])
+	for p: int in plots:
+		var feats: Array = plots[p]["features"]
+		var nb: Array = []
+		var axial := Hex.axial_of(p, _width)
+		for d in Hex.DIRS:
+			var q := Hex.plot_of(axial + d, _width, _height)
+			nb.append(here_of.get(q, PackedStringArray()))
+		var ground := -1
+		var paths: Array = []
+		var sites := PackedInt32Array()
+		var site_in: Array = []
+		var key := PackedStringArray()
+		for i in feats.size():
+			var tmpl := int(feats[i]["tmpl"])
+			var info := _info_of(tmpl)
+			key.append(str(feats[i]["id"]))
+			match String(info["layer"]):
+				"ground":
+					if ground < 0 or int(info["draw_order"]) > int(_info_of(ground)["draw_order"]):
+						ground = tmpl
+				"path":
+					var sides := HexLayout.road_sides(PackedStringArray([_names[tmpl]]), nb, feature_info)
+					paths.append([tmpl, sides])
+					key.append(",".join(Array(sides).map(func(v: int) -> String: return str(v))))
+				_:
+					sites.append(i)
+					site_in.append({"id": _names[tmpl] if tmpl >= 0 and tmpl < _names.size() else "", "priority": info["priority"]})
+		var roads := HexLayout.road_sides(here_of[p], nb, feature_info)
+		var full := "%s#%d#%s" % [HexLayout.cache_key(site_in, roads), ground, "/".join(key)]
+		if _layouts.has(p) and _layouts[p]["key"] == full:
+			continue
+		var names := PackedStringArray()
+		var lay := HexLayout.compute(site_in, roads)
+		for i: int in lay["order"]:
+			names.append(_info_of(int(feats[sites[i]]["tmpl"]))["name"])
+		_layouts[p] = {"key": full, "ground": ground, "paths": paths, "sites": sites, "lay": lay,
+			"names": " · ".join(names)}
+
+
+## The known feature template IDs on a plot entry.
+func _ids_on(entry: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	for f: Dictionary in entry["features"]:
+		var tmpl := int(f["tmpl"])
+		if tmpl >= 0 and tmpl < _names.size():
+			out.append(_names[tmpl])
+	return out
+
+
+## Gives each mover standing still a slot in its hex's lane, commanders
+## first (in observation order), then garrisons and caravans.
+func _sync_lanes() -> void:
+	var play: Dictionary = _extra.get("play", {})
+	if _lane_src.size() == 2 and is_same(_lane_src[0], _obs) and is_same(_lane_src[1], play):
+		return
+	_lane_src = [_obs, play]
+	_lane_cmd = {}
+	_lane_det = {}
+	_lane_more = {}
+	var used := {}
+	var cmd_play: Dictionary = play.get("commanders", {})
+	var det_play: Dictionary = play.get("detachments", {})
+	var movers: Array = []
+	for cmd: Dictionary in _obs.get("commanders", []):
+		if not cmd_play.has(cmd["id"]):
+			movers.append([_lane_cmd, cmd["id"], int(cmd["plot"])])
+	for det: Dictionary in _obs.get("detachments", []):
+		if not det_play.has(det["id"]):
+			movers.append([_lane_det, det["id"], int(det["plot"])])
+	for m: Array in movers:
+		var p: int = m[2]
+		var lay: Dictionary = _layouts.get(p, NO_LAYOUT)
+		var cap: int = (lay["lay"]["lane"] as Array).size() if not lay.is_empty() else HexLayout.lane(PackedInt32Array()).size()
+		var n: int = used.get(p, 0)
+		used[p] = n + 1
+		if n < cap:
+			(m[0] as Dictionary)[m[1]] = _lane_order(n, cap)
+		else:
+			_lane_more[p] = n - cap + 1
+
+
+## The lane slot of the n-th mover in a lane of `cap`: the middle first,
+## then left and right (one mover stands centred).
+static func _lane_order(n: int, cap: int) -> int:
+	if cap == 3:
+		return [1, 0, 2][n]
+	return n
 
 
 ## The battle's glance summary under its hex (sw-1jy.5): the worst SIMPL
@@ -477,28 +805,6 @@ func _along(walk: Dictionary, t: float) -> Vector2:
 	return _centre(plots[plots.size() - 1])
 
 
-## A plot's art: the first feature (in FEATURE_COLORS order, then the rest)
-## with `field` art, or null.
-func _plot_art(entry: Dictionary, field: String) -> Texture2D:
-	var id := _plot_art_id(entry, field)
-	return null if id.is_empty() else art.texture(id, field)
-
-
-## The template ID _plot_art draws, or "".
-func _plot_art_id(entry: Dictionary, field: String) -> String:
-	var ids := {}
-	for f: Dictionary in entry["features"]:
-		if f["tmpl"] >= 0 and f["tmpl"] < _names.size():
-			ids[_names[f["tmpl"]]] = true
-	for pair: Array in FEATURE_COLORS:
-		if ids.has(pair[0]) and art.has_art(pair[0], field):
-			return pair[0]
-	for id: String in ids:
-		if art.has_art(id, field):
-			return id
-	return ""
-
-
 func _plot_owner(entry: Dictionary) -> int:
 	for f: Dictionary in entry["features"]:
 		if int(f.get("owner", 0)) > 0:
@@ -511,17 +817,6 @@ func _commander_icon(cmd: Dictionary) -> Texture2D:
 	if art == null or t < 0 or t >= commander_ids.size():
 		return null
 	return art.texture(commander_ids[t])
-
-
-func _plot_color(entry: Dictionary) -> Color:
-	var ids := {}
-	for f: Dictionary in entry["features"]:
-		if f["tmpl"] >= 0 and f["tmpl"] < _names.size():
-			ids[_names[f["tmpl"]]] = true
-	for pair: Array in FEATURE_COLORS:
-		if ids.has(pair[0]):
-			return pair[1]
-	return FOG
 
 
 func _hex_points(c: Vector2, s: float) -> PackedVector2Array:
@@ -544,6 +839,35 @@ func plot_at(pos: Vector2) -> int:
 		if d < best_d:
 			best_d = d
 			best = p
+	return best
+
+
+## The observed feature ID of the site under a point of this view, or -1
+## (GDD 04 §4.8 selection). Below the glyph band a hex shows one glyph:
+## its first site. Ground and paths are not sites.
+func feature_at(pos: Vector2) -> int:
+	var p := plot_at(pos)
+	var lay: Dictionary = _layouts.get(p, NO_LAYOUT)
+	if lay.is_empty() or (lay["sites"] as PackedInt32Array).is_empty():
+		return -1
+	var feats: Array = (_obs["plots"][p] as Dictionary)["features"]
+	var sites: PackedInt32Array = lay["sites"]
+	var hl: Dictionary = lay["lay"]
+	var order: PackedInt32Array = hl["order"]
+	var c := _origin() + _centre(p)
+	var s := _hex_size()
+	if s < _glyph_below:
+		return int(feats[sites[order[0]]]["id"]) if pos.distance_to(c) <= maxf(s * 0.38, 3.0) + 2.0 else -1
+	var k := s / 1000.0
+	var reach := maxf(float(hl["radius"]) * k, 3.0) + 2.0
+	var best := -1
+	var best_d := reach * reach
+	var points: Array = hl["points"]
+	for i in order:  # slot order: an overlapping later site loses ties
+		var d := (c + Vector2(points[i]) * k).distance_squared_to(pos)
+		if d < best_d:
+			best_d = d
+			best = int(feats[sites[i]]["id"])
 	return best
 
 

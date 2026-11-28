@@ -114,6 +114,7 @@ func _initialize() -> void:
 			s.begin_turn()
 		sim.runner.step(s)
 	print("n=%d fp(extra call) %.3f ms/t  movement(incl. its own fp call) %.3f  combat %.3f" % [n, fp.us / 300000.0, mv.us / 300000.0, cb.us / 300000.0])
+	print("hash %s" % s.state_hash().hex_encode())
 	print("next_waypoint calls %d (far %d) %.3f ms/t" % [tr.calls, tr.far, tr.us / 300000.0])
 	print(ms.plans)
 	print(ms.lack)

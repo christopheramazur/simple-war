@@ -211,3 +211,61 @@ func test_forty_squad_snapshot_is_bounded() -> void:
 		var engaged: bool = s.squads.engaged[a] == f["to"]
 		var in_reach := Fixed.distance(s.squads.cx[a], s.squads.cy[a], s.squads.cx[b], s.squads.cy[b]) <= s.squads.reach[a]
 		assert_true(engaged or in_reach, "only engaged or in-range pairs")
+
+
+## The engaged pair's relation facts are exactly SquadRelation.facts called
+## directly, both directions, and each pair appears once.
+func test_relations_match_squad_relation_for_engaged_pair() -> void:
+	var s := _empty()
+	var mortar := _place(s, 1, "mortar_team", 50, 70)
+	var enemy := _target(s, 85, 70)
+	var sim := BattleSim.new()
+	sim.runner.step(s)
+	sim.runner.step(s)
+	var snap := BattleProbe.snapshot(s, 0)
+	var found := []
+	for r: Dictionary in snap["relations"]:
+		if (r["a"] == mortar and r["b"] == enemy) or (r["a"] == enemy and r["b"] == mortar):
+			found.append(r)
+	assert_eq(found.size(), 1, "one entry per engaged pair")
+	if found.size() == 1:
+		assert_eq(found[0]["facts"], SquadRelation.facts(s, 0, found[0]["a"], found[0]["b"]))
+		assert_false((found[0]["facts"] as Array).is_empty(), "the pair has facts")
+	var fog := BattleProbe.snapshot(s, 1)
+	for r: Dictionary in fog["relations"]:
+		if r["a"] == mortar and r["b"] == enemy:
+			assert_eq(r["facts"], SquadRelation.facts(s, 1, mortar, enemy), "fog view uses the viewer's facts")
+
+
+## A pair with a squad the viewer cannot see is left out of the relations, and
+## the fog view never names an unseen squad in a relation.
+func test_relations_leave_out_unseen_pairs() -> void:
+	var s := _empty()
+	var mortar := _place(s, 1, "mortar_team", 50, 70)
+	var hidden := _place(s, 2, "rifle_squad", 190, 70)
+	var sim := BattleSim.new()
+	sim.runner.step(s)
+	# Engage the own squad on the unseen one: the pair must not show.
+	s.squads.engaged[s.squads.row_of(mortar)] = hidden
+	var snap := BattleProbe.snapshot(s, 1)
+	for r: Dictionary in snap["relations"]:
+		assert_ne(r["a"], hidden, "no relation names the unseen squad")
+		assert_ne(r["b"], hidden, "no relation names the unseen squad")
+	assert_false(_mentions(snap["relations"], "a", hidden) or _mentions(snap["relations"], "b", hidden))
+	# The all-seeing view does show the same pair.
+	var all := BattleProbe.snapshot(s, 0)
+	assert_true(_mentions(all["relations"], "b", hidden) or _mentions(all["relations"], "a", hidden))
+
+
+## Relations are read-only: the state hash is unchanged by the snapshot that
+## carries them.
+func test_relations_do_not_change_state_hash() -> void:
+	var s := _empty()
+	_place(s, 1, "mortar_team", 50, 70)
+	_target(s, 85, 70)
+	var sim := BattleSim.new()
+	sim.runner.step(s)
+	var before := s.state_hash()
+	for v in [0, 1, 2]:
+		BattleProbe.snapshot(s, v)
+	assert_eq(s.state_hash(), before)
