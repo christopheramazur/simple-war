@@ -64,6 +64,8 @@ def add_args(p) -> None:
                             help="quit after N frames (for a scene that never quits; --editor defaults to 200)")
             sp.add_argument("--editor", action="store_true",
                             help="start the editor headless instead, so editor plugins load and report errors")
+            sp.add_argument("--windowed", action="store_true",
+                            help="a real renderer, no --headless (the capture runner draws PNGs; sw-tho3.14)")
             sp.add_argument("--tail", type=int, default=TAIL, help=f"output lines to show (default {TAIL})")
             sp.add_argument("extra", nargs="*", help="after --: arguments for the script")
 
@@ -270,7 +272,8 @@ def _run_one(args) -> Result:
             r.checks.append(Check("target", FAIL, f"no such file: {target}"))
             return r
         r.data["target"] = target
-    code, lines = _run(exe, root, run_args(target, args.editor, args.quit_after, args.extra or []), args.timeout)
+    code, lines = _run(exe, root, run_args(target, args.editor, args.quit_after, args.extra or []), args.timeout,
+                       headless=not getattr(args, "windowed", False))
     errs = errors(lines)
     shown = [x for x in lines if not NOISE.match(x)][-args.tail:] if args.tail > 0 else []
     r.data["exit"] = code

@@ -123,7 +123,7 @@ def test_accept_replaces_the_golden_set_with_the_capture(tmp_path):
 
 
 def _cli_args(**kw):
-    base = dict(action="diff", capture="", golden="g", accept=False)
+    base = dict(action="diff", capture="", golden="g", accept=False, metric="exact")
     base.update(kw)
     return argparse.Namespace(**base)
 
@@ -169,3 +169,66 @@ def test_cli_refuses_to_accept_a_capture_into_itself(tmp_path, monkeypatch):
     _save(inside / "t.png", _label_at(20, 40))
     r = visual_cmd.run(_cli_args(capture=str(inside), golden="x", accept=True))
     assert r.exit_code == 2 and (inside / "t.png").is_file()
+
+
+# ---- perceptual mode (sw-tho3.14): blur, then SSIM over 16 px tiles -----------------------------
+
+PERC = golden.Perceptual(block=16, min_block_ssim=0.9, max_changed_share=0.01, blur_radius=1)
+
+
+def _dither(fn, amp):
+    """fn plus a deterministic per-pixel jitter in [-amp, amp] (a rounding or dither pattern)."""
+    def g(x, y):
+        j = ((x * 7 + y * 13) % (2 * amp + 1)) - amp
+        return tuple(min(255, max(0, c + j)) for c in fn(x, y))
+    return g
+
+
+def test_perceptual_config_is_read_and_calibrated_values_are_stated():
+    perc = golden.load_perceptual()
+    assert (perc.block, perc.min_block_ssim, perc.max_changed_share, perc.blur_radius) == (16, 0.9, 0.001, 1)
+
+
+def test_perceptual_identical_is_same_and_dither_within_tolerance_is_same(tmp_path):
+    base = _label_at(20, 40)
+    gold = _save(tmp_path / "gold" / "a.png", base)
+    assert golden.compare_shot("a.png", gold, _save(tmp_path / "i" / "a.png", base), TOL, perc=PERC).status == "same"
+    dith = _save(tmp_path / "d" / "a.png", _dither(base, 2))
+    s = golden.compare_shot("a.png", gold, dith, TOL, perc=PERC)
+    assert s.status == "same" and s.changed == 0, s.detail
+
+
+def test_perceptual_label_move_is_over_and_one_pixel_shift_is_not(tmp_path):
+    gold = _save(tmp_path / "gold" / "a.png", _label_at(20, 40))
+    moved = _save(tmp_path / "m" / "a.png", _label_at(40, 40))
+    over = golden.compare_shot("a.png", gold, moved, TOL, perc=PERC)
+    assert over.status == "over" and over.failed, over.detail
+    shifted = _save(tmp_path / "s" / "a.png", _label_at(21, 40))
+    assert not golden.compare_shot("a.png", gold, shifted, TOL, perc=PERC).failed
+
+
+def test_perceptual_diff_image_marks_flagged_tiles(tmp_path):
+    gold = _save(tmp_path / "gold" / "a.png", _label_at(20, 40))
+    moved = _save(tmp_path / "m" / "a.png", _label_at(40, 40))
+    out = tmp_path / "out" / "a.png"
+    s = golden.compare_shot("a.png", gold, moved, TOL, out, PERC)
+    assert s.diff_png == out and s.changed > 0
+    img = visual.read_png(out)
+    magenta = sum(1 for i in range(0, len(img.data), img.channels) if tuple(img.data[i:i + 3]) == golden.MAGENTA)
+    assert magenta > 0 and magenta % (16 * 16) == 0  # whole tiles, never single pixels
+
+
+def test_cli_metric_ssim_uses_the_perceptual_thresholds(tmp_path, monkeypatch):
+    monkeypatch.setenv("HX_REPO_ROOT", str(tmp_path))
+    data = tmp_path / "data" / "visual"
+    cap = data / "run2"
+    _save(cap / "s.png", _label_at(20, 40), w=W, h=H)
+    assert visual_cmd.run(_cli_args(capture="run2", golden="p", accept=True)).exit_code == 0
+    # a 1-pixel shift and channel dither are not changes in the perceptual metric
+    _save(cap / "s.png", _dither(_label_at(21, 40), 2))
+    r = visual_cmd.run(_cli_args(capture="run2", golden="p", metric="ssim"))
+    assert r.exit_code == 0 and r.data["metric"] == "ssim" and "SSIM" in r.data["tolerance"]
+    # a label moved 20 px is over
+    _save(cap / "s.png", _label_at(40, 40))
+    r = visual_cmd.run(_cli_args(capture="run2", golden="p", metric="ssim"))
+    assert r.exit_code == 1 and r.data["over"] == 1

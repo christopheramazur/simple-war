@@ -6,3 +6,14 @@
 max_channel_delta = 8
 # A shot is over tolerance (a regression) when more than this share of its pixels is changed.
 max_changed_share = 0.01
+
+# Perceptual mode (sw-tho3.14): `hx visual diff --metric ssim`. Both captures are box-blurred (window 2 x blur_radius + 1,
+# absorbs anti-aliasing and dither), then SSIM is taken over block x block tiles, per colour channel (the lowest kept).
+# A tile is changed below min_block_ssim; a shot is over when more than max_changed_share of its tiles is changed.
+# Calibrated on real captures (attack_move_firing_position stills, sw-tho3.14 notes): noise sat at or under
+# 0.04% of tiles, label moves, hidden labels, recolours and a different battle at 0.29% or more.
+[golden.perceptual]
+block = 16
+min_block_ssim = 0.9
+max_changed_share = 0.001
+blur_radius = 1
