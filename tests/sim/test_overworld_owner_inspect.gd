@@ -113,3 +113,17 @@ func test_only_the_owner_gets_actions() -> void:
 	var village := _village(s)
 	assert_true(s.inspect_feature(2, village).get("actions", []).is_empty(), "nothing for someone else's feature")
 	assert_false(s.inspect_feature(1, village)["actions"].is_empty())
+
+
+func test_output_choices_are_actions_and_mark_the_selected_one() -> void:
+	var s := _planning()
+	var t := s.rules.feature_index("hex_barracks")
+	var barracks := s.state.features.id_at(s.state.feature_row(P(8, 7), t))
+	s.state.features.set_value(barracks, &"owner", 1)
+	var info := s.inspect_feature(1, barracks)
+	var outs := (info["actions"] as Array).filter(func(a: Dictionary) -> bool: return a["action"] == "output")
+	assert_eq(outs.size(), (info["produces"] as Array).size(), "one output choice per production option")
+	assert_eq(s.set_output(1, barracks, 1), "")
+	outs = (s.inspect_feature(1, barracks)["actions"] as Array).filter(func(a: Dictionary) -> bool: return a["action"] == "output")
+	assert_true(bool(outs[1]["selected"]))
+	assert_false(bool(outs[0]["selected"]))
