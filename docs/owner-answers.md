@@ -11,3 +11,8 @@ Written by `hx human`: each answer the owner gave a bead that was waiting on the
 **Add a cooldown circuit breaker for nous rate-limit errors in the gateway** (blocked, P3)
 
 > can be closed
+
+## 2026-11-28 22:05 AEST · sw-5x6.2 · release
+**GodotSteam transport behind a transport interface (lobbies, Sockets/SDR)** (blocked, P3)
+
+> determine if still needed, close off if not
