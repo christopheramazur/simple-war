@@ -136,3 +136,61 @@ func test_the_war_room_runs_standalone() -> void:
 	assert_eq(w._main.mode, "overworld")
 	w.end_turn_requested.emit()
 	assert_eq(w.session.turns_resolved(), 2)
+
+
+# --- per-feature selection (sw-63wt.7, U1Q23) ---------------------------------
+
+## _obs() plus known plots: plot 30 holds sites 501 (own) and 502 (enemy).
+func _obs_sites(visible: bool = true, sites: Array = [[501, 1], [502, 2]]) -> Dictionary:
+	var obs := _obs()
+	var feats := []
+	for f: Array in sites:
+		feats.append({"id": f[0], "tmpl": 0, "owner": f[1]})
+	obs["plots"] = {30: {"visible": visible, "features": feats}}
+	return obs
+
+
+func test_selecting_a_feature_selects_its_hex_and_clears_the_rest() -> void:
+	var v := _ctx()
+	v.select_commander(C)
+	v.select_feature(501, 30, _obs_sites())
+	assert_eq(v.selected_feature, 501)
+	assert_eq(v.selected_plot, 30)
+	assert_eq(v.selected, -1, "the panel shows the site, not the commander")
+	assert_true(v.feature_in_sight)
+	v.select_feature(502, 30, _obs_sites())
+	assert_eq(v.selected_feature, 502, "enemy sites are selectable for inspection")
+	v.select_feature(999, 30, _obs_sites())
+	assert_eq(v.selected_feature, 502, "an unknown feature is not selected")
+
+
+func test_a_feature_out_of_sight_stays_selected_as_last_seen() -> void:
+	var v := _ctx()
+	v.sync(_obs_sites())
+	v.select_feature(501, 30, _obs_sites())
+	v.sync(_obs_sites(false))
+	assert_eq(v.selected_feature, 501)
+	assert_false(v.feature_in_sight, "shown as last seen")
+	var w := _ctx()
+	w.select_feature(502, 30, _obs_sites(false))
+	assert_eq(w.selected_feature, 502, "a remembered feature is selectable")
+	assert_false(w.feature_in_sight)
+
+
+func test_a_feature_that_is_gone_clears() -> void:
+	var v := _ctx()
+	v.select_feature(502, 30, _obs_sites())
+	v.sync(_obs_sites(true, [[501, 1]]))
+	assert_eq(v.selected_feature, -1)
+	assert_eq(v.selected_plot, 30, "the hex stays selected")
+
+
+func test_deselect_all_and_other_selections_clear_the_feature() -> void:
+	var v := _ctx()
+	v.select_feature(501, 30, _obs_sites())
+	v.deselect_all()
+	assert_eq(v.selected_feature, -1)
+	for pick: Callable in [func() -> void: v.select_hex(30), func() -> void: v.select_commander(C), func() -> void: v.select_detachment(7)]:
+		v.select_feature(501, 30, _obs_sites())
+		pick.call()
+		assert_eq(v.selected_feature, -1)
