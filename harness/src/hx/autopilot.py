@@ -383,6 +383,12 @@ def prepare_worktree(bead: str) -> tuple[Path, str, bool]:
     swarm.fill_gitlinks(wt)
     if continued:
         save_wip(wt, bead, "uncommitted work from the previous attempt")
+        # A resumed bead often waited on another bead to land (a dependency, or a blocked "needs X on main"):
+        # bring main in so the session starts from it. A conflict is left for the session (and the merge gate).
+        with file_lock("git"):
+            if git("merge", "--no-edit", "-q", "-m", f"Merge main into {branch}", "main", cwd=wt).returncode:
+                git("merge", "--abort", cwd=wt)
+                log(f"{bead}: main does not merge cleanly into {branch}; the session starts from the old branch")
     return wt, branch, continued
 
 
