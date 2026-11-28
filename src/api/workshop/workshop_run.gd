@@ -45,6 +45,12 @@ var turn_hashes: PackedStringArray = PackedStringArray()
 var final_hash: String = ""
 ## Turns actually run (fewer when the battle ended early).
 var turns_run: int = 0
+## When set before play, every frame also gets a WorkshopDebug frame
+## (frame -> Dictionary of plain data) for the debug overlay.
+var debug: bool = false
+var debug_frames: Dictionary = {}
+## The debug capture's own route planner (the battle's cache is untouched).
+var _debug_routes: BattleRoute
 
 var _turn: int = 0
 var _k: int = 0
@@ -63,10 +69,13 @@ static func loader_for(package: String) -> PackageLoader:
 
 
 ## Builds the battle and, when `play`, runs it (false: placed, not run).
-static func execute(sc: WorkshopScenario, variant_name: String = WorkshopScenario.BASE, play: bool = true) -> WorkshopRun:
+## `with_debug` records a WorkshopDebug frame per frame (debug_frames).
+static func execute(sc: WorkshopScenario, variant_name: String = WorkshopScenario.BASE, play: bool = true,
+		with_debug: bool = false) -> WorkshopRun:
 	var run := WorkshopRun.new()
 	run.scenario = sc
 	run.variant = variant_name
+	run.debug = with_debug
 	if not sc.is_valid():
 		run.errors.append_array(sc.errors)
 		return run
@@ -112,6 +121,7 @@ func _build(squads: Array) -> bool:
 			_err("open: package '%s' has no 'open' feature" % scenario.package)
 			return false
 		rules.terrain.fill(ground)
+		rules.clear_los_memo()
 		rules.facing.fill(0)
 	state = BattleSetup.create(1, rules, scenario.seed_value)
 	for i in squads.size():
@@ -253,6 +263,10 @@ func _frame(st: BattleState, turn: int, tick: int, abs_tick: int) -> int:
 	_last_tick = st.tick
 	recorder.capture(st)
 	var f := frame_turn.size()
+	if debug:
+		if _debug_routes == null:
+			_debug_routes = BattleRoute.new()
+		debug_frames[f] = WorkshopDebug.capture(st, _debug_routes)
 	frame_turn.append(turn)
 	frame_tick.append(tick)
 	frame_abs.append(abs_tick)

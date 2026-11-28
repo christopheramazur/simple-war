@@ -13,7 +13,7 @@ from hx import swarm
 
 TOML = """
 [run]
-end_at = "2026-11-24T13:00:00+00:00"
+end_at = "2099-01-01T00:00:00+00:00"
 core_slots = {core}
 support_slots = 1
 

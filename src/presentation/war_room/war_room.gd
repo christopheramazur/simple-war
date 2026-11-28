@@ -26,7 +26,8 @@ extends Control
 ## turn is played out over that long (commanders and convoys walk their hexes,
 ## battles replay tick by tick) before the next Planning is shown. Space or
 ## Esc skips it; a left click inspects the squad under it (its card shows)
-## and no click issues orders. The game itself has already resolved: playback
+## and selects it as Planning does (sw-bafi.2), but no click or key issues
+## orders ("Orders open in Planning"). The game itself has already resolved: playback
 ## only delays what is drawn.
 ##
 ## Planning in the focused battle (sw-ip8.3, GDD 01 Input and UI, 02 §2.2):
@@ -162,6 +163,9 @@ var _play_card_frame: int = -1
 ## The screen's windows (sw-ijp.2): modals, the playback blocker, the hover card.
 var ui: UiRoot
 var _blocker: PlaybackBlocker
+## The side column's scrolling list (commanders, the commander panel, battles):
+## open during overworld playback (sw-bafi.9).
+var _side_scroll: Control
 ## What the player knows about the hex under the cursor.
 var _hover_card: PanelContainer
 var _hover_win: UiWindow
@@ -290,6 +294,8 @@ func _build_ui() -> void:
 	_main.hex_clicked.connect(_on_hex_clicked)
 	_main.battle_pressed.connect(_on_battle_pressed)
 	_main.battle_box.connect(_on_battle_box)
+	_main.deploy_dragged.connect(_on_deploy_dragged)
+	_main.deploy_faced.connect(_on_deploy_faced)
 	_main.zoomed.connect(func(f: float) -> void: contexts.zoom_by(f))
 	_main.battle_camera.connect(func(z: float, c: Vector2) -> void: contexts.set_battle_camera(z, c))
 	_main.hex_hovered.connect(_on_hex_hovered)
@@ -305,7 +311,7 @@ func _build_ui() -> void:
 	_hover_card.minimum_size_changed.connect(_hover_card.reset_size)
 	_hover_win = UiWindow.new()
 	_hover_win.layer = UiWindow.Layer.HUD
-	_hover_win.contexts = PackedStringArray(["overworld"])
+	_hover_win.contexts = PackedStringArray(["overworld", "playback"])
 	_hover_win.wanted = false
 	_hover_win.add_child(_hover_card)
 	_radial = ReactionRadial.new()
@@ -464,6 +470,9 @@ func _build_ui() -> void:
 	# orders mid-turn). Over a battle the stage is left to the view: a left
 	# click inspects the squad under it, the wheel zooms and middle-drag pans
 	# (sw-bafi.1). Space and Esc still skip.
+	_side_scroll = _commander_box
+	while _side_scroll != null and not _side_scroll is ScrollContainer:
+		_side_scroll = _side_scroll.get_parent() as Control
 	_blocker = PlaybackBlocker.new()
 	_blocker.layer = UiWindow.Layer.BLOCKER
 	_blocker.contexts = PackedStringArray(["playback"])
@@ -525,10 +534,18 @@ func _sync_ui_context() -> void:
 	var view := &"overworld" if contexts.focus == ViewContexts.OVERWORLD else &"battle"
 	layout.set_view(view)
 	ui.context = &"playback" if not _play.is_empty() else view
-	# A battle's stage stays open during playback (inspect, zoom, pan); the
-	# overworld's stage stays covered until C8 (sw-bafi.1).
+	# A battle's stage stays open during playback (inspect, zoom, pan;
+	# sw-bafi.1). On the overworld the side panels' lists open too, so the
+	# commanders, hexes and battles can be inspected: every planning control
+	# in them is disabled with the reason (sw-bafi.9). The footer stays covered.
 	if _blocker != null:
-		_blocker.uncovered = layout.regions.get("stage") if contexts.focus != ViewContexts.OVERWORLD else null
+		var open: Array[Control] = []
+		var stage: Control = layout.regions.get("stage")
+		if stage != null:
+			open.append(stage)
+		if contexts.focus == ViewContexts.OVERWORLD and _side_scroll != null:
+			open.append(_side_scroll)
+		_blocker.uncovered = open
 
 
 func _clear(parent: Node) -> void:
@@ -581,10 +598,60 @@ func _obs() -> Dictionary:
 ## session.observe_battle(player, eid), computed once per refresh.
 func _obs_battle(eid: int) -> Dictionary:
 	if not _caching:
-		return session.observe_battle(player, eid)
+		return _read_battle(eid)
 	if not _obs_cache.has(eid):
-		_obs_cache[eid] = session.observe_battle(player, eid)
+		_obs_cache[eid] = _read_battle(eid)
 	return _obs_cache[eid]
+
+
+## The battle as this player sees it: observe_battle with, in Planning, the
+## squads of its arriving at the next Reveal merged in (_merge_arrival); a
+## joining side, with no battle observation yet, sees only those.
+func _read_battle(eid: int) -> Dictionary:
+	return _merge_arrival(eid, session.observe_battle(player, eid))
+
+
+## Adds this player's arrivals in Planning (sw-bafi.18 joiners, sw-bafi.19
+## reinforcements of a side already fighting) to a battle observation: the
+## squads of session.arrival as own squads at their shown places, marked
+## "arriving", under display IDs (ARRIVAL_BASE + overworld ID, so they never
+## meet a battle squad's ID), and the area as "arrival_area". The planner
+## places them like deployment; _on_deploy maps the IDs back for
+## submit_arrival. A joiner's view (no observation) is built from the arrival
+## alone and marked "arrival", so it sends no orders. `obs` unchanged when
+## nothing of this player's arrives there in Planning.
+func _merge_arrival(eid: int, obs: Dictionary) -> Dictionary:
+	if session.clock.phase != PulseClock.Phase.PLANNING:
+		return obs
+	var a := session.arrival(player, eid)
+	var r := _battle_rules(eid)
+	if a.is_empty() or r == null:
+		return obs
+	var squads := []
+	for q: Dictionary in a["squads"]:
+		var st := int(q["tmpl"])
+		var size: int = r.sq_members[st].size()
+		squads.append({"id": ARRIVAL_BASE + int(q["squad"]), "player": player, "template": r.squad_ids[st],
+			"name": r.sq_names[st], "size": size, "alive": size, "destroyed": false, "withdrawn": false,
+			"abilities": [], "x": q["x"], "y": q["y"], "facing": q["facing"], "placed": q["placed"], "arriving": true})
+	var out := obs.duplicate()
+	if obs.is_empty():
+		out = {"engagement": eid, "player": player, "phase": session.phase_name(), "arrival": true,
+			"width": r.width, "height": r.height, "deploying": false, "areas": [], "squads": [], "units": []}
+	out["squads"] = (out.get("squads", []) as Array) + squads
+	out["arrival_area"] = a["area"]
+	return out
+
+
+## Arrival placements from the planner (display IDs) for submit_arrival
+## (overworld IDs).
+static func _arrival_placements(placements: Array) -> Array:
+	var out := []
+	for d: Dictionary in placements:
+		var e := d.duplicate()
+		e["squad"] = int(d["squad"]) - ARRIVAL_BASE
+		out.append(e)
+	return out
 
 
 func _refresh_inner() -> void:
@@ -602,6 +669,7 @@ func _refresh_inner() -> void:
 		_radial.hide()
 	_sync_ui_context()
 	if not _play.is_empty():
+		_refresh_playback_side()
 		_show_play()
 		return
 	_show_main()
@@ -610,11 +678,27 @@ func _refresh_inner() -> void:
 	_refresh_commanders()
 	_refresh_orders()
 	_refresh_reactions()
+	_commander_box.locked_reason = ""
 	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
 	_refresh_log()
 	_refresh_phase_banner()
 	_refresh_battle_panel()
 	_refresh_hud()
+
+
+## Overworld playback leaves the side lists open (sw-bafi.9): they show the
+## selection as it is now, to inspect, with every planning control disabled
+## and the reason on it. The event log waits for the end of the playback. A
+## battle's playback keeps the side panels covered and as they were (C1).
+func _refresh_playback_side() -> void:
+	if contexts.focus != ViewContexts.OVERWORLD:
+		return
+	_refresh_menu()
+	_refresh_commanders()
+	_refresh_orders()
+	_refresh_reactions()
+	_commander_box.locked_reason = PLANNING_ONLY_NOTE
+	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
 
 
 ## The battle camera moved: only the main view redraws.
@@ -639,7 +723,10 @@ func _show_main() -> void:
 	pl.sync(obs)
 	_main.title = battle_name(contexts.focus)
 	var fc: Dictionary = _forecasts.get(contexts.focus, {})
-	_main.show_battle(obs, {"selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
+	var deploy := _deploy_overlay(pl)
+	if not deploy.is_empty():
+		obs = pl.deploy_view(obs)
+	_main.show_battle(obs, {"deploy": deploy, "selected": pl.selection, "drafts": pl.drafts, "ghosts": fc.get("ghosts", {}),
 		"contacts": fc.get("contacts", []), "reactable": _reactable(contexts.focus), "inspected": _inspected,
 		"triggers": _triggers(contexts.focus), "telegraphs": session.telegraphs(player, contexts.focus), "terrain": _battle_rules(contexts.focus), "pending": _pending.has(contexts.focus)})
 
@@ -727,6 +814,8 @@ func view_next_player() -> void:
 ## What the mouse and keys do in the present context, in one line.
 func hints() -> String:
 	if not _play.is_empty():
+		if contexts.focus == ViewContexts.OVERWORLD:
+			return "Turn %d is playing out.  Space or Esc: skip to the end  ·  click a commander or a hex: inspect it  ·  wheel: zoom  ·  routes and orders: %s" % [int(_play["turn"]), PLANNING_ONLY_NOTE]
 		return "Turn %d is playing out.  Space or Esc: skip to the end  ·  click a squad: its card" % int(_play["turn"])
 	if replay != null:
 		var where := "the recording has ended" if replay.at_end() else "turn %d of %d" % [session.turns_resolved() + 1, replay.turns()]
@@ -743,6 +832,15 @@ func hints() -> String:
 	if session.clock.phase == PulseClock.Phase.REACTION:
 		return "Reaction window: click a marked squad to react  ·  Space: play the turn"
 	var pl := _focused_planner()
+	if deploying_now(pl) and not pl.deploying and not _attack_armed:
+		if pl.selection.is_empty():
+			return ARRIVAL_HINT
+		if not pl.selection.filter(pl.can_place).is_empty():
+			return "Arrival: drag a selected arriving squad to place the group (offsets kept)  ·  Drag the knob or E / Shift+E: turn (8 directions)  ·  Arrows or left stick: nudge  ·  Arriving squads take orders after the Reveal  ·  Space: end turn"
+	elif deploying_now(pl) and not _attack_armed:
+		if pl.selection.is_empty():
+			return "Deployment: drag one of your squads inside your lit area to place it  ·  Left click or drag a box: select squads  ·  Turn-1 orders work as in Planning  ·  Space: end turn (squads you leave keep their automatic places)"
+		return "Deployment: drag a selected squad to place the group (offsets kept)  ·  Drag the knob or E / Shift+E: turn (8 directions)  ·  Arrows or left stick: nudge  ·  Right click: turn-1 move  ·  Space: end turn"
 	if _attack_armed:
 		return "ATTACK-MOVE: right click where to go; the squads fight what they meet"
 	if pl != null and not pl.selection.is_empty():
@@ -867,7 +965,9 @@ func _refresh_hover_card() -> void:
 	if ui == null:
 		return
 	_sync_ui_context()
-	var info := session.inspect_plot(player, _hover_plot) if _hover_plot >= 0 and ui.context == &"overworld" else {}
+	# Overworld playback too: the hex shows what the player knows now (sw-bafi.9).
+	var over := ui.context == &"overworld" or (ui.context == &"playback" and contexts.focus == ViewContexts.OVERWORLD)
+	var info := session.inspect_plot(player, _hover_plot) if _hover_plot >= 0 and over else {}
 	_hover_win.wanted = bool(info.get("known", false))
 	if not _hover_win.wanted:
 		return
@@ -903,6 +1003,10 @@ func _battle_rules(eid: int) -> BattleRules:
 ## can't do (sw-ip8.7).
 func _refresh_phase_banner() -> void:
 	var ph := session.clock.phase
+	if session.state.outcome.is_empty() and deploying_now(_focused_planner()):
+		_phase_banner.visible = true
+		_phase_text.text = DEPLOY_BANNER if _focused_planner().deploying else ARRIVAL_BANNER
+		return
 	_phase_banner.visible = ph == PulseClock.Phase.REACTION and session.state.outcome.is_empty()
 	if _phase_banner.visible:
 		_phase_text.text = "Reaction window: moves are locked. React to the marked contacts (Halt · Fall back · Retarget) or press Space to play the turn. Moves you draw now are queued and sent in the next Planning phase."
@@ -1000,7 +1104,15 @@ func _refresh_commanders() -> void:
 
 func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 	if not _play.is_empty():
-		return  # playback: no orders or selection changes (sw-ll4.27.4)
+		# Playback: a left click selects to inspect (the panels show it with
+		# their actions disabled); a right click would plan, so it is refused
+		# with the reason (sw-bafi.9 U1 C8).
+		_target = {}
+		if button == MOUSE_BUTTON_LEFT and p >= 0:
+			_select_at(p)
+		elif button == MOUSE_BUTTON_RIGHT:
+			_refused_in_playback()
+		return
 	if not _target.is_empty():
 		if p >= 0 and button == MOUSE_BUTTON_LEFT:
 			send_to(p)
@@ -1021,10 +1133,13 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 		else:
 			contexts.deselect_all()
 		return
-	if p < 0:
-		return
-	# A commander first; clicking its hex again selects the garrison or
-	# convoy there (sw-kys.8).
+	if p >= 0:
+		_select_at(p)
+
+
+## A left click on hex p: a commander first; clicking its hex again selects
+## the garrison or convoy there (sw-kys.8); else the hex.
+func _select_at(p: int) -> void:
 	var obs := _obs()
 	var det := -1
 	for d: Dictionary in obs.get("detachments", []):
@@ -1076,6 +1191,8 @@ func _steer(p: int, shift: bool) -> String:
 ## turns as it takes). With `append`, the hex is a waypoint after its
 ## route. "" or why not.
 func steer_to(p: int, append: bool = false) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var did := _own_detachment()
 	if did < 0:
 		return "no convoy selected"
@@ -1091,6 +1208,8 @@ func steer_to(p: int, append: bool = false) -> String:
 
 ## Halts the selected detachment where it is. "" or why not.
 func halt_detachment() -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var did := _own_detachment()
 	if did < 0:
 		return "no convoy selected"
@@ -1110,10 +1229,23 @@ func _convoy_route_of(did: int) -> PackedInt64Array:
 func planner(eid: int) -> BattlePlanner:
 	if not planners.has(eid):
 		var pl := BattlePlanner.new(player)
+		pl.rules = _battle_rules(eid)
 		pl.sync(_obs_battle(eid))
 		pl.changed.connect(_on_draft.bind(eid))
+		pl.deploy_changed.connect(_on_deploy.bind(eid))
+		pl.selection_changed.connect(_on_selection.bind(eid))
 		planners[eid] = pl
 	return planners[eid]
+
+
+## The selection changed. In Planning it goes through the drafts as it always
+## has (submit and forecast, which keeps the forecast warm); elsewhere it only
+## redraws, so a selection never queues orders (sw-bafi.2).
+func _on_selection(eid: int) -> void:
+	if _play.is_empty() and session.clock.phase == PulseClock.Phase.PLANNING:
+		_on_draft(eid)
+	else:
+		_queue_refresh()
 
 
 ## Drafts changed: submit them and refresh the forecast. Outside Planning
@@ -1121,6 +1253,9 @@ func planner(eid: int) -> BattlePlanner:
 ## when Planning returns (sw-ip8.7).
 func _on_draft(eid: int) -> void:
 	if not session.battles.has(eid):
+		return
+	if _obs_battle(eid).get("arrival", false):
+		_queue_refresh()  # a joiner gives no orders before Reveal, only placements
 		return
 	var orders: Array = planner(eid).orders()
 	if session.clock.phase == PulseClock.Phase.PLANNING:
@@ -1133,6 +1268,77 @@ func _on_draft(eid: int) -> void:
 		_hud_note = "moves are locked until Planning: your drawn orders are queued"
 		_note("%s orders drawn in the %s phase (queued for Planning): %s" % [battle_name(eid), session.phase_name(), _orders_text(orders)])
 	_queue_refresh()
+
+
+## Whether the player can place squads in the focused battle now: Planning
+## of a deploying battle with an own area, not watching a replay or playback.
+func deploying_now(pl: BattlePlanner) -> bool:
+	return pl != null and pl.can_deploy() and replay == null and _play.is_empty() 		and session.clock.phase == PulseClock.Phase.PLANNING
+
+
+## The battle view's deployment overlay ({} unless deploying_now).
+func _deploy_overlay(pl: BattlePlanner) -> Dictionary:
+	if not deploying_now(pl):
+		return {}
+	return {"player": player, "areas": pl.areas, "own": pl.placeable(), "snap": pl.snap}
+
+
+## Deployment placements changed: submit them. Battle squads' placements go
+## through submit_battle_deployment while the battle deploys, arriving
+## squads' through submit_arrival (their only ways to the game). The draft
+## stays in the planner either way.
+func _on_deploy(eid: int) -> void:
+	var pl: BattlePlanner = planners.get(eid)
+	if pl == null or not session.battles.has(eid) or session.clock.phase != PulseClock.Phase.PLANNING:
+		return
+	var errs := PackedStringArray()
+	var parts := PackedStringArray()
+	if pl.deploying and pl.area.size != Vector2.ZERO:
+		var placements := pl.deployment()
+		var e := session.submit_battle_deployment(player, eid, placements)
+		errs.append_array(e)
+		parts.append("deployment: %s%s" % [_placements_text(placements), "" if e.is_empty() else " - refused: " + "; ".join(e)])
+	if pl.arrival_area.size != Vector2.ZERO:
+		var placements := _arrival_placements(pl.arrival())
+		var e := session.submit_arrival(player, eid, placements)
+		errs.append_array(e)
+		parts.append("arrival: %s%s" % [_placements_text(placements), "" if e.is_empty() else " - refused: " + "; ".join(e)])
+	if not _obs_battle(eid).get("arrival", false):
+		_forecast(eid, pl.orders())  # the ghosts start from the placed squads (sw-bafi.17)
+	_hud_note = "" if errs.is_empty() else "placement refused: " + "; ".join(errs)
+	_note("%s %s" % [battle_name(eid), "; ".join(parts)])
+	_queue_refresh()
+
+
+func _placements_text(placements: Array) -> String:
+	if placements.is_empty():
+		return "automatic"
+	var parts := PackedStringArray()
+	for d: Dictionary in placements:
+		parts.append("squad %d at (%.0f, %.0f) facing %d°" % [int(d["squad"]) & 0xffff, float(d["x"]) / ContextView.ONE,
+			float(d["y"]) / ContextView.ONE, roundi(float(d["facing"]) / Fixed.ANGLE_FULL * 360.0)])
+	return ", ".join(parts)
+
+
+## A squad (or the selected group) dragged in the battle view while deploying.
+func _on_deploy_dragged(ids: Array, anchor: int, delta: Vector2) -> void:
+	var pl := _focused_planner()
+	if deploying_now(pl):
+		pl.drag(ids, anchor, delta)
+
+
+## The facing handle dragged while deploying.
+func _on_deploy_faced(ids: Array, toward: Vector2) -> void:
+	var pl := _focused_planner()
+	if deploying_now(pl):
+		pl.face(ids, toward)
+
+
+## "Reset to automatic": the focused battle's placements dropped.
+func reset_deployment() -> void:
+	var pl := _focused_planner()
+	if deploying_now(pl):
+		pl.reset_deployment()
 
 
 ## Forecasts a battle's drafts on a worker thread; the ghosts show when it
@@ -1245,8 +1451,12 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 		_inspected = hit  # any squad in sight: its card (empty ground closes it)
 		_queue_refresh()
 	if not _play.is_empty():
-		# Playback: inspection only, no selection or orders (sw-ll4.27.4). The
+		# Playback: selection and inspection, never orders (sw-bafi.2). The
 		# card is for the moment shown, so it is built now (sw-bafi.1).
+		if button == MOUSE_BUTTON_LEFT:
+			_playback_click(pl, hit, shift, ctrl)
+		else:
+			_refuse_orders()
 		_refresh_battle_panel()
 		return
 	if session.clock.phase == PulseClock.Phase.REACTION:
@@ -1280,8 +1490,57 @@ func _on_battle_pressed(at: Vector2, button: int, shift: bool, ctrl: bool, alt: 
 
 func _on_battle_box(rect: Rect2, add: bool) -> void:
 	var pl := _focused_planner()
-	if pl != null and session.clock.phase == PulseClock.Phase.PLANNING and _play.is_empty():
+	if pl == null:
+		return
+	if not _play.is_empty():
+		# Playback: the squads drawn inside the box (their metres are the
+		# moment's, not the planner's last Planning).
+		pl.select(_main.squads_in(rect), add)
+	elif session.clock.phase == PulseClock.Phase.PLANNING:
 		pl.select_box(rect, add)
+
+
+## A left click on the battlefield during playback selects like Planning does:
+## an own squad (shift adds, ctrl toggles), empty ground clears (sw-bafi.2).
+func _playback_click(pl: BattlePlanner, hit: int, shift: bool, ctrl: bool) -> void:
+	if hit >= 0:
+		if _selectable(pl).has(hit):
+			pl.select([hit], shift, ctrl)
+	elif not shift and not ctrl:
+		pl.deselect()
+
+
+## The own squads a selection may take now. In playback, only those drawn at
+## the moment shown: a squad that died this turn stays in the planner's list
+## until the next Planning (sw-bafi.2).
+func _selectable(pl: BattlePlanner) -> Array[int]:
+	if _play.is_empty():
+		return pl.own_squads()
+	var drawn := _main.drawn_ids()
+	var out: Array[int] = []
+	for id: int in pl.own_squads():
+		if drawn.has(id):
+			out.append(id)
+	return out
+
+
+## An order action during playback is refused, with the reason shown in the
+## status line (sw-bafi.2).
+func _refuse_orders() -> void:
+	_hud_note = ORDERS_LOCKED_NOTE
+	_queue_refresh()
+
+
+## A planning or activity action (route, rally, supply line, battleforce,
+## activity, pick-up, reaction, reinforcement) while a turn plays out: it is
+## refused, with the reason in the status line (sw-bafi.9 U1 C8). True if
+## refused; nothing in the session or the drafts changes.
+func _refused_in_playback() -> bool:
+	if _play.is_empty():
+		return false
+	_hud_note = PLANNING_ONLY_NOTE
+	_queue_refresh()
+	return true
 
 
 ## GUIDE commands (PlanningInput).
@@ -1294,7 +1553,15 @@ func _on_command(name: StringName, arg: int) -> void:
 			contexts.set_bookmark(arg)
 			return
 	var pl := _focused_planner()
-	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING or not _play.is_empty():
+	if pl == null:
+		return
+	if name == &"recall_group":
+		pl.recall_group(arg)  # a selection, not an order: any time (sw-bafi.2)
+		return
+	if not _play.is_empty():
+		_refuse_orders()
+		return
+	if session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	match name:
 		&"hold", &"fall_back", &"withdraw":
@@ -1306,8 +1573,9 @@ func _on_command(name: StringName, arg: int) -> void:
 			pl.toggle_run()
 		&"abilities":
 			_queue_refresh()
-		&"recall_group":
-			pl.recall_group(arg)
+		&"rotate", &"rotate_back":
+			if deploying_now(pl):
+				pl.rotate(pl.selection, arg)
 		&"assign_group":
 			pl.assign_group(arg)
 		&"add_group":
@@ -1361,6 +1629,8 @@ func _on_panel_action(action: String, args: Array) -> void:
 
 ## Sends a squad from the commander's army into its battle.
 func send_reserve(cid: int, squad: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var err := session.reinforce(player, cid, squad)
 	_hud_note = err
 	_note("%s: send in squad %d%s" % [EventText.commander(cid), squad & 0xffff, "" if err.is_empty() else " - refused: " + err])
@@ -1374,6 +1644,16 @@ func _refresh_orders() -> void:
 	if pl == null or session.clock.phase != PulseClock.Phase.PLANNING:
 		return
 	_add_reserves(contexts.focus)
+	if deploying_now(pl):
+		var what := "Deployment" if pl.deploying else "Arrival"
+		_orders_box.add_child(_title("%s (%d placed)" % [what, pl.placements.size()]))
+		var reset := Button.new()
+		reset.name = "ResetDeployment"
+		reset.text = "Reset to automatic"
+		reset.tooltip_text = "Put every squad back in its automatic place in your %s area" % what.to_lower()
+		reset.disabled = pl.placements.is_empty()
+		reset.pressed.connect(reset_deployment)
+		_orders_box.add_child(reset)
 	_orders_box.add_child(_title("Orders (%d selected)" % pl.selection.size()))
 	if pl.selection.is_empty():
 		return
@@ -1455,7 +1735,7 @@ func _on_reaction_chosen(r: String) -> void:
 
 
 func _react(o: Dictionary, r: String) -> void:
-	if o.is_empty():
+	if o.is_empty() or _refused_in_playback():
 		return
 	var err := session.submit_reaction(player, o["engagement"], o["squad"], r, o["trigger"])
 	if err.is_empty():
@@ -1488,6 +1768,9 @@ func _refresh_reactions() -> void:
 			b.text = "%s %s" % [ReactionRadial.glyph(r), r.capitalize()]
 			b.toggle_mode = true
 			b.button_pressed = r == queued
+			if not _play.is_empty():
+				b.disabled = true
+				b.tooltip_text = PLANNING_ONLY_NOTE
 			b.pressed.connect(_react.bind(o, r))
 			row.add_child(b)
 		line.add_child(row)
@@ -1522,6 +1805,22 @@ func _input(event: InputEvent) -> void:
 
 ## Arrow keys: how far one press (or key repeat) pans the battle camera.
 const PAN_STEP: float = 60.0
+
+## The phase banner while the focused battle deploys (sw-bafi.12).
+const DEPLOY_BANNER: String = "Deployment: place your squads; the enemy can't see them until Reveal"
+## The banner while only arriving squads can be placed (sw-bafi.19).
+const ARRIVAL_BANNER: String = "Arrival: place your arriving squads in your arrival area; they enter the battle at the Reveal"
+const ARRIVAL_HINT: String = "Arrival: drag an arriving squad inside your lit arrival area to place it  ·  Left click or drag a box: select squads  ·  Space: end turn (squads you leave arrive at their automatic places)"
+## Display IDs of arriving squads in the battle view: this plus the overworld
+## squad ID, above any battle squad ID (_merge_arrival).
+const ARRIVAL_BASE: int = 1 << 48
+
+## The status line's reason when an order is asked for during playback (sw-bafi.2).
+const ORDERS_LOCKED_NOTE: String = "Orders open in Planning"
+
+## The reason on every overworld planning or activity control while a turn
+## plays out (disabled buttons' tooltips, refused actions; sw-bafi.9).
+const PLANNING_ONLY_NOTE: String = "Available in Planning"
 
 ## The war room's GUIDE actions (DefaultKeys.war_room), enabled while it is
 ## in the tree. Name -> GUIDEAction is `keys.actions`.
@@ -1582,26 +1881,32 @@ func _focus_first_control() -> void:
 
 
 func _on_pan(dir: Vector2) -> void:
-	if contexts != null and _keys_free() and contexts.focus != ViewContexts.OVERWORLD:
-		_main.pan_camera(dir * PAN_STEP)
+	if contexts == null or not _keys_free() or contexts.focus == ViewContexts.OVERWORLD:
+		return
+	# Deploying with squads selected: the arrows and the left stick nudge
+	# them instead (pad placement until sw-wut).
+	var pl := _focused_planner()
+	if deploying_now(pl) and not pl.selection.filter(pl.can_place).is_empty():
+		pl.nudge(dir)
+		return
+	_main.pan_camera(dir * PAN_STEP)
 
 
 ## Gamepad / key squad selection (sw-dqq): steps through the focused
-## battle's own squads and shows the card of the one reached. Selection
-## itself needs the planning or reaction phase; during playback it only
-## inspects.
+## battle's own squads, selects the one reached and shows its card. Selection
+## works in playback too (sw-bafi.2), over the squads drawn at the moment shown.
 func _cycle_squad(dir: int) -> void:
 	var pl := _focused_planner()
 	if pl == null:
 		return
-	var ids := pl.own_squads()
+	var ids := _selectable(pl)
 	if ids.is_empty():
 		return
 	var cur: int = _inspected if ids.has(_inspected) else (pl.selection[0] if not pl.selection.is_empty() else -1)
 	var i := ids.find(cur)
 	var next: int = ids[posmod(i + dir, ids.size())] if i >= 0 else ids[0 if dir > 0 else ids.size() - 1]
 	_inspected = next
-	if _play.is_empty() and session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
+	if not _play.is_empty() or session.clock.phase in [PulseClock.Phase.PLANNING, PulseClock.Phase.REACTION]:
 		pl.select([next])
 	_queue_refresh()
 
@@ -1660,6 +1965,8 @@ func _own_selected() -> int:
 ## waypoint: the way there starts where the planned route ends. "" or why
 ## not.
 func route_to(p: int, append: bool = false) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1683,6 +1990,8 @@ func route_to(p: int, append: bool = false) -> String:
 
 ## Clears the selected commander's route. "" or why not.
 func clear_route() -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1695,6 +2004,8 @@ func clear_route() -> String:
 ## Sends one of the player's detachments to a plot or a commander (both -1
 ## halts it). "" or why not.
 func rally(detachment: int, to_plot: int, to_commander: int, what: String) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	_hud_note = session.rally(player, detachment, to_plot, to_commander)
 	_note("send %s to %s%s" % [what, _dest_text(to_plot, to_commander), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
 	_queue_refresh()
@@ -1704,6 +2015,8 @@ func rally(detachment: int, to_plot: int, to_commander: int, what: String) -> St
 ## Sends a producing feature's output to a plot or a commander (both -1
 ## clears the line). "" or why not.
 func supply_line(feature: int, to_plot: int, to_commander: int, what: String) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	_hud_note = session.set_supply_line(player, feature, to_plot, to_commander)
 	_note("supply line: %s sends to %s%s" % [what, _dest_text(to_plot, to_commander), "" if _hud_note.is_empty() else " - refused: " + _hud_note])
 	_queue_refresh()
@@ -1719,6 +2032,8 @@ func _dest_text(to_plot: int, to_commander: int) -> String:
 ## Arms "send to" for a detachment ("rally") or a producing feature's
 ## output ("line"): the next hex clicked is where it goes.
 func arm_target(kind: String, id: int, what: String) -> void:
+	if _refused_in_playback():
+		return
 	_target = {"kind": kind, "id": id, "what": what}
 	_hud_note = ""
 	_queue_refresh()
@@ -1727,6 +2042,8 @@ func arm_target(kind: String, id: int, what: String) -> void:
 ## Sends the armed detachment or supply line to plot p, or to the player's
 ## commander standing on it. "" or why not.
 func send_to(p: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	if _target.is_empty():
 		return "nothing to send"
 	var cid := -1
@@ -1752,6 +2069,8 @@ var _hud_note: String = ""
 ## Battleforce for the selected commander: preset "" (strongest first),
 ## "none" (no battleforce: disperses Angels) or a named preset.
 func set_battleforce(preset: String, lead: bool) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1766,6 +2085,8 @@ func set_battleforce(preset: String, lead: bool) -> String:
 ## Plans the selected commander's activity where its route ends (recruit,
 ## hire, refit, ...; "" clears it). Returns "" or why it was refused.
 func set_activity(activity: String, option: String = "") -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -1888,6 +2209,8 @@ func _name_feature(d: Dictionary, obs: Dictionary) -> void:
 ## Moves a detachment's squads on the selected commander's hex into its
 ## army, until the army is full. "" or the first refusal.
 func pick_up(detachment_id: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
 	var cid := _own_selected()
 	if cid < 0:
 		return "no commander selected"
@@ -2010,6 +2333,7 @@ func _start_play(before: Dictionary, turn: int) -> void:
 	_radial.hide()
 	_refresh_hover_card()
 	_refresh_battle_panel()  # the card shows the turn being played, not the last planning
+	_refresh_playback_side()  # the side lists lock at once (sw-bafi.9)
 	set_process(true)
 	_show_play()
 
@@ -2036,7 +2360,8 @@ func _show_play() -> void:
 	elif battles.has(eid):
 		_main.title = battle_name(eid)
 		_main.set_camera(contexts.zoom, contexts.battle_centre)
-		_main.show_playback(battles[eid], t, _obs_battle(eid), _inspected)
+		var selected: Array = (planners[eid] as BattlePlanner).selection if planners.has(eid) else []
+		_main.show_playback(battles[eid], t, _obs_battle(eid), _inspected, selected)
 		# The squad card follows the shown moment: rebuild it when the frame
 		# changes, not on every draw (sw-ll4.27.3).
 		var frames: Array = (battles[eid] as Dictionary).get("frames", [])
@@ -2061,6 +2386,8 @@ func skip_playback() -> void:
 		return
 	_play = {}
 	_play_card_frame = -1
+	if _hud_note in [ORDERS_LOCKED_NOTE, PLANNING_ONLY_NOTE]:
+		_hud_note = ""  # the refusal was for playback; Planning takes orders again
 	_refresh_hover_card()
 	set_process(false)
 	contexts.sync(_obs())

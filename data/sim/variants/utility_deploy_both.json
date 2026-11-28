@@ -1,0 +1,14 @@
+{
+	"name": "utility_deploy_both",
+	"text": "Both sides play the Utility profile with the role deployment (the symmetric utility-vs-utility variant; the default once deploy: role is set).",
+	"controllers": {
+		"1": {
+			"profile": "profile_utility",
+			"deploy": "role"
+		},
+		"2": {
+			"profile": "profile_utility",
+			"deploy": "role"
+		}
+	}
+}
