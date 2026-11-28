@@ -129,6 +129,7 @@ func _build(squads: Array) -> bool:
 			_err("open: package '%s' has no 'open' feature" % scenario.package)
 			return false
 		rules.terrain.fill(ground)
+		rules.clear_los_memo()
 		rules.facing.fill(0)
 	state = BattleSetup.create(1, rules, scenario.seed_value)
 	for i in squads.size():

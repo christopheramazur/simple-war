@@ -127,6 +127,7 @@ func submit_deployment(player: int, placements: Array) -> PackedStringArray:
 		return errors
 	var c := BattleDeploy.check(state, player, placements)
 	_deploys[player] = c["kept"]
+	clock.set_deploying(player, 1 if not (c["kept"] as Array).is_empty() else 0)
 	_log(player, "battle_deploy", c["kept"])
 	return c["errors"]
 
@@ -167,7 +168,7 @@ func advance(ms: int) -> void:
 func forecast(player: int, orders: Array) -> Dictionary:
 	if clock.phase != PulseClock.Phase.PLANNING or not state.players.has(player):
 		return {}
-	return IntentForecast.run(state, sim, player, orders)
+	return IntentForecast.run(state, sim, player, orders, _deploys.get(player, []))
 
 
 ## Reaction opportunities for the player during the reaction window.
@@ -291,6 +292,7 @@ static func observe_state(state: BattleState, player: int, allies: PackedInt64Ar
 			d["engaged"] = sq.engaged[row]
 			d["hp_lost"] = sq.hp_lost[row]
 			d["hp_max"] = sq.hp_max[row]
+			d["locked"] = state.pinned.has(sid)  # the scenario places it (BattleDeploy)
 			d["abilities"] = Abilities.view(state, sid)
 			var pools := {}
 			for p in 5:

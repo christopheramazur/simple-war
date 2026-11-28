@@ -9,7 +9,8 @@ extends Node
 ##
 ## Commands: hold, attack_move (arms the next right click), fall_back,
 ## withdraw, run, recall_group / assign_group / add_group (arg 0-9),
-## recall_bookmark / set_bookmark (arg 1-4), abilities (opens the menu).
+## recall_bookmark / set_bookmark (arg 1-4), abilities (opens the menu),
+## rotate / rotate_back (deployment; arg +1 / -1 eighth of a turn).
 
 signal command(name: StringName, arg: int)
 
@@ -32,6 +33,9 @@ func _init() -> void:
 	_bind(&"withdraw", "Withdraw", 0, [_key(KEY_W, false, true), GuideKeys.pad(JOY_BUTTON_RIGHT_STICK)])
 	_bind(&"run", "Run", 0, [_key(KEY_R), GuideKeys.pad(JOY_BUTTON_LEFT_STICK)])
 	_bind(&"abilities", "Ability menu", 0, [_key(KEY_Q), GuideKeys.pad(JOY_BUTTON_X)])
+	# Deployment (sw-bafi.12): turn the selected squads an eighth of a turn.
+	_bind(&"rotate", "Rotate clockwise (deployment)", 1, [_key(KEY_E)])
+	_bind(&"rotate_back", "Rotate anticlockwise (deployment)", -1, [_key(KEY_E, false, true)])
 	for n in 10:
 		_bind(StringName("recall_group_%d" % n), "Recall group %d" % n, n, [_key(_KEYS[n])])
 		_bind(StringName("assign_group_%d" % n), "Assign group %d" % n, n, [_key(_KEYS[n], true)])

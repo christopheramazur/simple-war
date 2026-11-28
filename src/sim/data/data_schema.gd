@@ -91,6 +91,8 @@ const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 ## the start of a turn with an uncontested commander (R6Q14).
 const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert", "hire"]
 const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
+## Hex feature drawing layers (U1Q20); default "site".
+const HEX_LAYERS: Array[String] = ["ground", "path", "site"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
 const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
 
@@ -180,6 +182,16 @@ const OBJECTS: Dictionary = {
 		"deploy": {"type": "obj:rect", "required": true},
 		"squads": {"type": "list:ref:squad", "required": true},
 		"facing": {"type": "int"},
+	},
+	## A squad placed at a point of its side's area (sw-tdz, U1Q31): its
+	## automatic place, which the player may move unless `locked`.
+	"placed": {
+		"side": {"type": "int", "required": true, "min": 1},
+		"squad": {"type": "ref:squad", "required": true},
+		"x": {"type": "fixed", "required": true},
+		"y": {"type": "fixed", "required": true},
+		"facing": {"type": "int"},
+		"locked": {"type": "bool"},
 	},
 	"victory": {
 		"turn_limit": {"type": "int", "min": 1},
@@ -514,6 +526,17 @@ const KINDS: Dictionary = {
 		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
 		"icon": {"type": "string"},
 		"tile": {"type": "string"},
+		## Drawing only (U1Q20-U1Q22, sw-63wt.4; the rules never read them):
+		## ground features tile the hex (highest draw_order wins), paths draw
+		## strips to sides whose neighbour holds a feature they connect with
+		## (itself plus `connects`), sites take HexLayout slots by
+		## layout_priority (higher first), then template ID. color: six hex
+		## digits.
+		"layer": {"type": "string", "enum": HEX_LAYERS},
+		"draw_order": {"type": "int"},
+		"layout_priority": {"type": "int"},
+		"connects": {"type": "list:ref:hex_feature"},
+		"color": {"type": "string"},
 		"name": {"type": "string"},
 		"tags": {"type": "list:string"},
 		"move_cost": {"type": "int"},
@@ -679,6 +702,8 @@ const KINDS: Dictionary = {
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},
 		"sides": {"type": "list:obj:side", "required": true},
+		## Squads placed at their own points (sw-tdz); the rest deal evenly.
+		"placed": {"type": "list:obj:placed"},
 		"victory": {"type": "obj:victory", "required": true},
 		"end_hooks": {"type": "obj:end_hooks"},
 		"triggers": {"type": "list:ref:trigger"},

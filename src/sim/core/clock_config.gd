@@ -19,6 +19,12 @@ extends Resource
 @export var bonus_cap_battles: int = 10
 @export var bonus_beyond_ms: int = 1000
 
+## Deployment time (GDD 02 §2.2 Time): a player gets deployment_bonus_ms extra
+## Planning time for each battle they deploy in that Planning (10 s ranked),
+## on top of the parallel-battle bonus and not drawn from reserve.
+@export var deployment_bonus_ms: int = 15000
+@export var deployment_ranked_ms: int = 10000
+
 ## Reaction window (R2Q4, R3Q1): configurable off; doesn't draw reserve; more
 ## battles give more time. Duration numbers are placeholders.
 @export var reaction_enabled: bool = true
@@ -54,6 +60,11 @@ func parallel_bonus_ms(battles: int) -> int:
 	if battles > bonus_cap_battles:
 		bonus += (battles - bonus_cap_battles) * bonus_beyond_ms
 	return bonus
+
+
+## Extra Planning time for one battle deployed in (0 when there is none).
+func deployment_bonus_per_battle_ms() -> int:
+	return deployment_ranked_ms if ranked else deployment_bonus_ms
 
 
 func reaction_ms_for(battles: int) -> int:
