@@ -1,0 +1,7 @@
+{
+	"name": "deploy_smart",
+	"text": "Player 1 deploys by role (UtilityDeploy: indirect fire at the back edge, short range forward, concealment in cover); player 2 keeps the automatic places. Both play the baseline profiles otherwise.",
+	"controllers": {
+		"1": {"deploy": "role"}
+	}
+}

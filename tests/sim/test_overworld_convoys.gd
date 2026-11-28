@@ -82,6 +82,27 @@ func test_production_fills_a_garrison() -> void:
 	assert_eq(s.features.get_value(fid, &"progress"), 3)
 
 
+## A battle on a producing hex pauses production: progress is held and no
+## squad appears on the battle hex. It resumes the turn after the battle ends
+## (sw-63wt.12, GDD 02 §2.9).
+func test_production_pauses_while_its_hex_is_engaged() -> void:
+	var s := _s()
+	var fid := _barracks(s)
+	_turns(s, 1)
+	assert_eq(s.features.get_value(fid, &"progress"), 1)
+	var eid := s.engagements.spawn({&"plot": P(8, 7), &"kinds": OverworldEngagements.ACTIVITY, &"turn": s.turn})
+	var ev := _turns(s, 3)
+	assert_eq(s.features.get_value(fid, &"progress"), 1, "progress is held, not reset or advanced")
+	assert_eq(_of(ev, &"squad_produced").size(), 0, "nothing is made while engaged")
+	assert_true(Detachments.at(s, P(8, 7)).is_empty(), "no detachment appears on the battle hex")
+	OverworldMovement.end_engagement(s, eid)
+	ev = _turns(s, 1)
+	assert_eq(s.features.get_value(fid, &"progress"), 2, "production resumes the turn after the battle")
+	assert_eq(_of(ev, &"squad_produced").size(), 0)
+	ev = _turns(s, 1)
+	assert_eq(_of(ev, &"squad_produced").size(), 1, "and makes its squad when due")
+
+
 func test_selecting_output() -> void:
 	var s := _s()
 	var fid := _barracks(s)

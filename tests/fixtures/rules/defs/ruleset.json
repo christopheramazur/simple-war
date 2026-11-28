@@ -6,6 +6,7 @@
 			"morale_interval_ticks": 10,
 			"morale_rate_per_s": "0.4",
 			"morale_leech_pct": 10,
+			"separation_m": {"small": "0.4", "medium": "0.6", "large": "1.2", "huge": "2.4"},
 			"pool_defaults": {
 				"stamina": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},
 				"instinct": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},
@@ -16,7 +17,7 @@
 			"sinks": {
 				"stamina_run_per_s": 4,
 				"stamina_per_hp_lost_pct": 1,
-				"instinct_fire_moving": 1,
+				"instinct_fire_moving_per_s": 2,
 				"instinct_reaction": 10,
 				"prowess_readying_per_s": 2
 			},

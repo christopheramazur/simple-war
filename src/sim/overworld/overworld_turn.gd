@@ -3,7 +3,8 @@ extends RefCounted
 ## Resolves one overworld turn after planning (GDD 02 §2.2, §2.9):
 ##   1. movement, with captures and cache pickups on the way;
 ##   2. activities of commanders that ended on their planned hex;
-##   3. production: controlled features pay their owners Value;
+##   3. owner actions: remote buys at owned features (OverworldOwnerActions);
+##   3b. production: controlled features pay their owners Value;
 ##   4. the turn advances, and uncertain-outcome features are offered to
 ##      players with a commander uncontested on their hex (R6Q14);
 ##   5. the map's triggers run over the turn's events (Triggers).
@@ -21,6 +22,7 @@ static func resolve(s: OverworldState) -> Array[SimEvent]:
 	s.drops = {}
 	OverworldActivities.resolve(s)
 	s.activities = {}
+	OverworldOwnerActions.resolve(s)
 	produce(s)
 	OverworldVision.update(s)
 	s.turn += 1

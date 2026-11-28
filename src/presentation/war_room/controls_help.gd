@@ -22,11 +22,13 @@ static func help() -> Array:
 Mouse wheel: zoom; zooming in on a battle hex enters it
 %s: deselect everything" % [end, nxt, prev, focus, cancel, deselect]],
 		["Overworld", "Left click: select a commander or a hex (the panel on the right says what is there)
+Left click a site: select it (or click its row in the panel); a commander or convoy token on top of it is picked first. Remembered sites show as last seen; enemy sites are for inspection
+Right click with one of your producing sites selected: set its rally point (a hex, or one of your commanders)
 Right click: move the selected commander there. Lit hexes are in reach this turn; the number is the movement cost
 %s + right click: add a waypoint, so the route goes there next
 Right click the commander itself: clear its route
 %s: follow the selected commander
-Garrisons, convoys and producing features: select their hex, press \"Send to\", then click a hex or one of your commanders" % [k.text_of(&"route_via"), follow]],
+Garrisons, convoys and producing sites: select them, press \"Send to\" or \"Set rally point…\", then click a hex or one of your commanders" % [k.text_of(&"route_via"), follow]],
 		["Battle", "Left click or drag a box: select your squads (Shift adds, Ctrl toggles, double click selects the type)
 Left click any squad: show its card on the left. Hovering shows its weapon range
 Right click: move the selection there (Alt: in a new line). Right click an enemy: attack it

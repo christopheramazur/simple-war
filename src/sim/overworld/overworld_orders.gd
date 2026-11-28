@@ -274,3 +274,51 @@ static func leave_battle(s: OverworldState, player: int, commander_id: int) -> S
 	s.events.push(&"commander_left_battle", {"commander": commander_id, "engagement": eid,
 		"player": player, "plot": c.plot[row]}, s.tick)
 	return ""
+
+
+## Plans an owner action on one of the player's features, from anywhere
+## (U1Q24, GDD 02 §2.9). "" clears the feature's planned buys.
+##   buy:    `option` names one of its recruits (a squad) or sells (an
+##           item); each call adds one buy, up to purchases_per_turn ("" as
+##           the option clears them). Refused when this buy alone costs
+##           more Value than the player has now; paid when it resolves.
+##   output: `option` is the produces option's index (Convoys.set_output).
+##   rally:  set with set_supply_line (it needs a plot or a commander).
+## Returns "" or why it was refused.
+static func set_owner_action(s: OverworldState, player: int, feature_id: int, action: String, option: String = "") -> String:
+	var row := s.features.row_of(feature_id)
+	if row < 0:
+		return "no such feature"
+	if s.features.owner[row] != player:
+		return "not your feature"
+	if action.is_empty():
+		s.owner_orders.erase(feature_id)
+		return ""
+	if not OverworldRules.OWNER_ACTIONS.has(action):
+		return "unknown owner action '%s'" % action
+	var t := s.features.tmpl[row]
+	if not s.rules.has_owner_action(t, action):
+		return "this feature does not allow %s" % action
+	match action:
+		"rally":
+			return "set the rally point with set_supply_line"
+		"output":
+			if not option.is_valid_int():
+				return "no such output"
+			return Convoys.set_output(s, player, feature_id, int(option))
+	if option.is_empty():
+		s.owner_orders.erase(feature_id)
+		return ""
+	var buy := s.rules.buy_option(t, option)
+	if buy.is_empty():
+		return "this feature does not sell '%s'" % option
+	var order: Dictionary = s.owner_orders.get(feature_id, {"player": player, "buys": PackedStringArray()})
+	var buys: PackedStringArray = order["buys"]
+	var limit := s.rules.hf_buys[t]
+	if buys.size() >= limit:
+		return "this feature takes %d buy%s a turn" % [limit, "" if limit == 1 else "s"]
+	if s.value_of(player) < buy[3]:
+		return "buying %s costs %d Value, you have %d" % [option, buy[3], s.value_of(player)]
+	buys.append(option)
+	s.owner_orders[feature_id] = {"player": player, "buys": buys}
+	return ""

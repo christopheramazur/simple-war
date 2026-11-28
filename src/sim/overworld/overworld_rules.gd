@@ -5,12 +5,21 @@ extends RefCounted
 
 const ACTIVITIES: Array[String] = DataSchema.HEX_ACTIVITIES
 const INTERACTIONS: Array[String] = DataSchema.HEX_INTERACTIONS
+const OWNER_ACTIONS: Array[String] = DataSchema.HEX_OWNER_ACTIONS
+const DEFAULT_REMOTE_MARKUP: int = 25
+const DEFAULT_PURCHASES_PER_TURN: int = 1
 const PASSES: Array[String] = DataSchema.MAP_PASSES
 const DEFAULT_BASE_COST: int = 10
 const DEFAULT_ARMY_CAP: int = 6
 const DEFAULT_BATTLEFORCE_SQUADS: int = 4
 const DEFAULT_DETACHMENT_SIGHT: int = 1
 const DEFAULT_CONVOY_MOVEMENT: int = 30
+## The core band kinds (U1Q27). A package without them gets these built in.
+const BAND_GARRISON: String = "band_garrison"
+const BAND_CARAVAN: String = "band_caravan"
+const DEFAULT_CARAVAN_SIGHT: int = 3
+## Overworld stats a band's payload may raise; bd_caps is indexed by them.
+const BAND_STATS: Array[String] = DataSchema.BAND_STATS
 ## Item slots: a unit carries at most one item per slot.
 const SLOT_WEAPON: int = 0
 const SLOT_DEFENSE: int = 1
@@ -51,6 +60,14 @@ var hf_hires: Array[PackedInt64Array] = []
 ## Production options: [squad (-1 = item), turns, cost, item (-1), count]
 ## per option (PRODUCTION_STRIDE values).
 var hf_produces: Array[PackedInt64Array] = []
+## Owner actions (U1Q24): bit i set = OWNER_ACTIONS[i] allowed.
+var hf_owner_actions: PackedInt64Array = PackedInt64Array()
+## Items sold to a remote buy: [item, count, cost] per option.
+var hf_sells: Array[PackedInt64Array] = []
+## Percent a remote buy adds to the option's cost.
+var hf_markup: PackedInt64Array = PackedInt64Array()
+## Remote buys the feature takes a turn.
+var hf_buys: PackedInt64Array = PackedInt64Array()
 ## Value per lost unit restored by refitting here.
 var hf_refit_cost: PackedInt64Array = PackedInt64Array()
 ## Scenario ID of the feature's battlefield ("" = the map's).
@@ -99,6 +116,20 @@ var cm_own_squad: PackedInt64Array = PackedInt64Array()
 var cm_army: Array[PackedInt64Array] = []
 var cm_army_cap: PackedInt64Array = PackedInt64Array()
 
+# --- bands (U1Q27): kinds of commander-less squad groups ---
+var band_ids: PackedStringArray = PackedStringArray()
+var bd_names: PackedStringArray = PackedStringArray()
+## Base sight radius and movement points, map overrides applied.
+var bd_sight: PackedInt64Array = PackedInt64Array()
+var bd_mp: PackedInt64Array = PackedInt64Array()
+## Stats its payload may raise (BAND_STATS entries).
+var bd_payload_stats: Array[PackedStringArray] = []
+## Most its payload may add, per BAND_STATS index.
+var bd_caps: Array[PackedInt64Array] = []
+## Band indices of the two core kinds.
+var band_garrison: int = -1
+var band_caravan: int = -1
+
 # --- map ---
 var width: int = 0
 var height: int = 0
@@ -113,9 +144,9 @@ var bf_cap_squads: int = DEFAULT_BATTLEFORCE_SQUADS
 var bf_cap_value: int = 0
 ## Scenario ID engagements are fought on by default.
 var battle_scenario: String = ""
-## Sight radius of a detachment, in hexes.
+## The garrison's sight and the caravan's movement points (bd_sight,
+## bd_mp), kept for readers that show them; systems ask OverworldStats.
 var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
-## Movement points a convoy spends each turn.
 var convoy_mp: int = DEFAULT_CONVOY_MOVEMENT
 ## Skirmish win condition: the last team with commanders wins (OverworldVictory).
 var elimination: bool = false
@@ -197,6 +228,45 @@ func hire_cost(f: int, cm: int) -> int:
 	return -1
 
 
+func has_owner_action(feature: int, action: String) -> bool:
+	var i := OWNER_ACTIONS.find(action)
+	return i >= 0 and hf_owner_actions[feature] & (1 << i) != 0
+
+
+## A remote buy at feature f of `option` (a recruits squad ID or a sells
+## item ID): [squad index (-1 = item), item index (-1), count, cost with
+## the markup], or [] if f does not offer it.
+func buy_option(f: int, option: String) -> PackedInt64Array:
+	var price := -1
+	var out := PackedInt64Array()
+	var sq := squad_index(option)
+	if sq >= 0:
+		price = recruit_cost(f, sq)
+		out = PackedInt64Array([sq, -1, 1, 0])
+	else:
+		var it := item_index(option)
+		var opts := hf_sells[f]
+		for i in range(0, opts.size(), 3):
+			if it >= 0 and opts[i] == it:
+				price = opts[i + 2]
+				out = PackedInt64Array([-1, it, opts[i + 1], 0])
+				break
+	if price < 0:
+		return PackedInt64Array()
+	out[3] = remote_price(f, price)
+	return out
+
+
+## A price plus feature f's remote markup, rounded up.
+func remote_price(f: int, price: int) -> int:
+	@warning_ignore("integer_division")
+	return (price * (100 + hf_markup[f]) + 99) / 100
+
+
+func band_index(id: String) -> int:
+	return band_ids.find(id)
+
+
 func has_activity(feature: int, activity: String) -> bool:
 	return hf_activities[feature] & (1 << ACTIVITIES.find(activity)) != 0
 
@@ -245,6 +315,20 @@ func _compile(t: TemplateTable, map: String) -> void:
 				item_index(String(o.get("item", ""))), int(o.get("count", 1))])
 		hf_produces.append(prod)
 		var f := feature_index(tid)
+		var v := t.values_of(tid)
+		var sells := PackedInt64Array()
+		for o: Dictionary in v.get("sells", []):
+			sells.append_array([item_index(String(o["item"])), int(o.get("count", 1)), int(o["cost"])])
+		hf_sells.append(sells)
+		var acts: Array = v.get("owner_actions", ["rally", "output"] if not prod.is_empty() else [])
+		var bits := 0
+		for a: String in acts:
+			bits |= 1 << OWNER_ACTIONS.find(a)
+		hf_owner_actions.append(bits)
+		hf_markup.append(int(v.get("remote_markup", DEFAULT_REMOTE_MARKUP)))
+		hf_buys.append(int(v.get("purchases_per_turn", DEFAULT_PURCHASES_PER_TURN)))
+		if acts.has("buy") and rec.is_empty() and sells.is_empty():
+			errors.append("%s: the buy owner action needs 'recruits' or 'sells'" % tid)
 		if rec.is_empty() == has_activity(f, "recruit"):
 			errors.append("%s: the recruit activity and 'recruits' go together" % tid)
 	for tid in _of_kind(t, "commander"):
@@ -262,6 +346,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 		cm_army_cap.append(int(v.get("army_cap", DEFAULT_ARMY_CAP)))
 		if army.size() > cm_army_cap[cm_army_cap.size() - 1]:
 			errors.append("%s: starts with more squads than its army_cap" % tid)
+	_compile_bands(t)
 	for tid in feature_ids:
 		var hires := PackedInt64Array()
 		for o: Dictionary in t.values_of(tid).get("hires", []):
@@ -285,8 +370,13 @@ func _compile(t: TemplateTable, map: String) -> void:
 	bf_cap_squads = int(bf.get("squads", DEFAULT_BATTLEFORCE_SQUADS))
 	bf_cap_value = int(bf.get("value", 0))
 	battle_scenario = String(m.get("battle_scenario", ""))
-	detachment_sight = int(m.get("detachment_sight", DEFAULT_DETACHMENT_SIGHT))
-	convoy_mp = int(m.get("convoy_movement", DEFAULT_CONVOY_MOVEMENT))
+	# Older maps' band overrides (U1Q27).
+	if m.has("detachment_sight"):
+		bd_sight[band_garrison] = int(m["detachment_sight"])
+	if m.has("convoy_movement"):
+		bd_mp[band_caravan] = int(m["convoy_movement"])
+	detachment_sight = bd_sight[band_garrison]
+	convoy_mp = bd_mp[band_caravan]
 	elimination = bool(m.get("elimination", false))
 	mirror = bool(m.get("mirror", false))
 	if mirror and height % 2 != 0:
@@ -341,6 +431,36 @@ static func _of_kind(t: TemplateTable, kind: String) -> PackedStringArray:
 			ids.append(tid)
 	ids.sort()
 	return ids
+
+
+## Band kinds in ID order; the two core kinds are built in when a package
+## lacks them.
+func _compile_bands(t: TemplateTable) -> void:
+	var defs := {}
+	for tid in _of_kind(t, "band"):
+		defs[tid] = t.values_of(tid)
+	if not defs.has(BAND_GARRISON):
+		defs[BAND_GARRISON] = {"name": "Garrison", "sight": DEFAULT_DETACHMENT_SIGHT}
+	if not defs.has(BAND_CARAVAN):
+		defs[BAND_CARAVAN] = {"name": "Caravan", "sight": DEFAULT_CARAVAN_SIGHT}
+	var ids := PackedStringArray(defs.keys())
+	ids.sort()
+	for tid in ids:
+		var v: Dictionary = defs[tid]
+		band_ids.append(tid)
+		bd_names.append(String(v.get("name", tid)))
+		bd_sight.append(int(v.get("sight", DEFAULT_DETACHMENT_SIGHT)))
+		bd_mp.append(int(v.get("movement_points", DEFAULT_CONVOY_MOVEMENT)))
+		bd_payload_stats.append(PackedStringArray(v.get("payload_stats", [])))
+		var caps := PackedInt64Array()
+		var given: Dictionary = v.get("caps", {})
+		for stat in BAND_STATS:
+			caps.append(int(given.get(stat, 0)))
+		bd_caps.append(caps)
+	band_garrison = band_index(BAND_GARRISON)
+	band_caravan = band_index(BAND_CARAVAN)
+	detachment_sight = bd_sight[band_garrison]
+	convoy_mp = bd_mp[band_caravan]
 
 
 func _compile_item(tid: String, v: Dictionary) -> void:

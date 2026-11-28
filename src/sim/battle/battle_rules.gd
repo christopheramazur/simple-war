@@ -69,6 +69,13 @@ var sq_route_class: PackedInt64Array = PackedInt64Array()
 var route_replan: int = 8 * Fixed.ONE
 ## Fixed. How far past its point an engaged attack-move may close (U1Q29).
 var chase_leash: int = 15 * Fixed.ONE
+## Separation radius by size class, fixed metres (ruleset separation_m,
+## U1Q10, GDD 02 §2.14 Separation and coherency).
+var separation: Dictionary = {}
+## Separation hash cell, fixed metres: 2 m, or the widest crowding distance
+## a template needs (Separation.CROWD_PCT of its radius) if that is more, so
+## the 3 x 3 stencil finds every pair.
+var sep_cell: int = 2 * Fixed.ONE
 ## Ticks. How recent a volley must be for the "under fire" relation (U1 Q6;
 ## default one second). Read models only: no system reads it.
 var recent_fire_ticks: int = 10
@@ -150,6 +157,8 @@ var weapon_index: Dictionary = {}
 var defense_index: Dictionary = {}
 var ut_proficiency: PackedInt64Array = PackedInt64Array()
 var ut_leader: PackedByteArray = PackedByteArray()
+## Separation radius per unit template, fixed metres (its size_class).
+var ut_sep: PackedInt64Array = PackedInt64Array()
 
 # --- squad templates ---
 var squad_ids: PackedStringArray = PackedStringArray()
@@ -234,7 +243,8 @@ var zn_vp: PackedInt64Array = PackedInt64Array()
 var zn_locked: PackedByteArray = PackedByteArray()
 ## Scripted triggers (TriggerRules, battle context).
 var triggers: TriggerRules
-## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array}
+## Per side: {player, deploy: [x, y, w, h] fixed, facing, squads: PackedInt64Array,
+## placed: [{squad (template index), x, y (fixed), facing, locked}]} (sw-tdz).
 var sides: Array[Dictionary] = []
 var turn_limit: int = 10
 var primary_influence: bool = true
@@ -267,6 +277,7 @@ func forecast_copy() -> BattleRules:
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			c.set(p.name, get(p.name))
 	c.routes = BattleRoute.new()
+	c.los_memo = {}
 	return c
 
 
@@ -336,13 +347,50 @@ const MAX_STAMP_DEPTH: int = 3
 const AWARENESS: int = 8 * Fixed.ONE
 
 
+## Exact integer form of `Fixed.distance(...) <= AWARENESS`: Fixed.length
+## rounds the square root to nearest, so it is <= A exactly when the squared
+## length is <= A * A + A. Saves the square root on every trace (sw-03qj).
+const AWARENESS_SQ_LIMIT: int = AWARENESS * AWARENESS + AWARENESS
+## Entries before the blocker-walk memo starts over (a cache: clearing it
+## never changes an answer).
+const LOS_MEMO_MAX: int = 1 << 18
+
+## Blocker-walk answers per (from cell, to cell), sw-03qj. The walk reads
+## only the two cells and the terrain, so the memo is exact; the awareness
+## check above it still reads the exact points. Terrain is fixed once a
+## battle is set up: code that changes terrain after a trace calls
+## clear_los_memo(). Not hashed or saved. A forecast copy starts its own
+## memo (forecast_copy), since copies may run on a worker thread.
+var los_memo: Dictionary = {}
+
+
+func clear_los_memo() -> void:
+	los_memo.clear()
+
+
 func los(ax: int, ay: int, bx: int, by: int) -> bool:
-	if Fixed.distance(ax, ay, bx, by) <= AWARENESS:
+	var ex := bx - ax
+	var ey := by - ay
+	if ex * ex + ey * ey <= AWARENESS_SQ_LIMIT:
 		return true
 	var x0 := clampi(Fixed.to_int_floor(ax), 0, width - 1)
 	var y0 := clampi(Fixed.to_int_floor(ay), 0, height - 1)
 	var x1 := clampi(Fixed.to_int_floor(bx), 0, width - 1)
 	var y1 := clampi(Fixed.to_int_floor(by), 0, height - 1)
+	var cells := width * height
+	var key := (y0 * width + x0) * cells + y1 * width + x1
+	var hit: Variant = los_memo.get(key)
+	if hit != null:
+		return hit
+	var sight := _walk_los(x0, y0, x1, y1)
+	if los_memo.size() >= LOS_MEMO_MAX:
+		los_memo.clear()
+	los_memo[key] = sight
+	return sight
+
+
+## The blocker walk between two cells (the endpoints themselves never block).
+func _walk_los(x0: int, y0: int, x1: int, y1: int) -> bool:
 	var dx := absi(x1 - x0)
 	var dy := -absi(y1 - y0)
 	var sx := 1 if x0 < x1 else -1
@@ -635,6 +683,11 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	morale_leech_pct = int(rs.get("morale_leech_pct", 10))
 	route_replan = DataSchema.to_fixed(rs.get("route_replan_m"), 8 * Fixed.ONE)
 	chase_leash = DataSchema.to_fixed(rs.get("chase_leash_m"), 15 * Fixed.ONE)
+	var sep: Dictionary = rs.get("separation_m", {})
+	var sep_default := {"small": "0.4", "medium": "0.6", "large": "1.2", "huge": "2.4"}
+	separation = {}
+	for k: String in DataSchema.SIZE_CLASSES:
+		separation[k] = DataSchema.to_fixed(sep.get(k, sep_default[k]))
 	recent_fire_ticks = int(rs.get("relation_recent_fire_ticks", tps))
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
@@ -788,6 +841,9 @@ func _compile_units(t: TemplateTable, ids: PackedStringArray, mv: Dictionary, df
 		ut_weapon.append(wp[v["weapon"]] if v.has("weapon") else -1)
 		ut_proficiency.append(int(v.get("proficiency_pct", 100)))
 		ut_leader.append(1 if (v.get("tags", []) as Array).has("leader") else 0)
+		var sep_r: int = separation.get(str(v.get("size_class", "medium")), 0)
+		ut_sep.append(sep_r)
+		sep_cell = maxi(sep_cell, sep_r * Separation.CROWD_PCT / 100)
 		ut_bundles.append(_bundle_list(v))
 	return index
 
@@ -908,7 +964,9 @@ func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 			"facing": int(s.get("facing", 0)) & Fixed.ANGLE_MASK,
 			"deploy": PackedInt64Array([DataSchema.to_fixed(d["x"]), DataSchema.to_fixed(d["y"]), DataSchema.to_fixed(d["w"]), DataSchema.to_fixed(d["h"])]),
 			"squads": squads,
+			"placed": [],
 		})
+	_compile_placed(sc.get("placed", []))
 	var vic: Dictionary = sc["victory"]
 	turn_limit = int(vic.get("turn_limit", 10))
 	primary_influence = vic.get("primary", "influence") == "influence"
@@ -916,3 +974,54 @@ func _compile_scenario(t: TemplateTable, sc: Dictionary) -> void:
 	annihilation = vic.get("annihilation", true)
 	withdrawal = vic.get("withdrawal", true)
 	loser_hook = (sc.get("end_hooks", {}) as Dictionary).get("loser", "scatter")
+
+
+## Scenario `placed` (sw-tdz, U1Q31): {side, squad, x, y, facing?, locked?}
+## puts a squad of its side at a point. That is its automatic place, which
+## the player may move in the deployment step unless `locked`. Refused: a
+## side the scenario doesn't have, a squad its side doesn't list, a squad
+## placed twice on one side, a point outside its side's area or with no cell
+## the squad can enter there, and two entries on one cell. `facing` defaults
+## to the side's. Called after the sides and the terrain are compiled.
+func _compile_placed(list: Array) -> void:
+	var cells := {}
+	var seen := {}
+	for p: Dictionary in list:
+		var pl := int(p["side"])
+		var what := "scenario '%s': placed squad '%s' on side %d" % [scenario_id, p["squad"], pl]
+		var si := -1
+		for i in sides.size():
+			if int(sides[i]["player"]) == pl:
+				si = i
+		if si < 0:
+			errors.append("%s: no side has player %d" % [what, pl])
+			continue
+		var side := sides[si]
+		var st := squad_index(p["squad"])
+		if not (side["squads"] as PackedInt64Array).has(st):
+			errors.append("%s: the side does not list it" % what)
+			continue
+		var key := "%d|%d" % [pl, st]
+		if seen.has(key):
+			errors.append("%s: squad placed twice" % what)
+			continue
+		seen[key] = true
+		var x := DataSchema.to_fixed(p["x"])
+		var y := DataSchema.to_fixed(p["y"])
+		var rect := side["deploy"] as PackedInt64Array
+		if x < rect[0] or y < rect[1] or x > rect[0] + rect[2] or y > rect[1] + rect[3]:
+			errors.append("%s: outside its side's deployment area" % what)
+			continue
+		if BattleDeploy.open_point_in(self, st, x, y, rect).is_empty():
+			errors.append("%s: no cell the squad can enter in its side's area" % what)
+			continue
+		var cell := "%d,%d" % [Fixed.to_int_floor(x), Fixed.to_int_floor(y)]
+		if cells.has(cell):
+			errors.append("scenario '%s': two placed squads on cell %s" % [scenario_id, cell])
+			continue
+		cells[cell] = true
+		(side["placed"] as Array).append({
+			"squad": st, "x": x, "y": y,
+			"facing": int(p.get("facing", side["facing"])) & Fixed.ANGLE_MASK,
+			"locked": bool(p.get("locked", false)),
+		})

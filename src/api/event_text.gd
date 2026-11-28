@@ -56,6 +56,12 @@ static func describe(e: Dictionary, rules: OverworldRules, viewer: int = 0) -> S
 				if d.has("tmpl") else "%s produced a squad %s." % [who, at]
 		&"item_produced":
 			return "%s produced supplies %s." % [_feature(d, rules, who), at]
+		&"squad_bought":
+			return "%s bought a %s %s." % [who, squad_name(_tmpl(d, rules)), at] if d.has("tmpl") else "%s bought a squad %s." % [who, at]
+		&"item_bought":
+			return "%s bought supplies %s." % [who, at]
+		&"owner_action_cancelled":
+			return "%s buy of %s %s was cancelled (%s)." % [_possessive(who), String(d.get("option", "")), at, String(d.get("reason", ""))] 				if d.has("reason") else "%s buy %s was cancelled." % [_possessive(who), at]
 		&"squad_picked_up":
 			return "%s picked up a squad %s." % [commander(int(d["commander"])) if d.has("commander") else who, at]
 		&"squad_transferred":

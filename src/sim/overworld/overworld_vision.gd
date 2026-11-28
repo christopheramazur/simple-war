@@ -1,9 +1,9 @@
 class_name OverworldVision
 extends RefCounted
 ## Fog of war on the overworld (GDD 02 §2.9, R8Q4).
-##   - Sight sources: commanders (cm_sight), controlled features (hf_sight)
-##     and detachments, convoys included (the map's detachment_sight), see
-##     every plot within their radius in hexes. Every source sees its own
+##   - Sight sources: commanders, controlled features and bands (garrisons
+##     and caravans) see every plot within their radius in hexes, as
+##     OverworldStats.sight gives it (U1Q26, U1Q27). Every source sees its own
 ##     plot. There is no line of sight on the overworld yet: terrain does
 ##     not block.
 ##   - Allies: a player sees what every non-hostile player's sources see.
@@ -57,6 +57,9 @@ const _EVENT_FIELDS := {
 	&"convoys_merged": [[], ["player"], ["plot"]],
 	&"convoy_rallied": [["commander"], ["player"], ["plot"]],
 	&"item_produced": [[], ["player"], ["plot"]],
+	&"squad_bought": [[], ["player"], ["plot"]],
+	&"item_bought": [[], ["player"], ["plot"]],
+	&"owner_action_cancelled": [[], ["player"], []],
 	&"items_picked": [["commander"], ["player"], ["plot"]],
 	&"item_equipped": [["commander"], ["player"], []],
 	&"item_unequipped": [["commander"], ["player"], []],
@@ -83,6 +86,9 @@ const _HOSTILE := {
 	&"convoy_delivered": ["detachment", "player", "plot"],
 	&"convoy_rallied": ["detachment", "player", "plot"],
 	&"item_produced": ["feature", "player", "plot", "detachment"],
+	&"squad_bought": ["feature", "player", "plot", "detachment"],
+	&"item_bought": ["feature", "player", "plot", "detachment"],
+	&"owner_action_cancelled": ["player", "feature", "plot"],
 	&"items_picked": ["commander", "player", "plot", "feature"],
 	&"items_taken": ["commander", "detachment", "player", "plot"],
 	&"items_seized": ["detachment", "player", "plot", "by", "commander"],
@@ -108,16 +114,16 @@ static func sight(s: OverworldState, player: int) -> PackedByteArray:
 	var c := s.commanders
 	for row in c.count():
 		if not s.hostile(player, c.player[row]):
-			_mark(s, out, c.plot[row], r.cm_sight[c.tmpl[row]])
+			_mark(s, out, c.plot[row], OverworldStats.sight_of(s, OverworldStats.COMMANDER, c.id_at(row)))
 	var f := s.features
 	for row in f.count():
 		var owner := f.owner[row]
 		if owner > 0 and not s.hostile(player, owner):
-			_mark(s, out, f.plot[row], r.hf_sight[f.tmpl[row]])
+			_mark(s, out, f.plot[row], OverworldStats.sight_of(s, OverworldStats.FEATURE, f.id_at(row)))
 	var d := s.detachments
 	for row in d.count():
 		if not s.hostile(player, d.player[row]):
-			_mark(s, out, d.plot[row], r.detachment_sight)
+			_mark(s, out, d.plot[row], OverworldStats.sight_of(s, OverworldStats.BAND, d.id_at(row)))
 	return out
 
 
@@ -243,9 +249,13 @@ static func known_offering(s: OverworldState, player: int, p: int, activity: Str
 ##     "battleforce_plan" for own ones;
 ##     what a hostile army holds is never shown (R5Q9);
 ##   detachments in sight, convoys included: [{"id", "player", "plot",
-##     "engagement", "convoy"}], with "squads" (OverworldArmies.view),
-##     "items" (its War Chest, WarChest.view) and "dest_plot",
-##     "dest_commander", "line" for own and allied ones only;
+##     "engagement", "convoy" (has a destination), "band" (its band kind ID,
+##     U1Q27)}], with "squads" (OverworldArmies.view), "items" (its War
+##     Chest, WarChest.view), "dest_plot", "dest_commander", "line", and
+##     "sight" and "movement" (OverworldStats: {"value", "terms"}) for own
+##     and allied ones only;
+##   owner_orders: own planned owner actions (feature ID -> {"player",
+##     "buys"}, OverworldState.owner_orders);
 ##   production of own producing features: feature ID -> {"output",
 ##     "progress"}; own supply lines (feature ID -> {"player", "plot",
 ##     "commander"});
@@ -290,13 +300,15 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	for row in d.count():
 		if mask[d.plot[row]] == 1:
 			var x := {"id": d.id_at(row), "player": d.player[row], "plot": d.plot[row], "engagement": d.engagement[row],
-				"convoy": Convoys.is_convoy(s, row)}
+				"convoy": Convoys.is_convoy(s, row), "band": s.rules.band_ids[OverworldStats.band_of(s, row)]}
 			if not s.hostile(player, d.player[row]):
 				x["squads"] = Detachments.view(s, d.id_at(row))
 				x["items"] = WarChest.view(s, WarChest.of_detachment(s, d.id_at(row)))
 				x["dest_plot"] = d.dest_plot[row]
 				x["dest_commander"] = d.dest_commander[row]
 				x["line"] = d.line[row]
+				x["sight"] = OverworldStats.sight(s, OverworldStats.BAND, d.id_at(row))
+				x["movement"] = OverworldStats.movement(s, OverworldStats.BAND, d.id_at(row))
 			dets.append(x)
 	var e := s.engagements
 	var battles := []
@@ -319,6 +331,10 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	for fid: int in s.supply_lines:
 		if s.supply_lines[fid]["player"] == player:
 			lines[fid] = (s.supply_lines[fid] as Dictionary).duplicate()
+	var owner_orders := {}
+	for fid: int in s.owner_orders:
+		if s.owner_orders[fid]["player"] == player:
+			owner_orders[fid] = (s.owner_orders[fid] as Dictionary).duplicate(true)
 	var drops := {}
 	for cid: int in s.drops:
 		if own.has(cid):
@@ -338,7 +354,7 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 			offers.append(o.duplicate())
 	return {"turn": s.turn, "player": player, "value": s.value_of(player), "plots": plots,
 		"commanders": cmds, "detachments": dets, "battles": battles, "routes": routes, "drops": drops,
-		"convoy_routes": croutes, "activities": acts, "offers": offers, "production": production, "supply_lines": lines,
+		"convoy_routes": croutes, "activities": acts, "offers": offers, "production": production, "supply_lines": lines, "owner_orders": owner_orders,
 		"presets": (s.presets.get(player, {}) as Dictionary).duplicate(true)}
 
 

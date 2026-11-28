@@ -10,6 +10,8 @@ extends RefCounted
 ##                     <controller_profile template ID>, "params": {...},
 ##                     "genome": {...} (a profile as plain data, played by
 ##                     ProfileController; overrides "profile"),
+##                     "deploy": "role" | "auto" | {"process", "params"}
+##                     (the profile's deployment, UtilityDeploy),
 ##                     "forfeit_turn": N (leaves the game before turn N,
 ##                     a harness test of forfeits, B1Q4)}},
 ##    "turns": overworld turns to play (default 20; battles run to the end)}
@@ -83,13 +85,19 @@ func controller(player: int, default: String, seed_value: int = 0) -> Object:
 	var spec: Dictionary = (data.get("controllers", {}) as Dictionary).get(str(player), {})
 	var params: Dictionary = spec.get("params", {})
 	var name := String(spec.get("profile", default))
+	var profile: Dictionary
 	if spec.has("genome"):
-		return ProfileController.new(player, spec["genome"], seed_value)
-	if name == "utility":
-		return ProfileController.new(player, {}, seed_value)
-	if templates != null and templates.has(name) and templates.kind_of(name) == "controller_profile":
-		return ProfileController.new(player, templates.values_of(name), seed_value)
-	return ProfileController.new(player, builtin(name, params), seed_value)
+		profile = spec["genome"]
+	elif name == "utility":
+		profile = {}
+	elif templates != null and templates.has(name) and templates.kind_of(name) == "controller_profile":
+		profile = templates.values_of(name)
+	else:
+		profile = builtin(name, params)
+	if spec.has("deploy"):
+		profile = profile.duplicate(true)
+		profile["deploy"] = spec["deploy"]
+	return ProfileController.new(player, profile, seed_value)
 
 
 ## A built-in profile name as a two-layer profile, so every built-in plays

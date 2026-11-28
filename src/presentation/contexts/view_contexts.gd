@@ -29,11 +29,14 @@ signal changed
 signal camera_changed
 
 const OVERWORLD: int = -1
-const ZOOM_MIN: float = 0.5
-const ZOOM_MAX: float = 4.0
+## Overworld zoom (GDD 04 §4.8 hex view): a hex is ContextView.HEX_SIZE
+## px at 1, 16 px at the floor and 192 at the ceiling.
+const ZOOM_MIN: float = 0.25
+const ZOOM_MAX: float = 3.0
 const ZOOM_DEFAULT: float = 1.0
-## Zooming the overworld in to this level enters the battle in context.
-const ZOOM_ENTER: float = 3.0
+## Zooming the overworld in to this level enters the battle in context
+## (s = 160 px).
+const ZOOM_ENTER: float = 2.5
 const MAX_PIPS: int = 3
 const BATTLE_ZOOM_MAX: float = 6.0
 const NO_CENTRE: Vector2 = Vector2(-1, -1)
@@ -47,6 +50,13 @@ var selected: int = -1
 var selected_plot: int = -1
 ## Selected own detachment (garrison or convoy, sw-kys.8; -1 = none).
 var selected_detachment: int = -1
+## Selected feature (a site, U1Q23; -1 = none) on selected_plot. It stays
+## selected when it leaves sight (the panel shows it as last seen) and
+## clears on deselect-all, another selection, or when the player's
+## knowledge of its hex no longer holds it (it is gone).
+var selected_feature: int = -1
+## Whether the selected feature is in sight now (false: last seen).
+var feature_in_sight: bool = false
 ## Overworld camera centre (a plot; -1 = not set yet).
 var camera_plot: int = -1
 var zoom: float = ZOOM_DEFAULT
@@ -94,6 +104,8 @@ func sync(obs: Dictionary) -> void:
 		followed = -1
 	if not _commanders.has(selected):
 		selected = -1
+	if selected_feature >= 0:
+		_sync_feature(obs)
 	for eid in pips.duplicate():
 		if not _battles.has(eid):
 			unpin(eid)
@@ -152,6 +164,7 @@ func select_commander(cid: int) -> void:
 	selected = cid
 	selected_plot = -1
 	selected_detachment = -1
+	selected_feature = -1
 	if focus != OVERWORLD and _commanders[cid]["engagement"] != focus:
 		if followed >= 0:
 			followed = cid
@@ -175,6 +188,24 @@ func follow(cid: int = -2) -> void:
 func select_hex(p: int) -> void:
 	selected_plot = p
 	selected_detachment = -1
+	selected_feature = -1
+	changed.emit()
+
+
+## Selects a feature (a site) on plot p, from the map or its panel row
+## (U1Q23). Remembered and enemy features are selectable too (inspection;
+## what the player may do with one is the panel's business). Clears the
+## commander and detachment selection, so the panel shows the site; the
+## follow (camera only) stays. `obs` (OverworldSession.observe) says
+## whether it is in sight; a feature it doesn't know is not selected.
+func select_feature(fid: int, p: int, obs: Dictionary) -> void:
+	if fid < 0 or _feature_entry(obs, fid, p).is_empty():
+		return
+	selected = -1
+	selected_detachment = -1
+	selected_plot = p
+	selected_feature = fid
+	feature_in_sight = bool(_feature_entry(obs, fid, p).get("visible", false))
 	changed.emit()
 
 
@@ -184,6 +215,7 @@ func select_detachment(did: int) -> void:
 	selected = -1
 	followed = -1
 	selected_plot = -1
+	selected_feature = -1
 	selected_detachment = did
 	changed.emit()
 
@@ -194,6 +226,7 @@ func deselect_all() -> void:
 	followed = -1
 	selected_plot = -1
 	selected_detachment = -1
+	selected_feature = -1
 	if focus != OVERWORLD:
 		_leave_battle(_battles.get(focus, camera_plot))
 	changed.emit()
@@ -354,6 +387,25 @@ func move_pip(eid: int, offset: Vector2) -> void:
 	if pips.has(eid):
 		pip_offsets[eid] = offset
 		changed.emit()
+
+
+## Keeps the selected feature while the player's knowledge of its hex
+## holds it (in sight or last seen); clears it when it is gone.
+func _sync_feature(obs: Dictionary) -> void:
+	var entry := _feature_entry(obs, selected_feature, selected_plot)
+	if entry.is_empty():
+		selected_feature = -1
+		return
+	feature_in_sight = bool(entry.get("visible", false))
+
+
+## The known plot entry of obs holding feature fid on plot p, or {}.
+static func _feature_entry(obs: Dictionary, fid: int, p: int) -> Dictionary:
+	var entry: Dictionary = (obs.get("plots", {}) as Dictionary).get(p, {})
+	for f: Dictionary in entry.get("features", []):
+		if int(f["id"]) == fid:
+			return entry
+	return {}
 
 
 func _leave_battle(p: int) -> void:

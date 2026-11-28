@@ -1,21 +1,112 @@
 {
 	"id": "focus_fire_spread",
 	"component": "targeting",
-	"doc": "One rifle squad attacks two unarmed, killable squads that stand side by side 30 m away. Watch the playback: does fire pile onto the first victim until it dies, or spread over both (overkill: shots at a victim already dead that tick)? Explore only: no probes. Feeds the Prowess fire-distribution question (04, bead D2); gate probes (victims, overkill) come with that bead.",
-	"status": "explore",
+	"doc": "One rifle squad attacks two unarmed, killable squads that stand side by side 30 m away. Gate (U1 D2): pins what today's picker does. The squad works through prey_a first (its first kill at tick 10, all of it dead by tick 60, mean kill tick 39), then prey_b (first kill tick 80, wiped at tick 130), so fire does not spread over both at once. Every unit fired at a victim that was already dead 4 times (overkill). Feeds the Prowess fire-distribution question (04 §1.3, bead D2). Pinned to current behaviour: the focus policy (04 bead 5) changes these on purpose.",
+	"status": "gate",
 	"package": "rules-fixture",
 	"map": "duel_crossroads",
 	"open": true,
 	"seed": 5,
 	"turns": 3,
 	"squads": [
-		{"key": "shooters", "player": 1, "squad": "rifle_squad", "at": [50, 80], "facing": 0},
-		{"key": "prey_a", "player": 2, "squad": "rifle_squad", "at": [80, 74], "facing": 180,
-			"dummy": {"armed": false}},
-		{"key": "prey_b", "player": 2, "squad": "rifle_squad", "at": [80, 86], "facing": 180,
-			"dummy": {"armed": false}}
+		{
+			"key": "shooters",
+			"player": 1,
+			"squad": "rifle_squad",
+			"at": [
+				50,
+				80
+			],
+			"facing": 0
+		},
+		{
+			"key": "prey_a",
+			"player": 2,
+			"squad": "rifle_squad",
+			"at": [
+				80,
+				74
+			],
+			"facing": 180,
+			"dummy": {
+				"armed": false
+			}
+		},
+		{
+			"key": "prey_b",
+			"player": 2,
+			"squad": "rifle_squad",
+			"at": [
+				80,
+				86
+			],
+			"facing": 180,
+			"dummy": {
+				"armed": false
+			}
+		}
 	],
 	"script": {
-		"1": [{"squad": "shooters", "type": "attack", "target": "prey_a"}]
-	}
+		"1": [
+			{
+				"squad": "shooters",
+				"type": "attack",
+				"target": "prey_a"
+			}
+		]
+	},
+	"probes": [
+		{
+			"id": "first_kill_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"first_kill": 10
+		},
+		{
+			"id": "mean_kill_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"mean_kill": 39
+		},
+		{
+			"id": "wipe_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"wipe": 60
+		},
+		{
+			"id": "first_kill_b",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_b",
+			"first_kill": 80
+		},
+		{
+			"id": "wipe_b",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_b",
+			"wipe": 130
+		},
+		{
+			"id": "victims",
+			"over": "all",
+			"squad": "shooters",
+			"victims": {
+				"distinct": 16,
+				"max_per_victim": 14,
+				"overkill": 4
+			}
+		},
+		{
+			"id": "waste_a",
+			"over": "all",
+			"squad": "shooters",
+			"target": "prey_a",
+			"waste": 0.146
+		}
+	]
 }

@@ -21,6 +21,11 @@ var convoy_routes: Dictionary = {}
 ## Planned activities: commander ID -> {"activity": String, "plot": int}.
 ## Set during planning; performed if the commander ends the turn there.
 var activities: Dictionary = {}
+## Planned owner actions (U1Q24): feature ID -> {"player", "buys":
+## PackedStringArray of recruits squad / sells item IDs, in planned order}.
+## Set during planning by OverworldOrders.set_owner_action; resolved and
+## cleared by OverworldOwnerActions.
+var owner_orders: Dictionary = {}
 ## Planned drop-offs (R4Q13): commander ID -> {"step" (route index the
 ## drop follows, -1 = before moving), "plot"}. Cleared when the turn resolves.
 var drops: Dictionary = {}
@@ -197,7 +202,7 @@ func _snapshot_extra(snap: Dictionary) -> void:
 	var cr := {}
 	for did: int in convoy_routes:
 		cr[did] = (convoy_routes[did] as PackedInt64Array).duplicate()
-	snap["overworld"] = {"turn": turn, "routes": r, "convoy_routes": cr, "activities": activities.duplicate(true), "drops": drops.duplicate(true),
+	snap["overworld"] = {"turn": turn, "routes": r, "convoy_routes": cr, "activities": activities.duplicate(true), "owner_orders": owner_orders.duplicate(true), "drops": drops.duplicate(true),
 		"supply_lines": supply_lines.duplicate(true),
 		"value": value.duplicate(), "offers": offers.duplicate(true),
 		"memory": memory.duplicate(true), "teams": teams.duplicate(),
@@ -216,6 +221,7 @@ func _restore_extra(snap: Dictionary) -> void:
 	for did: int in cr:
 		convoy_routes[did] = (cr[did] as PackedInt64Array).duplicate()
 	activities = (snap["overworld"].get("activities", {}) as Dictionary).duplicate(true)
+	owner_orders = (snap["overworld"].get("owner_orders", {}) as Dictionary).duplicate(true)
 	drops = (snap["overworld"].get("drops", {}) as Dictionary).duplicate(true)
 	supply_lines = (snap["overworld"].get("supply_lines", {}) as Dictionary).duplicate(true)
 	value = (snap["overworld"].get("value", {}) as Dictionary).duplicate()
@@ -251,6 +257,10 @@ func state_hash() -> PackedByteArray:
 	ids.sort()
 	for cid: int in ids:
 		text += "A%d:%s:%s@%d;" % [cid, activities[cid]["activity"], activities[cid].get("option", ""), activities[cid]["plot"]]
+	ids = owner_orders.keys()
+	ids.sort()
+	for fid: int in ids:
+		text += "W%d:%d:%s;" % [fid, owner_orders[fid]["player"], ",".join(owner_orders[fid]["buys"])]
 	ids = drops.keys()
 	ids.sort()
 	for cid: int in ids:

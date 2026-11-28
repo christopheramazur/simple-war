@@ -236,3 +236,40 @@ func test_flicker_does_not_restart_the_anchor() -> void:
 			st.units.put_column(&"fpos", col))
 	assert_eq(moved[0], 0, "the anchor never moved")
 	assert_eq(s.squads.ax[row], ax)
+
+
+## sw-0jm5: the batched engaging pass agrees with engaging() for every squad
+## on every tick of a mixed fight (two squads per side, attack and
+## attack-move, one squad on Move).
+func test_engaging_rows_matches_engaging() -> void:
+	var s := BattleState.new(1, _r(), 1)
+	var a := _place(s, 1, "rifle_squad", 20, LANE, 0)
+	var b := _place(s, 1, "assault_squad", 22, LANE + 12, 0)
+	var c := _place(s, 2, "rifle_squad", 70, LANE, Fixed.ANGLE_HALF)
+	var d := _place(s, 2, "rifle_squad", 72, LANE - 12, Fixed.ANGLE_HALF)
+	_order(s, a, BattleSquads.Order.ATTACK_MOVE, 70, LANE)
+	_order(s, b, BattleSquads.Order.ATTACK, 70, LANE, c)
+	_order(s, c, BattleSquads.Order.ATTACK_MOVE, 20, LANE)
+	_order(s, d, BattleSquads.Order.MOVE, 20, LANE - 12)
+	var engaged := [0]
+	_run(s, 150, func(st: BattleState) -> void:
+		var rows := FiringPositions._engaging_rows(st)
+		assert_eq(rows.size(), st.squads.count())
+		for row in st.squads.count():
+			assert_eq(rows[row], FiringPositions.engaging(st, row), "row %d tick %d" % [row, st.tick])
+			if rows[row] >= 0:
+				engaged[0] += 1)
+	assert_true(engaged[0] > 0, "some squad engages for positions")
+
+
+## sw-0jm5: SoaTable.rows_of resolves a batch exactly as row_of does,
+## including -1, dead and stale IDs.
+func test_rows_of_matches_row_of() -> void:
+	var s := BattleState.new(1, _r(), 1)
+	var a := _place(s, 1, "rifle_squad", 20, LANE, 0)
+	var b := _place(s, 2, "rifle_squad", 70, LANE, Fixed.ANGLE_HALF)
+	var ids := PackedInt64Array([a, b, -1, b + (1 << 32), 12345])
+	var rows := s.squads.rows_of(ids)
+	for i in ids.size():
+		assert_eq(rows[i], s.squads.row_of(ids[i]), "id %d" % ids[i])
+

@@ -6,8 +6,9 @@ extends RefCounted
 ## from the OS. GDD 02 §2.2, R2Q1.
 ##
 ## Turn: PLANNING -> REVEAL -> REACTION (optional) -> EXECUTE -> INTERMISSION.
-## - PLANNING: each player gets planning_ms + parallel bonus + reserve; time
-##   used past planning_ms + bonus is drawn from reserve (R3Q1, R4Q2).
+## - PLANNING: each player gets planning_ms + parallel bonus + deployment bonus
+##   + reserve; time used past planning_ms + bonus is drawn from reserve (R3Q1,
+##   R4Q2, GDD 02 §2.2 Time).
 ## - REVEAL: instant; orders become visible.
 ## - REACTION: per-player window, more battles = more time; no reserve (R3Q1).
 ## - EXECUTE: not timed; ends when the caller reports `execute_finished()` (R3Q2).
@@ -30,6 +31,8 @@ var elapsed_ms: int = 0
 
 var _players: Array[int] = []
 var _battles: Dictionary = {}
+## Battles each player deploys in this Planning (reset when Planning starts).
+var _deploying: Dictionary = {}
 var _reserve: Dictionary = {}
 var _ready_at: Dictionary = {}
 var _intermission_deadline: int = 0
@@ -54,6 +57,12 @@ func players() -> Array[int]:
 ## How many battles the player is in this turn (drives bonus time).
 func set_battles(player_id: int, battles: int) -> void:
 	_battles[player_id] = battles
+
+
+## How many battles the player deploys in during this Planning (drives the
+## deployment bonus). Callers set it as placements come and go.
+func set_deploying(player_id: int, battles: int) -> void:
+	_deploying[player_id] = battles
 
 
 func reserve_ms(player_id: int) -> int:
@@ -110,7 +119,7 @@ func execute_finished() -> void:
 func snapshot() -> Dictionary:
 	return {
 		"phase": phase, "turn": turn, "elapsed": elapsed_ms, "players": _players.duplicate(),
-		"battles": _battles.duplicate(), "reserve": _reserve.duplicate(),
+		"battles": _battles.duplicate(), "deploying": _deploying.duplicate(), "reserve": _reserve.duplicate(),
 		"ready": _ready_at.duplicate(), "intermission_deadline": _intermission_deadline,
 	}
 
@@ -122,6 +131,7 @@ func restore(snap: Dictionary) -> void:
 	elapsed_ms = snap["elapsed"]
 	_players.assign(snap["players"])
 	_battles = (snap["battles"] as Dictionary).duplicate()
+	_deploying = (snap.get("deploying", {}) as Dictionary).duplicate()  # saves from before sw-bafi.14: none
 	_reserve = (snap["reserve"] as Dictionary).duplicate()
 	_ready_at = (snap["ready"] as Dictionary).duplicate()
 	_intermission_deadline = snap["intermission_deadline"]
@@ -133,12 +143,19 @@ func remaining_ms(player_id: int) -> int:
 	return -1 if limit < 0 else maxi(limit - elapsed_ms, 0)
 
 
+## Extra Planning time from the parallel-battle and deployment bonuses; neither
+## draws reserve.
+func _planning_bonus_ms(player_id: int) -> int:
+	var deploys: int = _deploying.get(player_id, 0)
+	return config.parallel_bonus_ms(_battles[player_id]) + deploys * config.deployment_bonus_per_battle_ms()
+
+
 func _player_limit(player_id: int) -> int:
 	if config.untimed:
 		return -1
 	match phase:
 		Phase.PLANNING:
-			return config.planning_ms + config.parallel_bonus_ms(_battles[player_id]) + _reserve[player_id]
+			return config.planning_ms + _planning_bonus_ms(player_id) + _reserve[player_id]
 		Phase.REACTION:
 			return config.reaction_ms_for(_battles[player_id])
 		Phase.INTERMISSION:
@@ -182,7 +199,7 @@ func _end_phase() -> void:
 	match phase:
 		Phase.PLANNING:
 			for p in _players:
-				var base := config.planning_ms + config.parallel_bonus_ms(_battles[p])
+				var base := config.planning_ms + _planning_bonus_ms(p)
 				var used: int = _ready_at[p] if is_ready(p) else elapsed_ms
 				if not config.untimed:
 					_reserve[p] = maxi(_reserve[p] - maxi(used - base, 0), 0)
@@ -204,4 +221,6 @@ func _enter(next: Phase) -> void:
 	_ready_at.clear()
 	if next == Phase.INTERMISSION:
 		_intermission_deadline = config.intermission_cap_ms()
+	if next == Phase.PLANNING:
+		_deploying.clear()
 	phase_changed.emit(phase, turn)

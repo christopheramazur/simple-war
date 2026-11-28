@@ -1,0 +1,4 @@
+# sw-txnj.12, 2026-11-26, Godot 4.7.2 headless, desktop; 300 ticks, mean (worst) per tick
+squads 4 units 32: separation 0.028 ms/tick (worst 0.08), pushes/tick 0.2
+squads 20 units 104: separation 0.092 ms/tick (worst 0.32), pushes/tick 0.7
+squads 40 units 208: separation 0.160 ms/tick (worst 0.66), pushes/tick 1.6
