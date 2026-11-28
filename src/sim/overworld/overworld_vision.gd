@@ -57,6 +57,9 @@ const _EVENT_FIELDS := {
 	&"convoys_merged": [[], ["player"], ["plot"]],
 	&"convoy_rallied": [["commander"], ["player"], ["plot"]],
 	&"item_produced": [[], ["player"], ["plot"]],
+	&"squad_bought": [[], ["player"], ["plot"]],
+	&"item_bought": [[], ["player"], ["plot"]],
+	&"owner_action_cancelled": [[], ["player"], []],
 	&"items_picked": [["commander"], ["player"], ["plot"]],
 	&"item_equipped": [["commander"], ["player"], []],
 	&"item_unequipped": [["commander"], ["player"], []],
@@ -83,6 +86,9 @@ const _HOSTILE := {
 	&"convoy_delivered": ["detachment", "player", "plot"],
 	&"convoy_rallied": ["detachment", "player", "plot"],
 	&"item_produced": ["feature", "player", "plot", "detachment"],
+	&"squad_bought": ["feature", "player", "plot", "detachment"],
+	&"item_bought": ["feature", "player", "plot", "detachment"],
+	&"owner_action_cancelled": ["player", "feature", "plot"],
 	&"items_picked": ["commander", "player", "plot", "feature"],
 	&"items_taken": ["commander", "detachment", "player", "plot"],
 	&"items_seized": ["detachment", "player", "plot", "by", "commander"],
@@ -248,6 +254,8 @@ static func known_offering(s: OverworldState, player: int, p: int, activity: Str
 ##     Chest, WarChest.view), "dest_plot", "dest_commander", "line", and
 ##     "sight" and "movement" (OverworldStats: {"value", "terms"}) for own
 ##     and allied ones only;
+##   owner_orders: own planned owner actions (feature ID -> {"player",
+##     "buys"}, OverworldState.owner_orders);
 ##   production of own producing features: feature ID -> {"output",
 ##     "progress"}; own supply lines (feature ID -> {"player", "plot",
 ##     "commander"});
@@ -323,6 +331,10 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 	for fid: int in s.supply_lines:
 		if s.supply_lines[fid]["player"] == player:
 			lines[fid] = (s.supply_lines[fid] as Dictionary).duplicate()
+	var owner_orders := {}
+	for fid: int in s.owner_orders:
+		if s.owner_orders[fid]["player"] == player:
+			owner_orders[fid] = (s.owner_orders[fid] as Dictionary).duplicate(true)
 	var drops := {}
 	for cid: int in s.drops:
 		if own.has(cid):
@@ -342,7 +354,7 @@ static func observe(s: OverworldState, player: int) -> Dictionary:
 			offers.append(o.duplicate())
 	return {"turn": s.turn, "player": player, "value": s.value_of(player), "plots": plots,
 		"commanders": cmds, "detachments": dets, "battles": battles, "routes": routes, "drops": drops,
-		"convoy_routes": croutes, "activities": acts, "offers": offers, "production": production, "supply_lines": lines,
+		"convoy_routes": croutes, "activities": acts, "offers": offers, "production": production, "supply_lines": lines, "owner_orders": owner_orders,
 		"presets": (s.presets.get(player, {}) as Dictionary).duplicate(true)}
 
 

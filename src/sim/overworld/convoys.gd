@@ -251,9 +251,10 @@ static func produce(s: OverworldState) -> void:
 		f.set_value(fid, &"progress", progress)
 
 
-## A produced squad (or `count` items of template `item`) joins the line's
-## convoy leaving the hex, or the owner's detachment holding it.
-static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int, item: int, count: int) -> void:
+## The detachment feature fid's output (produced or bought, U1Q24) joins
+## on plot p: the line's convoy leaving the hex, or the owner's garrison
+## holding it; a new one if there is none.
+static func output_detachment(s: OverworldState, fid: int, owner: int, p: int) -> int:
 	var d := s.detachments
 	var sl: Dictionary = s.supply_lines.get(fid, {})
 	var did := -1
@@ -271,6 +272,13 @@ static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int, item
 			v[&"line"] = fid
 			v[&"band"] = s.rules.band_caravan
 		did = d.spawn(v)
+	return did
+
+
+## A produced squad (or `count` items of template `item`) joins the line's
+## convoy leaving the hex, or the owner's detachment holding it.
+static func _make(s: OverworldState, fid: int, owner: int, p: int, sq: int, item: int, count: int) -> void:
+	var did := output_detachment(s, fid, owner, p)
 	if sq < 0:
 		WarChest.add(s, item, count, -1, did, -1)
 		s.events.push(&"item_produced", {"feature": fid, "player": owner, "plot": p, "item": item,

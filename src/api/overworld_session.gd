@@ -7,7 +7,7 @@ extends RefCounted
 ## Inputs:   set_route, set_drop_off, set_activity, transfer_squad (also picks up
 ##           from a detachment), set_battleforce, set_output,
 ##           set_supply_line, rally, equip, unequip, give_item,
-##           take_items, answer_offer
+##           take_items, answer_offer, set_owner_action
 ##           (Planning only), save_preset, ready, advance(ms);
 ##           submit_reaction (Reaction only).
 ## Queries:  observe(player) - fog-filtered state plus last turn's visible
@@ -373,6 +373,19 @@ func answer_offer(player: int, feature_id: int, choice: String) -> String:
 		err = OverworldTurn.answer(state, player, feature_id, choice)
 	if err.is_empty():
 		_log(player, "answer", {"feature": feature_id, "choice": choice})
+	return err
+
+
+## Plans an owner action on one of the player's features, from anywhere
+## (U1Q24): "buy" adds one buy of a recruits squad or sells item named by
+## `option` ("" clears them), "output" selects a produces option by index,
+## "" as the action clears the feature's planned buys. "" or why not.
+func set_owner_action(player: int, feature_id: int, action: String, option: String = "") -> String:
+	var err := _planning(player)
+	if err.is_empty():
+		err = OverworldOrders.set_owner_action(state, player, feature_id, action, option)
+	if err.is_empty():
+		_log(player, "owner_action", {"feature": feature_id, "action": action, "option": option})
 	return err
 
 
@@ -1496,6 +1509,8 @@ func _replay(inputs: Array) -> void:
 				set_route(i["player"], p["commander"], p["plots"])
 			"activity":
 				set_activity(i["player"], p["commander"], p["activity"], p.get("option", ""))
+			"owner_action":
+				set_owner_action(i["player"], p["feature"], p["action"], p.get("option", ""))
 			"answer":
 				answer_offer(i["player"], p["feature"], p["choice"])
 			"drop":

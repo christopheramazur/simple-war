@@ -93,6 +93,9 @@ const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 ## the start of a turn with an uncontested commander (R6Q14).
 const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert", "hire"]
 const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
+## What a feature's owner may do with it without a commander (U1Q24): buy
+## one of its recruits or sells, set its rally point, choose its output.
+const HEX_OWNER_ACTIONS: Array[String] = ["buy", "rally", "output"]
 ## Hex feature drawing layers (U1Q20); default "site".
 const HEX_LAYERS: Array[String] = ["ground", "path", "site"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
@@ -218,6 +221,13 @@ const OBJECTS: Dictionary = {
 	## arrives on the hex with its own squad and starting army.
 	"hire_option": {
 		"commander": {"type": "ref:commander", "required": true},
+		"cost": {"type": "int", "required": true, "min": 0},
+	},
+	## Items a feature sells to its owner's remote buy (U1Q24): `count` of
+	## the item per purchase, for `cost` Value before the remote markup.
+	"item_option": {
+		"item": {"type": "ref:item", "required": true},
+		"count": {"type": "int", "min": 1},
 		"cost": {"type": "int", "required": true, "min": 0},
 	},
 	## A squad or item a feature produces (R5Q10): one every `turns` turns
@@ -575,6 +585,15 @@ const KINDS: Dictionary = {
 		"produces": {"type": "list:obj:production_option"},
 		## Value per lost unit the refit activity restores here.
 		"refit_cost": {"type": "int", "min": 0},
+		## Owner actions (U1Q24): what its owner may do with it from anywhere
+		## during planning (default rally and output for producers, else
+		## none). buy takes one of `recruits` or `sells` per purchase, for its
+		## cost plus remote_markup percent (default 25, rounded up), at most
+		## purchases_per_turn a turn (default 1).
+		"owner_actions": {"type": "list:string", "enum": HEX_OWNER_ACTIONS},
+		"sells": {"type": "list:obj:item_option"},
+		"remote_markup": {"type": "int", "min": 0},
+		"purchases_per_turn": {"type": "int", "min": 0},
 		## The battlefield its battles are fought on (else the map's).
 		"battlefield": {"type": "ref:scenario"},
 		## Answers its offer takes (uncertain features; default accept,
