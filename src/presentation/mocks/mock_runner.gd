@@ -14,6 +14,7 @@ const SETTLE_FRAMES: int = 6
 var _out: String = ""
 var _frames: int = 0
 var _failed: bool = false
+var _mock: Control
 
 
 func _initialize() -> void:
@@ -25,15 +26,15 @@ func _initialize() -> void:
 		_failed = true
 		quit(1)
 		return
-	var mock: Control = script.build()
-	var size := Vector2i(mock.custom_minimum_size)
+	_mock = script.build()
+	var size := Vector2i(_mock.custom_minimum_size)
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
 	# As the game does, whatever the local settings say; MOCK_UI_THEME picks another profile.
 	var theme_id := OS.get_environment("MOCK_UI_THEME")
 	UiTheme.apply(root, UiTheme.DEFAULT_ID if theme_id.is_empty() else theme_id)
 	root.size = size
 	DisplayServer.window_set_size(size)
-	root.add_child(mock)
+	root.add_child(_mock)
 
 
 func _process(_delta: float) -> bool:
@@ -52,7 +53,7 @@ func _process(_delta: float) -> bool:
 		push_error("mock_runner: could not save %s (%d)" % [path, err])
 	else:
 		print("mock_runner: wrote %s (%dx%d)" % [path, img.get_width(), img.get_height()])
-		var layout := _layout(mock, img, path)
+		var layout := _layout(_mock, img, path)
 		if not layout.is_empty():
 			print("mock_runner: layout %s" % layout)
 		for variant in CvdSim.VARIANTS:

@@ -1278,7 +1278,8 @@ func _draw_squad(d: Dictionary, area: Rect2, k: float, font: Font, is_selected: 
 		return r
 	top -= halo + (5.0 if is_selected or marked else 0.0)
 	var text := "%s %d/%d · P%d" % [d["name"], int(d.get("alive", 0)), int(d.get("size", 0)), int(d["player"])]
-	var fg := TEXT if is_selected or marked else Color(TEXT, 0.75)
+	# Dimmed labels keep WCAG AA (4.5:1) over the field: 0.75 gave 3.7-4.0:1 on the fire_cues mock (sw-tho3.12).
+	var fg := TEXT if is_selected or marked else Color(TEXT, 0.92)
 	draw_string(font, Vector2(c.x - 70, top - 7), text, HORIZONTAL_ALIGNMENT_CENTER, 140, 11, fg)
 	var tsz := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11)
 	var tw_drawn := minf(tsz.x, 140.0)

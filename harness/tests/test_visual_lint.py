@@ -197,3 +197,13 @@ def test_pixels_ground_handles_greyscale_and_clipped_rects():
     assert px.ground(2, 0, 2, 2) == (1.0, 1.0, 1.0)  # columns 2 and 3 are white
     assert px.ground(-5, -5, 2, 2) is None
     assert px.ground(50, 50, 4, 4) is None
+
+
+def test_committed_fire_cues_mock_is_clean():
+    """The fire_cues mock's layout (regenerate: hx godot mock ...fire_cues_mock.gd) has no findings."""
+    from hx import paths
+
+    layout = paths.repo_root() / "Game Design Document" / "Mocks" / "fire_cues_layout.json"
+    res = visual.lint_file(layout)
+    assert res["contrast"] is True
+    assert res["findings"] == [], res["findings"]
