@@ -172,6 +172,22 @@ func test_reactions_are_abilities() -> void:
 		assert_eq(s.squads.order[arow], BattleSquads.Order.HOLD, "halts every time")
 
 
+func test_retarget_keeps_the_run_flag() -> void:
+	var s := BattleState.new(1, _rules(), 1)
+	var a := _place(s, 1, "rifle_squad", 40)
+	var b := _place(s, 2, "rifle_squad", 60)
+	var arow := s.squads.row_of(a)
+	BattleOrders.set_order(s, arow, BattleSquads.Order.MOVE, 0, 0, -1, 1)
+	Abilities.react(s, _aid(s, a, "retarget"), b)
+	assert_eq(s.squads.order[arow], BattleSquads.Order.ATTACK)
+	assert_eq(s.squads.run[arow], 1, "a running squad that retargets stays running")
+	_tick(s)
+	assert_eq(s.squads.run[arow], 1, "still running on the next tick")
+	BattleOrders.set_order(s, arow, BattleSquads.Order.MOVE, 0, 0, -1, 0)
+	Abilities.react(s, _aid(s, a, "retarget"), b)
+	assert_eq(s.squads.run[arow], 0, "a walking squad that retargets stays walking")
+
+
 func test_readying_then_readied_state() -> void:
 	var s := BattleState.new(1, _dig_rules(), 1)
 	var sid := _place(s, 1, "rifle_squad", 40)

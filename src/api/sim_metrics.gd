@@ -20,6 +20,15 @@ extends RefCounted
 ##   first_contact_tick, first_casualty_tick, first_capture_turn
 ##   (milestones, -1 = never; player 0 for the run, and per player);
 ##   perf.<system>_usec (per-system time).
+##   fire.* (U1 D1), per attacking player (every attacker's fire, friendly
+##   fire included): volleys, shots, hits, victims (distinct units damaged
+##   per volley), victims_per_volley (victims / volleys); raw (queued damage
+##   before defence), dealt (HP and temp HP lost), overkill (post-defence
+##   damage past what a killing hit needed), mitigation (raw - through the
+##   defence), wasted_hits / wasted_damage (queued on a unit already dead).
+##   Per battle: fire.first_kill_ticks (battles only, not summed: ticks from
+##   the player's first engagement to its first kill of an enemy, -1 = none;
+##   player 0 = the whole battle).
 ## Overworld runs: value, value_earned, hexes_explored, fog_revealed_pct,
 ##   features_owned, feature_turns (features held, summed over turns),
 ##   commanders_start, commanders_alive, force (Value of squads held);
@@ -37,6 +46,9 @@ extends RefCounted
 const NEUTRAL := 30  # OverworldBattles.NEUTRAL: guards and Angels
 const VICTIMS := ["player", "neutral", "civilian"]
 const THREAT_RANGE := 2
+## Fire counters summed per attacking player (fire.<name>, U1 D1).
+const FIRE := ["volleys", "shots", "hits", "victims", "raw", "dealt", "overkill",
+	"mitigation", "wasted_hits", "wasted_damage"]
 
 var rows: Array = []
 ## Per-turn series rows: {"metric", "player", "turn", "value"}.
@@ -82,6 +94,7 @@ func battle(state: BattleState, sim: BattleSim, prefix: String = "", input_log: 
 		_watch = _BattleWatch.new(state, true)
 	_watch.finish(state, series)
 	_watch.add_rows(state, acc)
+	_ratios(acc)
 	var out := _flush(acc, prefix)
 	var w := _watch
 	out.append(_row(prefix + "first_break_tick", 0, w.first_break))
@@ -89,9 +102,11 @@ func battle(state: BattleState, sim: BattleSim, prefix: String = "", input_log: 
 	out.append(_row(prefix + "first_contact_tick", 0, w.first_contact))
 	out.append(_row(prefix + "first_casualty_tick", 0, w.first_casualty))
 	out.append(_row(prefix + "first_capture_turn", 0, w.first_capture))
+	out.append(_row(prefix + "fire.first_kill_ticks", 0, w.kill_gap(0)))
 	for p in state.players:
 		out.append(_row(prefix + "first_contact_tick", p, w.contact.get(p, -1)))
 		out.append(_row(prefix + "first_capture_turn", p, w.capture.get(p, -1)))
+		out.append(_row(prefix + "fire.first_kill_ticks", p, w.kill_gap(p)))
 	var winner := int(state.result.get("winner", 0)) if state.is_over() else 0
 	out.append_array(_results(state.players, winner, state.turn))
 	out.append_array(_idle(input_log, state.players, state.turn))
@@ -208,6 +223,7 @@ func overworld(x: OverworldSession, events: Array = []) -> Array:
 	for eid: int in _ow_battles:
 		var pair: Array = _ow_battles[eid]
 		(pair[1] as _BattleWatch).add_rows((pair[0] as OverworldBattle).state, acc)
+	_ratios(acc)
 	out.append_array(_flush(acc, "battle."))
 	out.append_array(_results(x.players(), _overworld_winner(x), s.turn))
 	out.append_array(_idle(x.input_log, x.players(), s.turn))
@@ -399,6 +415,9 @@ class _BattleWatch extends RefCounted:
 	var contact: Dictionary = {}  # player -> first engagement tick
 	var capture: Dictionary = {}  # player -> first capture turn
 	var force_start: Dictionary = {}
+	var fire: Dictionary = {}  # "player|metric" -> fire counter (U1 D1)
+	var fire_engage: Dictionary = {}  # player -> first engagement tick of its squads
+	var fire_kill: Dictionary = {}  # player -> first kill of an enemy unit by its squads
 	var first_contact := -1
 	var first_casualty := -1
 	var first_capture := -1
@@ -449,6 +468,9 @@ class _BattleWatch extends RefCounted:
 					var row := sq.row_of(int(e.data.get(k, -1)))
 					if row >= 0 and not contact.has(sq.player[row]):
 						contact[sq.player[row]] = e.tick
+				var arow := sq.row_of(int(e.data["squad"]))
+				if arow >= 0 and not fire_engage.has(sq.player[arow]):
+					fire_engage[sq.player[arow]] = e.tick
 			&"unit_killed":
 				if first_casualty < 0:
 					first_casualty = e.tick
@@ -463,6 +485,26 @@ class _BattleWatch extends RefCounted:
 						cls = "neutral"
 					var key := "%d|%s" % [sq.player[krow], cls]
 					victim[key] = int(victim.get(key, 0)) + Fixed.round_div(state.rules.sq_value[st], state.rules.sq_members[st].size())
+					if not fire_kill.has(sq.player[krow]):
+						fire_kill[sq.player[krow]] = e.tick
+			&"squad_fired":
+				var frow := sq.row_of(int(e.data["squad"]))
+				if frow >= 0:
+					var fp := sq.player[frow]
+					_add_fire(fp, "volleys", 1)
+					_add_fire(fp, "shots", int(e.data["shots"]))
+					_add_fire(fp, "hits", int(e.data["hits"]))
+					_add_fire(fp, "victims", int(e.data.get("victims", 0)))
+			&"squad_damaged":
+				var drow := sq.row_of(int(e.data["squad"]))
+				if drow >= 0:
+					var dp := sq.player[drow]
+					_add_fire(dp, "raw", int(e.data["raw"]), true)
+					_add_fire(dp, "dealt", int(e.data["damage"]), true)
+					_add_fire(dp, "overkill", int(e.data["overkill"]), true)
+					_add_fire(dp, "mitigation", int(e.data["mitigation"]), true)
+					_add_fire(dp, "wasted_hits", int(e.data["wasted_hits"]))
+					_add_fire(dp, "wasted_damage", int(e.data["wasted_damage"]), true)
 			&"pool_surge", &"pool_break", &"pool_band":
 				var row := sq.row_of(int(e.data["squad"]))
 				var p := sq.player[row] if row >= 0 else 0
@@ -471,6 +513,27 @@ class _BattleWatch extends RefCounted:
 				crossings[key] = int(crossings.get(key, 0)) + 1
 				if e.type == &"pool_break" and e.data["pool"] == "morale" and first_break < 0:
 					first_break = e.tick
+
+	## Adds to a fire counter. Damage arrives fixed-point and is reported in
+	## display points (like the ledger); counts arrive as plain ints.
+	func _add_fire(player: int, metric: String, v: int, damage: bool = false) -> void:
+		var k := "%d|%s" % [player, metric]
+		var amount: float = Fixed.to_display(v).to_float() if damage else float(v)
+		fire[k] = float(fire.get(k, 0.0)) + amount
+
+	## Ticks from a player's first engagement to its first enemy kill, -1 if
+	## either never happened. Player 0: the whole battle (earliest of each).
+	func kill_gap(p: int) -> int:
+		var e: int = fire_engage.get(p, -1) if p > 0 else _earliest(fire_engage)
+		var k: int = fire_kill.get(p, -1) if p > 0 else _earliest(fire_kill)
+		return k - e if e >= 0 and k >= 0 else -1
+
+	static func _earliest(ticks: Dictionary) -> int:
+		var best := -1
+		for p in ticks:
+			if best < 0 or int(ticks[p]) < best:
+				best = int(ticks[p])
+		return best
 
 	func _series(state: BattleState, series: Array, turn: int) -> void:
 		var zones := {}
@@ -503,6 +566,8 @@ class _BattleWatch extends RefCounted:
 			if sq.destroyed[row] == 1:
 				put.call("squads_lost", p, 1)
 		for p in state.players:
+			for m: String in FIRE:
+				put.call("fire." + m, p, fire.get("%d|%s" % [p, m], 0.0))
 			put.call("vp", p, state.influence[p])
 			put.call("value_destroyed", p, state.value_score[p])
 			put.call("force_start", p, force_start.get(p, 0))
@@ -520,6 +585,16 @@ class _BattleWatch extends RefCounted:
 		for k: String in crossings:
 			var parts := k.split("|")
 			put.call("%s.%s" % [parts[1], parts[2]], int(parts[0]), crossings[k])
+
+
+## Adds the derived fire means to a summed acc (after every battle is in):
+## victims_per_volley is a ratio of sums, so it is never summed itself.
+static func _ratios(acc: Dictionary) -> void:
+	for k: String in acc.keys():
+		if k.begins_with("fire.volleys|"):
+			var p := k.get_slice("|", 1)
+			var n := float(acc[k])
+			acc["fire.victims_per_volley|" + p] = float(acc.get("fire.victims|" + p, 0.0)) / n if n > 0.0 else 0.0
 
 
 ## Value of a side's living units in a battle.
