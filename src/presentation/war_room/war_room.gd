@@ -300,6 +300,7 @@ func _build_ui() -> void:
 	_main.zoomed.connect(func(f: float) -> void: contexts.zoom_by(f))
 	_main.battle_camera.connect(func(z: float, c: Vector2) -> void: contexts.set_battle_camera(z, c))
 	_main.hex_hovered.connect(_on_hex_hovered)
+	_main.feature_hovered.connect(func(fid: int) -> void: _commander_box.set_hover_feature(fid))
 	_main.squad_hovered.connect(_on_squad_hovered)
 	panels["map"] = _main
 	_pip_layer = Control.new()
@@ -340,6 +341,8 @@ func _build_ui() -> void:
 	_commander_box.rally_requested.connect(rally)
 	_commander_box.supply_line_requested.connect(supply_line)
 	_commander_box.activity_requested.connect(set_activity)
+	_commander_box.feature_selected.connect(select_feature)
+	_commander_box.feature_hovered.connect(func(fid: int) -> void: _main.set_hover_feature(fid))
 	panels["commander"] = _commander_box
 	_orders_box = VBoxContainer.new()
 	panels["orders"] = _orders_box
@@ -680,7 +683,7 @@ func _refresh_inner() -> void:
 	_refresh_orders()
 	_refresh_reactions()
 	_commander_box.locked_reason = ""
-	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
+	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment(), contexts.selected_feature)
 	_refresh_log()
 	_refresh_phase_banner()
 	_refresh_battle_panel()
@@ -699,7 +702,7 @@ func _refresh_playback_side() -> void:
 	_refresh_orders()
 	_refresh_reactions()
 	_commander_box.locked_reason = PLANNING_ONLY_NOTE
-	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment())
+	_commander_box.show_selection(session, player, _own_selected(), contexts.selected_plot, _own_detachment(), contexts.selected_feature)
 
 
 ## The battle camera moved: only the main view redraws.
@@ -1103,14 +1106,17 @@ func _refresh_commanders() -> void:
 
 # --- input ---------------------------------------------------------------------
 
-func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
+## An overworld click on hex p; `feature` is the site picked under the
+## cursor (ContextView.pick_at: -1 when a mover token or open ground is
+## there, so a token wins over a site, and a site over the hex).
+func _on_hex_clicked(p: int, button: int, shift: bool = false, feature: int = -1) -> void:
 	if not _play.is_empty():
 		# Playback: a left click selects to inspect (the panels show it with
 		# their actions disabled); a right click would plan, so it is refused
 		# with the reason (sw-bafi.9 U1 C8).
 		_target = {}
 		if button == MOUSE_BUTTON_LEFT and p >= 0:
-			_select_at(p)
+			_select_at(p, feature)
 		elif button == MOUSE_BUTTON_RIGHT:
 			_refused_in_playback()
 		return
@@ -1124,6 +1130,12 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 	if button == MOUSE_BUTTON_RIGHT and _own_detachment() >= 0:
 		_steer(p, shift)
 		return
+	if button == MOUSE_BUTTON_RIGHT and _rally_feature() >= 0:
+		if p >= 0:
+			set_rally_point(p)
+		else:
+			contexts.deselect_all()
+		return
 	if button == MOUSE_BUTTON_RIGHT:
 		var cid := _own_selected()
 		if cid >= 0 and p >= 0:
@@ -1135,13 +1147,17 @@ func _on_hex_clicked(p: int, button: int, shift: bool = false) -> void:
 			contexts.deselect_all()
 		return
 	if p >= 0:
-		_select_at(p)
+		_select_at(p, feature)
 
 
-## A left click on hex p: a commander first; clicking its hex again selects
-## the garrison or convoy there (sw-kys.8); else the hex.
-func _select_at(p: int) -> void:
+## A left click on hex p: the site picked under the cursor (sw-63wt.7);
+## else a commander; clicking its hex again selects the garrison or convoy
+## there (sw-kys.8); else the hex.
+func _select_at(p: int, feature: int = -1) -> void:
 	var obs := _obs()
+	if feature >= 0:
+		contexts.select_feature(feature, p, obs)
+		return
 	var det := -1
 	for d: Dictionary in obs.get("detachments", []):
 		if int(d["plot"]) == p and int(d["player"]) == player and int(d["engagement"]) < 0 and int(d["id"]) != contexts.selected_detachment:
@@ -1158,6 +1174,35 @@ func _select_at(p: int) -> void:
 		contexts.select_detachment(det)
 		return
 	contexts.select_hex(p)
+
+
+## Selects a site on plot p (its panel row, or a click on the map; U1Q23).
+## Remembered and enemy sites are selectable to inspect.
+func select_feature(fid: int, p: int) -> void:
+	contexts.select_feature(fid, p, _obs())
+
+
+## The selected feature if it is one of the player's producing sites (it
+## has a rally point a right click sets), else -1.
+func _rally_feature() -> int:
+	var fid := contexts.selected_feature
+	if fid < 0 or not (_obs().get("production", {}) as Dictionary).has(fid):
+		return -1
+	return fid
+
+
+## Right click with a producing own site selected (U1Q23): its output goes
+## to hex p, or to the player's commander standing there. "" or why not.
+func set_rally_point(p: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
+	var fid := _rally_feature()
+	if fid < 0:
+		return "no producing site selected"
+	var row := session.state.features.row_of(fid)
+	var name := session.rules.hf_names[session.state.features.tmpl[row]] if row >= 0 else "site"
+	_target = {"kind": "line", "id": fid, "what": "what the %s makes" % name}
+	return send_to(p)
 
 
 ## The selected detachment if it is the player's own and not fighting, else -1.

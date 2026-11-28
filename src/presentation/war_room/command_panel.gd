@@ -19,6 +19,14 @@ signal supply_line_requested(feature: int, plot: int, commander: int, what: Stri
 ## Plan (or, with "", clear) the commander's activity where its route ends:
 ## recruit a squad, hire a commander (option = template ID), refit, ...
 signal activity_requested(activity: String, option: String)
+## A feature row was clicked: select that site (U1Q23), on its hex.
+signal feature_selected(feature: int, plot: int)
+## The pointer entered (feature ID) or left (-1) a feature row, so the map
+## rings that site; set_hover_feature is the other way round.
+signal feature_hovered(feature: int)
+
+## Feature rows are selection, not orders: playback's lock leaves them on.
+const SELECT_ROW := &"select_row"
 
 
 ## Defined terms for the hoverable titles.
@@ -28,6 +36,11 @@ var player: int = 1
 var commander: int = -1
 var plot: int = -1
 var detachment: int = -1
+## The selected feature (ViewContexts.selected_feature; -1 = none).
+var feature: int = -1
+## Feature ID -> its row button, for linked hover.
+var _rows: Dictionary = {}
+var _hover_feature: int = -1
 ## While a turn plays out: the reason every action control here is disabled
 ## ("Available in Planning"); "" in Planning (sw-bafi.9 U1 C8). The panel
 ## still shows everything, so the selection can be inspected.
@@ -36,12 +49,14 @@ var locked_reason: String = ""
 
 ## Shows the selected commander (`commander_id`, -1 for none), or else the
 ## selected hex (`plot_id`, -1 for none), as `for_player` knows them.
-func show_selection(of_session: OverworldSession, for_player: int, commander_id: int, plot_id: int, detachment_id: int = -1) -> void:
+func show_selection(of_session: OverworldSession, for_player: int, commander_id: int, plot_id: int, detachment_id: int = -1, feature_id: int = -1) -> void:
 	session = of_session
 	player = for_player
 	commander = commander_id
 	plot = plot_id
 	detachment = detachment_id
+	feature = feature_id
+	_rows = {}
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
@@ -53,7 +68,7 @@ func show_selection(of_session: OverworldSession, for_player: int, commander_id:
 ## Disables every action control under `node`, its tooltip saying why.
 func _lock(node: Node) -> void:
 	for c in node.get_children():
-		if c is BaseButton:
+		if c is BaseButton and not c.has_meta(SELECT_ROW):
 			(c as BaseButton).disabled = true
 			(c as Control).tooltip_text = locked_reason
 		_lock(c)
@@ -271,12 +286,7 @@ func _hex_info(obs: Dictionary) -> void:
 		add_child(_dim_label("Unexplored."))
 		return
 	for f: Dictionary in plot.get("features", []):
-		var t := int(f["tmpl"])
-		var name := r.hf_names[t] if t >= 0 and t < r.hf_names.size() else "feature"
-		var owner := int(f.get("owner", 0))
-		add_child(_dim_label("  %s%s" % [name, "" if owner <= 0 else " · " + EventText.side(owner, player)]))
-		if (obs.get("production", {}) as Dictionary).has(int(f["id"])) and session.clock.phase == PulseClock.Phase.PLANNING:
-			_line_buttons(int(f["id"]), name, obs)
+		_feature_row(f, p, obs)
 	for det: Dictionary in obs.get("detachments", []):
 		if int(det["plot"]) != p:
 			continue
@@ -309,17 +319,58 @@ func _hex_info(obs: Dictionary) -> void:
 		add_child(_dim_label("  (last seen; not in sight now)"))
 
 
-## A producing feature's rally point: where its output is sent, and the
-## buttons to set or clear it.
-func _line_buttons(fid: int, name: String, obs: Dictionary) -> void:
+## One feature of the selected hex (sw-63wt.7, U1Q23): a row that selects
+## it (hover rings it on the map), with a producing own site's rally point
+## buttons on the same row. The selected one lists what it does below
+## (HexCard.feature_lines), and "last seen" when out of sight.
+func _feature_row(f: Dictionary, p: int, obs: Dictionary) -> void:
+	var r := session.rules
+	var fid := int(f["id"])
+	var t := int(f["tmpl"])
+	var name := r.hf_names[t] if t >= 0 and t < r.hf_names.size() else "feature"
+	var owner := int(f.get("owner", 0))
+	var chosen := fid == feature
+	var row := HBoxContainer.new()
+	var pick := Button.new()
+	pick.flat = not chosen
+	pick.toggle_mode = true
+	pick.button_pressed = chosen
+	pick.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pick.text = "%s%s%s" % ["▸ " if chosen else "  ", name, "" if owner <= 0 else " · " + EventText.side(owner, player)]
+	pick.tooltip_text = "Select this site." if not chosen else "Selected."
+	pick.set_meta(SELECT_ROW, true)
+	pick.pressed.connect(feature_selected.emit.bind(fid, p))
+	pick.mouse_entered.connect(feature_hovered.emit.bind(fid))
+	pick.mouse_exited.connect(feature_hovered.emit.bind(-1))
+	row.add_child(pick)
+	_rows[fid] = pick
+	add_child(row)
+	var producing := (obs.get("production", {}) as Dictionary).has(fid)
+	if producing and session.clock.phase == PulseClock.Phase.PLANNING:
+		_line_buttons(fid, name, obs, row)
+	_paint_row(fid)
+	if not chosen:
+		return
+	var info := session.inspect_feature(player, fid)
+	var detail := HexCard.feature_lines(info, r, player) if not info.is_empty() else []
+	for l: Array in detail.slice(1):
+		add_child(_dim_label("    " + String(l[0])))
+	for l: Array in HexCard.selection_notes(info, player, int(obs.get("turn", -1))):
+		add_child(_dim_label("    " + String(l[0])))
+	if producing and session.clock.phase == PulseClock.Phase.PLANNING:
+		add_child(_dim_label("    Right click a hex, or one of your commanders, to set its rally point."))
+
+
+## A producing feature's rally point: where its output is sent (a line
+## under the row), and the buttons to set or clear it on its row.
+func _line_buttons(fid: int, name: String, obs: Dictionary, row: HBoxContainer) -> void:
 	var line: Dictionary = (obs.get("supply_lines", {}) as Dictionary).get(fid, {})
 	var where := "stays here as a garrison"
 	if int(line.get("commander", -1)) >= 0:
 		where = "goes to " + EventText.commander(int(line["commander"]))
 	elif int(line.get("plot", -1)) >= 0:
 		where = "goes to " + EventText.hex(int(line["plot"]), session.rules)
-	add_child(_dim_label("    What it makes " + where + "."))
-	var row := HBoxContainer.new()
 	var send := Button.new()
 	send.text = "Set rally point…"
 	send.tooltip_text = "Then click a hex, or one of your commanders to supply that army."
@@ -330,7 +381,27 @@ func _line_buttons(fid: int, name: String, obs: Dictionary) -> void:
 		clear.text = "Clear"
 		clear.pressed.connect(supply_line_requested.emit.bind(fid, -1, -1, name))
 		row.add_child(clear)
-	add_child(row)
+	add_child(_dim_label("    What it makes " + where + "."))
+
+
+## Highlights a feature's row from outside (its site hovered on the map;
+## -1 clears), without rebuilding the panel.
+func set_hover_feature(fid: int) -> void:
+	var was := _hover_feature
+	_hover_feature = fid
+	_paint_row(was)
+	_paint_row(fid)
+
+
+func _paint_row(fid: int) -> void:
+	var b: Button = _rows.get(fid)
+	if b != null and is_instance_valid(b):
+		b.modulate = Color(1.25, 1.2, 0.9) if fid == _hover_feature and fid != feature else Color.WHITE
+
+
+## Whether a feature row is lit as hovered (tests).
+func row_hovered(fid: int) -> bool:
+	return _rows.has(fid) and fid == _hover_feature
 
 
 func _dim_label(text: String) -> Label:

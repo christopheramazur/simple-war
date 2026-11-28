@@ -27,37 +27,7 @@ static func lines(info: Dictionary, rules: OverworldRules, viewer: int) -> Array
 	if bool(info.get("battle", false)):
 		out.append(["A battle is being fought here.", "text"])
 	for f: Dictionary in info.get("features", []):
-		var owner := int(f["owner"])
-		var whose := "" if owner <= 0 else "  ·  " + ("yours" if owner == viewer else EventText.side(owner, viewer))
-		if owner <= 0 and bool(f["controllable"]):
-			whose = "  ·  unclaimed"
-		out.append([str(f["name"]) + whose, "head"])
-		var guard: PackedStringArray = f["guard"]
-		if not guard.is_empty():
-			out.append(["Guarded by %d squad%s: %s. Entering starts a battle." % [guard.size(), "" if guard.size() == 1 else "s", ", ".join(guard)], "text"])
-		elif bool(f["controllable"]) and owner != viewer:
-			out.append(["Move a commander onto it to take it.", "dim"])
-		if int(f["value_per_turn"]) != 0:
-			out.append(["Gives its owner %d Value a turn." % int(f["value_per_turn"]), "text"])
-		if int(f["cache_value"]) > 0:
-			out.append(["A cache: %d Value to the first commander here." % int(f["cache_value"]), "text"])
-		for p: Dictionary in f.get("produces", []):
-			var progress := "" if int(p["progress"]) < 0 else "  (turn %d of %d)" % [int(p["progress"]), int(p["turns"])]
-			out.append(["%s %s every %d turn%s for %d Value%s" % ["Makes" if bool(p["selected"]) else "Can make", p["name"], int(p["turns"]),
-				"" if int(p["turns"]) == 1 else "s", int(p["cost"]), progress], "text" if bool(p["selected"]) else "dim"])
-		var line: Dictionary = f.get("line", {})
-		if int(line.get("commander", -1)) >= 0:
-			out.append(["Its output goes to %s." % EventText.commander(int(line["commander"])), "dim"])
-		elif int(line.get("plot", -1)) >= 0:
-			out.append(["Its output goes to %s." % EventText.hex(int(line["plot"]), rules), "dim"])
-		for r: Dictionary in f.get("recruits", []):
-			out.append(["A commander here can recruit a %s for %d Value." % [r["name"], int(r["cost"])], "dim"])
-		for h: Dictionary in f.get("hires", []):
-			out.append(["A commander here can hire a new %s for %d Value." % [String(h["name"]).to_lower(), int(h["cost"])], "dim"])
-		var acts: PackedStringArray = f["activities"]
-		var other := Array(acts).filter(func(a: String) -> bool: return a != "recruit" and a != "hire")
-		if not other.is_empty():
-			out.append(["A commander ending its move here can: %s." % ", ".join(other), "dim"])
+		out.append_array(feature_lines(f, rules, viewer))
 	for c: Dictionary in info.get("commanders", []):
 		var mine := int(c["player"]) == viewer
 		var army := "" if int(c["squads"]) < 0 else ", %d squad%s" % [int(c["squads"]), "" if int(c["squads"]) == 1 else "s"]
@@ -71,4 +41,61 @@ static func lines(info: Dictionary, rules: OverworldRules, viewer: int) -> Array
 			"" if squads.is_empty() else ": " + ", ".join(squads)], "text"])
 	if out.size() == 1 + (0 if bool(info.get("visible", false)) else 1):
 		out.append(["Nothing of note.", "dim"])
+	return out
+
+
+## One feature's lines (an inspect_plot or inspect_feature entry): its name
+## and owner ("head"), then what it does. The hex card lists these for every
+## site; the panel shows them for the selected one (sw-63wt.7).
+static func feature_lines(f: Dictionary, rules: OverworldRules, viewer: int) -> Array:
+	var out := []
+	var owner := int(f["owner"])
+	var whose := "" if owner <= 0 else "  ·  " + ("yours" if owner == viewer else EventText.side(owner, viewer))
+	if owner <= 0 and bool(f["controllable"]):
+		whose = "  ·  unclaimed"
+	out.append([str(f["name"]) + whose, "head"])
+	var guard: PackedStringArray = f["guard"]
+	if not guard.is_empty():
+		out.append(["Guarded by %d squad%s: %s. Entering starts a battle." % [guard.size(), "" if guard.size() == 1 else "s", ", ".join(guard)], "text"])
+	elif bool(f["controllable"]) and owner != viewer:
+		out.append(["Move a commander onto it to take it.", "dim"])
+	if int(f["value_per_turn"]) != 0:
+		out.append(["Gives its owner %d Value a turn." % int(f["value_per_turn"]), "text"])
+	if int(f["cache_value"]) > 0:
+		out.append(["A cache: %d Value to the first commander here." % int(f["cache_value"]), "text"])
+	for p: Dictionary in f.get("produces", []):
+		var progress := "" if int(p["progress"]) < 0 else "  (turn %d of %d)" % [int(p["progress"]), int(p["turns"])]
+		out.append(["%s %s every %d turn%s for %d Value%s" % ["Makes" if bool(p["selected"]) else "Can make", p["name"], int(p["turns"]),
+			"" if int(p["turns"]) == 1 else "s", int(p["cost"]), progress], "text" if bool(p["selected"]) else "dim"])
+	var line: Dictionary = f.get("line", {})
+	if int(line.get("commander", -1)) >= 0:
+		out.append(["Its output goes to %s." % EventText.commander(int(line["commander"])), "dim"])
+	elif int(line.get("plot", -1)) >= 0:
+		out.append(["Its output goes to %s." % EventText.hex(int(line["plot"]), rules), "dim"])
+	for r: Dictionary in f.get("recruits", []):
+		out.append(["A commander here can recruit a %s for %d Value." % [r["name"], int(r["cost"])], "dim"])
+	for h: Dictionary in f.get("hires", []):
+		out.append(["A commander here can hire a new %s for %d Value." % [String(h["name"]).to_lower(), int(h["cost"])], "dim"])
+	var acts: PackedStringArray = f["activities"]
+	var other := Array(acts).filter(func(a: String) -> bool: return a != "recruit" and a != "hire")
+	if not other.is_empty():
+		out.append(["A commander ending its move here can: %s." % ", ".join(other), "dim"])
+	return out
+
+
+## A selected feature's notes (OverworldSession.inspect_feature, U1Q23):
+## last seen when out of sight, and an enemy site's inspection-only note.
+## `now` is the observation's turn, so "n turns ago" needs no turn base.
+static func selection_notes(info: Dictionary, viewer: int, now: int = -1) -> Array:
+	var out := []
+	if info.is_empty():
+		return out
+	if not bool(info.get("visible", false)):
+		var turn := int(info.get("turn", -1))
+		var ago := now - turn if turn >= 0 and now >= turn else -1
+		var when := "" if ago < 0 else (" this turn" if ago == 0 else " %d turn%s ago" % [ago, "" if ago == 1 else "s"])
+		out.append(["Last seen%s: not in sight now." % when, "dim"])
+	var owner := int(info.get("owner", 0))
+	if owner > 0 and owner != viewer:
+		out.append(["An enemy site: selected to inspect only.", "dim"])
 	return out
