@@ -185,10 +185,11 @@ func test_push_never_enters_a_cell_the_unit_cannot() -> void:
 
 func test_head_on_walkers_step_around_each_other() -> void:
 	# Two single files walking straight at each other along the lane: the
-	# pushes slide them sideways instead of locking them in place.
+	# pushes slide them sideways instead of locking them in place. Both are
+	# player 1's, so no fire or morale decides whether they arrive.
 	var s := BattleState.new(1, _rules(), 1)
 	var west := _place(s, 1, 40, LANE)
-	var east := _place(s, 2, 70, LANE, Fixed.ANGLE_HALF)
+	var east := _place(s, 1, 70, LANE, Fixed.ANGLE_HALF)
 	_order(s, west, BattleSquads.Order.MOVE, 70, LANE)
 	_order(s, east, BattleSquads.Order.MOVE, 40, LANE)
 	_run(s, 300)
