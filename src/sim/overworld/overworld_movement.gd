@@ -157,7 +157,7 @@ static func _drop(s: OverworldState, cid: int) -> int:
 	var p: int = s.drops[cid]["plot"]
 	var did := Detachments.drop(s, cid, p)
 	if did >= 0:
-		OverworldVision.glimpse(s, s.commanders.player[row], p, s.rules.detachment_sight)
+		OverworldVision.glimpse(s, s.commanders.player[row], p, OverworldStats.sight_of(s, OverworldStats.BAND, did))
 	return did
 
 
@@ -185,7 +185,7 @@ static func _convoy_step(s: OverworldState, did: int, path: PackedInt64Array, i:
 	var to := path[i]
 	d.set_value(did, &"plot", to)
 	s.events.push(&"convoy_moved", {"detachment": did, "player": player, "from": from, "to": to}, s.tick)
-	OverworldVision.glimpse(s, player, to, s.rules.detachment_sight)
+	OverworldVision.glimpse(s, player, to, OverworldStats.sight_of(s, OverworldStats.BAND, did))
 	if Detachments.squads_of(s, did).is_empty() and WarChest.seize(s, did, to):
 		convoying[did] = false
 	elif _engages(s, player, to):

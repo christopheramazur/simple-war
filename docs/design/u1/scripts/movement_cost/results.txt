@@ -68,3 +68,13 @@ cadence | ring step m | rings | angles | LoS targets | cap/tick | memo | ms/tick
 5 | 2 | 3 | 7 | nearest | 2 | memo +LoS cache | 0.603 | memo skips/t 0.3, memo holds/t 0.2, due/t 23.6, searched/t 1.8, deferred/t 21.6, unreachable/t 0.2, cand/search 13.73, los/search 10.64, found 48%, worst tick 1.66 ms, pass-1 (due list + memo checks) 0.363 ms/t, LoS cache hits 17% (4771 entries)
 10 | 2 | 3 | 7 | nearest | - | memo +LoS cache | 1.506 | memo skips/t 0.0, memo holds/t 0.2, due/t 11.8, searched/t 9.9, deferred/t 0.0, unreachable/t 1.9, cand/search 13.88, los/search 9.15, found 48%, worst tick 2.83 ms, pass-1 (due list + memo checks) 0.358 ms/t, LoS cache hits 37% (17127 entries)
 5 | 2 | 2 | 5 | nearest | 2 | memo +LoS cache | 0.533 | memo skips/t 0.4, memo holds/t 0.1, due/t 23.6, searched/t 1.8, deferred/t 21.6, unreachable/t 0.2, cand/search 8.19, los/search 6.41, found 42%, worst tick 1.64 ms, pass-1 (due list + memo checks) 0.363 ms/t, LoS cache hits 16% (2877 entries)
+
+# sw-03qj LoS memo (BattleRules.los: squared awareness test + per-cell-pair blocker-walk memo), 2026-11-27,
+# same machine, back to back: parent commit (base) vs the memo commit (new). `--no-sweep`, 300 ticks.
+# Determinism: "today" and every variant hash identical base vs new (the memo answers the same).
+# Timings are noisy on this desktop (+/-20% between runs); read the ratios, not the digits.
+# The "alive end" and hash values differ from the sw-txnj.3 table above because main changed since 2026-11-25.
+micro: BattleRules.los 20-60 m: base 5.38 us/call, new 0.83 us/call (micro traces repeat ~120 cell pairs, so this is mostly memo hits)
+VisionSystem ms/tick (today, base -> new): 4 squads 0.069 -> 0.057; 20 squads 1.202 -> 1.007; 40 squads 3.381 -> 3.132
+CombatSystem ms/tick (today, base -> new): 4 squads 0.339 -> 0.269; 20 squads 1.495 -> 1.210; 40 squads 2.994 -> 2.610
+prototype search (40 squads, ms/tick): every tick literal 22.97 -> 17.11; every tick memo 10.19 -> 7.99; recommended (5 t, memo, cap 4) 2.23 -> 1.27
