@@ -389,6 +389,24 @@ func set_owner_action(player: int, feature_id: int, action: String, option: Stri
 	return err
 
 
+## Cancels one planned buy of the player's feature (index in its "buys",
+## from inspect_feature); the others stay, re-planned in order. "" or why not.
+func cancel_owner_buy(player: int, feature_id: int, index: int) -> String:
+	var err := _planning(player)
+	var order: Dictionary = state.owner_orders.get(feature_id, {})
+	var buys: PackedStringArray = order.get("buys", PackedStringArray())
+	if err.is_empty() and (order.get("player", -1) != player or index < 0 or index >= buys.size()):
+		err = "no such buy"
+	if err.is_empty():
+		var keep := buys.duplicate()
+		keep.remove_at(index)
+		err = set_owner_action(player, feature_id, "buy", "")
+		for opt in keep:
+			if err.is_empty():
+				err = set_owner_action(player, feature_id, "buy", opt)
+	return err
+
+
 ## Plans (or, with "", clears) a commander's activity; recruit names the
 ## squad in `option`. "" or why not.
 func set_activity(player: int, commander_id: int, activity: String, option: String = "") -> String:
@@ -1289,7 +1307,9 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 ## "turn" (now if visible, else the turn it was last seen, from memory).
 ## Dead features (despawned), unknown IDs and features the player never saw
 ## give {}. Enemy features carry no progress, selected output or supply line:
-## those come only from the owner's own production and lines.
+## those come only from the owner's own production and lines. Own features
+## also carry "actions" (_owner_actions: each owner action with its price
+## and why not) and "buys" (the planned ones); enemy features carry none.
 func inspect_feature(player: int, feature_id: int) -> Dictionary:
 	if not _players.has(player):
 		return {}
@@ -1345,10 +1365,84 @@ func _feature_facts(obs: Dictionary, fid: int, t: int, owner: int) -> Dictionary
 		var chosen: bool = not made.is_empty() and int(made["output"]) == i
 		produces.append({"name": what, "turns": opts[o + 1], "cost": opts[o + 2], "selected": chosen,
 			"progress": int(made["progress"]) if chosen else -1})
+	var own := owner == int(obs.get("player", -1))
 	return {"id": fid, "name": rules.hf_names[t], "owner": owner,
 		"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
 		"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "hires": hires, "produces": produces,
-		"line": (lines.get(fid, {}) as Dictionary).duplicate()}
+		"line": (lines.get(fid, {}) as Dictionary).duplicate(),
+		"actions": _owner_actions(obs, fid, t, produces) if own else [],
+		"buys": _planned_buys(obs, fid, t) if own else []}
+
+
+## The owner actions a feature offers its owner (U1Q24, GDD 04 §4.4): a buy
+## per recruits squad or sells item ({"action": "buy", "option" (its ID),
+## "name", "cost" (plain), "price" (with the remote markup), "markup"}),
+## an output per production option ({"action": "output", "option" (its
+## index), "name", "turns", "cost", "selected"}) and "rally" when the
+## feature allows it. Every action has a "reason": "" if it can be planned
+## now, else why not (engaged, contested, the buy limit, or the Value).
+func _owner_actions(obs: Dictionary, fid: int, t: int, produces: Array) -> Array:
+	var out := []
+	var plot := state.features.plot[state.features.row_of(fid)]
+	var value := int(obs.get("value", 0))
+	var planned := _planned_buys(obs, fid, t)
+	var blocked := ""
+	if state.engagement_at(plot) >= 0:
+		blocked = OverworldOwnerActions.ENGAGED
+	elif OverworldOwnerActions.contested(state, int(obs.get("player", -1)), plot):
+		blocked = OverworldOwnerActions.CONTESTED
+	if rules.has_owner_action(t, "buy"):
+		var ids := []
+		for i in range(0, rules.hf_recruits[t].size(), 2):
+			ids.append(rules.squad_ids[rules.hf_recruits[t][i]])
+		for i in range(0, rules.hf_sells[t].size(), 3):
+			ids.append(rules.item_ids[rules.hf_sells[t][i]])
+		for id: String in ids:
+			var buy := rules.buy_option(t, id)
+			var plain := rules.recruit_cost(t, buy[0]) if buy[0] >= 0 else _sell_cost(t, buy[1])
+			var why := blocked
+			if why.is_empty() and planned.size() >= rules.hf_buys[t]:
+				why = OverworldOwnerActions.LIMIT
+			if why.is_empty() and value < buy[3]:
+				why = "not enough Value (costs %d, you have %d)" % [buy[3], value]
+			out.append({"action": "buy", "option": id, "name": _option_name(buy), "cost": plain, "price": buy[3],
+				"markup": rules.hf_markup[t], "reason": why})
+	if rules.has_owner_action(t, "output"):
+		for i in produces.size():
+			var p: Dictionary = produces[i]
+			out.append({"action": "output", "option": str(i), "name": p["name"], "turns": p["turns"], "cost": p["cost"],
+				"selected": p["selected"], "reason": ""})
+	if rules.has_owner_action(t, "rally"):
+		out.append({"action": "rally", "option": "", "name": "Rally point", "reason": ""})
+	return out
+
+
+## The buys planned at feature fid, in order: [{"option", "name", "price"}]
+## (own features only; the observation's owner_orders).
+func _planned_buys(obs: Dictionary, fid: int, t: int) -> Array:
+	var order: Dictionary = (obs.get("owner_orders", {}) as Dictionary).get(fid, {})
+	var out := []
+	for opt: String in order.get("buys", PackedStringArray()):
+		var buy := rules.buy_option(t, opt)
+		if not buy.is_empty():
+			out.append({"option": opt, "name": _option_name(buy), "price": buy[3]})
+	return out
+
+
+## A buy's name: a squad, or an item with its count.
+func _option_name(buy: PackedInt64Array) -> String:
+	if buy[0] >= 0:
+		return rules.sq_names[buy[0]]
+	return rules.it_names[buy[1]] if buy[2] == 1 else "%d × %s" % [buy[2], rules.it_names[buy[1]]]
+
+
+## An item's plain (markup-free) cost at feature t's sells.
+func _sell_cost(t: int, item: int) -> int:
+	var opts := rules.hf_sells[t]
+	for i in range(0, opts.size(), 3):
+		if opts[i] == item:
+			return opts[i + 2]
+	return -1
 
 
 ## A commander's movement this turn, as the player knows the map:

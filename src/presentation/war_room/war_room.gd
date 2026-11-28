@@ -347,6 +347,8 @@ func _build_ui() -> void:
 	_commander_box.supply_line_requested.connect(supply_line)
 	_commander_box.activity_requested.connect(set_activity)
 	_commander_box.feature_selected.connect(select_feature)
+	_commander_box.owner_action_requested.connect(owner_action)
+	_commander_box.owner_buy_cancel_requested.connect(cancel_owner_buy)
 	_commander_box.feature_hovered.connect(func(fid: int) -> void: _main.set_hover_feature(fid))
 	panels["commander"] = _commander_box
 	_orders_box = VBoxContainer.new()
@@ -2147,6 +2149,33 @@ func set_activity(activity: String, option: String = "") -> String:
 		"" if err.is_empty() else " - refused: " + err])
 	_queue_refresh()
 	return err
+
+
+## An owner action on the selected feature (U1Q24, sw-63wt.10): a buy of
+## `option` (a squad or item ID), or an output choice (its index). "" or why not.
+func owner_action(fid: int, action: String, option: String) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
+	var err := session.set_owner_action(player, fid, action, option) if action == "buy" else session.set_output(player, fid, int(option))
+	_owner_note(fid, "buy %s" % option.replace("_", " ") if action == "buy" else "output %s" % option, err)
+	return err
+
+
+## Cancels one planned buy of the selected feature (sw-63wt.10). "" or why not.
+func cancel_owner_buy(fid: int, index: int) -> String:
+	if _refused_in_playback():
+		return PLANNING_ONLY_NOTE
+	var err := session.cancel_owner_buy(player, fid, index)
+	_owner_note(fid, "planned buy cancelled", err)
+	return err
+
+
+func _owner_note(fid: int, what: String, err: String) -> void:
+	_hud_note = err
+	var row := session.state.features.row_of(fid)
+	var name := session.rules.hf_names[session.state.features.tmpl[row]] if row >= 0 else "site"
+	_note("%s: %s%s" % [name, what, "" if err.is_empty() else " - refused: " + err])
+	_queue_refresh()
 
 
 ## Battle start/end and losses go to the persistent alert panel (sw-9un).

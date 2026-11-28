@@ -24,6 +24,11 @@ signal feature_selected(feature: int, plot: int)
 ## The pointer entered (feature ID) or left (-1) a feature row, so the map
 ## rings that site; set_hover_feature is the other way round.
 signal feature_hovered(feature: int)
+## An owner action on the selected feature (sw-63wt.10): "buy" (option = the
+## recruits squad or sells item ID) or "output" (option = the output index).
+signal owner_action_requested(feature: int, action: String, option: String)
+## Cancel one planned buy of a feature (index into its "buys").
+signal owner_buy_cancel_requested(feature: int, index: int)
 
 ## Feature rows are selection, not orders: playback's lock leaves them on.
 const SELECT_ROW := &"select_row"
@@ -347,7 +352,9 @@ func _feature_row(f: Dictionary, p: int, obs: Dictionary) -> void:
 	_rows[fid] = pick
 	add_child(row)
 	var producing := (obs.get("production", {}) as Dictionary).has(fid)
-	if producing and session.clock.phase == PulseClock.Phase.PLANNING:
+	# A rally point is set for a producing site, or any own site that allows one.
+	var rallies := session.rules.has_owner_action(t, "rally") and int(f.get("owner", 0)) == player
+	if (producing or rallies) and session.clock.phase == PulseClock.Phase.PLANNING and not session.locked:
 		_line_buttons(fid, name, obs, row)
 	_paint_row(fid)
 	if not chosen:
@@ -360,17 +367,74 @@ func _feature_row(f: Dictionary, p: int, obs: Dictionary) -> void:
 		add_child(_dim_label("    " + String(l[0])))
 	if producing and session.clock.phase == PulseClock.Phase.PLANNING:
 		add_child(_dim_label("    Right click a hex, or one of your commanders, to set its rally point."))
+	_owner_block(info)
 
 
-## A producing feature's rally point: where its output is sent (a line
-## under the row), and the buttons to set or clear it on its row.
+## The selected owned feature's owner actions (U1Q24, sw-63wt.10): each
+## planned buy as a pending line with its own Cancel, a button per buy
+## option (its price with the remote markup, or the reason it can't be
+## bought now), the output choices and the rally point. Only the owner sees
+## them, and a replay shows none. During playback the buttons are disabled
+## with the reason (locked_reason, through _lock).
+func _owner_block(info: Dictionary) -> void:
+	if info.is_empty() or int(info["owner"]) != player or session.locked:
+		return
+	var fid := int(info["id"])
+	var actions: Array = info.get("actions", [])
+	var buys: Array = info.get("buys", [])
+	if actions.is_empty() and buys.is_empty():
+		return
+	add_child(_title("Owner actions"))
+	if not locked_reason.is_empty():
+		add_child(_dim_label("Owner actions are off: %s." % locked_reason.to_lower()))
+	for i in buys.size():
+		var b: Dictionary = buys[i]
+		var row := HBoxContainer.new()
+		var line := _dim_label("Planned: buy %s for %d Value" % [b["name"], int(b["price"])])
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(line)
+		var cancel := Button.new()
+		cancel.text = "Cancel"
+		cancel.tooltip_text = "Cancel this planned buy. Nothing is paid."
+		cancel.pressed.connect(owner_buy_cancel_requested.emit.bind(fid, i))
+		row.add_child(cancel)
+		add_child(row)
+	for a: Dictionary in actions:
+		match String(a["action"]):
+			"buy":
+				var buy := Button.new()
+				buy.text = "Buy %s: %d Value (%d plus %d%% remote)" % [a["name"], int(a["price"]), int(a["cost"]), int(a["markup"])]
+				buy.disabled = not String(a["reason"]).is_empty()
+				buy.tooltip_text = "Bought from here, paid when the turn resolves." if not buy.disabled else String(a["reason"]).capitalize()
+				buy.pressed.connect(owner_action_requested.emit.bind(fid, "buy", String(a["option"])))
+				add_child(buy)
+				if buy.disabled:
+					add_child(_dim_label("    Can't buy: %s." % a["reason"]))
+			"output":
+				var turns := int(a["turns"])
+				var out := Button.new()
+				out.text = "%sMake %s (%d turn%s, %d Value)" % ["✓ " if bool(a["selected"]) else "", a["name"], turns, "" if turns == 1 else "s", int(a["cost"])]
+				out.disabled = bool(a["selected"])
+				out.pressed.connect(owner_action_requested.emit.bind(fid, "output", String(a["option"])))
+				add_child(out)
+			"rally":
+				add_child(_dim_label("Rally point: %s." % _line_where(info.get("line", {}))))
+
+
+## Where a supply line sends its output ("stays here as a garrison" if none).
+func _line_where(line: Dictionary) -> String:
+	if int(line.get("commander", -1)) >= 0:
+		return "goes to " + EventText.commander(int(line["commander"]))
+	if int(line.get("plot", -1)) >= 0:
+		return "goes to " + EventText.hex(int(line["plot"]), session.rules)
+	return "stays here as a garrison"
+
+
+## A feature's rally point: where its output is sent (a line under the
+## row), and the buttons to set or clear it on its row.
 func _line_buttons(fid: int, name: String, obs: Dictionary, row: HBoxContainer) -> void:
 	var line: Dictionary = (obs.get("supply_lines", {}) as Dictionary).get(fid, {})
-	var where := "stays here as a garrison"
-	if int(line.get("commander", -1)) >= 0:
-		where = "goes to " + EventText.commander(int(line["commander"]))
-	elif int(line.get("plot", -1)) >= 0:
-		where = "goes to " + EventText.hex(int(line["plot"]), session.rules)
+	var where := _line_where(line)
 	var send := Button.new()
 	send.text = "Set rally point…"
 	send.tooltip_text = "Then click a hex, or one of your commanders to supply that army."
@@ -381,7 +445,8 @@ func _line_buttons(fid: int, name: String, obs: Dictionary, row: HBoxContainer) 
 		clear.text = "Clear"
 		clear.pressed.connect(supply_line_requested.emit.bind(fid, -1, -1, name))
 		row.add_child(clear)
-	add_child(_dim_label("    What it makes " + where + "."))
+	var makes := (obs.get("production", {}) as Dictionary).has(fid)
+	add_child(_dim_label("    %s %s." % ["What it makes" if makes else "Rally point", where]))
 
 
 ## Highlights a feature's row from outside (its site hovered on the map;
