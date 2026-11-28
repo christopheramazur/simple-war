@@ -16,3 +16,8 @@ Written by `hx human`: each answer the owner gave a bead that was waiting on the
 **GodotSteam transport behind a transport interface (lobbies, Sockets/SDR)** (blocked, P3)
 
 > determine if still needed, close off if not
+
+## 2026-11-28 22:09 AEST · sw-l4d · release
+**Code-health review: data-oriented convergence** (blocked, P4)
+
+> have an opus5.5 high thinking /delegate act in place of the user for decisions against it to unblock
