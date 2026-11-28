@@ -65,7 +65,7 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 - `id`: unique, no dots. Exactly one kind key; its value is the expectation (`null` = report the value only).
 - `at`: `"end"` (the last frame), `"t<turn>"` (after the turn resolved), `"t<turn>:<tick>"` (after that tick of the turn, from 0).
 - `over`: `"all"`, `"t<turn>"`, `"t<a>-t<b>"`, `"t<turn>:<k0>-<k1>"`. Both ends inclusive.
-- `squad`: the squad measured (required). `target`: a squad key (required for `fire`, `distance`, `within`; a filter for `damage`, `dps`, `shots`, `kills`, `victims`; for `spacing`, the gap to that squad's units).
+- `squad`: the squad measured (required). `target`: a squad key (required for `fire`, `distance`, `within`, `first_kill`, `mean_kill`, `wipe`, `waste`; a filter for `damage`, `dps`, `shots`, `kills`, `victims`; for `spacing`, the gap to that squad's units).
 - `pending`: true makes this probe non-gating in a gate scenario.
 - `variants`: the variants the expectation holds in: a list, or `"all"`. Default `["base"]`. The value is measured and reported in every variant either way (comparisons use it).
 
@@ -88,6 +88,10 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 | `first_shot` | over | seconds from the window's first tick to the squad's first shot at the target (`null` when it never fires) | number |
 | `shooters` | over | distinct living units that fired in the window (at the target when given) | number |
 | `first_shot_ticks` | over | distinct ticks on which a unit fired its first shot in the window (1 is a lockstep volley) | number |
+| `first_kill` | over | battle tick of the squad's first kill of `target` in the window; `null` when none (ticks, 0 = the first tick) | number |
+| `mean_kill` | over | mean battle tick of the squad's kills of `target`, whole ticks, half up; `null` when none | number |
+| `wipe` | over | battle tick of the squad's last kill of `target`, when no unit of `target` is alive at the window's last tick; else `null` | number |
+| `waste` | over | share of the squad's raw queued damage on `target` that did not reduce HP: (raw − dealt) ÷ raw, mitigation included (0..1) | number |
 
 A number expectation is either a number (equal after quantizing) or `{"min": a, "max": b}` (either end optional, inclusive).
 
@@ -177,4 +181,6 @@ Printed as one line between `WORKSHOP_JSON_BEGIN` and `WORKSHOP_JSON_END`. Any c
 - `staggered_opening` (pending, U1Q28): first-shot ticks across the squad; today one tick (lockstep).
 - `mixed_range_orders` (pending, core): 01 table B's assault squad under attack-move, move, attack and hold-at-12 m; the pending compare is B3's acceptance (attack-move at least 0.9 of hold).
 - `mixed_range_hold` (pending, core): table B's hold column with the table's own placement (12 m, holding from the start); reproduces 6.7.
-- `separation_clump`, `focus_fire_spread` (explore): watch-only; no probes.
+- `fire_range_rifle_rifle`, `fire_range_hwt_rifle`, `fire_range_marksman_scout`, `fire_range_mortar_rifle`, `fire_range_rifle_chi` (gate, rules-fixture, U1 D2): the draft 04 §1.3 fire-range matchups under today's picker, shooters on HOLD in line, 30 m (40 m marksman, 36 m mortar), passive no_armour targets (`bare_*` templates in `tests/fixtures/rules/defs/workshop.json`; CHI keeps its carapace). `first_kill`, `mean_kill`, `wipe` and `waste` are pinned to the draft's numbers. `fire_range_rifle_rifle` also has an `attack_move` variant (shooters start 30 m west and attack-move in): its numbers are reported, not pinned, and `am_first_shot_ticks` shows the opening is still lockstep (1 tick).
+- `focus_fire_spread` (gate, U1 D2): one rifle squad against two killable squads; pins the current pick (prey_a first: first kill tick 10, wiped at 60; then prey_b: 80 and 130) and overkill 4. The focus policy changes these on purpose.
+- `separation_clump` (gate, sw-txnj.12): two squads ordered onto one point; the `spacing` probe with a `target` pins the gap between their units at the size-class distance (0.6 m medium) over the settled turn and at the end, 0.3 m while arriving.
