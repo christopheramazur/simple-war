@@ -48,3 +48,7 @@ Outcomes differ from era 10 on purpose: two friendly squads ordered onto one poi
 ## Era 12 (order clusters, sw-txnj.14) - baseline commit 4299627 (2026-11-28)
 Batch `b20261128-072717`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
 Outcomes equal era 11 in every row (p1 win 0 / 0 / 0.67 both variants; turns 5.7 (6), 5.7 (6), 5.7 (8.3)): clusters form only from orders that share a `cluster` key, which the planner sets for multi-select moves and the AI controllers don't set yet (follow-up bead). Scripted and AI runs move as before. Compare fitness only within era 12.
+
+## Era 13 (focus targeting policy, sw-pd2l.4) - baseline commit dc73582 (2026-11-28)
+Batch `b20261128-105730`: duel_crossroads, hangar_drill, angelfall_spaceport x baseline, cautious x seeds 1-3 (18 runs, 0 failed).
+Outcomes equal era 12 in every row (p1 win 0 / 0 / 0.67 both variants; turns 5.7 (6), 5.7 (6), 5.7 (8.3)): the ruleset `fire.policy` defaults to nearest, and the rules-level DamagePipeline.preview memo (unmodified units) returns the same values. The `fire_focus` variant (every squad on focus) is the opt-in check: duel_crossroads x 8 seeds, batch `b20261128-104740`, CombatSystem 376,634 usec mean vs 328,540 for baseline (+14.6%, inside the +15% gate; the outcomes differ, so this is total combat time, not time per identical tick). The focus fire-range numbers are pinned in the workshop gates (`fire_range_*` focus probes, `fire_duel_rifle_mirror` 6-0 either side). Compare fitness only within era 13.
