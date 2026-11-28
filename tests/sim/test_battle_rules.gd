@@ -290,3 +290,61 @@ func test_points_to_drop_reads_the_given_floors() -> void:
 	assert_eq(BattleRules.band_for(v - d, cap, floors), 1, "losing the distance drops one band")
 	assert_eq(BattleRules.band_for(v - d + 1, cap, floors), 2, "one point less stays in the band")
 	assert_eq(BattleRules.points_to_drop(19 * ONE, cap, floors), -1, "below the first floor is Broken")
+
+
+## sw-03qj: the memoized LoS answers what the uncached rule answers. The
+## reference is the exact distance test plus the blocker walk, read here
+## without the memo. The shared fixture rules are restored afterwards.
+func test_los_memo_answers_like_the_walk() -> void:
+	var r := _rules()
+	var blocker := -1
+	for f in r.f_blocks_los.size():
+		if r.f_blocks_los[f] == 1:
+			blocker = f
+			break
+	if blocker < 0:
+		pending("no blocking feature in the fixture")
+		return
+	var saved := r.terrain.duplicate()
+	for i in r.terrain.size():
+		if (i * 37) % 11 == 0:
+			r.terrain[i] = blocker
+	r.clear_los_memo()
+	var seed := 4242
+	var blocked := 0
+	for i in 4000:
+		seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+		var ax := (seed % (r.width * 2)) * ONE / 2 + (seed & 0x3FF)
+		seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+		var ay := (seed % (r.height * 2)) * ONE / 2 + (seed & 0x3FF)
+		seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+		var bx := (seed % (r.width * 2)) * ONE / 2 + (seed & 0x3FF)
+		seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+		var by := (seed % (r.height * 2)) * ONE / 2 + (seed & 0x3FF)
+		var reference := Fixed.distance(ax, ay, bx, by) <= BattleRules.AWARENESS
+		if not reference:
+			var x0 := clampi(Fixed.to_int_floor(ax), 0, r.width - 1)
+			var y0 := clampi(Fixed.to_int_floor(ay), 0, r.height - 1)
+			var x1 := clampi(Fixed.to_int_floor(bx), 0, r.width - 1)
+			var y1 := clampi(Fixed.to_int_floor(by), 0, r.height - 1)
+			reference = r._walk_los(x0, y0, x1, y1)
+		if not reference:
+			blocked += 1
+		assert_eq(r.los(ax, ay, bx, by), reference, "trace %d" % i)
+		assert_eq(r.los(ax, ay, bx, by), reference, "repeat of trace %d" % i)
+	assert_gt(blocked, 0, "the sample includes blocked traces")
+	assert_gt(r.los_memo.size(), 0, "answers are memoized")
+	r.terrain = saved
+	r.clear_los_memo()
+
+
+func test_forecast_copy_starts_with_its_own_los_memo() -> void:
+	var r := _rules()
+	r.clear_los_memo()
+	r.los(0, 0, 60 * ONE, 60 * ONE)
+	var c := r.forecast_copy()
+	assert_eq(c.los_memo.size(), 0, "a copy starts empty")
+	c.los(0, 0, 60 * ONE, 60 * ONE)
+	assert_gt(c.los_memo.size(), 0, "the copy memoizes on its own")
+	assert_gt(r.los_memo.size(), 0, "the original keeps its memo")
+	r.clear_los_memo()

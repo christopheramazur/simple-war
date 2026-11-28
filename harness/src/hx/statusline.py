@@ -12,9 +12,8 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 
-from hx import quota
+from hx import clock, quota
 from hx.paths import data_dir
 
 GREEN, YELLOW, RED, DIM, RESET = "\033[32m", "\033[33m", "\033[31m", "\033[2m", "\033[0m"
@@ -31,7 +30,7 @@ def _color(pct: float) -> str:
 
 
 def _when(epoch: float, now: float) -> str:
-    t = datetime.fromtimestamp(epoch)
+    t = clock.local(epoch)
     return t.strftime("%H:%M") if epoch - now < 20 * 3600 else t.strftime("%a")
 
 

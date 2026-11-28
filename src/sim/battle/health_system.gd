@@ -6,16 +6,32 @@ extends SimSystem
 ## kill. Negative entries heal. Each depth-0 hit reports hit / damaged / kill
 ## / casualty to Effects; hits those hooks queue are drained in the same tick. Then: squad HP lost, Stamina sink for HP lost (R4Q5), Legend floats
 ## for archetypal damage (R5Q6), kills, Value score, and a `squad_damaged`
-## event per (attacker, target) pair.
+## event per (attacker, target) pair. That event also carries the fire
+## accounting (U1 D1): `raw` (positive damage queued, before any defence),
+## `wasted_hits` / `wasted_damage` (queued on a unit already dead), `overkill`
+## (post-defence damage past the HP a killing hit needed) and `mitigation`
+## (raw minus what got through the defence; evasion is all mitigation). For
+## every live hit, raw = mitigation + damage + overkill.
 
 
 func system_name() -> StringName:
 	return &"health"
 
 
+## Per-pair tally slots ("attacker|target" -> Array of these).
+const T_DEALT := 0
+const T_KILLS := 1
+const T_RAW := 2
+const T_WASTED_HITS := 3
+const T_WASTED := 4
+const T_OVERKILL := 5
+const T_MITIGATION := 6
+const T_SLOTS := 7
+
+
 func run(ctx: SimContext) -> void:
 	var state := ctx as BattleState
-	# "attacker|target" -> [damage, kills]; first-seen order kept for events.
+	# "attacker|target" -> [T_* slots]; first-seen order kept for events.
 	var tally := {}
 	var pairs: Array[String] = []
 	while not state.damage_queue.is_empty():
@@ -24,8 +40,11 @@ func run(ctx: SimContext) -> void:
 		_drain(state, q, tally, pairs)
 	for key in pairs:
 		var ids := key.split("|")
+		var t: Array = tally[key]
 		state.events.push(&"squad_damaged", {"squad": int(ids[0]), "target": int(ids[1]),
-			"damage": tally[key][0], "kills": tally[key][1]}, state.tick)
+			"damage": t[T_DEALT], "kills": t[T_KILLS], "raw": t[T_RAW],
+			"wasted_hits": t[T_WASTED_HITS], "wasted_damage": t[T_WASTED],
+			"overkill": t[T_OVERKILL], "mitigation": t[T_MITIGATION]}, state.tick)
 
 
 func _drain(state: BattleState, q: PackedInt64Array, tally: Dictionary, pairs: Array[String]) -> void:
@@ -49,17 +68,27 @@ func _drain(state: BattleState, q: PackedInt64Array, tally: Dictionary, pairs: A
 		var trow := sq.row_of(q[o + Health.Q_VICTIM_SQUAD])
 		# Only enemies earn credit (Legend, Value) for damage and kills.
 		var enemy := row >= 0 and trow >= 0 and sq.player[row] != sq.player[trow]
+		var raw: int = q[o + Health.Q_DAMAGE]
 		if victim < 0 or trow < 0 or u.hp[victim] <= 0:
+			# Queued on a unit already dead (or gone): wasted fire (U1 D1).
+			if raw > 0 and row >= 0 and trow >= 0:
+				var wt := _slots(tally, pairs, by_squad, q[o + Health.Q_VICTIM_SQUAD])
+				wt[T_WASTED_HITS] += 1
+				wt[T_WASTED] += raw
+				wt[T_RAW] += raw
 			continue
 		var depth := q[o + Health.Q_DEPTH]
-		if q[o + Health.Q_DAMAGE] < 0:
-			_heal(state, victim, -q[o + Health.Q_DAMAGE])
+		if raw < 0:
+			_heal(state, victim, -raw)
 			continue
 		var dtype := q[o + Health.Q_TYPE]
 		var cover := r.f_cover_evasion[r.feature_at(u.x[victim], u.y[victim])]
-		var res := DamagePipeline.apply(state, victim, q[o + Health.Q_DAMAGE], dtype, cover)
+		var res := DamagePipeline.apply(state, victim, raw, dtype, cover)
 		var dealt: int = res["to_hp"] + res["to_temp"]
 		var killed: bool = res["killed"]
+		# Post-defence damage past what a killing hit needed (U1 D1 overkill).
+		var through: int = res["through"]
+		var overkill := maxi(through - dealt, 0) if killed else 0
 		if dealt > 0:
 			var lost: PackedInt64Array = sq.take_column(&"hp_lost")
 			lost[trow] += res["to_hp"]
@@ -93,12 +122,21 @@ func _drain(state: BattleState, q: PackedInt64Array, tally: Dictionary, pairs: A
 				Effects.on_event(state, "kill", by_squad, by_unit, tid, vid, Fixed.ONE, depth)
 		if row < 0:
 			continue
-		var key := "%d|%d" % [by_squad, tid]
-		if not tally.has(key):
-			tally[key] = [0, 0]
-			pairs.append(key)
-		tally[key][0] += dealt
-		tally[key][1] += 1 if killed else 0
+		var t := _slots(tally, pairs, by_squad, tid)
+		t[T_DEALT] += dealt
+		t[T_KILLS] += 1 if killed else 0
+		t[T_RAW] += raw
+		t[T_OVERKILL] += overkill
+		t[T_MITIGATION] += raw - through
+
+
+## The tally slots for one (attacker, target) pair, created on first use.
+func _slots(tally: Dictionary, pairs: Array[String], by_squad: int, tid: int) -> Array:
+	var key := "%d|%d" % [by_squad, tid]
+	if not tally.has(key):
+		tally[key] = [0, 0, 0, 0, 0, 0, 0]
+		pairs.append(key)
+	return tally[key]
 
 
 func _heal(state: BattleState, victim: int, amount: int) -> void:

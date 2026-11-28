@@ -16,6 +16,10 @@ var dest_plot := PackedInt64Array()
 var dest_commander := PackedInt64Array()
 ## Feature ID of the supply line it travels, -1 = none (a rally).
 var line := PackedInt64Array()
+## Band kind (OverworldRules band index, U1Q27): set at every spawn and
+## transition. -1 (older saves, or a row spawned without one) means
+## derive it: OverworldStats.band_of.
+var band := PackedInt64Array()
 
 
 func _init() -> void:
@@ -26,3 +30,4 @@ func _init() -> void:
 	declare(&"dest_plot", -1)
 	declare(&"dest_commander", -1)
 	declare(&"line", -1)
+	declare(&"band", -1)

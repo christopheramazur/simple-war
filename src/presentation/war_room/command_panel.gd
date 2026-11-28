@@ -28,6 +28,10 @@ var player: int = 1
 var commander: int = -1
 var plot: int = -1
 var detachment: int = -1
+## While a turn plays out: the reason every action control here is disabled
+## ("Available in Planning"); "" in Planning (sw-bafi.9 U1 C8). The panel
+## still shows everything, so the selection can be inspected.
+var locked_reason: String = ""
 
 
 ## Shows the selected commander (`commander_id`, -1 for none), or else the
@@ -41,6 +45,21 @@ func show_selection(of_session: OverworldSession, for_player: int, commander_id:
 	for c in get_children():
 		remove_child(c)
 		c.queue_free()
+	_build()
+	if not locked_reason.is_empty():
+		_lock(self)
+
+
+## Disables every action control under `node`, its tooltip saying why.
+func _lock(node: Node) -> void:
+	for c in node.get_children():
+		if c is BaseButton:
+			(c as BaseButton).disabled = true
+			(c as Control).tooltip_text = locked_reason
+		_lock(c)
+
+
+func _build() -> void:
 	var cid := commander
 	var obs := session.observe(player)
 	if cid < 0 and detachment >= 0:
@@ -122,7 +141,7 @@ func _movement_info(me: Dictionary, obs: Dictionary) -> void:
 		var n := (det.get("squads", []) as Array).size()
 		if n == 0:
 			continue
-		var what := "%s at %s (%d squad%s)" % ["convoy" if bool(det["convoy"]) else "garrison", EventText.hex(int(det["plot"]), session.rules), n, "" if n == 1 else "s"]
+		var what := "%s at %s (%d squad%s)" % [band_word(det), EventText.hex(int(det["plot"]), session.rules), n, "" if n == 1 else "s"]
 		if int(det.get("dest_commander", -1)) == cid:
 			add_child(_dim_label("On its way here: " + what))
 			continue
@@ -200,7 +219,7 @@ func _army_info(me: Dictionary, obs: Dictionary) -> void:
 		if sq.is_empty():
 			continue
 		var b := Button.new()
-		b.text = "Pick up %d squad%s from the %s here" % [sq.size(), "" if sq.size() == 1 else "s", "convoy" if bool(det["convoy"]) else "garrison"]
+		b.text = "Pick up %d squad%s from the %s here" % [sq.size(), "" if sq.size() == 1 else "s", band_word(det)]
 		b.disabled = others.size() >= cap
 		b.pressed.connect(pick_up_requested.emit.bind(int(det["id"])))
 		add_child(b)
@@ -218,7 +237,7 @@ func _detachment_info(obs: Dictionary) -> void:
 		return
 	var r := session.rules
 	var convoy := bool(me["convoy"])
-	add_child(_title("%s %d at %s" % ["Convoy" if convoy else "Garrison", detachment & 0xffff, EventText.hex(int(me["plot"]), r)]))
+	add_child(_title("%s %d at %s" % [band_word(me).capitalize(), detachment & 0xffff, EventText.hex(int(me["plot"]), r)]))
 	for q: Dictionary in me.get("squads", []):
 		add_child(_dim_label("  %s  %d/%d units" % [EventText.squad_name(r.squad_ids[int(q["tmpl"])]), int(q.get("alive", 0)), int(q.get("size", 0))]))
 	var route: PackedInt64Array = (obs.get("convoy_routes", {}) as Dictionary).get(detachment, PackedInt64Array())
@@ -229,6 +248,8 @@ func _detachment_info(obs: Dictionary) -> void:
 			"" if route.is_empty() else " (%d hex%s to go)" % [route.size(), "" if route.size() == 1 else "es"]]))
 	else:
 		add_child(_dim_label("Holding this hex."))
+	if me.has("sight"):
+		add_child(_dim_label("Sees %d hex%s." % [int(me["sight"]["value"]), "" if int(me["sight"]["value"]) == 1 else "es"]))
 	add_child(_dim_label("Moves %d points a turn. Right click a hex to send it; it keeps going on later turns. Convoys take no hexes and do no activities." % r.convoy_mp))
 	if convoy and int(me["engagement"]) < 0 and session.clock.phase == PulseClock.Phase.PLANNING:
 		var halt := Button.new()
@@ -260,7 +281,7 @@ func _hex_info(obs: Dictionary) -> void:
 		if int(det["plot"]) != p:
 			continue
 		var sq: Array = det.get("squads", [])
-		var what := "convoy" if bool(det["convoy"]) else "garrison"
+		var what := band_word(det)
 		if int(det["player"]) == player:
 			var names := sq.map(func(q: Dictionary) -> String: return EventText.squad_name(r.squad_ids[int(q["tmpl"])]))
 			var dest := ""
@@ -322,3 +343,10 @@ func _title(text: String) -> GlossaryLabel:
 	l.theme_type_variation = &"DimLabel"
 	l.set_linked(text)
 	return l
+
+
+## "convoy" for a caravan (moving or halted, U1Q27), else "garrison".
+static func band_word(det: Dictionary) -> String:
+	if det.has("band"):
+		return "convoy" if String(det["band"]) == OverworldRules.BAND_CARAVAN else "garrison"
+	return "convoy" if bool(det.get("convoy", false)) else "garrison"

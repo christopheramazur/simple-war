@@ -1,0 +1,24 @@
+{
+	"name": "tune_util_both_short0",
+	"text": "Tuning (sw-bafi.20): both sides Utility with the role deployment, short-range role off (symmetric utility-vs-utility).",
+	"controllers": {
+		"1": {
+			"profile": "profile_utility",
+			"deploy": {
+				"process": "role",
+				"params": {
+					"short_range": 0
+				}
+			}
+		},
+		"2": {
+			"profile": "profile_utility",
+			"deploy": {
+				"process": "role",
+				"params": {
+					"short_range": 0
+				}
+			}
+		}
+	}
+}

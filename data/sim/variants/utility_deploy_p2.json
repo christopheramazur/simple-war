@@ -1,0 +1,13 @@
+{
+	"name": "utility_deploy_p2",
+	"text": "Player 2 plays the Utility profile with the role deployment; player 1 the Utility profile with automatic places (the mirror of utility_deploy_p1).",
+	"controllers": {
+		"2": {
+			"profile": "profile_utility",
+			"deploy": "role"
+		},
+		"1": {
+			"profile": "profile_utility"
+		}
+	}
+}
