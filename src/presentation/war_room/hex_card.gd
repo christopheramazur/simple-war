@@ -65,7 +65,7 @@ static func lines(info: Dictionary, rules: OverworldRules, viewer: int) -> Array
 			army, "  ·  in battle" if int(c["engagement"]) >= 0 else ""], "text"])
 	for d: Dictionary in info.get("detachments", []):
 		var mine := int(d["player"]) == viewer
-		var what := "convoy" if bool(d["convoy"]) else "garrison"
+		var what := CommandPanel.band_word(d)
 		var squads: PackedStringArray = d["squads"]
 		out.append(["%s %s%s" % ["Your" if mine else EventText.side(int(d["player"]), viewer), what,
 			"" if squads.is_empty() else ": " + ", ".join(squads)], "text"])

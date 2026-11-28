@@ -52,6 +52,8 @@ static func validate(state: BattleState, player: int, p: Variant, taken: Diction
 		return "unknown squad"
 	if state.squads.player[row] != player:
 		return "not your squad"
+	if state.pinned.has(sid):
+		return "locked: the scenario places this squad"
 	if taken.has(sid):
 		return "squad placed twice"
 	var rect := area(state, player)

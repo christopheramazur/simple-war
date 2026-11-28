@@ -18,28 +18,58 @@ static func create(context_id: int, rules: BattleRules, seed_value: int, jitter:
 
 
 ## Deploys a side's squads; returns their IDs in order. A side may carry
-## "alive" (units per squad, e.g. overworld losses; default full strength)
-## and "gear" (per squad, as spawn_squad takes it).
+## "alive" (units per squad, e.g. overworld losses; default full strength),
+## "gear" (per squad, as spawn_squad takes it) and "placed" (the scenario's
+## entries, sw-tdz). A placed squad stands at its point (the nearest enterable
+## cell of the area); the others deal evenly over the rest of the area.
+## Locked placed squads go in state.pinned.
 static func deploy_side(state: BattleState, side: Dictionary, jitter: int = 0, jitter_seed: int = 0) -> PackedInt64Array:
 	var d: PackedInt64Array = side["deploy"]
 	var list: PackedInt64Array = side["squads"]
 	var alive: PackedInt64Array = side.get("alive", PackedInt64Array())
 	var gear: Array = side.get("gear", [])
 	var n := list.size()
+	var placed := {}
+	for p: Dictionary in side.get("placed", []):
+		placed[p["squad"]] = p
+	# The first squad of a placed template in the list is the placed one.
+	var at := {}
+	var rest := 0
+	for i in n:
+		var st := list[i]
+		if placed.has(st):
+			at[i] = placed[st]
+			placed.erase(st)
+		else:
+			rest += 1
 	var ids := PackedInt64Array()
 	var rng: SimRng = null
 	if jitter > 0:
 		rng = SimRng.new(jitter_seed * 1000003 + int(side["player"]) * 7919 + 12345)
+	var k := 0
 	for i in n:
 		var ax := d[0] + d[2] / 2
-		var ay := d[1] + Fixed.round_div(d[3] * (2 * i + 1), 2 * n)
-		if rng != null:
-			var jx := mini(jitter * Fixed.ONE, d[2] / 2)
-			var jy := mini(jitter * Fixed.ONE, d[3] / 2)
-			ax = clampi(ax + rng.next_range(-jx, jx), d[0], d[0] + d[2])
-			ay = clampi(ay + rng.next_range(-jy, jy), d[1], d[1] + d[3])
-		ids.append(spawn_squad(state, side["player"], list[i], ax, ay, side["facing"], alive[i] if i < alive.size() else -1,
-			gear[i] if i < gear.size() else []))
+		var ay := 0
+		var facing: int = side["facing"]
+		var fixed_at: Dictionary = at.get(i, {})
+		if not fixed_at.is_empty():
+			var pt := BattleDeploy.open_point_in(state.rules, list[i], fixed_at["x"], fixed_at["y"], d)
+			ax = pt[0] if not pt.is_empty() else fixed_at["x"]
+			ay = pt[1] if not pt.is_empty() else fixed_at["y"]
+			facing = fixed_at["facing"]
+		else:
+			ay = d[1] + Fixed.round_div(d[3] * (2 * k + 1), 2 * rest)
+			k += 1
+			if rng != null:
+				var jx := mini(jitter * Fixed.ONE, d[2] / 2)
+				var jy := mini(jitter * Fixed.ONE, d[3] / 2)
+				ax = clampi(ax + rng.next_range(-jx, jx), d[0], d[0] + d[2])
+				ay = clampi(ay + rng.next_range(-jy, jy), d[1], d[1] + d[3])
+		var sid := spawn_squad(state, side["player"], list[i], ax, ay, facing, alive[i] if i < alive.size() else -1,
+			gear[i] if i < gear.size() else [])
+		if not fixed_at.is_empty() and fixed_at["locked"]:
+			state.pinned[sid] = true
+		ids.append(sid)
 	return ids
 
 

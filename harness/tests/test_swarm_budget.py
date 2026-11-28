@@ -53,7 +53,7 @@ LOG = (
 
 def test_turn_stub_lists_last_actions_and_commits():
     stub = swarm.turn_stub(LOG, ["abc123 fix timers"], -9, 3600, datetime(2026, 11, 22, 1, 52, tzinfo=timezone.utc))
-    assert stub.startswith("## 2026-11-22T01:52Z turn killed at its time limit after 60 min (supervisor note)")
+    assert stub.startswith("## 2026-11-22 11:52 AEST turn killed at its time limit after 60 min (supervisor note)")
     assert "`$ bd show sw-opt | head -90`" in stub
     assert "`→ Read C:/w/src/sim/battle/combat_system.gd [limit=120]`" in stub
     assert "`← Edit C:/w/src/sim/battle/combat_system.gd`" in stub
