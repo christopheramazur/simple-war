@@ -21,3 +21,8 @@ Written by `hx human`: each answer the owner gave a bead that was waiting on the
 **Code-health review: data-oriented convergence** (blocked, P4)
 
 > have an opus5.5 high thinking /delegate act in place of the user for decisions against it to unblock
+
+## 2026-11-28 22:22 AEST · sw-lonr · release
+**Owner decision: flip same_squad_separation default (sw-txnj.20)** (decision, P2)
+
+> flip it on, body_size and separation radius should be separate, though body_size can be used to derive a default for separation radius if one isnt supplied
