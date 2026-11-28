@@ -88,7 +88,9 @@ static func _point_taken(state: BattleState, row: int, x: int, y: int, fp: int, 
 
 ## The free point nearest to (x, y) on the rings one footprint apart around
 ## it: ring k holds the points k footprints away on the square grid, the
-## lowest ring with a free, enterable point wins, and within a ring the
+## lowest ring with a free, enterable point wins. Within a ring the point
+## nearest to (x, y) wins, then the one nearest the squad's anchor (its
+## approach side, so a follower doesn't walk round the point), then the
 ## lowest cell index. Empty if none lies on the battlefield.
 static func _free_ring_point(state: BattleState, row: int, x: int, y: int, fp: int, pending: Dictionary) -> PackedInt64Array:
 	var r := state.rules
@@ -99,7 +101,7 @@ static func _free_ring_point(state: BattleState, row: int, x: int, y: int, fp: i
 	var reach := maxi(r.width, r.height) * Fixed.ONE / fp + 1
 	for k in range(1, reach + 1):
 		var best := PackedInt64Array()
-		var best_cell := -1
+		var best_key := PackedInt64Array()
 		for dy in range(-k, k + 1):
 			for dx in range(-k, k + 1):
 				if maxi(absi(dx), absi(dy)) != k:
@@ -109,17 +111,25 @@ static func _free_ring_point(state: BattleState, row: int, x: int, y: int, fp: i
 				if qx < 0 or qy < 0 or qx >= w or qy >= h:
 					continue
 				var cell := Fixed.to_int_floor(qy) * r.width + Fixed.to_int_floor(qx)
-				if best_cell >= 0 and cell >= best_cell:
+				var key := PackedInt64Array([dx * dx + dy * dy, Fixed.distance(qx, qy, sq.ax[row], sq.ay[row]), cell])
+				if not best_key.is_empty() and not _key_less(key, best_key):
 					continue
 				if not r.routes.passable(r, cls, qx, qy):
 					continue
 				if _point_taken(state, row, qx, qy, fp, pending):
 					continue
-				best_cell = cell
+				best_key = key
 				best = PackedInt64Array([qx, qy])
-		if best_cell >= 0:
+		if not best.is_empty():
 			return best
 	return PackedInt64Array()
+
+
+static func _key_less(a: PackedInt64Array, b: PackedInt64Array) -> bool:
+	for i in a.size():
+		if a[i] != b[i]:
+			return a[i] < b[i]
+	return false
 
 
 static func validate(state: BattleState, player: int, o: Variant) -> String:

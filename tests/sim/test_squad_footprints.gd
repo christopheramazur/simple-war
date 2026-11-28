@@ -1,7 +1,8 @@
 extends GutTest
 ## Squad footprints (sw-txnj.13, GDD 02 §2.14): friendly squads ordered to
 ## one point are given points one footprint (formation width) apart, the
-## nearest free ring position first, then the lowest cell index. Orders go
+## nearest free ring position first, then the one nearest the squad, then
+## the lowest cell index. Orders go
 ## through BattleOrders.apply, which is where the spread happens.
 
 const ONE := Fixed.ONE
@@ -61,15 +62,17 @@ func test_three_squads_on_one_point_stand_one_footprint_apart() -> void:
 	var fp := _fp(s, a)
 	var errors := BattleOrders.apply(s, 1, [_move(a, PX, PY), _move(b, PX, PY), _move(c, PX, PY)])
 	assert_eq(errors, PackedStringArray())
-	# The first squad keeps the point. Ring 1 in cell-index order: the
-	# north-west corner (lowest index), then the point due north of the
-	# point, then the north-east corner.
+	# The first squad keeps the point. Ring 1's nearest points are the four
+	# one footprint due west, north, south and east; the squads come from
+	# the west, so b takes the west point (its approach side) and c, from
+	# the north-west, the north point.
 	assert_eq(_point(s, a), PackedInt64Array([PX * ONE, PY * ONE]), "first keeps its point")
-	assert_eq(_point(s, b), PackedInt64Array([PX * ONE - fp, PY * ONE - fp]), "second takes the next ring cell")
-	assert_eq(_point(s, c), PackedInt64Array([PX * ONE, PY * ONE - fp]), "third takes the next free cell")
-	# Each squad is a footprint from the one before it on the ring.
-	assert_true(absi(Fixed.distance(PX * ONE, PY * ONE, PX * ONE, PY * ONE - fp) - fp) <= 2, "third is one footprint from the first")
-	assert_true(absi(Fixed.distance(PX * ONE - fp, PY * ONE - fp, PX * ONE, PY * ONE - fp) - fp) <= 2, "third is one footprint from the second")
+	assert_eq(_point(s, b), PackedInt64Array([PX * ONE - fp, PY * ONE]), "second takes the ring point on its approach side")
+	assert_eq(_point(s, c), PackedInt64Array([PX * ONE, PY * ONE - fp]), "third takes the nearest free ring point to it")
+	# Each squad is a footprint from the first.
+	for sid in [b, c]:
+		var q := _point(s, sid)
+		assert_true(absi(Fixed.distance(PX * ONE, PY * ONE, q[0], q[1]) - fp) <= 2, "one footprint from the first")
 
 
 func test_spread_is_deterministic_for_the_same_orders() -> void:
@@ -92,9 +95,18 @@ func test_a_later_order_takes_a_free_ring_point_around_an_earlier_one() -> void:
 	assert_eq(_point(s, a), PackedInt64Array([PX * ONE, PY * ONE]))
 	# Given its order in a later turn, b sees a already on the point.
 	BattleOrders.apply(s, 1, [_move(b, PX, PY)])
-	# Ring 1's lowest cell index is the north-west corner.
+	# b comes from the west: ring 1's west point, not a far corner.
 	var fp := _fp(s, b)
-	assert_eq(_point(s, b), PackedInt64Array([PX * ONE - fp, PY * ONE - fp]), "b takes the north-west corner of ring 1")
+	assert_eq(_point(s, b), PackedInt64Array([PX * ONE - fp, PY * ONE]), "b takes ring 1's west point")
+
+
+func test_a_follower_from_the_far_side_stays_on_its_side() -> void:
+	var s := _state()
+	var a := _place(s, 1, 60, PY)
+	var b := _place(s, 1, 140, PY)
+	BattleOrders.apply(s, 1, [_move(a, PX, PY), _move(b, PX, PY)])
+	var fp := _fp(s, b)
+	assert_eq(_point(s, b), PackedInt64Array([PX * ONE + fp, PY * ONE]), "b, from the east, takes the east point")
 
 
 func test_a_squad_keeps_its_own_point_when_reordered_there() -> void:
