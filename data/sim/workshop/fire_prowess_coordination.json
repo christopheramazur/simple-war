@@ -1,0 +1,81 @@
+{
+	"id": "fire_prowess_coordination",
+	"component": "targeting",
+	"doc": "Coordination under movement-driven stagger (U1Q28, sw-pd2l.5): two lanes, 60 m apart, each a rifle squad on the prowess policy with Prowess pinned at Neutral (focus quality = discipline, coordination = the stat) attack-moving from 50 m onto eight passive no_armour riflemen. Lane c0 has coordination 0 (never sees its squad's queued hits), lane c100 coordination 100. The hold variant starts both 30 m out on HOLD (lockstep volleys) for comparison. waste is raw queued damage that did not reduce HP, as a share: the overkill coordination prevents.",
+	"status": "gate",
+	"package": "rules-fixture",
+	"map": "duel_crossroads",
+	"open": true,
+	"seed": 1,
+	"turns": 3,
+	"squads": [
+		{"key": "sh_c0", "player": 1, "squad": "rifle_squad_c0", "at": [30, 20], "facing": 0,
+			"patch": {"fire_policy": "prowess", "prowess": 52, "pin": ["prowess"]}},
+		{"key": "tg_c0", "player": 2, "squad": "bare_rifle_squad", "at": [80, 20], "facing": 180,
+			"dummy": {"armed": false, "stationary": true}},
+		{"key": "sh_c100", "player": 1, "squad": "rifle_squad_c100", "at": [30, 80], "facing": 0,
+			"patch": {"fire_policy": "prowess", "prowess": 52, "pin": ["prowess"]}},
+		{"key": "tg_c100", "player": 2, "squad": "bare_rifle_squad", "at": [80, 80], "facing": 180,
+			"dummy": {"armed": false, "stationary": true}}
+	],
+	"script": {
+		"1": [
+			{"squad": "sh_c0", "type": "attack_move", "x": 80, "y": 20},
+			{"squad": "sh_c100", "type": "attack_move", "x": 80, "y": 80}
+		]
+	},
+	"variants": {
+		"oblique": {
+			"doc": "Both shooters start between the lanes and attack-move onto their targets at 45 degrees, so the line reaches range unevenly: movement-driven stagger (U1Q28).",
+			"place": {"sh_c0": [45, 57], "sh_c100": [45, 43]},
+			"script": {
+				"1": [
+					{"squad": "sh_c0", "type": "attack_move", "x": 80, "y": 20},
+					{"squad": "sh_c100", "type": "attack_move", "x": 80, "y": 80}
+				]
+			}
+		},
+		"hold": {
+			"doc": "Both shooters start 30 m from their targets on HOLD: lockstep volleys.",
+			"place": {"sh_c0": [50, 20], "sh_c100": [50, 80]},
+			"script": {
+				"1": [
+					{"squad": "sh_c0", "type": "hold"},
+					{"squad": "sh_c100", "type": "hold"}
+				]
+			}
+		}
+	},
+	"probes": [
+		{"id": "base_c0_first_kill", "over": "all", "squad": "sh_c0", "target": "tg_c0", "first_kill": 64, "variants": ["base"], "doc": "Head-on attack-move: the line reaches range together, so the opening is still lockstep (first_shot_ticks 1)."},
+		{"id": "base_c0_mean_kill", "over": "all", "squad": "sh_c0", "target": "tg_c0", "mean_kill": 92, "variants": ["base"]},
+		{"id": "base_c0_wipe", "over": "all", "squad": "sh_c0", "target": "tg_c0", "wipe": 124, "variants": ["base"]},
+		{"id": "base_c0_waste", "over": "all", "squad": "sh_c0", "target": "tg_c0", "waste": 0.431, "variants": ["base"]},
+		{"id": "base_c0_first_shot_ticks", "over": "all", "squad": "sh_c0", "target": "tg_c0", "first_shot_ticks": 1, "variants": ["base"]},
+		{"id": "base_c100_first_kill", "over": "all", "squad": "sh_c100", "target": "tg_c100", "first_kill": 64, "variants": ["base"]},
+		{"id": "base_c100_mean_kill", "over": "all", "squad": "sh_c100", "target": "tg_c100", "mean_kill": 80, "variants": ["base"]},
+		{"id": "base_c100_wipe", "over": "all", "squad": "sh_c100", "target": "tg_c100", "wipe": 104, "variants": ["base"]},
+		{"id": "base_c100_waste", "over": "all", "squad": "sh_c100", "target": "tg_c100", "waste": 0.196, "variants": ["base"]},
+		{"id": "base_c100_first_shot_ticks", "over": "all", "squad": "sh_c100", "target": "tg_c100", "first_shot_ticks": 1, "variants": ["base"]},
+		{"id": "hold_c0_first_kill", "over": "all", "squad": "sh_c0", "target": "tg_c0", "first_kill": 10, "variants": ["hold"]},
+		{"id": "hold_c0_mean_kill", "over": "all", "squad": "sh_c0", "target": "tg_c0", "mean_kill": 50, "variants": ["hold"]},
+		{"id": "hold_c0_wipe", "over": "all", "squad": "sh_c0", "target": "tg_c0", "wipe": 80, "variants": ["hold"]},
+		{"id": "hold_c0_waste", "over": "all", "squad": "sh_c0", "target": "tg_c0", "waste": 0.317, "variants": ["hold"]},
+		{"id": "hold_c0_first_shot_ticks", "over": "all", "squad": "sh_c0", "target": "tg_c0", "first_shot_ticks": 1, "variants": ["hold"]},
+		{"id": "hold_c100_first_kill", "over": "all", "squad": "sh_c100", "target": "tg_c100", "first_kill": 10, "variants": ["hold"]},
+		{"id": "hold_c100_mean_kill", "over": "all", "squad": "sh_c100", "target": "tg_c100", "mean_kill": 39, "variants": ["hold"]},
+		{"id": "hold_c100_wipe", "over": "all", "squad": "sh_c100", "target": "tg_c100", "wipe": 60, "variants": ["hold"]},
+		{"id": "hold_c100_waste", "over": "all", "squad": "sh_c100", "target": "tg_c100", "waste": 0.146, "variants": ["hold"]},
+		{"id": "hold_c100_first_shot_ticks", "over": "all", "squad": "sh_c100", "target": "tg_c100", "first_shot_ticks": 1, "variants": ["hold"]},
+		{"id": "oblique_c0_first_kill", "over": "all", "squad": "sh_c0", "target": "tg_c0", "first_kill": 105, "variants": ["oblique"], "doc": "Oblique approach: units open fire on 5-6 different ticks (movement-driven stagger). Coordination 100 still cuts waste by about 45% and the wipe by 14 ticks: the coordination stat matters with stagger (U1Q28)."},
+		{"id": "oblique_c0_mean_kill", "over": "all", "squad": "sh_c0", "target": "tg_c0", "mean_kill": 123, "variants": ["oblique"]},
+		{"id": "oblique_c0_wipe", "over": "all", "squad": "sh_c0", "target": "tg_c0", "wipe": 140, "variants": ["oblique"]},
+		{"id": "oblique_c0_waste", "over": "all", "squad": "sh_c0", "target": "tg_c0", "waste": 0.2, "variants": ["oblique"]},
+		{"id": "oblique_c0_first_shot_ticks", "over": "all", "squad": "sh_c0", "target": "tg_c0", "first_shot_ticks": 6, "variants": ["oblique"]},
+		{"id": "oblique_c100_first_kill", "over": "all", "squad": "sh_c100", "target": "tg_c100", "first_kill": 103, "variants": ["oblique"]},
+		{"id": "oblique_c100_mean_kill", "over": "all", "squad": "sh_c100", "target": "tg_c100", "mean_kill": 115, "variants": ["oblique"]},
+		{"id": "oblique_c100_wipe", "over": "all", "squad": "sh_c100", "target": "tg_c100", "wipe": 126, "variants": ["oblique"]},
+		{"id": "oblique_c100_waste", "over": "all", "squad": "sh_c100", "target": "tg_c100", "waste": 0.111, "variants": ["oblique"]},
+		{"id": "oblique_c100_first_shot_ticks", "over": "all", "squad": "sh_c100", "target": "tg_c100", "first_shot_ticks": 5, "variants": ["oblique"]}
+	]
+}

@@ -141,7 +141,7 @@ const OBJECTS: Dictionary = {
 	## each shot's victim (default nearest).
 	"fire": {
 		"policy": {"type": "string", "enum": FIRE_POLICIES},
-		## Defaults of the squad fire stats below (60 and 70).
+		## Defaults of the squad fire stats below (58 and 70).
 		"discipline_pct": {"type": "int", "min": 0, "max": 100},
 		"coordination_pct": {"type": "int", "min": 0, "max": 100},
 	},

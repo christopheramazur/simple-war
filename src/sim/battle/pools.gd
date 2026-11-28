@@ -73,8 +73,9 @@ static func headroom(state: BattleState, row: int, pool: int) -> int:
 
 
 ## Adds `amount` (fixed, negative = sink) to a pool. Returns what applied.
+## A pinned pool (BattleSquads.pinned) takes nothing.
 static func flow(state: BattleState, row: int, pool: int, amount: int, source: StringName) -> int:
-	if amount == 0:
+	if amount == 0 or state.squads.pinned[row] & (1 << pool) != 0:
 		return 0
 	var col_name := BattleSquads.POOLS[pool]
 	var cap := capacity(state, row, pool)

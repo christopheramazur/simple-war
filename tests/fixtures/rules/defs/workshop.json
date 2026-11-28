@@ -6,6 +6,10 @@
 		{"id": "bare_rifle_squad", "parent": "rifle_squad", "values": {"name": "Rifle squad (no armour)",
 			"members": [{"unit": "bare_sergeant", "count": 1}, {"unit": "bare_trooper", "count": 7}]}},
 		{"id": "bare_scout_team", "parent": "scout_team", "values": {"name": "Scout team (no armour)",
-			"members": [{"unit": "bare_scout", "count": 4}]}}
+			"members": [{"unit": "bare_scout", "count": 4}]}},
+		{"id": "rifle_squad_c0", "parent": "rifle_squad", "values": {"name": "Rifle squad (coordination 0)",
+			"fire": {"coordination_pct": 0}}},
+		{"id": "rifle_squad_c100", "parent": "rifle_squad", "values": {"name": "Rifle squad (coordination 100)",
+			"fire": {"coordination_pct": 100}}}
 	]
 }

@@ -8,7 +8,7 @@
 			"morale_leech_pct": 10,
 			"separation_m": {"small": "0.4", "medium": "0.6", "large": "1.2", "huge": "2.4"},
 			"chase_leash_m": 15,
-			"fire": {"policy": "nearest", "discipline_pct": 60, "coordination_pct": 70},
+			"fire": {"policy": "nearest", "discipline_pct": 58, "coordination_pct": 70},
 			"pool_defaults": {
 				"stamina": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},
 				"instinct": {"capacity": 100, "start_pct": 52, "neutral_pct": 52, "drift_pct_per_s": "1"},

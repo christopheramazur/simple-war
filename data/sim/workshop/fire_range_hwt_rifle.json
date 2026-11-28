@@ -110,6 +110,46 @@
 			"variants": [
 				"focus"
 			]
+		},
+		{
+			"id": "prowess_surging_first_kill",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"first_kill": 10,
+			"variants": [
+				"prowess_surging"
+			]
+		},
+		{
+			"id": "prowess_surging_mean_kill",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"mean_kill": 60,
+			"variants": [
+				"prowess_surging"
+			]
+		},
+		{
+			"id": "prowess_surging_wipe",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"wipe": 110,
+			"variants": [
+				"prowess_surging"
+			]
+		},
+		{
+			"id": "prowess_surging_waste",
+			"over": "all",
+			"squad": "shooters",
+			"target": "targets",
+			"waste": 0.146,
+			"variants": [
+				"prowess_surging"
+			]
 		}
 	],
 	"variants": {
@@ -118,6 +158,18 @@
 			"patch": {
 				"shooters": {
 					"fire_policy": "focus"
+				}
+			}
+		},
+		"prowess_surging": {
+			"doc": "The shooters use the prowess policy with Prowess pinned at Surging (95): focus quality 1 and coordination 100%, so every number equals the focus variant's (sw-pd2l.5).",
+			"patch": {
+				"shooters": {
+					"fire_policy": "prowess",
+					"prowess": 95,
+					"pin": [
+						"prowess"
+					]
 				}
 			}
 		}

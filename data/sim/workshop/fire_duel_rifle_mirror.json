@@ -38,6 +38,30 @@
 		"focus_b": {
 			"doc": "Squad b uses the focus targeting policy; a keeps nearest (the side swap).",
 			"patch": {"b": {"fire_policy": "focus"}}
+		},
+		"prowess_surging_a": {
+			"doc": "Squad a uses the prowess policy with Prowess pinned at 95 (Surging); b keeps nearest.",
+			"patch": {"a": {"fire_policy": "prowess", "prowess": 95, "pin": ["prowess"]}}
+		},
+		"prowess_neutral_a": {
+			"doc": "Squad a uses the prowess policy with Prowess pinned at 52 (Neutral); b keeps nearest.",
+			"patch": {"a": {"fire_policy": "prowess", "prowess": 52, "pin": ["prowess"]}}
+		},
+		"prowess_broken_a": {
+			"doc": "Squad a uses the prowess policy with Prowess pinned at 3 (Broken); b keeps nearest.",
+			"patch": {"a": {"fire_policy": "prowess", "prowess": 3, "pin": ["prowess"]}}
+		},
+		"prowess_surging_b": {
+			"doc": "Squad b uses the prowess policy with Prowess pinned at 95 (Surging); a keeps nearest.",
+			"patch": {"b": {"fire_policy": "prowess", "prowess": 95, "pin": ["prowess"]}}
+		},
+		"prowess_neutral_b": {
+			"doc": "Squad b uses the prowess policy with Prowess pinned at 52 (Neutral); a keeps nearest.",
+			"patch": {"b": {"fire_policy": "prowess", "prowess": 52, "pin": ["prowess"]}}
+		},
+		"prowess_broken_b": {
+			"doc": "Squad b uses the prowess policy with Prowess pinned at 3 (Broken); a keeps nearest.",
+			"patch": {"b": {"fire_policy": "prowess", "prowess": 3, "pin": ["prowess"]}}
 		}
 	},
 	"probes": [
@@ -46,6 +70,18 @@
 		{"id": "focus_a_kills", "over": "all", "squad": "a", "target": "b", "kills": 8, "variants": ["focus_a"], "doc": "focus wipes nearest..."},
 		{"id": "focus_a_losses", "over": "all", "squad": "b", "target": "a", "kills": 2, "variants": ["focus_a"], "doc": "...and keeps six of eight (6-0)."},
 		{"id": "focus_b_kills", "over": "all", "squad": "b", "target": "a", "kills": 8, "variants": ["focus_b"]},
-		{"id": "focus_b_losses", "over": "all", "squad": "a", "target": "b", "kills": 2, "variants": ["focus_b"]}
+		{"id": "focus_b_losses", "over": "all", "squad": "a", "target": "b", "kills": 2, "variants": ["focus_b"]},
+		{"id": "prowess_surging_a_kills", "over": "all", "squad": "a", "target": "b", "kills": 8, "variants": ["prowess_surging_a"]},
+		{"id": "prowess_surging_a_losses", "over": "all", "squad": "b", "target": "a", "kills": 2, "variants": ["prowess_surging_a"]},
+		{"id": "prowess_neutral_a_kills", "over": "all", "squad": "a", "target": "b", "kills": 8, "variants": ["prowess_neutral_a"]},
+		{"id": "prowess_neutral_a_losses", "over": "all", "squad": "b", "target": "a", "kills": 5, "variants": ["prowess_neutral_a"]},
+		{"id": "prowess_broken_a_kills", "over": "all", "squad": "a", "target": "b", "kills": 7, "variants": ["prowess_broken_a"]},
+		{"id": "prowess_broken_a_losses", "over": "all", "squad": "b", "target": "a", "kills": 8, "variants": ["prowess_broken_a"]},
+		{"id": "prowess_surging_b_kills", "over": "all", "squad": "b", "target": "a", "kills": 8, "variants": ["prowess_surging_b"]},
+		{"id": "prowess_surging_b_losses", "over": "all", "squad": "a", "target": "b", "kills": 2, "variants": ["prowess_surging_b"]},
+		{"id": "prowess_neutral_b_kills", "over": "all", "squad": "b", "target": "a", "kills": 8, "variants": ["prowess_neutral_b"]},
+		{"id": "prowess_neutral_b_losses", "over": "all", "squad": "a", "target": "b", "kills": 5, "variants": ["prowess_neutral_b"]},
+		{"id": "prowess_broken_b_kills", "over": "all", "squad": "b", "target": "a", "kills": 7, "variants": ["prowess_broken_b"]},
+		{"id": "prowess_broken_b_losses", "over": "all", "squad": "a", "target": "b", "kills": 8, "variants": ["prowess_broken_b"]}
 	]
 }

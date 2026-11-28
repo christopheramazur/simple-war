@@ -42,7 +42,7 @@ var preview_memo: Dictionary = {}
 var fire_policy: int = 0
 ## Ruleset defaults of the squad fire stats (fire.discipline_pct,
 ## fire.coordination_pct; sw-pd2l.5), whole percent.
-var fire_discipline_pct: int = 60
+var fire_discipline_pct: int = 58
 var fire_coordination_pct: int = 70
 
 # --- features / terrain ---
@@ -825,7 +825,7 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	floats = rs.get("floats", {})
 	var fire: Dictionary = rs.get("fire", {})
 	fire_policy = maxi(0, DataSchema.FIRE_POLICIES.find(str(fire.get("policy", "nearest"))))
-	fire_discipline_pct = int(fire.get("discipline_pct", 60))
+	fire_discipline_pct = int(fire.get("discipline_pct", 58))
 	fire_coordination_pct = int(fire.get("coordination_pct", 70))
 	_pool_defaults = rs.get("pool_defaults", {})
 

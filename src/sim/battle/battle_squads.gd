@@ -61,6 +61,10 @@ var cluster := PackedInt64Array()
 ## Targeting policy override (index in DataSchema.FIRE_POLICIES), -1 = the
 ## ruleset's fire.policy (sw-pd2l.4). Set by workshop patches today.
 var fire_policy := PackedInt64Array()
+## Pinned pools: bit (1 << pool) set = that pool ignores every flow, so it
+## holds its value (Pools.flow). Workshop and Lab only, set by a patch
+## (sw-pd2l.5: Prowess pinned at a band).
+var pinned := PackedInt64Array()
 var reaction := PackedInt64Array()      ## queued reaction (ability index), -1 none
 var reaction_trigger := PackedInt64Array()  ## enemy squad ID that triggers it
 var dmg_dealt := PackedInt64Array()     ## remainder accumulators for "per 10" Legend floats
@@ -81,7 +85,7 @@ func _init() -> void:
 	super(&"squad")
 	for c: StringName in [&"player", &"tmpl", &"order", &"tx", &"ty", &"run", &"facing", &"ax", &"ay",
 			&"cx", &"cy", &"alive", &"form_size", &"hp_max", &"reach", &"hp_lost", &"destroyed", &"withdrawn",
-			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken", &"route", &"wx", &"wy", &"rx", &"ry", &"fp_stop",
+			&"seen_by", &"moving", &"dmg_dealt", &"dmg_taken", &"route", &"wx", &"wy", &"rx", &"ry", &"fp_stop", &"pinned",
 			&"p_stamina", &"p_instinct", &"p_morale", &"p_prowess", &"p_legend",
 			&"c_stamina", &"c_instinct", &"c_morale", &"c_prowess", &"c_legend"]:
 		declare(c, 0)
