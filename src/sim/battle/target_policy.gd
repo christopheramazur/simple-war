@@ -45,6 +45,10 @@ class Volley extends RefCounted:
 	var policy: int = NEAREST
 	var expected: Dictionary = {}
 	var plan: Dictionary = {}
+	## radius -> {victim row: PackedInt64Array of the living target rows its
+	## splash reaches, itself first}. Hits apply after fire, so the set of
+	## living targets is fixed for the volley.
+	var near: Dictionary = {}
 
 
 ## The targeting policy of the squad at row: its fire_policy override, else
@@ -75,11 +79,13 @@ static func pick(state: BattleState, urow: int, targets: PackedInt64Array, w: in
 	var r := state.rules
 	if r.md_aoe[m] <= 0:
 		return _focus(state, urow, targets, w, m, pending, memo)
+	var dmg := hit_damage(state, urow, m)
+	var reach := _reach(state, volley, targets, r.md_aoe[m])
 	if volley != null and volley.plan.has(urow):
 		var pv: int = volley.plan[urow]
-		if state.units.hp[pv] > 0 and _area_score(state, pv, targets, r.md_aoe[m], hit_damage(state, urow, m), r.wp_type[w], pending, memo) > 0:
+		if reach.has(pv) and _area_score(state, reach[pv], dmg, r.wp_type[w], pending, memo) > 0:
 			return pv
-	var best := _best_area(state, urow, targets, w, m, pending, memo)
+	var best := _best_area(state, urow, targets, w, m, dmg, pending, memo, reach)
 	return best if best >= 0 else nearest(state, urow, targets, w, m, pending)
 
 
@@ -172,10 +178,8 @@ static func _focus(state: BattleState, urow: int, targets: PackedInt64Array, w: 
 ## victim in reach does useful damage. The splash set is the one
 ## CombatSystem._fire_squad queues: every living target within the radius of
 ## the victim, the victim included.
-static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary, memo: Dictionary) -> int:
+static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, dmg: int, pending: Dictionary, memo: Dictionary, reach: Dictionary) -> int:
 	var u := state.units
-	var radius := state.rules.md_aoe[m]
-	var dmg := hit_damage(state, urow, m)
 	var dtype := state.rules.wp_type[w]
 	var best := -1
 	var best_score := 0
@@ -183,7 +187,7 @@ static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array,
 	for v in targets:
 		if u.hp[v] <= 0:
 			continue
-		var score := _area_score(state, v, targets, radius, dmg, dtype, pending, memo)
+		var score := _area_score(state, reach[v], dmg, dtype, pending, memo)
 		if score <= 0:
 			continue
 		var id := u.id_at(v)
@@ -201,15 +205,11 @@ static func _best_area(state: BattleState, urow: int, targets: PackedInt64Array,
 ## (kills << _KILL_SHIFT) + useful damage of one hit on victim v: kills are
 ## the units in the radius the hit finishes, useful damage its expected
 ## damage on each uncovered unit, up to that unit's remaining HP.
-static func _area_score(state: BattleState, v: int, targets: PackedInt64Array, radius: int, dmg: int, dtype: int, pending: Dictionary, memo: Dictionary) -> int:
+static func _area_score(state: BattleState, splash: PackedInt64Array, dmg: int, dtype: int, pending: Dictionary, memo: Dictionary) -> int:
 	var u := state.units
 	var kills := 0
 	var useful := 0
-	for o in targets:
-		if u.hp[o] <= 0:
-			continue
-		if o != v and Fixed.distance(u.x[v], u.y[v], u.x[o], u.y[o]) > radius:
-			continue
+	for o in splash:
 		var rem := u.hp[o] - int(pending.get(o, 0))
 		if rem <= 0:
 			continue
@@ -221,14 +221,29 @@ static func _area_score(state: BattleState, v: int, targets: PackedInt64Array, r
 
 
 ## Adds (sign 1) or removes (sign -1) one hit's splash on victim v in `planned`.
-static func _splash(state: BattleState, v: int, targets: PackedInt64Array, radius: int, dmg: int, dtype: int, planned: Dictionary, memo: Dictionary, sign: int) -> void:
-	var u := state.units
-	for o in targets:
-		if u.hp[o] <= 0:
-			continue
-		if o != v and Fixed.distance(u.x[v], u.y[v], u.x[o], u.y[o]) > radius:
-			continue
+static func _splash(state: BattleState, splash: PackedInt64Array, dmg: int, dtype: int, planned: Dictionary, memo: Dictionary, sign: int) -> void:
+	for o in splash:
 		planned[o] = int(planned.get(o, 0)) + sign * _expected(state, o, dmg, dtype, memo)
+
+
+## Each living target's splash set for one radius (see Volley.near), built
+## once per volley and radius; without a volley, built for the call.
+static func _reach(state: BattleState, volley: Volley, targets: PackedInt64Array, radius: int) -> Dictionary:
+	if volley != null and volley.near.has(radius):
+		return volley.near[radius]
+	var u := state.units
+	var out := {}
+	for v in targets:
+		if u.hp[v] <= 0:
+			continue
+		var set := PackedInt64Array([v])
+		for o in targets:
+			if o != v and u.hp[o] > 0 and Fixed.distance(u.x[v], u.y[v], u.x[o], u.y[o]) <= radius:
+				set.append(o)
+		out[v] = set
+	if volley != null:
+		volley.near[radius] = out
+	return out
 
 
 ## The area plan (see the file header): the squad's ready area-mode shooters
@@ -259,23 +274,24 @@ static func _plan_area(state: BattleState, row: int, targets: PackedInt64Array, 
 	var planned := {}
 	for i in n:
 		dmgs.append(hit_damage(state, shooters[i], ms[i]))
-		choice.append(_best_area(state, shooters[i], targets, ws[i], ms[i], planned, memo))
+		var reach := _reach(state, volley, targets, r.md_aoe[ms[i]])
+		choice.append(_best_area(state, shooters[i], targets, ws[i], ms[i], dmgs[i], planned, memo, reach))
 		if choice[i] >= 0:
-			_splash(state, choice[i], targets, r.md_aoe[ms[i]], dmgs[i], r.wp_type[ws[i]], planned, memo, 1)
+			_splash(state, reach[choice[i]], dmgs[i], r.wp_type[ws[i]], planned, memo, 1)
 	for _pass in PLAN_PASSES:
 		var changed := false
 		for i in n:
 			if choice[i] < 0:
 				continue
-			var radius := r.md_aoe[ms[i]]
+			var reach := _reach(state, volley, targets, r.md_aoe[ms[i]])
 			var dtype := r.wp_type[ws[i]]
-			_splash(state, choice[i], targets, radius, dmgs[i], dtype, planned, memo, -1)
-			var alt := _best_area(state, shooters[i], targets, ws[i], ms[i], planned, memo)
-			if alt >= 0 and alt != choice[i] and _area_score(state, alt, targets, radius, dmgs[i], dtype, planned, memo) \
-					> _area_score(state, choice[i], targets, radius, dmgs[i], dtype, planned, memo):
+			_splash(state, reach[choice[i]], dmgs[i], dtype, planned, memo, -1)
+			var alt := _best_area(state, shooters[i], targets, ws[i], ms[i], dmgs[i], planned, memo, reach)
+			if alt >= 0 and alt != choice[i] and _area_score(state, reach[alt], dmgs[i], dtype, planned, memo) \
+					> _area_score(state, reach[choice[i]], dmgs[i], dtype, planned, memo):
 				choice[i] = alt
 				changed = true
-			_splash(state, choice[i], targets, radius, dmgs[i], dtype, planned, memo, 1)
+			_splash(state, reach[choice[i]], dmgs[i], dtype, planned, memo, 1)
 		if not changed:
 			break
 	for i in n:
