@@ -21,10 +21,16 @@ extends RefCounted
 ## submit_battle_deployment only; orders drafted meanwhile start from the
 ## placed positions.
 ##
-## Arrival (U1 C12, sw-bafi.18): a joining side drafts the same way before
-## Reveal. The owner syncs it with an observation shaped like observe_battle
-## (its arrival area as the one area, the arriving squads as own squads, the
-## squads' overworld IDs), and submits `deployment()` through submit_arrival.
+## Arrival (U1 C12, sw-bafi.18, sw-bafi.19): squads arriving at the next
+## Reveal (a joining side's battleforce, or reinforcements of a side already
+## fighting) are placed the same way, inside the player's arrival area. The
+## owner merges them into the observation as own squads marked "arriving"
+## (under IDs of its choosing that no battle squad uses) with the area as
+## "arrival_area"; they take placements only, never orders, and their
+## placements come out of `arrival()`, not `deployment()`, for submit_arrival.
+## Battle squads and arriving squads can be selected together: a drag places
+## only the arriving ones (or, while the battle deploys, both, each in its
+## own area) and orders reach only the battle squads.
 
 ## The orders or groups changed (a draft to submit).
 signal changed
@@ -52,7 +58,10 @@ var drafts: Dictionary = {}
 var deploying: bool = false
 ## The player's deployment area (metres; Rect2() if none).
 var area: Rect2 = Rect2()
-## Every side's area: [{"player", "rect": Rect2 (metres)}].
+## The player's arrival area (metres; Rect2() if nothing of its arrives).
+var arrival_area: Rect2 = Rect2()
+## Every side's area: [{"player", "rect": Rect2 (metres)}], plus the
+## player's arrival area marked "arrival": true.
 var areas: Array = []
 ## Deployment placements: squad ID -> {squad, x, y, facing} (BattleDeploy).
 var placements: Dictionary = {}
@@ -63,7 +72,8 @@ var rules: BattleRules
 var _player: int = 0
 var _width: int = 0
 var _height: int = 0
-## Own active squads: ID -> {"template", "x", "y", "abilities"}.
+## Own active squads: ID -> {"template", "x", "y", "facing", "abilities",
+## "arriving"}.
 var _own: Dictionary = {}
 ## Visible enemy squads: ID -> {"x", "y"}.
 var _enemy: Dictionary = {}
@@ -85,6 +95,10 @@ func sync(obs: Dictionary) -> void:
 	areas = []
 	for d: Dictionary in obs.get("areas", []):
 		areas.append({"player": int(d["player"]), "rect": _rect(d["deploy"])})
+	var aa: Array = obs.get("arrival_area", [])
+	arrival_area = _rect(aa) if aa.size() == 4 else Rect2()
+	if arrival_area.size != Vector2.ZERO:
+		areas.append({"player": _player, "rect": arrival_area, "arrival": true})
 	_own = {}
 	_enemy = {}
 	for sq: Dictionary in obs.get("squads", []):
@@ -92,19 +106,17 @@ func sync(obs: Dictionary) -> void:
 			continue
 		if sq["player"] == _player:
 			_own[sq["id"]] = {"template": sq["template"], "x": sq["x"], "y": sq["y"], "facing": sq.get("facing", 0),
-				"abilities": sq.get("abilities", [])}
+				"abilities": sq.get("abilities", []), "arriving": sq.get("arriving", false)}
 		else:
 			_enemy[sq["id"]] = {"x": sq["x"], "y": sq["y"]}
 	selection = selection.filter(func(id: int) -> bool: return _own.has(id))
 	for g: int in groups.keys():
 		groups[g] = (groups[g] as Array).filter(func(id: int) -> bool: return _own.has(id))
 	for id: int in drafts.keys():
-		if not _own.has(id):
+		if not _own.has(id) or arriving(id):
 			drafts.erase(id)
-	if not can_deploy():
-		placements = {}
 	for id: int in placements.keys():
-		if not _own.has(id):
+		if not can_place(id):
 			placements.erase(id)
 
 
@@ -113,6 +125,11 @@ func own_squads() -> Array[int]:
 	var out: Array[int] = []
 	out.assign(_sorted(_own.keys()))
 	return out
+
+
+## Whether own squad `id` arrives at the next Reveal (placements only).
+func arriving(id: int) -> bool:
+	return bool((_own.get(id, {}) as Dictionary).get("arriving", false))
 
 
 ## The order list to submit (submit_battle_orders / submit_orders).
@@ -205,15 +222,19 @@ func selection_centre() -> Vector2:
 ## squads up across the direction of travel; otherwise they keep their
 ## places around the centre. `attack` makes it an attack-move.
 func move_to(at: Vector2, new_formation: bool = false, attack: bool = false) -> void:
-	if selection.is_empty():
+	var sel := _orderable()
+	if sel.is_empty():
 		return
-	var centre := selection_centre()
+	var centre := Vector2.ZERO
+	for id in sel:
+		centre += _pos(id)
+	centre /= sel.size()
 	var dir := (at - centre).normalized()
 	if dir == Vector2.ZERO:
 		dir = Vector2.RIGHT
 	var side := Vector2(-dir.y, dir.x)
 	var spacing := float(FORMATION_SPACING) / Fixed.ONE
-	var ordered := selection.duplicate()
+	var ordered := sel.duplicate()
 	if new_formation:
 		ordered.sort_custom(func(a: int, b: int) -> bool: return _pos(a).dot(side) < _pos(b).dot(side))
 	for i in ordered.size():
@@ -229,7 +250,7 @@ func move_to(at: Vector2, new_formation: bool = false, attack: bool = false) -> 
 func attack(target: int) -> void:
 	if not _enemy.has(target):
 		return
-	for id in selection:
+	for id in _orderable():
 		_draft(id, {"type": "attack", "target": target})
 	changed.emit()
 
@@ -238,7 +259,7 @@ func attack(target: int) -> void:
 func order(type: String) -> void:
 	if not type in ["hold", "fall_back", "withdraw"]:
 		return
-	for id in selection:
+	for id in _orderable():
 		_draft(id, {"type": type})
 	changed.emit()
 
@@ -246,9 +267,9 @@ func order(type: String) -> void:
 ## Toggles running for the selection's move orders.
 func toggle_run() -> void:
 	var all_run := true
-	for id in selection:
+	for id in _orderable():
 		all_run = all_run and bool((drafts.get(id, {}) as Dictionary).get("run", false))
-	for id in selection:
+	for id in _orderable():
 		var o: Dictionary = drafts.get(id, {"squad": id, "type": "hold"})
 		o["run"] = not all_run
 		drafts[id] = o
@@ -257,37 +278,74 @@ func toggle_run() -> void:
 
 # --- deployment --------------------------------------------------------------
 
-## Whether placements can be drafted now (the battle deploys and the player
-## has an area).
+## Whether placements can be drafted now: the battle deploys and the player
+## has an area, or squads of its arrive and it has an arrival area.
 func can_deploy() -> bool:
-	return deploying and area.size != Vector2.ZERO
+	return not placeable().is_empty()
 
 
-## The placement list to submit (submit_battle_deployment), by squad ID.
-func deployment() -> Array:
-	var out := []
-	for id: int in _sorted(placements.keys()):
-		out.append((placements[id] as Dictionary).duplicate())
+## Whether own squad `id` can be placed now: an arriving squad inside the
+## arrival area, a battle squad while the battle deploys.
+func can_place(id: int) -> bool:
+	if not _own.has(id):
+		return false
+	return area_of(id).size != Vector2.ZERO and (arriving(id) or deploying)
+
+
+## Own squads that can be placed now, by ID.
+func placeable() -> Array[int]:
+	var out: Array[int] = []
+	for id in own_squads():
+		if can_place(id):
+			out.append(id)
 	return out
 
 
-## A point (metres) kept inside the player's area: a drop outside lands on
-## the nearest edge.
-func clamp_to_area(m: Vector2) -> Vector2:
-	if area.size == Vector2.ZERO:
+## The area squad `id` is placed in: the arrival area for an arriving squad,
+## else the deployment area.
+func area_of(id: int) -> Rect2:
+	return arrival_area if arriving(id) else area
+
+
+## The battle squads' placement list to submit (submit_battle_deployment),
+## by squad ID.
+func deployment() -> Array:
+	return _placements_where(false)
+
+
+## The arriving squads' placement list to submit (submit_arrival), by the IDs
+## they were synced under (the owner maps them back to overworld IDs).
+func arrival() -> Array:
+	return _placements_where(true)
+
+
+func _placements_where(arrive: bool) -> Array:
+	var out := []
+	for id: int in _sorted(placements.keys()):
+		if arriving(id) == arrive:
+			out.append((placements[id] as Dictionary).duplicate())
+	return out
+
+
+## A point (metres) kept inside squad `id`'s area (the deployment area when
+## `id` is -1): a drop outside lands on the nearest edge.
+func clamp_to_area(m: Vector2, id: int = -1) -> Vector2:
+	var r := area_of(id) if id >= 0 else area
+	if r.size == Vector2.ZERO:
 		return m
-	return Vector2(clampf(m.x, area.position.x, area.end.x), clampf(m.y, area.position.y, area.end.y))
+	return Vector2(clampf(m.x, r.position.x, r.end.x), clampf(m.y, r.position.y, r.end.y))
 
 
 ## Where squad `id` would be placed for a drop at `m` (metres): clamped to
 ## the area, then snapped to a cell the squad can enter, as the simulation
 ## will (BattleDeploy.open_point_in). Without rules, only the clamp.
 func snap(id: int, m: Vector2) -> Vector2:
-	var c := clamp_to_area(m)
+	var c := clamp_to_area(m, id)
 	if rules == null or not _own.has(id):
 		return c
 	var st := rules.squad_index(String(_own[id]["template"]))
-	var a := PackedInt64Array([_fx(area.position.x, 0), _fx(area.position.y, 0), _fx(area.size.x, 0), _fx(area.size.y, 0)])
+	var r := area_of(id)
+	var a := PackedInt64Array([_fx(r.position.x, 0), _fx(r.position.y, 0), _fx(r.size.x, 0), _fx(r.size.y, 0)])
 	var at := BattleDeploy.open_point_in(rules, st, _fx(c.x, _width), _fx(c.y, _height), a)
 	if at.is_empty():
 		return c
@@ -303,11 +361,11 @@ func drop_ok(id: int, m: Vector2) -> bool:
 ## Places squads by dragging `anchor` to `to` (metres); the others keep
 ## their offsets from it. Each lands clamped and snapped (`snap`).
 func place_group(ids: Array, anchor: int, to: Vector2) -> void:
-	if not can_deploy() or not _own.has(anchor):
+	if not _own.has(anchor) or not can_deploy():
 		return
 	var delta := to - _pos(anchor)
 	for id: int in ids:
-		if _own.has(id):
+		if can_place(id):
 			_place(id, _pos(id) + delta, facing_of(id))
 	deploy_changed.emit()
 
@@ -330,7 +388,7 @@ func face(ids: Array, toward: Vector2) -> void:
 	if not can_deploy():
 		return
 	for id: int in ids:
-		var d := toward - _pos(id) if _own.has(id) else Vector2.ZERO
+		var d := toward - _pos(id) if can_place(id) else Vector2.ZERO
 		if d != Vector2.ZERO:
 			_place(id, _pos(id), snap_facing(roundi(d.angle() / TAU * Fixed.ANGLE_FULL)))
 	deploy_changed.emit()
@@ -342,16 +400,18 @@ func rotate(ids: Array, steps: int) -> void:
 	if not can_deploy():
 		return
 	for id: int in ids:
-		if _own.has(id):
+		if can_place(id):
 			_place(id, _pos(id), snap_facing(snap_facing(facing_of(id)) + steps * FACING_STEP))
 	deploy_changed.emit()
 
 
 ## Moves the deploying selection by `dir` nudges (pad stick, arrow keys).
+## Only the selected squads that can be placed move.
 func nudge(dir: Vector2) -> void:
-	if selection.is_empty():
+	var ids := selection.filter(can_place)
+	if ids.is_empty():
 		return
-	place_group(selection, selection[0], _pos(selection[0]) + dir * NUDGE)
+	place_group(ids, ids[0], _pos(ids[0]) + dir * NUDGE)
 
 
 ## Back to the automatic places: every placement dropped.
@@ -472,8 +532,20 @@ func _ability_on(id: int, ab: Dictionary) -> bool:
 
 # --- helpers -----------------------------------------------------------------
 
+## The selection that takes orders: arriving squads take none.
+func _orderable() -> Array[int]:
+	var out: Array[int] = []
+	for id in selection:
+		if not arriving(id):
+			out.append(id)
+	return out
+
+
 ## Replaces a squad's order, keeping its run flag and planned abilities.
+## Arriving squads take none.
 func _draft(id: int, o: Dictionary) -> void:
+	if arriving(id):
+		return
 	var old: Dictionary = drafts.get(id, {})
 	o["squad"] = id
 	if old.has("run"):
