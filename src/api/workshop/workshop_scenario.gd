@@ -24,8 +24,8 @@ const BASE := "base"
 ## spacing works both ways.
 const AT_KINDS: Array[String] = ["activity", "hold", "fire", "distance", "within", "spacing"]
 const OVER_KINDS: Array[String] = ["damage", "dps", "dps_engaged", "first_shot", "shooters", "first_shot_ticks",
-		"shots", "duty", "victims", "kills", "spacing", "moved"]
-const NEEDS_TARGET: Array[String] = ["fire", "distance", "within"]
+		"shots", "duty", "victims", "kills", "spacing", "moved", "first_kill", "mean_kill", "wipe", "waste"]
+const NEEDS_TARGET: Array[String] = ["fire", "distance", "within", "first_kill", "mean_kill", "wipe", "waste"]
 const VICTIM_KEYS: Array[String] = ["distinct", "max_per_victim", "overkill"]
 ## LineOfFire.check codes by name.
 const FIRE_CODES: Array[String] = ["out_of_range", "shot", "blocked", "min_range", "no_target"]

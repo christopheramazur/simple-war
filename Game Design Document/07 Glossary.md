@@ -31,7 +31,8 @@ Format: **Term**: definition. *(decision IDs; former names)*
 - **Army**: everything a Commander leads on the overworld. *(R2Q1)*
 - **Battleforce**: the part of an army committed to one battle. *(R2Q1)*
 - **Drop-off**: committing a battleforce without the Commander staying. *(R2Q1, R5Q9)*
-- **Detachment / Convoy**: forces or items moving on the overworld without a Commander. Convoys on the same hex and supply line merge. *(R6Q13, R8Q3)*
+- **Caravan**: a band sent somewhere on the overworld (also Detachment, Convoy), with its own sight (3 hexes) and movement. Convoys on the same hex and supply line merge. *(R6Q13, R8Q3, U1Q27)*
+- **Garrison**: a band holding a hex; it sees 1 hex. *(U1Q27)*
 - **War Chest**: an army's item inventory. *(R4Q10)*
 - **Archetype**: a content template (parent plus overrides, at most 3 deep), flattened at load. *(R6Q18)*
 

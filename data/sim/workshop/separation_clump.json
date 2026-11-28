@@ -1,23 +1,47 @@
 {
 	"id": "separation_clump",
 	"component": "spacing",
-	"doc": "Two rifle squads attack-move from the west flank onto the same point 35 m east, 20 m apart, and clump there. Watch the playback: do the units of both squads pile up on one spot? Explore only: no probes. The spacing probe (minimum gap between a squad's units) is the one to add when the separation rules (U1Q10) land.",
-	"status": "explore",
+	"doc": "Two friendly rifle squads 20 m apart are ordered onto the same point 35 m east and clump there (sw-txnj.12, GDD 02 §2.14 Separation and coherency). Separation pushes units of different squads apart to their size-class distance (troopers are medium: 0.6 m), so the two squads interleave instead of stacking. Base: both move. Variants: both attack-move (no enemy in reach, so they walk to the point as a move would), and one squad already standing on the point when the other arrives. The far post is an unarmed, stationary dummy that only keeps player 2 in the battle.",
+	"status": "gate",
 	"package": "rules-fixture",
 	"map": "duel_crossroads",
 	"open": true,
 	"seed": 3,
-	"turns": 2,
+	"turns": 3,
 	"squads": [
 		{"key": "north", "player": 1, "squad": "rifle_squad", "at": [20, 70], "facing": 0},
 		{"key": "south", "player": 1, "squad": "rifle_squad", "at": [20, 90], "facing": 0},
-		{"key": "post", "player": 2, "squad": "rifle_squad", "at": [60, 80], "facing": 180,
+		{"key": "post", "player": 2, "squad": "rifle_squad", "at": [150, 20], "facing": 180,
 			"dummy": {"armed": false, "hp": 1000, "stationary": true}}
 	],
 	"script": {
 		"1": [
-			{"squad": "north", "type": "attack_move", "x": 55, "y": 80},
-			{"squad": "south", "type": "attack_move", "x": 55, "y": 80}
+			{"squad": "north", "type": "move", "x": 55, "y": 80},
+			{"squad": "south", "type": "move", "x": 55, "y": 80}
 		]
-	}
+	},
+	"variants": {
+		"attack_move": {"doc": "Both attack-move onto the point.",
+			"script": {"1": [
+				{"squad": "north", "type": "attack_move", "x": 55, "y": 80},
+				{"squad": "south", "type": "attack_move", "x": 55, "y": 80}
+			]}},
+		"arrive_on_squad": {"doc": "North already holds the point; south moves onto it.",
+			"place": {"north": [55, 80]},
+			"script": {"1": [
+				{"squad": "north", "type": "hold"},
+				{"squad": "south", "type": "move", "x": 55, "y": 80}
+			]}}
+	},
+	"probes": [
+		{"id": "gap_arrival", "over": "t1-t2", "squad": "north", "target": "south", "spacing": {"min": 0.3}, "variants": "all",
+			"doc": "While they arrive, a pair may overlap for a tick: a push is capped at the unit's speed (walk per tick when it stands), so two units stepping onto one slot take two ticks to part (0.32 m at worst here)."},
+		{"id": "gap_settled", "over": "t3", "squad": "north", "target": "south", "spacing": {"min": 0.6}, "variants": "all",
+			"doc": "Settled, no unit of one squad is closer than 0.6 m (medium) to a unit of the other, on any tick of turn 3 (they arrive late in turn 2)."},
+		{"id": "gap_squads_end", "at": "end", "squad": "north", "target": "south", "spacing": {"min": 0.6, "max": 2.0}, "variants": "all",
+			"doc": "They end interleaved on the point, not just kept apart: the nearest pair is within 2 m."},
+		{"id": "gap_north", "over": "all", "squad": "north", "spacing": null, "variants": "all",
+			"doc": "Spacing within one squad (separation never pushes a squad's own units); reported only."}
+	],
+	"compare": []
 }

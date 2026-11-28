@@ -29,11 +29,14 @@ signal changed
 signal camera_changed
 
 const OVERWORLD: int = -1
-const ZOOM_MIN: float = 0.5
-const ZOOM_MAX: float = 4.0
+## Overworld zoom (GDD 04 §4.8 hex view): a hex is ContextView.HEX_SIZE
+## px at 1, 16 px at the floor and 192 at the ceiling.
+const ZOOM_MIN: float = 0.25
+const ZOOM_MAX: float = 3.0
 const ZOOM_DEFAULT: float = 1.0
-## Zooming the overworld in to this level enters the battle in context.
-const ZOOM_ENTER: float = 3.0
+## Zooming the overworld in to this level enters the battle in context
+## (s = 160 px).
+const ZOOM_ENTER: float = 2.5
 const MAX_PIPS: int = 3
 const BATTLE_ZOOM_MAX: float = 6.0
 const NO_CENTRE: Vector2 = Vector2(-1, -1)

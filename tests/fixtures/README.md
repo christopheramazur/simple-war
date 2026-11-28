@@ -14,5 +14,6 @@ sw-ll4.1.1) so rule tests keep passing when live content is rebalanced.
   paths are relative to this folder; the package has no dependency on `core`.
 - Tests load it with
   `PackageLoader.load_dirs(PackedStringArray(["res://tests/fixtures/rules"]))`.
+- `defs/workshop.json` is the one addition (sw-pd2l.2): `bare_*` templates (rifle squad, sergeant, trooper, scout team, scout) with `no_armour` in place of flak, for the fire-range workshop scenarios (`data/sim/workshop/fire_range_*.json`). It adds new ids only; no existing template changed.
 - If a rule test needs *new* content behaviour, add a small template or
   patch in the test itself (see `test_battle_map.gd`), not here.

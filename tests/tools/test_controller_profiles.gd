@@ -50,8 +50,10 @@ func test_utility_battle_plays_deterministically() -> void:
 
 func test_utility_overworld_takes_spends_and_finishes() -> void:
 	var u := _profile("profile_utility")
-	var x := OverworldSession.create(_l().templates, _l().data_hash, "skirmish_seeded", 3)
-	var ctl := {1: ProfileController.new(1, u, 3), 2: ProfileController.new(2, u, 3)}
+	# Seed 1, not 3: with the sw-63wt.1 overworld tuning, seed 3 is eliminated on
+	# turn 9 before any Value is spent. Seed 1 recruits and converts (sw-63wt.1).
+	var x := OverworldSession.create(_l().templates, _l().data_hash, "skirmish_seeded", 1)
+	var ctl := {1: ProfileController.new(1, u, 1), 2: ProfileController.new(2, u, 1)}
 	var kinds := {}
 	for t in 20:
 		HeadlessOverworld.play(x, ctl, t + 1)

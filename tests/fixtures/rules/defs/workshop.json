@@ -1,0 +1,11 @@
+{
+	"templates": [
+		{"id": "bare_trooper", "parent": "trooper", "values": {"name": "Trooper (no armour)", "defense": "no_armour"}},
+		{"id": "bare_sergeant", "parent": "sergeant", "values": {"name": "Sergeant (no armour)", "defense": "no_armour"}},
+		{"id": "bare_scout", "parent": "scout", "values": {"name": "Scout (no armour)", "defense": "no_armour"}},
+		{"id": "bare_rifle_squad", "parent": "rifle_squad", "values": {"name": "Rifle squad (no armour)",
+			"members": [{"unit": "bare_sergeant", "count": 1}, {"unit": "bare_trooper", "count": 7}]}},
+		{"id": "bare_scout_team", "parent": "scout_team", "values": {"name": "Scout team (no armour)",
+			"members": [{"unit": "bare_scout", "count": 4}]}}
+	]
+}

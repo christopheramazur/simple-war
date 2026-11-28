@@ -10,7 +10,13 @@ const DEFAULT_BASE_COST: int = 10
 const DEFAULT_ARMY_CAP: int = 6
 const DEFAULT_BATTLEFORCE_SQUADS: int = 4
 const DEFAULT_DETACHMENT_SIGHT: int = 1
-const DEFAULT_CONVOY_MOVEMENT: int = 40
+const DEFAULT_CONVOY_MOVEMENT: int = 30
+## The core band kinds (U1Q27). A package without them gets these built in.
+const BAND_GARRISON: String = "band_garrison"
+const BAND_CARAVAN: String = "band_caravan"
+const DEFAULT_CARAVAN_SIGHT: int = 3
+## Overworld stats a band's payload may raise; bd_caps is indexed by them.
+const BAND_STATS: Array[String] = DataSchema.BAND_STATS
 ## Item slots: a unit carries at most one item per slot.
 const SLOT_WEAPON: int = 0
 const SLOT_DEFENSE: int = 1
@@ -99,6 +105,20 @@ var cm_own_squad: PackedInt64Array = PackedInt64Array()
 var cm_army: Array[PackedInt64Array] = []
 var cm_army_cap: PackedInt64Array = PackedInt64Array()
 
+# --- bands (U1Q27): kinds of commander-less squad groups ---
+var band_ids: PackedStringArray = PackedStringArray()
+var bd_names: PackedStringArray = PackedStringArray()
+## Base sight radius and movement points, map overrides applied.
+var bd_sight: PackedInt64Array = PackedInt64Array()
+var bd_mp: PackedInt64Array = PackedInt64Array()
+## Stats its payload may raise (BAND_STATS entries).
+var bd_payload_stats: Array[PackedStringArray] = []
+## Most its payload may add, per BAND_STATS index.
+var bd_caps: Array[PackedInt64Array] = []
+## Band indices of the two core kinds.
+var band_garrison: int = -1
+var band_caravan: int = -1
+
 # --- map ---
 var width: int = 0
 var height: int = 0
@@ -113,9 +133,9 @@ var bf_cap_squads: int = DEFAULT_BATTLEFORCE_SQUADS
 var bf_cap_value: int = 0
 ## Scenario ID engagements are fought on by default.
 var battle_scenario: String = ""
-## Sight radius of a detachment, in hexes.
+## The garrison's sight and the caravan's movement points (bd_sight,
+## bd_mp), kept for readers that show them; systems ask OverworldStats.
 var detachment_sight: int = DEFAULT_DETACHMENT_SIGHT
-## Movement points a convoy spends each turn.
 var convoy_mp: int = DEFAULT_CONVOY_MOVEMENT
 ## Skirmish win condition: the last team with commanders wins (OverworldVictory).
 var elimination: bool = false
@@ -197,6 +217,10 @@ func hire_cost(f: int, cm: int) -> int:
 	return -1
 
 
+func band_index(id: String) -> int:
+	return band_ids.find(id)
+
+
 func has_activity(feature: int, activity: String) -> bool:
 	return hf_activities[feature] & (1 << ACTIVITIES.find(activity)) != 0
 
@@ -262,6 +286,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 		cm_army_cap.append(int(v.get("army_cap", DEFAULT_ARMY_CAP)))
 		if army.size() > cm_army_cap[cm_army_cap.size() - 1]:
 			errors.append("%s: starts with more squads than its army_cap" % tid)
+	_compile_bands(t)
 	for tid in feature_ids:
 		var hires := PackedInt64Array()
 		for o: Dictionary in t.values_of(tid).get("hires", []):
@@ -285,8 +310,13 @@ func _compile(t: TemplateTable, map: String) -> void:
 	bf_cap_squads = int(bf.get("squads", DEFAULT_BATTLEFORCE_SQUADS))
 	bf_cap_value = int(bf.get("value", 0))
 	battle_scenario = String(m.get("battle_scenario", ""))
-	detachment_sight = int(m.get("detachment_sight", DEFAULT_DETACHMENT_SIGHT))
-	convoy_mp = int(m.get("convoy_movement", DEFAULT_CONVOY_MOVEMENT))
+	# Older maps' band overrides (U1Q27).
+	if m.has("detachment_sight"):
+		bd_sight[band_garrison] = int(m["detachment_sight"])
+	if m.has("convoy_movement"):
+		bd_mp[band_caravan] = int(m["convoy_movement"])
+	detachment_sight = bd_sight[band_garrison]
+	convoy_mp = bd_mp[band_caravan]
 	elimination = bool(m.get("elimination", false))
 	mirror = bool(m.get("mirror", false))
 	if mirror and height % 2 != 0:
@@ -341,6 +371,36 @@ static func _of_kind(t: TemplateTable, kind: String) -> PackedStringArray:
 			ids.append(tid)
 	ids.sort()
 	return ids
+
+
+## Band kinds in ID order; the two core kinds are built in when a package
+## lacks them.
+func _compile_bands(t: TemplateTable) -> void:
+	var defs := {}
+	for tid in _of_kind(t, "band"):
+		defs[tid] = t.values_of(tid)
+	if not defs.has(BAND_GARRISON):
+		defs[BAND_GARRISON] = {"name": "Garrison", "sight": DEFAULT_DETACHMENT_SIGHT}
+	if not defs.has(BAND_CARAVAN):
+		defs[BAND_CARAVAN] = {"name": "Caravan", "sight": DEFAULT_CARAVAN_SIGHT}
+	var ids := PackedStringArray(defs.keys())
+	ids.sort()
+	for tid in ids:
+		var v: Dictionary = defs[tid]
+		band_ids.append(tid)
+		bd_names.append(String(v.get("name", tid)))
+		bd_sight.append(int(v.get("sight", DEFAULT_DETACHMENT_SIGHT)))
+		bd_mp.append(int(v.get("movement_points", DEFAULT_CONVOY_MOVEMENT)))
+		bd_payload_stats.append(PackedStringArray(v.get("payload_stats", [])))
+		var caps := PackedInt64Array()
+		var given: Dictionary = v.get("caps", {})
+		for stat in BAND_STATS:
+			caps.append(int(given.get(stat, 0)))
+		bd_caps.append(caps)
+	band_garrison = band_index(BAND_GARRISON)
+	band_caravan = band_index(BAND_CARAVAN)
+	detachment_sight = bd_sight[band_garrison]
+	convoy_mp = bd_mp[band_caravan]
 
 
 func _compile_item(tid: String, v: Dictionary) -> void:

@@ -29,6 +29,8 @@ const EFFECT_OPS: Array[String] = ["modify", "damage", "heal", "pool_flow", "app
 const ORDERS: Array[String] = ["hold", "fall_back", "attack"]
 ## Battle orders a squad template names a behaviour for (GDD 02 §2.15 Squad
 ## behaviours), in BattleSquads.Order order: the index is the order's value.
+## Unit size classes (03 §3.2); separation radius per class (ruleset separation_m).
+const SIZE_CLASSES: Array[String] = ["small", "medium", "large", "huge"]
 const BATTLE_ORDERS: Array[String] = ["hold", "move", "attack_move", "attack", "fall_back", "withdraw"]
 ## The closed behaviour vocabulary (GDD 02 §2.15, U1Q12, U1Q29, sw-txnj.9):
 ## component name -> its parameters, in vocabulary (evaluation) order. A
@@ -91,8 +93,12 @@ const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 ## the start of a turn with an uncontested commander (R6Q14).
 const HEX_ACTIVITIES: Array[String] = ["refit", "recruit", "battle", "convert", "hire"]
 const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
+## Hex feature drawing layers (U1Q20); default "site".
+const HEX_LAYERS: Array[String] = ["ground", "path", "site"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
 const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
+## Overworld stats a band's payload may raise (U1Q27, OverworldStats).
+const BAND_STATS: Array[String] = ["sight", "movement_points"]
 
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
@@ -180,6 +186,16 @@ const OBJECTS: Dictionary = {
 		"deploy": {"type": "obj:rect", "required": true},
 		"squads": {"type": "list:ref:squad", "required": true},
 		"facing": {"type": "int"},
+	},
+	## A squad placed at a point of its side's area (sw-tdz, U1Q31): its
+	## automatic place, which the player may move unless `locked`.
+	"placed": {
+		"side": {"type": "int", "required": true, "min": 1},
+		"squad": {"type": "ref:squad", "required": true},
+		"x": {"type": "fixed", "required": true},
+		"y": {"type": "fixed", "required": true},
+		"facing": {"type": "int"},
+		"locked": {"type": "bool"},
 	},
 	"victory": {
 		"turn_limit": {"type": "int", "min": 1},
@@ -441,7 +457,7 @@ const KINDS: Dictionary = {
 		"icon": {"type": "string"},
 		"name": {"type": "string"},
 		"hp": {"type": "fixed", "required": true, "min": 1},
-		"size_class": {"type": "string", "enum": ["small", "medium", "large", "huge"]},
+		"size_class": {"type": "string", "enum": SIZE_CLASSES},
 		"defense": {"type": "ref:defense", "required": true},
 		"movement": {"type": "ref:movement", "required": true},
 		"weapon": {"type": "ref:weapon"},
@@ -495,6 +511,11 @@ const KINDS: Dictionary = {
 		## How far past its point an engaged attack-move may close on the
 		## squad it fights, metres (default 15; U1Q29 leash).
 		"chase_leash_m": {"type": "fixed", "min": 0},
+		## Separation radius by unit size class, metres (U1Q10, GDD 02 §2.14
+		## Separation and coherency): a unit closer than this to a unit of
+		## another squad is pushed apart. Defaults small 0.4, medium 0.6,
+		## large 1.2, huge 2.4.
+		"separation_m": {"type": "map:fixed", "keys": SIZE_CLASSES, "min": 0},
 		## How recent a volley must be, in ticks, for the "under fire" pair
 		## relation (SquadRelation; default one second of ticks).
 		"relation_recent_fire_ticks": {"type": "int", "min": 1},
@@ -514,6 +535,17 @@ const KINDS: Dictionary = {
 		## Drawing only (sw-kys.3): a package asset ID ("pkg:id", or a bare id).
 		"icon": {"type": "string"},
 		"tile": {"type": "string"},
+		## Drawing only (U1Q20-U1Q22, sw-63wt.4; the rules never read them):
+		## ground features tile the hex (highest draw_order wins), paths draw
+		## strips to sides whose neighbour holds a feature they connect with
+		## (itself plus `connects`), sites take HexLayout slots by
+		## layout_priority (higher first), then template ID. color: six hex
+		## digits.
+		"layer": {"type": "string", "enum": HEX_LAYERS},
+		"draw_order": {"type": "int"},
+		"layout_priority": {"type": "int"},
+		"connects": {"type": "list:ref:hex_feature"},
+		"color": {"type": "string"},
 		"name": {"type": "string"},
 		"tags": {"type": "list:string"},
 		"move_cost": {"type": "int"},
@@ -618,6 +650,19 @@ const KINDS: Dictionary = {
 		## Most squads the army holds, besides the commander's own.
 		"army_cap": {"type": "int", "min": 0},
 	},
+	## A band kind (U1Q27): the kinds of commander-less squad groups. The core
+	## kinds are band_garrison (holding a hex) and band_caravan (sent
+	## somewhere). sight: radius in hexes. movement_points: per turn, in the
+	## map's move-cost units. payload_stats: the overworld stats its payload
+	## may raise; caps: stat -> most its payload may add (sw-63wt.3).
+	"band": {
+		"icon": {"type": "string"},
+		"name": {"type": "string"},
+		"sight": {"type": "int", "min": 0},
+		"movement_points": {"type": "int", "min": 1},
+		"payload_stats": {"type": "list:string", "enum": BAND_STATS},
+		"caps": {"type": "map:int", "keys": BAND_STATS},
+	},
 	## A seeded overworld map template (R3Q13): an empty width x height hex
 	## rectangle (odd-r offset rows) that its passes fill with features.
 	## `starts` places each player's starting commanders.
@@ -632,9 +677,9 @@ const KINDS: Dictionary = {
 		## The battlefield engagements are fought on by default: terrain,
 		## zones, victory, and two deployment areas the sides are given.
 		"battle_scenario": {"type": "ref:scenario"},
-		## Sight radius of a detachment (dropped-off squads), in hexes.
+		## Optional overrides (U1Q27): band_garrison's sight and
+		## band_caravan's movement points on this map (unset = the band's).
 		"detachment_sight": {"type": "int", "min": 0},
-		## Movement points a convoy spends each turn.
 		"convoy_movement": {"type": "int", "min": 1},
 		## Skirmish win condition (A2Q2): a side wins when every enemy
 		## commander is defeated (OverworldVictory).
@@ -679,6 +724,8 @@ const KINDS: Dictionary = {
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},
 		"sides": {"type": "list:obj:side", "required": true},
+		## Squads placed at their own points (sw-tdz); the rest deal evenly.
+		"placed": {"type": "list:obj:placed"},
 		"victory": {"type": "obj:victory", "required": true},
 		"end_hooks": {"type": "obj:end_hooks"},
 		"triggers": {"type": "list:ref:trigger"},

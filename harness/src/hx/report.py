@@ -26,7 +26,9 @@ ASOF LEFT JOIN session_task st ON c.session_id = st.session_id AND c.ts >= st.ts
 
 
 def local_offset() -> timedelta:
-    return datetime.now().astimezone().utcoffset() or timedelta(0)
+    from hx import clock
+
+    return clock.AEST.utcoffset(None)  # report days and times are AEST (hx.clock)
 
 
 def parse_since(spec: str | None, now: datetime | None = None) -> datetime:

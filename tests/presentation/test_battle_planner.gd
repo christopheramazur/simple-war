@@ -221,7 +221,7 @@ func test_war_room_planning_submits_drafts() -> void:
 func test_guide_actions_are_remappable() -> void:
 	var input := PlanningInput.new()
 	add_child_autofree(input)
-	assert_eq(input.actions.size(), 6 + 30 + 8)
+	assert_eq(input.actions.size(), 6 + 2 + 30 + 8, "orders, deployment rotate, groups, bookmarks")
 	for a: GUIDEAction in input.actions.values():
 		assert_true(a.is_remappable)
 	assert_eq(PlanningInput.command_of(&"assign_group_3"), &"assign_group")
