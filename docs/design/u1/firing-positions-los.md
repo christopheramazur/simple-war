@@ -370,7 +370,8 @@ Considered and dropped on the numbers:
 
 The search budgets are per battle, so a bigger battle has more units waiting for the same two searches per tick. I
 measured whether that starves big battles, with a trial ruleset flag that multiplied both budgets by ceil(living
-squads / N), with N = 40 (so 40 squads or fewer were unchanged; fp_dps 12/24/40 gave identical hashes):
+squads / N), with N = 40 (so 40 squads or fewer are unchanged by construction; the 40-squad run gave the same hash),
+300 ticks:
 
 | Squads | Budgets | Shots | Damage dealt p1 / p2 | Holding a position | Firing positions ms/t |
 |---|---|---|---|---|---|
