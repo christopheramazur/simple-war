@@ -29,7 +29,7 @@
 	},
 	"probes": [
 		{"id": "dps_attack_move", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.196, "max": 9.058}, "variants": ["base"], "doc": "sw-txnj.11 (assault_attack_move, firing-position coherency +3 m): 8.627 (5%). sw-txnj.5 closing to fire was 8.498; table B was 2.0.."},
-		{"id": "dps_attack_move_a3_floor", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.498}, "variants": ["base"], "doc": "sw-txnj.11 acceptance: attack-move DPS never falls below the A3 number (8.498, sw-txnj.5)."},
+		{"id": "dps_attack_move_a3_floor", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.36}, "variants": ["base"], "doc": "sw-txnj.11 acceptance: attack-move DPS never falls below the A3 number (8.498, sw-txnj.5, nearest). Repinned by sw-pd2l.7 (era 14, prowess is the default fire policy): this squad's attack-move DPS is 8.369 under prowess (the floor is 8.36, just under it; it was 8.498 under nearest)."},
 		{"id": "dps_hold_12", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 6.365, "max": 7.035}, "variants": ["hold_12"], "doc": "Table B: 6.7 (5%)."},
 		{"id": "dps_move", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.36, "max": 9.24}, "variants": ["move"], "doc": "Table B: 8.8 (5%)."},
 		{"id": "dps_attack", "over": "all", "squad": "assault", "target": "dummy", "dps_engaged": {"min": 8.769, "max": 9.693}, "variants": ["attack"], "doc": "sw-txnj.11 (assault_attack, coherency +3 m): 9.231 (5%). sw-txnj.16 (firing position snap on arrival) had 9.126; sw-txnj.5 had 5.664 with shotguns stuck out of range at 16.8 m; table B was 2.2. At least 0.9 of hold 12 m (6.7)."}

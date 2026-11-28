@@ -28,7 +28,7 @@
 			"script": {"1": [{"squad": "heavy", "type": "attack", "target": "dummy", "unchecked": true}]}}
 	},
 	"probes": [
-		{"id": "dps_attack_move", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 7.004, "max": 7.742}, "variants": ["base"], "doc": "sw-txnj.5 closing to fire: 7.373 (5%); table B was 4.1.."},
+		{"id": "dps_attack_move", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 7.487, "max": 8.275}, "variants": ["base"], "doc": "sw-txnj.5 closing to fire: 7.373 (5%, nearest); table B was 4.1.. Repinned by sw-pd2l.7 (era 14, prowess is the default fire policy): 7.881 under prowess, band 5% around it."},
 		{"id": "dps_hold_12", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 7.6, "max": 8.4}, "variants": ["hold_12"], "doc": "Table B: 8.0 (5%)."},
 		{"id": "dps_move", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 4.56, "max": 5.04}, "variants": ["move"], "doc": "Table B: 4.8 (5%)."},
 		{"id": "dps_attack", "over": "all", "squad": "heavy", "target": "dummy", "dps_engaged": {"min": 7.41, "max": 8.19}, "variants": ["attack"], "doc": "sw-txnj.5 closing to fire: 7.8 (5%); table B was 4.0."}
