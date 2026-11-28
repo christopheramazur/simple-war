@@ -1047,7 +1047,8 @@ func _draw_deploy_areas(font: Font, area: Rect2, k: float) -> void:
 			draw_rect(r, Color(col, 0.14))
 			draw_rect(r, Color(col, 0.9), false, 2.0)
 			if not compact:
-				draw_string(font, r.position + Vector2(6, 15), "Your deployment area", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col.lightened(0.4))
+				var mine := "Your arrival area" if a.get("arrival", false) else "Your deployment area"
+				draw_string(font, r.position + Vector2(6, 15), mine, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col.lightened(0.4))
 			continue
 		_hatch(r, Color(col, 0.35), 10.0)
 		draw_rect(r, Color(col, 0.6), false, 1.0)

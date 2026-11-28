@@ -12,9 +12,10 @@ extends RefCounted
 ## own BattleSim with no tick hook, on the caller's thread. Seeks are lazy: a forward seek steps on from where the copy
 ## is; a backward one (or a long jump) restarts from the nearest keyframe at
 ## or before the tick. Keyframes are snapshots the recorder takes every
-## KEY_EVERY ticks of the real turn, so a seek steps at most 2 * KEY_EVERY
-## - 2 ticks: a real turn on a large battle costs over a second, far past
-## the seek budget (100 ms on the 200 x 100 fixture).
+## KEY_EVERY ticks of the real turn, plus one before the end, so a seek
+## steps at most KEY_EVERY - 1 ticks (the end: 1). A real turn on a large
+## battle costs over a second, far past the seek budget (100 ms on the
+## 200 x 100 fixture).
 ##
 ## The cursor checks itself: every restored snapshot must hash like the real
 ## state did at that tick, its content (data-package hash) must match the
@@ -26,7 +27,13 @@ extends RefCounted
 
 ## Snapshot record format (`capture`).
 const VERSION: int = 1
-## Ticks between keyframes.
+## Ticks between keyframes. Sets the seek cost: a seek re-simulates at most
+## KEY_EVERY - 1 ticks past its keyframe. The turn's end (the full-turn seek
+## budget case) also gets a keyframe one tick before it, so it re-runs 1
+## tick. At 5 without that keyframe the end seek re-ran 5 ticks (~150 ms on
+## the 200 x 100 fixture, over its 100 ms budget, sw-8dzf). Spacing 3 would
+## also pass but grows the record by ~70% (33 vs 19 snapshots: 3.7 MB vs
+## 2.2 MB for that turn), so the extra end keyframe is the cheaper choice.
 const KEY_EVERY: int = 5
 
 ## Why the cursor is unavailable ("" while it is available).
@@ -58,10 +65,12 @@ static func capture(state: BattleState) -> Dictionary:
 
 
 ## Called by the recorder after tick `t` (1-based) of the turn; keeps a
-## keyframe every KEY_EVERY ticks (not the last tick: the end is resolved
-## from it anyway). Read-only on the state.
+## keyframe every KEY_EVERY ticks and one at the turn's last tick before the
+## end (not the end itself: it is resolved from the keyframe before it).
+## Read-only on the state.
 static func keyframe(record: Dictionary, state: BattleState, t: int) -> void:
-	if record.is_empty() or t <= 0 or t % KEY_EVERY != 0 or t >= int(record["ticks"]):
+	var last: int = int(record.get("ticks", 0)) if not record.is_empty() else 0
+	if record.is_empty() or t <= 0 or t >= last or (t % KEY_EVERY != 0 and t != last - 1):
 		return
 	(record["keys"] as Array).append({"tick": t, "state": state.snapshot(),
 		"hash": state.state_hash_hex(), "log": state.turn_log.size()})

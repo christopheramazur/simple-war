@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "ok": false,
+  "scenarios": [
+    {
+      "schema": 1,
+      "scenario": "rifle_vs_dummy", "path": "res://data/sim/workshop/rifle_vs_dummy.json",
+      "component": "fire", "status": "gate", "doc": "A rifle squad against an unarmed dummy.",
+      "package": "rules-fixture", "data_hash": "aa11", "engine": "4.7.2-stable (official)",
+      "map": "duel_crossroads", "open": true, "seed": 1, "turns": 2, "probe_stride": 1,
+      "result": "pass",
+      "gate_failures": 0, "pending": 1, "unexpected_passes": 0,
+      "errors": [],
+      "variants": [{
+        "name": "base", "hash": "1a2b3c4d5e6f7081", "turn_hashes": ["1a2b", "3c4d"],
+        "turns_run": 2, "frames": 203, "errors": [],
+        "probes": [
+          {"id": "duty", "kind": "duty", "squad": "rifles", "target": "", "when": "over t1:0-t1:end",
+           "value": 0.1, "expect": {"min": 0.09}, "result": "pass", "error": ""},
+          {"id": "spread", "kind": "spacing", "squad": "rifles", "target": "", "when": "at end",
+           "value": 1.5, "expect": 4, "result": "pending", "error": ""}
+        ]
+      }],
+      "compare": [{
+        "metric": "duty", "lhs": "base", "rhs": "run_away", "rel": ">", "factor": 2.0,
+        "lhs_value": 0.1, "rhs_value": 0.03, "result": "pass"
+      }]
+    },
+    {
+      "schema": 1,
+      "scenario": "rifles_kill_unarmed", "path": "res://data/sim/workshop/rifles_kill_unarmed.json",
+      "component": "fire", "status": "gate", "doc": "Two rifle squads kill an unarmed squad.",
+      "package": "rules-fixture", "data_hash": "aa11", "engine": "4.7.2-stable (official)",
+      "map": "duel_crossroads", "open": true, "seed": 1, "turns": 3, "probe_stride": 2,
+      "result": "fail",
+      "gate_failures": 1, "pending": 0, "unexpected_passes": 0,
+      "errors": [],
+      "variants": [{
+        "name": "base", "hash": "9f8e7d6c5b4a3921", "turn_hashes": ["9f8e", "7d6c", "5b4a"],
+        "turns_run": 3, "frames": 310, "errors": [],
+        "probes": [
+          {"id": "kills", "kind": "kills", "squad": "rifles", "target": "unarmed", "when": "over all",
+           "value": 3, "expect": {"min": 4}, "result": "fail", "error": ""}
+        ]
+      }],
+      "compare": []
+    },
+    {
+      "schema": 1,
+      "scenario": "broken_file", "path": "res://data/sim/workshop/broken_file.json",
+      "component": "targeting", "status": "gate", "doc": "",
+      "package": "rules-fixture", "data_hash": "aa11", "engine": "4.7.2-stable (official)",
+      "map": "duel_crossroads", "open": false, "seed": 1, "turns": 1, "probe_stride": 1,
+      "result": "error",
+      "gate_failures": 0, "pending": 0, "unexpected_passes": 0,
+      "errors": ["broken_file.json: squads[0].at: must be [x, y]"],
+      "variants": [],
+      "compare": []
+    }
+  ]
+}

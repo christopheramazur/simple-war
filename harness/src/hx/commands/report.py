@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import webbrowser
 from collections import defaultdict
-from datetime import datetime
 
 import duckdb
 
-from hx import ledger, report
+from hx import clock, ledger, report
 from hx.output import WARN, Check, Result
 
 HELP = "Spend, tokens, tools, friction and time from the ledger (run hx ingest first)"
@@ -63,7 +62,7 @@ def run(args) -> Result:
     }
     if args.html or args.open:
         from hx import report_html
-        out = report_html.write(d, args.since, datetime.now().astimezone())
+        out = report_html.write(d, args.since, clock.now())
         r.data["html"] = str(out)
         if args.open:
             webbrowser.open(out.as_uri())

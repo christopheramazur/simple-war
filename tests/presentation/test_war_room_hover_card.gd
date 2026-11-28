@@ -55,9 +55,11 @@ func test_the_cursor_leaving_the_map_hides_the_card() -> void:
 	assert_eq(w._hover_plot, -1)
 
 
-func test_turn_playback_hides_the_card_until_it_ends() -> void:
+## Overworld playback keeps the hex card (sw-bafi.9 U1 C8: information views
+## stay open while a turn plays out); a battle's playback has none.
+func test_overworld_playback_keeps_the_card() -> void:
 	var w := _hovering()
 	w._start_play(w.session.observe(1), 1)
-	assert_false(w._hover_card.is_visible_in_tree())
+	assert_true(w._hover_card.is_visible_in_tree(), "the card stays during overworld playback")
 	w.skip_playback()
 	assert_true(w._hover_card.is_visible_in_tree(), "the cursor never left the hex")
