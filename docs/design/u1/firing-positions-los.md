@@ -26,16 +26,17 @@ size was vision's pair loop, which read two stats for every pair of squads every
 160 squads. What sw-arse built, all exact (same answer for every query, same state hash on every battle):
 
 1. **A jump walk** over a per-cell distance field: the walk's cells have a closed form, so it jumps over open
-   ground instead of stepping cell by cell. 2-7 times faster per trace.
+   ground instead of stepping cell by cell: 3-10 times faster than the plain walk, and with the cache 2.7-7 times
+   faster than the memo it replaces.
 2. **A bounded answer cache** (64 KiB per battle) in place of the dictionary memo, which could grow to 2^18
    entries per battle.
 3. **Vision through a grid**: each squad tests only observers that could reach it, with their stats read once per
    tick. 10 times cheaper at 160 squads.
 4. **The fire pass traces less**: a target is traced only if it would beat the best target found so far.
 
-A 160-squad battle-tick went from 53.7 ms to about 32 ms, and cost now grows about linearly with squads (4.4 times
-the cost for 4 times the squads, against 6.9 times before). Several battles cost exactly the sum of their parts,
-before and after: they share nothing. Line of sight is now 0.5% of a 160-squad tick. What dominates now is per-unit
+A 160-squad battle-tick went from 53.2 ms to 31.7 ms (40 squads: 7.6 to 6.5), and cost now grows about linearly
+with squads (4.9 times the cost for 4 times the squads, against 7.0 times before). Several battles cost exactly the sum of their parts,
+before and after: they share nothing. Line of sight is now 0.3% of a 160-squad tick (0.08 ms). What dominates now is per-unit
 GDScript work in movement and combat (follow-ups in §8).
 
 ## 2. From an order to a shot, per tick
@@ -243,9 +244,10 @@ steps cell by cell, as before, and stops at the third blocking cell.
 ### 3.2 The cache
 
 Answers are cached per (from cell, to cell) in a direct-mapped table of 8192 slots, each `key << 1 | answer`
-(-1 empty). A miss overwrites the slot. Hit rates are close to the measured ceiling of 53-69% (most pairs recur only
-while both ends stay in their cells), and the table never grows. The sw-03qj dictionary memo it replaces reached
-the same hits but could grow to 2^18 entries per battle (tens of MB) before it started over.
+(-1 empty). A miss overwrites the slot. No cache can answer more than 53-69% of these queries (the share of repeated
+cell pairs in a whole battle: most pairs recur only while both ends stay in their cells), and 4096 to 65536 slots
+cost the same within 5% (§5), so 8192 is enough and the table never grows. The sw-03qj dictionary memo it replaces
+could grow to 2^18 entries per battle (on the order of 10 MB) before it started over.
 
 ### 3.3 Vision's grid
 
@@ -301,27 +303,39 @@ by about 10%.
 
 ms per battle-tick (one battle), and its split:
 
-TABLE_SCALE
+| Squads (map) | Before | After | Firing positions | Movement (rest) | Vision | Combat | Other | State hash (both) |
+|---|---|---|---|---|---|---|---|---|
+| 12 (200 x 100) | 1.78 | 1.60 | 0.08 → 0.07 | 0.64 → 0.61 | 0.16 → 0.10 | 0.38 → 0.33 | 0.49 → 0.46 | `3c486f37ec14` |
+| 24 (200 x 100) | 3.26 | 2.93 | 0.12 → 0.10 | 1.19 → 1.15 | 0.37 → 0.16 | 0.76 → 0.70 | 0.78 → 0.77 | `ce165c185aac` |
+| 40 (200 x 100) | 7.62 | 6.48 | 0.24 → 0.21 | 2.58 → 2.53 | 1.35 → 0.41 | 1.74 → 1.63 | 1.67 → 1.65 | `538421abd015` |
+| 80 (200 x 200) | 19.32 | 14.42 | 0.39 → 0.33 | 5.61 → 5.43 | 5.24 → 1.00 | 4.53 → 4.22 | 3.47 → 3.39 | `287f363aae54` |
+| 160 (400 x 200) | 53.24 | 31.68 | 0.52 → 0.46 | 10.85 → 10.71 | 23.98 → 2.43 | 10.65 → 10.80 | 7.13 → 7.18 | `c63b9552c850` |
 
-- **Battles add, they don't interact.** 2 and 4 battles cost 2 and 4 times one, before and after (TABLE_BATTLES).
+Medians of 3 runs (12 and 24: 600 ticks; the rest 300). The 12-, 24- and 40-squad rows are the `fp_dps.gd`
+fixture (same placement, same map); `fp_dps.gd` itself measures the same things but its per-unit column reads make it
+slow to run, so `los_scale.gd --quality` reports its shots, damage and position share too. Those were identical
+before and after at 12, 24 and 40 squads (424, 818 and 1019 shots), as the hashes say they must be.
+
+- **Battles add, they don't interact.** 2 and 4 battles cost 2 and 4 times one, before and after (four 160-squad battles: 216.9 ms per tick of all four before, 54.2 per battle; 126.0 after, 31.5 per battle).
   Nothing is shared between battles, so the per-battle curve is the whole story, and battles could run on separate
   threads (§8).
-- **Per battle-second** (10 ticks): BATTLE_SECOND.
-- **Line of sight** on the real query mix (replayed): TABLE_LOS
-- **The curve.** Before: 4 times the squads cost 6.9 times as much (vision was quadratic). After: 4.4 times, close to
-  linear. Every system that is left grows with units, not with pairs.
+- **Per battle-second** (10 ticks): 76 → 65 ms at 40 squads, 193 → 144 at 80, 532 → 317 at 160. Four 160-squad battles in real time needed 2.2 cores before and 1.3 now.
+- **Line of sight** on the real query mix (replayed): 0.34 → 0.14 ms per tick at 40 squads (1.49 → 0.65 µs per call),
+  0.75 → 0.29 at 80 (1.43 → 0.59), 0.47 → 0.08 at 160 (2.87 → 0.60). The fire pass makes 10% fewer traces (48,616 →
+  43,437 at 40 squads) for the same picks. Building the field: 6.7 ms once per 200 x 100 battle, 27 ms for 400 x 200.
+- **The curve.** Before: 4 times the squads (40 → 160) cost 7.0 times as much, because vision was quadratic. After:
+  4.9 times, close to linear (the 160-squad map also has 4 times the cells). Every system that is left grows with units, not with pairs.
 
 ### 4.3 What dominates now
 
-At 160 squads, of about 32 ms per tick: movement without firing positions about 11 ms (anchors, units, routes,
-separation), combat about 11 ms (target choice per squad, per-unit fire), other systems about 7 ms (effects,
-centroids three times, reactions, health, pools), vision about 2.5 ms, firing positions about 0.5 ms, line of sight
-inside all of those about 0.17 ms. None of these are line of sight: they are per-unit GDScript work (property reads,
+At 160 squads, of 31.7 ms per tick: movement without firing positions 10.7 ms (anchors, units, routes,
+separation), combat 10.8 ms (target choice per squad, per-unit fire), other systems 7.2 ms (effects, centroids three
+times, reactions, health, pools), vision 2.4 ms, firing positions 0.5 ms, line of sight inside all of those 0.08 ms. None of these are line of sight: they are per-unit GDScript work (property reads,
 dictionary lookups, small allocations).
 
 The budget GDD §2.14 sets for separation (0.2 ms per tick at 200 units) is still met. There is no stated budget for a
-whole battle tick; at 10 ticks per second, one 160-squad battle now takes about a third of a core in real time, and
-four take about 1.3 cores, so four big battles at once need threads or the follow-ups in §8.
+whole battle tick; at 10 ticks per second, one 160-squad battle now takes about a third of a core in real time (half a core
+before), and four take about 1.3 cores (2.2 before), so four big battles at once need threads or the follow-ups in §8.
 
 ## 5. Alternatives measured
 
@@ -347,8 +361,8 @@ Considered and dropped on the numbers:
   range is 1.6 x 10^8 pairs: 20 MB per battle and minutes of GDScript to build. Out.
 - **A blocker bitmask per cell** (tried in the Haiku run): exact, about 1% faster. The jump walk removes the steps
   instead of making each one cheaper.
-- **Native code (GDExtension).** Line of sight is now 0.17 ms of a 32 ms tick at 160 squads. Even a free trace saves
-  0.5%. Not worth a C++ build pipeline for exports and tests.
+- **Native code (GDExtension).** Line of sight is now 0.08 ms of a 32 ms tick at 160 squads. Even a free trace saves
+  0.3%. Not worth a C++ build pipeline for exports and tests.
 - **A trace budget per tick (the bead's option a)** or `SEARCH_CAP = 1`: behaviour changes to save LoS cost that is
   now small. Not needed.
 
@@ -358,7 +372,12 @@ The search budgets are per battle, so a bigger battle has more units waiting for
 measured whether that starves big battles, with a trial ruleset flag that multiplied both budgets by ceil(living
 squads / N), with N = 40 (so 40 squads or fewer were unchanged; fp_dps 12/24/40 gave identical hashes):
 
-QUALITY
+| Squads | Budgets | Shots | Damage dealt p1 / p2 | Holding a position | Firing positions ms/t |
+|---|---|---|---|---|---|
+| 80 | fixed (today) | 2214 | 1585 / 2048 | 46.2% | 0.37 |
+| 80 | x ceil(squads / 40) | 2114 | 1921 / 1636 | 47.4% | 0.47 |
+| 160 | fixed (today) | 3594 | 3790 / 3952 | 81.1% | 0.52 |
+| 160 | x ceil(squads / 40) | 3246 | 3952 / 3768 | 92.5% | 0.62 |
 
 The share of armed unit-ticks holding a position rose at 160 squads, but shots fell and the outcome changed both
 ways at 80, at 0.1 ms per tick more. Budgets don't starve these battles (160 squads hold positions more often than
@@ -386,4 +405,19 @@ long for positions, `los_scale.gd --quality` measures it.
 
 ## 8. Follow-up beads
 
-FOLLOWUPS
+- **sw-l87e** (P3): combat per-unit and target-choice cost, 10.8 ms per tick at 160 squads: `pick_target`'s loop over
+  every squad, `in_reach`'s unit pairs, `point_shot` rebuilding the target list per moving unit, two picks per
+  moving unit.
+- **sw-ac9w** (P3): movement and small-system per-unit cost, 10.7 + 7.2 ms per tick at 160 squads.
+- **sw-bwnd** (P4): step concurrent battles on worker threads; they share nothing, so k battles could cost one
+  battle's wall time on k cores.
+
+Nothing needs the owner's sign-off: every change is exact, and the one behaviour option measured (§5.1) was dropped.
+
+## 9. Scripts
+
+- `docs/design/u1/scripts/fp/los_scale.gd`: the scaling bench (squads, battles, split, `--trace` replay, `--quality`).
+- `docs/design/u1/scripts/fp/los_proto.gd`: replays saved traces (`los_scale.gd --save-trace <dir>`) through the
+  prototypes of §5, every answer checked against the walk.
+- `docs/design/u1/scripts/fp/los_cost.gd`: µs per call, plain walk against the jump walk, on random Crossroads pairs.
+- `docs/design/u1/scripts/fp/fp_cost.gd`, `fp_dps.gd`: the earlier firing-position cost and sign-off scripts.
