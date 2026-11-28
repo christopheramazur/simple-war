@@ -171,6 +171,10 @@ var sq_spacing: PackedInt64Array = PackedInt64Array()
 ## Coherency radius per squad template, fixed metres (sw-txnj.4): explicit
 ## `formation.coherency`, else the formation's half-width + 4 m.
 var sq_coherency: PackedInt64Array = PackedInt64Array()
+## Squad footprint per squad template, fixed metres (sw-txnj.13): the
+## formation's width (twice its half-width), at least one spacing. Friendly
+## squads ordered to one point are spread one footprint apart.
+var sq_footprint: PackedInt64Array = PackedInt64Array()
 var sq_archetype: PackedInt64Array = PackedInt64Array()
 ## Squad behaviours (GDD 02 §2.15, sw-txnj.9), compiled per squad template x
 ## battle order: index bh_at(template, order), order = BattleSquads.Order
@@ -872,8 +876,10 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 					others.append(ui)
 		leaders.append_array(others)
 		sq_members.append(leaders)
-		var default_coherency := Formation.half_width(sq_shape[-1], leaders.size(), sq_spacing[-1]) + Fixed.from_int(4)
+		var half := Formation.half_width(sq_shape[-1], leaders.size(), sq_spacing[-1])
+		var default_coherency := half + Fixed.from_int(4)
 		sq_coherency.append(DataSchema.to_fixed(form["coherency"]) if form.has("coherency") else default_coherency)
+		sq_footprint.append(maxi(2 * half, sq_spacing[-1]))
 		_compile_behaviours(t, tid, v.get("behaviours", {}), sq_coherency[-1])
 		sq_bundles.append(_bundle_list(v))
 		sq_keywords.append(PackedStringArray(v.get("keywords", [])))

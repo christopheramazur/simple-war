@@ -24,8 +24,12 @@ const FALL_BACK_DISTANCE: int = 20 * Fixed.ONE
 
 
 ## Returns the errors; valid orders in the list are still applied.
+## Squads ordered to one point are then spread over its rings (see
+## _spread_points), so the points stored in the orders are the ones the
+## squads walk to and the forecast ghosts show.
 static func apply(state: BattleState, player: int, orders: Array) -> PackedStringArray:
 	var errors := PackedStringArray()
+	var moved := PackedInt64Array()
 	for i in orders.size():
 		var o: Variant = orders[i]
 		var err := validate(state, player, o)
@@ -33,7 +37,89 @@ static func apply(state: BattleState, player: int, orders: Array) -> PackedStrin
 			errors.append("order %d: %s" % [i, err])
 			continue
 		_apply_one(state, o)
+		if o.get("type", "hold") in ["move", "attack_move"]:
+			moved.append(state.squads.row_of(o["squad"]))
+	_spread_points(state, moved)
 	return errors
+
+
+## Squad footprints (GDD 02 §2.14, sw-txnj.13). The squads in `moved` have
+## just been given their points. A point that another friendly squad is
+## already walking to (within half a footprint) moves to the nearest free
+## ring position one footprint away, then the lowest cell index in that
+## ring. Squads earlier in `moved` keep their points; a later one takes a
+## free ring around them. Squads whose points are unchanged keep them. No
+## free position in reach: the squad keeps its point.
+static func _spread_points(state: BattleState, moved: PackedInt64Array) -> void:
+	var sq := state.squads
+	# Rows still to be resolved in this batch: they don't yet hold their
+	# final points, so they don't block anyone.
+	var pending := {}
+	for row in moved:
+		pending[row] = true
+	for row in moved:
+		if not pending.has(row):
+			continue
+		pending.erase(row)
+		var fp: int = state.rules.sq_footprint[sq.tmpl[row]]
+		var x := sq.tx[row]
+		var y := sq.ty[row]
+		if fp <= 0 or not _point_taken(state, row, x, y, fp, pending):
+			continue
+		var q := _free_ring_point(state, row, x, y, fp, pending)
+		if not q.is_empty():
+			set_order(state, row, sq.order[row], q[0], q[1], sq.target[row], sq.run[row])
+
+
+## True if another friendly squad that is walking to a point (move or
+## attack-move) has its point within half a footprint of (x, y).
+static func _point_taken(state: BattleState, row: int, x: int, y: int, fp: int, pending: Dictionary) -> bool:
+	var sq := state.squads
+	var me := sq.player[row]
+	for r in sq.count():
+		if r == row or sq.player[r] != me or not sq.is_active(r) or pending.has(r):
+			continue
+		if not (sq.order[r] in [BattleSquads.Order.MOVE, BattleSquads.Order.ATTACK_MOVE]):
+			continue
+		if Fixed.distance(x, y, sq.tx[r], sq.ty[r]) < fp / 2:
+			return true
+	return false
+
+
+## The free point nearest to (x, y) on the rings one footprint apart around
+## it: ring k holds the points k footprints away on the square grid, the
+## lowest ring with a free, enterable point wins, and within a ring the
+## lowest cell index. Empty if none lies on the battlefield.
+static func _free_ring_point(state: BattleState, row: int, x: int, y: int, fp: int, pending: Dictionary) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var cls: int = r.sq_route_class[sq.tmpl[row]]
+	var w := Fixed.from_int(r.width)
+	var h := Fixed.from_int(r.height)
+	var reach := maxi(r.width, r.height) * Fixed.ONE / fp + 1
+	for k in range(1, reach + 1):
+		var best := PackedInt64Array()
+		var best_cell := -1
+		for dy in range(-k, k + 1):
+			for dx in range(-k, k + 1):
+				if maxi(absi(dx), absi(dy)) != k:
+					continue
+				var qx := x + dx * fp
+				var qy := y + dy * fp
+				if qx < 0 or qy < 0 or qx >= w or qy >= h:
+					continue
+				var cell := Fixed.to_int_floor(qy) * r.width + Fixed.to_int_floor(qx)
+				if best_cell >= 0 and cell >= best_cell:
+					continue
+				if not r.routes.passable(r, cls, qx, qy):
+					continue
+				if _point_taken(state, row, qx, qy, fp, pending):
+					continue
+				best_cell = cell
+				best = PackedInt64Array([qx, qy])
+		if best_cell >= 0:
+			return best
+	return PackedInt64Array()
 
 
 static func validate(state: BattleState, player: int, o: Variant) -> String:

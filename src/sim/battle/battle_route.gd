@@ -115,6 +115,12 @@ func straight_clear(r: BattleRules, route_class: int, from_x: int, from_y: int, 
 	return _straight_ok(costs, r.width, a, b, 1 << 40)
 
 
+## True if the route class can stand on the cell under (x, y), which must lie
+## on the battlefield (sw-txnj.13: spread points must be enterable).
+func passable(r: BattleRules, route_class: int, x: int, y: int) -> bool:
+	return _costs_of(r, route_class)[_cell(r, x, y)] > 0
+
+
 static func _cell(r: BattleRules, x: int, y: int) -> int:
 	return clampi(Fixed.to_int_floor(y), 0, r.height - 1) * r.width + clampi(Fixed.to_int_floor(x), 0, r.width - 1)
 
