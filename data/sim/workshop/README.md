@@ -65,7 +65,7 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 - `id`: unique, no dots. Exactly one kind key; its value is the expectation (`null` = report the value only).
 - `at`: `"end"` (the last frame), `"t<turn>"` (after the turn resolved), `"t<turn>:<tick>"` (after that tick of the turn, from 0).
 - `over`: `"all"`, `"t<turn>"`, `"t<a>-t<b>"`, `"t<turn>:<k0>-<k1>"`. Both ends inclusive.
-- `squad`: the squad measured (required). `target`: a squad key (required for `fire`, `distance`, `within`, `first_kill`, `mean_kill`, `wipe`, `waste`; a filter for `damage`, `dps`, `shots`, `kills`, `victims`; for `spacing`, the gap to that squad's units).
+- `squad`: the squad measured (required). `target`: a squad key (required for `fire`, `distance`, `within`, `first_kill`, `mean_kill`, `wipe`, `waste`; a filter for `damage`, `dps`, `shots`, `kills`, `victims`).
 - `pending`: true makes this probe non-gating in a gate scenario.
 - `variants`: the variants the expectation holds in: a list, or `"all"`. Default `["base"]`. The value is measured and reported in every variant either way (comparisons use it).
 
@@ -76,7 +76,7 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 | `fire` | at | `LineOfFire` code to the target: `SHOT`, `BLOCKED`, `OUT_OF_RANGE`, `MIN_RANGE`, `NO_TARGET` | a name or a list of names |
 | `distance` | at | centroid to centroid, m | number |
 | `within` | at | the target's centroid is inside the squad's longest living weapon range | true / false |
-| `spacing` | at or over | the nearest two living units of the squad, m; with `target`, the nearest living unit of the squad to a living unit of the target (sw-txnj.12) (over: the window's minimum) | number |
+| `spacing` | at or over | the nearest two living units of the squad, m; with `target`, the nearest living unit of the squad to a living unit of the target (sw-txnj.12; `separation_clump` gates it at the size-class distance, 0.6 m medium, once settled) (over: the window's minimum) | number |
 | `damage` | over | HP dealt by the squad (`squad_damaged`) | number |
 | `dps` | over | damage per second: damage × ticks per second ÷ ticks in the window | number |
 | `shots` | over | shots fired (`squad_fired`) | number |
@@ -183,4 +183,4 @@ Printed as one line between `WORKSHOP_JSON_BEGIN` and `WORKSHOP_JSON_END`. Any c
 - `mixed_range_hold` (pending, core): table B's hold column with the table's own placement (12 m, holding from the start); reproduces 6.7.
 - `fire_range_rifle_rifle`, `fire_range_hwt_rifle`, `fire_range_marksman_scout`, `fire_range_mortar_rifle`, `fire_range_rifle_chi` (gate, rules-fixture, U1 D2): the draft 04 §1.3 fire-range matchups under today's picker, shooters on HOLD in line, 30 m (40 m marksman, 36 m mortar), passive no_armour targets (`bare_*` templates in `tests/fixtures/rules/defs/workshop.json`; CHI keeps its carapace). `first_kill`, `mean_kill`, `wipe` and `waste` are pinned to the draft's numbers. `fire_range_rifle_rifle` also has an `attack_move` variant (shooters start 30 m west and attack-move in): its numbers are reported, not pinned, and `am_first_shot_ticks` shows the opening is still lockstep (1 tick).
 - `focus_fire_spread` (gate, U1 D2): one rifle squad against two killable squads; pins the current pick (prey_a first: first kill tick 10, wiped at 60; then prey_b: 80 and 130) and overkill 4. The focus policy changes these on purpose.
-- `separation_clump` (gate, sw-txnj.12): two squads ordered onto one point; the `spacing` probe with a `target` pins the gap between their units at the size-class distance (0.6 m medium) over the settled turn and at the end, 0.3 m while arriving.
+- `separation_clump` (explore): watch-only; no probes.
