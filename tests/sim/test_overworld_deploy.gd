@@ -193,3 +193,40 @@ class _PlacingExpand extends ExpandController:
 			if int(sq["player"]) == 1:
 				return [{"squad": sq["id"], "x": area[0] + area[2] / 2, "y": area[1] + area[3] / 2, "facing": 0}]
 		return []
+
+
+## sw-bafi.14: a non-empty draft for a battle adds the deployment bonus to the
+## player's Planning time; an empty one doesn't, and it survives a save.
+func test_deployment_bonus_follows_drafts_and_saves() -> void:
+	var s := _session()
+	var eid := _eid(s)
+	var base := s.clock.remaining_ms(1)
+	var base2 := s.clock.remaining_ms(2)
+	var sid: int = _own(s, eid, 1)[0]
+	s.submit_battle_deployment(1, eid, [_centre(s, eid, 1, sid)])
+	assert_eq(s.clock.remaining_ms(1), base + 15000, "one battle deployed in")
+	assert_eq(s.clock.remaining_ms(2), base2, "player 2 deployed nothing")
+	var loaded := OverworldSession.load_save(s.save(), _l().templates, _l().data_hash)
+	assert_not_null(loaded, OverworldSession.last_error)
+	if loaded != null:
+		assert_eq(loaded.clock.remaining_ms(1), base + 15000, "the bonus survives a save")
+	s.submit_battle_deployment(1, eid, [])
+	assert_eq(s.clock.remaining_ms(1), base, "an empty draft deploys nowhere")
+
+
+## sw-bafi.17: forecast_battle starts the ghosts from the player's drafted
+## places; the battle itself is unchanged.
+func test_forecast_starts_from_the_drafted_places() -> void:
+	var s := _session()
+	var eid := _eid(s)
+	var sid: int = _own(s, eid, 1)[0]
+	var before := s.state_hash_hex()
+	s.submit_battle_deployment(1, eid, [_centre(s, eid, 1, sid)])
+	var fc: Dictionary = s.forecast_battle(1, eid, [])
+	assert_eq(s.state_hash_hex(), before, "the forecast changes nothing")
+	var want: Dictionary = _centre(s, eid, 1, sid)
+	var pts: PackedInt64Array = fc["ghosts"][sid]
+	assert_lt(absi(pts[0] - want["x"]), 3 * Fixed.ONE, "the ghost starts at the placed x")
+	assert_lt(absi(pts[1] - want["y"]), 3 * Fixed.ONE, "the ghost starts at the placed y")
+	var job := s.forecast_job(1, eid, [])
+	assert_eq(job.call(), fc, "the job form gives the same forecast")

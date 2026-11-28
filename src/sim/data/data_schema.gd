@@ -95,6 +95,8 @@ const HEX_INTERACTIONS: Array[String] = ["none", "stable", "uncertain"]
 const HEX_LAYERS: Array[String] = ["ground", "path", "site"]
 ## Map generation passes (R3Q13), applied in order with the map's seed.
 const MAP_PASSES: Array[String] = ["fill", "rect", "place", "line", "scatter"]
+## Overworld stats a band's payload may raise (U1Q27, OverworldStats).
+const BAND_STATS: Array[String] = ["sight", "movement_points"]
 
 ## Reusable object shapes.
 const OBJECTS: Dictionary = {
@@ -182,6 +184,16 @@ const OBJECTS: Dictionary = {
 		"deploy": {"type": "obj:rect", "required": true},
 		"squads": {"type": "list:ref:squad", "required": true},
 		"facing": {"type": "int"},
+	},
+	## A squad placed at a point of its side's area (sw-tdz, U1Q31): its
+	## automatic place, which the player may move unless `locked`.
+	"placed": {
+		"side": {"type": "int", "required": true, "min": 1},
+		"squad": {"type": "ref:squad", "required": true},
+		"x": {"type": "fixed", "required": true},
+		"y": {"type": "fixed", "required": true},
+		"facing": {"type": "int"},
+		"locked": {"type": "bool"},
 	},
 	"victory": {
 		"turn_limit": {"type": "int", "min": 1},
@@ -631,6 +643,19 @@ const KINDS: Dictionary = {
 		## Most squads the army holds, besides the commander's own.
 		"army_cap": {"type": "int", "min": 0},
 	},
+	## A band kind (U1Q27): the kinds of commander-less squad groups. The core
+	## kinds are band_garrison (holding a hex) and band_caravan (sent
+	## somewhere). sight: radius in hexes. movement_points: per turn, in the
+	## map's move-cost units. payload_stats: the overworld stats its payload
+	## may raise; caps: stat -> most its payload may add (sw-63wt.3).
+	"band": {
+		"icon": {"type": "string"},
+		"name": {"type": "string"},
+		"sight": {"type": "int", "min": 0},
+		"movement_points": {"type": "int", "min": 1},
+		"payload_stats": {"type": "list:string", "enum": BAND_STATS},
+		"caps": {"type": "map:int", "keys": BAND_STATS},
+	},
 	## A seeded overworld map template (R3Q13): an empty width x height hex
 	## rectangle (odd-r offset rows) that its passes fill with features.
 	## `starts` places each player's starting commanders.
@@ -645,9 +670,9 @@ const KINDS: Dictionary = {
 		## The battlefield engagements are fought on by default: terrain,
 		## zones, victory, and two deployment areas the sides are given.
 		"battle_scenario": {"type": "ref:scenario"},
-		## Sight radius of a detachment (dropped-off squads), in hexes.
+		## Optional overrides (U1Q27): band_garrison's sight and
+		## band_caravan's movement points on this map (unset = the band's).
 		"detachment_sight": {"type": "int", "min": 0},
-		## Movement points a convoy spends each turn.
 		"convoy_movement": {"type": "int", "min": 1},
 		## Skirmish win condition (A2Q2): a side wins when every enemy
 		## commander is defeated (OverworldVictory).
@@ -692,6 +717,8 @@ const KINDS: Dictionary = {
 		"terrain": {"type": "list:obj:terrain_rect"},
 		"zones": {"type": "list:obj:zone"},
 		"sides": {"type": "list:obj:side", "required": true},
+		## Squads placed at their own points (sw-tdz); the rest deal evenly.
+		"placed": {"type": "list:obj:placed"},
 		"victory": {"type": "obj:victory", "required": true},
 		"end_hooks": {"type": "obj:end_hooks"},
 		"triggers": {"type": "list:ref:trigger"},

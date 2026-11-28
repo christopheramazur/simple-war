@@ -29,8 +29,18 @@ extends RefCounted
 ##   the due list rotated by the tick (stateless round robin). A unit whose
 ##   slot is beyond range + coherency + REACH_SLACK of the target centroid
 ##   lacks a position without a search. The own spot and the slot are tried
-##   uncapped (a unit's first evaluation among them, so a squad that engages
-##   standing doesn't step forward first); only ring searches are capped.
+##   on a unit's first evaluation uncapped (so a squad that engages standing
+##   doesn't step forward first). Re-evaluations of units that lack a
+##   position or can't have one are capped at EVAL_CAP per tick per battle
+##   (sw-txnj.15, sw-0jm5), taken from the list of those due rotated by the
+##   tick; a deferred unit keeps its code until a later tick picks it. A unit
+##   losing its position is re-evaluated under the same cap.
+## - Cost, exact (sw-0jm5): columns and each target squad's living positions
+##   are read once per tick, engaging() runs batched (_engaging_rows), slots
+##   come from one formation frame per squad, and the ring search is skipped
+##   when no target unit is within range + coherency of the anchor.
+##   Measured with docs/design/u1/scripts/fp/fp_cost.gd at 40 squads: 1.40
+##   -> 0.77 ms/t exact, 0.60 with EVAL_CAP; fp_dps.gd is the sign-off.
 ## - Anchor (fp_stop): stops once no armed unit is NONE or LACKS; once stopped
 ##   it moves again only after some unit has lacked a position for
 ##   HYSTERESIS_S (fp_lack = the tick the lack began, -1 none).
@@ -48,6 +58,11 @@ const MAX_RINGS: int = 3
 const ANGLES: int = 7
 const CADENCE: int = BattleRules.BH_CADENCE
 const SEARCH_CAP: int = 2
+## Re-evaluations (units that already lack a position or can't have one) per
+## tick per battle; first evaluations are never capped (sw-txnj.15, sw-0jm5).
+const EVAL_CAP: int = 3
+## _evaluate's code for "lacks, and its ring search is due" (never stored).
+const DUE: int = 4
 const STAND_OFF: int = BattleRules.BH_STAND_OFF
 const REACH_SLACK: int = 10 * Fixed.ONE
 const HYSTERESIS_S: int = BattleRules.BH_HYSTERESIS_S
@@ -93,76 +108,186 @@ static func engaging(state: BattleState, row: int, closing: bool = false) -> int
 	return trow
 
 
+## engaging(state, row) for every squad row at once, from columns read once
+## (sw-0jm5: the per-row version reads a dozen properties per call). Must
+## agree with engaging() row for row (test_engaging_rows_matches_engaging).
+static func _engaging_rows(state: BattleState) -> PackedInt64Array:
+	var sq := state.squads
+	var r := state.rules
+	var n := sq.count()
+	var out := PackedInt64Array()
+	out.resize(n)
+	out.fill(-1)
+	var destroyed := sq.destroyed
+	var withdrawn := sq.withdrawn
+	var alive := sq.alive
+	var engaged := sq.engaged
+	var order := sq.order
+	var target := sq.target
+	var tmpl := sq.tmpl
+	var seen_by := sq.seen_by
+	var player := sq.player
+	var stand_firing := r.bh_stand_firing
+	var erow := sq.rows_of(engaged)
+	var keep_min := r.bh_keep_min
+	var keep_max := r.bh_keep_max
+	for row in n:
+		var e := engaged[row]
+		if e < 0 or alive[row] == 0 or destroyed[row] != 0 or withdrawn[row] != 0:
+			continue
+		var o := order[row]
+		if o == BattleSquads.Order.ATTACK:
+			if e != target[row]:
+				continue
+		elif o != BattleSquads.Order.ATTACK_MOVE:
+			continue
+		var i := tmpl[row] * BattleRules.BH_ORDERS + o  # r.bh_at
+		if stand_firing[i] == 0:
+			continue
+		var trow := erow[row]
+		if trow < 0 or destroyed[trow] != 0 or withdrawn[trow] != 0 or alive[trow] == 0:
+			continue
+		if seen_by[trow] & (1 << player[row]) == 0:
+			continue
+		if keep_min[i] >= 0 or keep_max[i] >= 0:
+			var d := Fixed.distance(sq.ax[row], sq.ay[row], sq.cx[trow], sq.cy[trow])
+			if d < keep_min[i] or (keep_max[i] >= 0 and d > keep_max[i]):
+				continue
+		out[row] = trow
+	return out
+
+
 static func update(state: BattleState) -> void:
 	var sq := state.squads
 	var u := state.units
 	var r := state.rules
+	var tick := state.tick
 	var fpos: PackedByteArray = u.take_column(&"fpos")
 	var fx: PackedInt64Array = u.take_column(&"fx")
 	var fy: PackedInt64Array = u.take_column(&"fy")
+	# Columns read once per tick (sw-0jm5): a property read per unit per tick
+	# was the cost of this pass, not the rules it applies.
+	var hp := u.hp
+	var weapon := u.weapon
+	var ux := u.x
+	var uy := u.y
+	var fired := u.fired_tick
+	var uslot := u.slot
+	var stand := _standing_modes(r)
+	var shots := {}
 	var due := PackedInt64Array()
-	var due_t := PackedInt64Array()
+	var again := PackedInt64Array()
 	var targets := {}
+	var engage := _engaging_rows(state)
+	# Living armed units per squad that lack a position (LACKS or NONE), kept
+	# up to date through both passes, for the anchors.
+	var lacking := PackedInt64Array()
+	lacking.resize(sq.count())
 	for row in sq.count():
-		var trow := engaging(state, row)
+		var trow := engage[row]
 		var units := Centroids.units_of(state, row)
 		if trow < 0:
 			for urow in units:
 				fpos[urow] = NONE
 			continue
 		targets[row] = trow
-		var radius := MovementSystem.coherency_m(state, row)
+		var tgt: PackedInt64Array = shots.get(trow, PackedInt64Array())
+		if tgt.is_empty():
+			tgt = _living(state, trow)
+			shots[trow] = tgt
+		var bhi := bh(state, row)
+		var radius := r.bh_coherency[bhi]
 		var r2 := radius * radius
-		var cadence := maxi(r.bh_cadence[bh(state, row)], 1)
+		var cadence := maxi(r.bh_cadence[bhi], 1)
+		var stand_off := r.bh_stand_off[bhi]
+		var ax := sq.ax[row]
+		var ay := sq.ay[row]
+		var frame := PackedInt64Array()
 		for urow in units:
-			var w := u.weapon[urow]
-			if u.hp[urow] <= 0 or w < 0:
+			var w := weapon[urow]
+			if hp[urow] <= 0 or w < 0:
 				fpos[urow] = NONE
 				continue
-			if r.pick_mode(w, false) < 0:
+			var m := stand[w]
+			if m < 0:
 				fpos[urow] = UNACHIEVABLE
 				continue
 			var p := fpos[urow]
-			var on_cadence := (state.tick + urow) % cadence == 0
+			var on_cadence := (tick + urow) % cadence == 0
 			if p == HAS:
-				var dx := fx[urow] - sq.ax[row]
-				var dy := fy[urow] - sq.ay[row]
+				var dx := fx[urow] - ax
+				var dy := fy[urow] - ay
 				if dx * dx + dy * dy > r2:
 					p = LACKS
-				elif on_cadence and u.fired_tick[urow] < state.tick - cadence 						and not point_shot(state, urow, trow, fx[urow], fy[urow]):
+				elif on_cadence and fired[urow] < tick - cadence:
 					# A unit that fired within the cadence has its shot: the
 					# fire pass just checked it (no trace needed).
-					p = LACKS
-			if p == NONE or (p != HAS and on_cadence):
-				if _too_far(state, urow, row, trow):
-					p = LACKS
-				elif _near(state, urow, row, trow, fx, fy):
-					p = HAS
-				elif _min_blocked(state, urow, row, trow):
-					p = UNACHIEVABLE
-				else:
-					if p == NONE:
+					var sh := _shooter(r, w, m, stand_off)
+					if not _shot(r, tgt, sh, fx[urow], fy[urow]):
 						p = LACKS
+			if p == NONE:
+				# A first evaluation always runs now, so a squad that engages
+				# standing doesn't step forward first.
+				if frame.is_empty():
+					frame = _slot_frame(state, row)
+				p = _evaluate(state, urow, row, trow, tgt, _shooter(r, w, m, stand_off), _slot_at(frame, uslot[urow]), fx, fy)
+				if p == DUE:
+					p = LACKS
 					due.append(urow)
-					due_t.append(trow)
+			elif p != HAS and on_cadence:
+				# A re-evaluation is budgeted (EVAL_CAP per tick); a deferred
+				# unit keeps its code.
+				again.append(urow)
+			if p == LACKS:
+				lacking[row] += 1
 			fpos[urow] = p
+	var n_again := again.size()
+	var start := tick % maxi(n_again, 1)
+	for i in mini(EVAL_CAP, n_again):
+		var urow := again[(start + i) % n_again]
+		var row := sq.row_of(u.squad[urow])
+		var trow := engage[row]
+		var w := weapon[urow]
+		var sh := _shooter(r, w, stand[w], r.bh_stand_off[bh(state, row)])
+		var slot := _slot_at(_slot_frame(state, row), uslot[urow])
+		var p := _evaluate(state, urow, row, trow, shots[trow], sh, slot, fx, fy)
+		if p == DUE:
+			p = LACKS
+			due.append(urow)
+		lacking[row] += int(p == LACKS) - int(fpos[urow] == LACKS)
+		fpos[urow] = p
 	var n := due.size()
 	if n > 0:
-		var start := state.tick % n
+		var first := tick % n
 		for i in mini(SEARCH_CAP, n):
-			var k := (start + i) % n
-			var urow := due[k]
-			fpos[urow] = _search(state, urow, sq.row_of(u.squad[urow]), due_t[k], fx, fy)
+			var urow := due[(first + i) % n]
+			var row := sq.row_of(u.squad[urow])
+			var trow := engage[row]
+			var w := weapon[urow]
+			var sh := _shooter(r, w, stand[w], r.bh_stand_off[bh(state, row)])
+			var p := _search(state, urow, row, trow, shots[trow], sh, fx, fy)
+			if p != LACKS:
+				lacking[row] -= 1
+			fpos[urow] = p
 	u.put_column(&"fpos", fpos)
 	u.put_column(&"fx", fx)
 	u.put_column(&"fy", fy)
-	_anchors(state, targets)
+	_anchors(state, targets, lacking)
 
 
 ## Hysteresis per squad: fp_stop = 1 holds the anchor for firing positions.
-static func _anchors(state: BattleState, targets: Dictionary) -> void:
+## `lacking[row]`: its living armed units that are NONE or LACKS (update
+## keeps the count; empty: counted here from the fpos column).
+static func _anchors(state: BattleState, targets: Dictionary, lacking: PackedInt64Array = PackedInt64Array()) -> void:
 	var sq := state.squads
-	var u := state.units
+	if lacking.is_empty():
+		var u := state.units
+		lacking.resize(sq.count())
+		for row in targets:
+			for urow in Centroids.units_of(state, row):
+				var p := u.fpos[urow]
+				if (p == NONE or p == LACKS) and u.hp[urow] > 0 and u.weapon[urow] >= 0:
+					lacking[row] += 1
 	var stop: PackedByteArray = sq.take_column(&"fp_stop")
 	var lack: PackedInt64Array = sq.take_column(&"fp_lack")
 	for row in sq.count():
@@ -170,12 +295,7 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 			stop[row] = 0
 			lack[row] = -1
 			continue
-		var lacking := false
-		for urow in Centroids.units_of(state, row):
-			if u.hp[urow] > 0 and u.weapon[urow] >= 0 and (u.fpos[urow] == NONE or u.fpos[urow] == LACKS):
-				lacking = true
-				break
-		if not lacking:
+		if lacking[row] == 0:
 			stop[row] = 1
 			lack[row] = -1
 			continue
@@ -188,6 +308,62 @@ static func _anchors(state: BattleState, targets: Dictionary) -> void:
 	sq.put_column(&"fp_lack", lack)
 
 
+## Evaluates unit `urow` of squad `row` against squad `trow` (living
+## positions `tgt`, shooter `sh`, formation slot point `slot`): its own spot
+## inside coherency, then its slot. Writes fx, fy on success. Returns HAS,
+## UNACHIEVABLE, LACKS (too far for any ring to reach: no search), or DUE
+## (lacks, and its ring search is due).
+static func _evaluate(state: BattleState, urow: int, row: int, trow: int, tgt: PackedInt64Array, sh: PackedInt64Array, slot: PackedInt64Array, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
+	var r := state.rules
+	var sq := state.squads
+	var u := state.units
+	var radius := r.bh_coherency[bh(state, row)]
+	var reach := r.wp_range[u.weapon[urow]] + radius + REACH_SLACK
+	var cdx := sq.cx[trow] - slot[0]
+	var cdy := sq.cy[trow] - slot[1]
+	if cdx * cdx + cdy * cdy > reach * reach + reach:
+		# Too far for any ring to reach: Fixed.distance(slot, centroid) >
+		# reach, without the square root (it rounds to nearest, so it exceeds
+		# reach exactly when the squared length exceeds reach * reach + reach).
+		return LACKS
+	var x := u.x[urow]
+	var y := u.y[urow]
+	var odx := x - sq.ax[row]
+	var ody := y - sq.ay[row]
+	if odx * odx + ody * ody <= radius * radius and _shot(r, tgt, sh, x, y):
+		fx[urow] = x
+		fy[urow] = y
+		return HAS
+	if _shot(r, tgt, sh, slot[0], slot[1]):
+		fx[urow] = slot[0]
+		fy[urow] = slot[1]
+		return HAS
+	if _min_blocked(tgt, sh, slot):
+		return UNACHIEVABLE
+	return DUE
+
+
+## What MovementSystem.slot_point needs of squad `row`, read once: [shape,
+## members, spacing, cos and sin of its facing, anchor x, y, map max x, y].
+static func _slot_frame(state: BattleState, row: int) -> PackedInt64Array:
+	var r := state.rules
+	var sq := state.squads
+	var st := sq.tmpl[row]
+	var members := sq.form_size[row]
+	if members <= 0:
+		members = r.sq_members[st].size()
+	var facing := sq.facing[row]
+	return PackedInt64Array([r.sq_shape[st], members, r.sq_spacing[st], Fixed.fcos(facing), Fixed.fsin(facing),
+		sq.ax[row], sq.ay[row], Fixed.from_int(r.width) - 1, Fixed.from_int(r.height) - 1])
+
+
+## MovementSystem.slot_point for formation slot `slot` of the squad `frame`
+## (see _slot_frame) describes.
+static func _slot_at(frame: PackedInt64Array, slot: int) -> PackedInt64Array:
+	var off := Formation.offset_cs(frame[0], slot, frame[1], frame[2], frame[3], frame[4])
+	return PackedInt64Array([mini(maxi(frame[5] + off[0], 0), frame[7]), mini(maxi(frame[6] + off[1], 0), frame[8])])
+
+
 ## True if the unit's slot is too far from the target for any ring to reach.
 static func _too_far(state: BattleState, urow: int, row: int, trow: int) -> bool:
 	var sq := state.squads
@@ -196,64 +372,88 @@ static func _too_far(state: BattleState, urow: int, row: int, trow: int) -> bool
 	return Fixed.distance(slot[0], slot[1], sq.cx[trow], sq.cy[trow]) > reach
 
 
-## The first two candidates, cheap enough to test uncapped: the unit's own
-## spot (inside coherency), then its slot. Writes fx, fy on success.
-static func _near(state: BattleState, urow: int, row: int, trow: int, fx: PackedInt64Array, fy: PackedInt64Array) -> bool:
-	var sq := state.squads
-	var u := state.units
-	var radius := MovementSystem.coherency_m(state, row)
-	var odx := u.x[urow] - sq.ax[row]
-	var ody := u.y[urow] - sq.ay[row]
-	if odx * odx + ody * ody <= radius * radius and point_shot(state, urow, trow, u.x[urow], u.y[urow]):
-		fx[urow] = u.x[urow]
-		fy[urow] = u.y[urow]
-		return true
-	var slot := MovementSystem.slot_point(state, urow, row)
-	if point_shot(state, urow, trow, slot[0], slot[1]):
-		fx[urow] = slot[0]
-		fy[urow] = slot[1]
-		return true
-	return false
-
-
-## The ring search (own spot and slot already tried by _near); writes fx, fy
-## on success. Returns the new fpos code.
-static func _search(state: BattleState, urow: int, row: int, trow: int, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
+## The ring search (own spot and slot already tried); writes fx, fy on
+## success. Returns the new fpos code. `tgt` and `sh` as for _shot.
+static func _search(state: BattleState, urow: int, row: int, trow: int, tgt: PackedInt64Array, sh: PackedInt64Array, fx: PackedInt64Array, fy: PackedInt64Array) -> int:
 	var r := state.rules
 	var sq := state.squads
-	var u := state.units
 	var radius := MovementSystem.coherency_m(state, row)
 	var r2 := radius * radius
 	var ax := sq.ax[row]
 	var ay := sq.ay[row]
-	var slot := MovementSystem.slot_point(state, urow, row)
+	# Exact prune (sw-0jm5): a candidate lies within coherency of the anchor
+	# and shoots only at a target unit within range of it, so when every
+	# target unit is farther than range + coherency from the anchor, every
+	# candidate fails.
+	var reach := radius + r.wp_range[state.units.weapon[urow]]
+	var reach2 := reach * reach
+	var any := false
+	for i in range(0, tgt.size(), 2):
+		var tdx := tgt[i] - ax
+		var tdy := tgt[i + 1] - ay
+		if tdx * tdx + tdy * tdy <= reach2:
+			any = true
+			break
+	if not any:
+		return LACKS
+	var slot := _slot_at(_slot_frame(state, row), state.units.slot[urow])
 	var gx := slot[0]
 	var gy := slot[1]
 	var max_x := Fixed.from_int(r.width) - 1
 	var max_y := Fixed.from_int(r.height) - 1
-	var profile := r.ut_movement[u.tmpl[urow]]
+	var profile := r.ut_movement[state.units.tmpl[urow]]
+	# MovementSystem._blocked, read once: the cost row of the unit's profile.
+	var cost_row := profile * r.feature_count()
+	var mv_cost := r.mv_cost
+	var terrain := r.terrain
+	var width := r.width
+	var height := r.height
+	var rng2 := sh[0]
+	var mn2 := sh[1]
 	var toward := Fixed.atan2(sq.cy[trow] - gy, sq.cx[trow] - gx)
 	var spread := Fixed.ANGLE_HALF / (ANGLES - 1)
+	# The directions are the same on every ring: their cos and sin once.
+	var dir_x := PackedInt64Array()
+	var dir_y := PackedInt64Array()
+	for j in ANGLES:
+		# 0, +1, -1, +2, -2 ... across the forward half circle.
+		var idx := (j + 1) / 2
+		var sgn := 1 if j % 2 == 1 else -1
+		var ang := (toward + sgn * idx * spread) & Fixed.ANGLE_MASK
+		dir_x.append(Fixed.fcos(ang))
+		dir_y.append(Fixed.fsin(ang))
 	for k in range(1, MAX_RINGS + 1):
 		var rad := k * STEP
 		if rad > radius:
 			break
 		for j in ANGLES:
-			# 0, +1, -1, +2, -2 ... across the forward half circle.
-			var idx := (j + 1) / 2
-			var sgn := 1 if j % 2 == 1 else -1
-			var ang := (toward + sgn * idx * spread) & Fixed.ANGLE_MASK
-			var px := gx + Fixed.mul(rad, Fixed.fcos(ang))
-			var py := gy + Fixed.mul(rad, Fixed.fsin(ang))
+			var px := gx + Fixed.mul(rad, dir_x[j])
+			var py := gy + Fixed.mul(rad, dir_y[j])
 			if px < 0 or py < 0 or px > max_x or py > max_y:
 				continue
 			var cdx := px - ax
 			var cdy := py - ay
 			if cdx * cdx + cdy * cdy > r2:
 				continue
-			if MovementSystem._blocked(r, profile, px, py):
+			# _shot, its range test first (cheap; the conditions are all
+			# required, so the order doesn't change the answer).
+			var best := -1
+			var best_d := 1 << 62
+			for i in range(0, tgt.size(), 2):
+				var tdx := tgt[i] - px
+				var tdy := tgt[i + 1] - py
+				var d := tdx * tdx + tdy * tdy
+				if d > rng2 or d < mn2:
+					continue
+				if d < best_d:
+					best_d = d
+					best = i
+			if best < 0:
 				continue
-			if point_shot(state, urow, trow, px, py):
+			var cell := clampi(py >> Fixed.FRAC_BITS, 0, height - 1) * width + clampi(px >> Fixed.FRAC_BITS, 0, width - 1)
+			if mv_cost[cost_row + terrain[cell]] <= 0:
+				continue
+			if sh[2] != 0 or r.los(px, py, tgt[best], tgt[best + 1]):
 				fx[urow] = px
 				fy[urow] = py
 				return HAS
@@ -264,19 +464,16 @@ static func _search(state: BattleState, urow: int, row: int, trow: int, fx: Pack
 ## True if every living target unit is inside the unit's minimum range (plus
 ## its squad's stand-off) from its slot: advancing can't help, so it has no
 ## achievable position and doesn't hold the anchor.
-static func _min_blocked(state: BattleState, urow: int, row: int, trow: int) -> bool:
-	var mn := _min_range(state, urow)
-	if mn <= 0:
+static func _min_blocked(tgt: PackedInt64Array, sh: PackedInt64Array, slot: PackedInt64Array) -> bool:
+	var mn2 := sh[1]
+	if mn2 <= 0:
 		return false
-	var u := state.units
-	var slot := MovementSystem.slot_point(state, urow, row)
 	var near := 1 << 62
-	for t in Centroids.units_of(state, trow):
-		if u.hp[t] > 0:
-			var ddx := u.x[t] - slot[0]
-			var ddy := u.y[t] - slot[1]
-			near = mini(near, ddx * ddx + ddy * ddy)
-	return near < mn * mn
+	for i in range(0, tgt.size(), 2):
+		var ddx := tgt[i] - slot[0]
+		var ddy := tgt[i + 1] - slot[1]
+		near = mini(near, ddx * ddx + ddy * ddy)
+	return near < mn2
 
 
 static func _min_range(state: BattleState, urow: int) -> int:
@@ -293,28 +490,73 @@ static func _min_range(state: BattleState, urow: int) -> int:
 ## nearest such unit.
 static func point_shot(state: BattleState, urow: int, trow: int, px: int, py: int) -> bool:
 	var r := state.rules
-	var u := state.units
-	var w := u.weapon[urow]
-	var m := r.pick_mode(w, false)
-	if w < 0 or m < 0:
+	var w := state.units.weapon[urow]
+	if w < 0:
 		return false
-	var rng := r.wp_range[w]
+	var m := r.pick_mode(w, false)
+	if m < 0:
+		return false
 	var mn := _min_range(state, urow)
-	var rng2 := rng * rng
-	var mn2 := mn * mn
+	var rng := r.wp_range[w]
+	var sh := PackedInt64Array([rng * rng, mn * mn, r.md_indirect[m]])
+	return _shot(r, _living(state, trow), sh, px, py)
+
+
+## Standing fire mode per weapon (BattleRules.pick_mode(w, false)), -1 none.
+static func _standing_modes(r: BattleRules) -> PackedInt64Array:
+	var out := PackedInt64Array()
+	out.resize(r.wp_range.size())
+	for w in out.size():
+		out[w] = r.pick_mode(w, false)
+	return out
+
+
+## What a standing shot by weapon `w` (standing mode `m`) of a squad with
+## `stand_off` needs: [range squared, minimum range (stand-off included)
+## squared, 1 if the mode is indirect].
+static func _shooter(r: BattleRules, w: int, m: int, stand_off: int) -> PackedInt64Array:
+	var rng := r.wp_range[w]
+	var mn := r.wp_min_range[w]
+	if mn > 0:
+		mn += stand_off
+	else:
+		mn = 0
+	return PackedInt64Array([rng * rng, mn * mn, 1 if r.md_indirect[m] != 0 else 0])
+
+
+## Positions of squad `trow`'s living units, x and y interleaved, in unit
+## order: read once per tick per target squad.
+static func _living(state: BattleState, trow: int) -> PackedInt64Array:
+	var u := state.units
+	var hp := u.hp
+	var ux := u.x
+	var uy := u.y
+	var out := PackedInt64Array()
+	for t in Centroids.units_of(state, trow):
+		if hp[t] > 0:
+			out.append(ux[t])
+			out.append(uy[t])
+	return out
+
+
+## point_shot against the living target positions `tgt` (see _living) for a
+## shooter `sh` (see _shooter): by squared distance, the first nearest unit
+## within range and outside minimum range; any one for an indirect mode, else
+## one line of fire trace to it.
+static func _shot(r: BattleRules, tgt: PackedInt64Array, sh: PackedInt64Array, px: int, py: int) -> bool:
+	var rng2 := sh[0]
+	var mn2 := sh[1]
 	var best := -1
 	var best_d := 1 << 62
-	for t in Centroids.units_of(state, trow):
-		if u.hp[t] <= 0:
-			continue
-		var dx := u.x[t] - px
-		var dy := u.y[t] - py
+	for i in range(0, tgt.size(), 2):
+		var dx := tgt[i] - px
+		var dy := tgt[i + 1] - py
 		var d := dx * dx + dy * dy
 		if d > rng2 or d < mn2:
 			continue
-		if r.md_indirect[m] != 0:
+		if sh[2] != 0:
 			return true
 		if d < best_d:
 			best_d = d
-			best = t
-	return best >= 0 and r.los(px, py, u.x[best], u.y[best])
+			best = i
+	return best >= 0 and r.los(px, py, tgt[best], tgt[best + 1])

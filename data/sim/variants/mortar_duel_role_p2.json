@@ -1,0 +1,49 @@
+{
+	"name": "mortar_duel_role_p2",
+	"text": "Duel: Crossroads with a mortar team in place of the heavy weapons team on both sides (sw-bafi.20: the role deployment acts on indirect and short-range squads; the stock duel has neither). Player 2 deploys by role, player 1 automatic.",
+	"patches": {
+		"duel_crossroads": {
+			"sides": [
+				{
+					"player": 1,
+					"facing": 0,
+					"deploy": {
+						"x": 5,
+						"y": 15,
+						"w": 25,
+						"h": 70
+					},
+					"squads": [
+						"rifle_squad",
+						"rifle_squad",
+						"mortar_team",
+						"marksman_team",
+						"scout_team"
+					]
+				},
+				{
+					"player": 2,
+					"facing": 32768,
+					"deploy": {
+						"x": 170,
+						"y": 15,
+						"w": 25,
+						"h": 70
+					},
+					"squads": [
+						"rifle_squad",
+						"rifle_squad",
+						"mortar_team",
+						"marksman_team",
+						"scout_team"
+					]
+				}
+			]
+		}
+	},
+	"controllers": {
+		"2": {
+			"deploy": "role"
+		}
+	}
+}

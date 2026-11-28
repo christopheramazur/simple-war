@@ -35,6 +35,12 @@ The per-battle SIMPL ledger (R6Q3) is a primary input.
   - milestones `first_contact_tick`, `first_casualty_tick`, `first_capture_turn`;
   - `turns`;
   - `perf.<System>_usec`: per-system wall time, from profiling in `SystemRunner`.
+  - **Fire (sw-pd2l.1, U1 D1):** per attacking player, counting all of that player's fire (friendly fire included):
+    - `volleys`, `shots`, `hits`;
+    - `victims` (distinct units damaged in a volley) and `victims_per_volley` (victims over volleys);
+    - `raw` (queued damage before any defence), `dealt` (HP and temporary HP lost), `overkill` (post-defence damage past what a killing hit needed), `mitigation` (raw minus what got through the defence; evasion is all mitigation), `wasted_hits` and `wasted_damage` (queued on a unit already dead).
+    - Damage is in display points. For every battle, `raw` = `dealt` + `overkill` + `mitigation` + `wasted_damage`.
+    - `first_kill_ticks` (per battle, never summed across battles): ticks from the player's first engagement to its first kill of an enemy; -1 if none. Player 0 is the whole battle.
 - **Overworld runs:**
   - `value`, `value_earned`, `hexes_explored`, `fog_revealed_pct`, `features_owned`, `commanders_alive`;
   - `turns`, `battles`, `first_battle_turn`, `first_capture_turn`, and the mission outcome.
