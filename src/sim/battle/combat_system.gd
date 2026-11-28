@@ -21,7 +21,8 @@ extends SimSystem
 ##   already covers its HP is skipped while another is in reach.
 ## - Floats: Prowess for ambush and intercept on a new engagement (R6Q1);
 ##   Legend for archetypal actions (R5Q6). Sinks: Instinct for firing on the
-##   move (R4Q6). Stamina for HP lost and damage Legend: see HealthSystem.
+##   move (R4Q6), per squad per second (instinct_fire_moving_per_s, sw-txnj.8).
+##   Stamina for HP lost and damage Legend: see HealthSystem.
 
 
 func system_name() -> StringName:
@@ -176,6 +177,10 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 	var targets := Centroids.units_of(state, trow)
 	var shots_total := 0
 	var hits_total := 0
+	# Moving fire sinks Instinct per squad per second, accrued each tick the
+	# squad is firing on the move, not per unit volley (sw-txnj.8): a big
+	# squad would otherwise decay faster than a small one.
+	var fired_moving := false
 	# unit row -> damage already queued on it this volley
 	var pending := {}
 	for urow in Centroids.units_of(state, row):
@@ -184,13 +189,15 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var w := u.weapon[urow]
 		if w < 0:
 			continue
-		# Readiness gate: the timer pass already ticked this tick; a timer
-		# that reached 0 means the unit may fire now. Never tick here too.
-		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
-			continue
 		var is_moving := fires_moving(state, urow)
 		var m := fire_mode(state, urow, is_moving)
 		if m < 0:
+			continue
+		if is_moving and TargetPolicy.pick(state, urow, targets, w, m, pending) >= 0:
+			fired_moving = true
+		# Readiness gate: the timer pass already ticked this tick; a timer
+		# that reached 0 means the unit may fire now. Never tick here too.
+		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
 		var victim := TargetPolicy.pick(state, urow, targets, w, m, pending)
 		if victim < 0:
@@ -201,7 +208,6 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var base_dmg := Stats.unit(state, urow, &"weapon.modes.*.damage", r.md_damage[m])
 		if is_moving:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
-			Pools.flow(state, row, BattleSquads.INSTINCT, -Fixed.from_int(r.sink("instinct_fire_moving")), &"fire_moving")
 		for _s in r.md_shots[m]:
 			if TargetPolicy.covered(u, victim, pending):
 				var next := TargetPolicy.pick(state, urow, targets, w, m, pending)
@@ -231,6 +237,9 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 					if Fixed.distance(u.x[victim], u.y[victim], u.x[other], u.y[other]) <= r.md_aoe[m]:
 						_queue(state, urow, row, trow, other, dmg, r.wp_type[w], pending)
 		_after_fire(state, u, urow, row, m, w)
+	if fired_moving:
+		var cost := Fixed.round_div(Fixed.from_int(r.sink("instinct_fire_moving_per_s")), r.tps)
+		Pools.flow(state, row, BattleSquads.INSTINCT, -cost, &"fire_moving")
 	if shots_total > 0:
 		state.events.push(&"squad_fired", {"squad": sq.id_at(row), "target": sq.id_at(trow),
 			"shots": shots_total, "hits": hits_total, "victims": pending.size()}, state.tick)
