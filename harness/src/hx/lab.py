@@ -10,7 +10,8 @@ whose patches set those values; the runs go through hx.sim as usual.
 
 Tropes (data/sim/tropes.json) are rules over a run's features, computed from
 its metrics: share of squad-ticks per pool band, surge/break/band-change
-counts, turns, whether it was decided, the VP gap and the Value-lost ratio.
+counts, turns, whether it was decided, the VP gap, the Value-lost ratio and
+the fire features (U1 D6): overkill_pct, kills_per_100, first_kill_s, wipes.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ TROPES = "data/sim/tropes.json"
 BANDS = ["broken", "fraying", "neutral", "primed", "surging"]
 OPS = {">": lambda a, b: a > b, ">=": lambda a, b: a >= b, "<": lambda a, b: a < b,
        "<=": lambda a, b: a <= b, "==": lambda a, b: a == b, "!=": lambda a, b: a != b}
+TICKS_PER_SECOND = 10  # ruleset.json standard.ticks_per_second (the default; labs run on it)
 
 LAB_SCHEMA = """
 CREATE TABLE IF NOT EXISTS sim_lab_variant (batch_id TEXT, lab TEXT, variant TEXT, setting TEXT);
@@ -113,6 +115,11 @@ def features(con: duckdb.DuckDBPyConnection, run_id: str) -> dict[str, float | s
             bands[pool][band] += value
         elif metric.split(".")[0] in ("breaks", "surges", "band_changes"):
             f[metric] = float(f.get(metric, 0.0)) + value
+        elif metric == "fire.first_kill_ticks":
+            if player == 0:  # the whole battle (the per-player rows are not summed)
+                f["first_kill_ticks"] = value
+        elif metric.startswith("fire."):  # summed over the attackers
+            f[metric] = float(f.get(metric, 0.0)) + value
         elif metric in ("vp", "value_lost"):
             per_player.setdefault(metric, {})[player] = value
     for pool, by_band in bands.items():
@@ -132,6 +139,13 @@ def features(con: duckdb.DuckDBPyConnection, run_id: str) -> dict[str, float | s
     f["vp_gap"] = abs(max(vp) - min(vp)) if len(vp) >= 2 else 0.0
     lost = sorted(per_player.get("value_lost", {}).values())
     f["value_lost_ratio"] = (lost[-1] / lost[0] if lost and lost[0] > 0 else (1.0 if not lost or lost[-1] == 0 else 99.0))
+    # Fire (U1 D6). Overkill and kills are over the damage that got through the
+    # defences (dealt + overkill), so armour mitigation does not read as waste.
+    through = float(f.get("fire.dealt", 0.0)) + float(f.get("fire.overkill", 0.0))
+    f["overkill_pct"] = 100.0 * float(f.get("fire.overkill", 0.0)) / through if through > 0 else 0.0
+    f["kills_per_100"] = 100.0 * float(f.get("fire.kills", 0.0)) / through if through > 0 else 0.0
+    if float(f.get("first_kill_ticks", -1.0)) >= 0:
+        f["first_kill_s"] = float(f["first_kill_ticks"]) / TICKS_PER_SECOND
     return f
 
 
@@ -185,5 +199,13 @@ def table(con: duckdb.DuckDBPyConnection, batch_id: str, tropes: list[dict]) -> 
                             ids).fetchall() if ids else []
         out.append({"scenario": scenario, "variant": variant, "setting": setting, "runs": runs, "p1_win": p1_win,
                     "turns": turns, "morale_neutral": round(neutral, 2), "morale_breaks": round(breaks, 1),
+                    "overkill_pct": _mean(feats, "overkill_pct"), "kills_per_100": _mean(feats, "kills_per_100"),
+                    "first_kill_s": _mean(feats, "first_kill_s"),
                     "tropes": [f"{t} {n}/{runs}" for t, n in found]})
     return out
+
+
+def _mean(feats: list[dict], key: str) -> float | None:
+    """The mean of a feature over the runs that have it (None if none do)."""
+    vals = [float(f[key]) for f in feats if key in f]
+    return round(sum(vals) / len(vals), 1) if vals else None

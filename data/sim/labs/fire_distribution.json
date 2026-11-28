@@ -1,0 +1,12 @@
+{
+	"name": "fire_distribution",
+	"text": "Prowess fire distribution (U1 D6, sw-pd2l.6, U1Q33): the prowess fire policy against nearest, over Prowess start, fire discipline and coordination. The 27 nearest settings vary only Prowess start (which nearest ignores), so they double as a noise check.",
+	"scenarios": ["duel_crossroads", "hangar_drill"],
+	"seeds": 1,
+	"axes": {
+		"standard.fire.policy": ["nearest", "prowess"],
+		"standard.pool_defaults.prowess.start_pct": [10, 52, 95],
+		"standard.fire.discipline_pct": [30, 60, 90],
+		"standard.fire.coordination_pct": [30, 70, 100]
+	}
+}

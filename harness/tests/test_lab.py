@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from hx import lab, sim
 
 LAB = {"name": "t", "scenarios": ["duel"], "seeds": 1,
@@ -69,3 +71,31 @@ def test_matches():
     assert lab.matches(rule, {"a": 2, "reason": "x"})
     assert not lab.matches(rule, {"a": 1, "reason": "x"})
     assert not lab.matches(rule, {"reason": "x"}), "a missing feature never matches"
+
+
+def test_fire_features_and_tropes(tmp_path: Path):
+    """U1 D6: overkill and kills over the damage that got through (dealt + overkill); first kill from the whole battle."""
+    con = sim.connect(tmp_path / "s.duckdb")
+    _seed(con, "f1-a", [("fire.dealt", 1, 60), ("fire.overkill", 1, 40), ("fire.kills", 1, 3), ("fire.wipes", 1, 1),
+                        ("fire.dealt", 2, 10), ("fire.overkill", 2, 0), ("fire.kills", 2, 0),
+                        ("fire.first_kill_ticks", 0, 50), ("fire.first_kill_ticks", 1, 50), ("fire.first_kill_ticks", 2, -1)])
+    _seed(con, "f2-a", [("fire.dealt", 1, 30), ("fire.kills", 1, 1), ("fire.first_kill_ticks", 0, -1)])
+    f1 = lab.features(con, "f1-a")
+    assert f1["overkill_pct"] == pytest.approx(100 * 40 / 110)
+    assert f1["kills_per_100"] == pytest.approx(100 * 3 / 110)
+    assert f1["first_kill_s"] == 5.0, "ticks at 10 per second; the whole battle's first kill, not the per-player rows"
+    assert f1["fire.wipes"] == 1
+    f2 = lab.features(con, "f2-a")
+    assert "first_kill_s" not in f2, "no kill, no first-kill feature"
+    assert f2["overkill_pct"] == 0.0 and f2["kills_per_100"] == pytest.approx(100 / 30)
+    tropes = json.loads((Path(__file__).resolve().parents[2] / lab.TROPES).read_text())["tropes"]
+    lab.tag(con, "b", tropes)
+    found = {r[0] for r in con.execute("SELECT run_id || ':' || trope FROM sim_trope").fetchall()}
+    assert "f1-a:pile_on" in found and "f1-a:volley_wipe" in found
+    assert "f1-a:spray" not in found, "3 kills on 110 damage is not spray: the first kill came at 5 s"
+    assert not any(x.startswith("f2-a:") and x.endswith(("pile_on", "volley_wipe")) for x in found)
+    lab.record_settings(con, "b", "t", {"f1": ("f", {"standard.fire.policy": "prowess"})})
+    rows = lab.table(con, "b", tropes)
+    assert rows[0]["overkill_pct"] == pytest.approx(100 * 40 / 110, abs=0.05)
+    assert rows[0]["kills_per_100"] == pytest.approx(100 * 3 / 110, abs=0.05)
+    assert "pile_on 1/1" in rows[0]["tropes"]

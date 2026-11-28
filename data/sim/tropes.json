@@ -1,5 +1,5 @@
 {
-	"text": "Pressure Lab tropes (GDD 05 §5.3, R5Q3): patterns a run shows, as rules over its features. Features: share.<pool>.<band> (share of squad-ticks), breaks.<pool>, surges.<pool>, band_changes.<pool> (whole run), turns, reason, decided (1 if a side won before the turn limit), vp_gap, value_lost_ratio (the larger side's loss over the smaller's, 1 if none).",
+	"text": "Pressure Lab tropes (GDD 05 §5.3, R5Q3): patterns a run shows, as rules over its features. Features: share.<pool>.<band> (share of squad-ticks), breaks.<pool>, surges.<pool>, band_changes.<pool> (whole run), turns, reason, decided (1 if a side won before the turn limit), vp_gap, value_lost_ratio (the larger side's loss over the smaller's, 1 if none). Fire (U1 D6, summed over attackers): overkill_pct (overkill / (dealt + overkill), post-defence), kills_per_100 (enemy units killed per 100 of that damage), first_kill_s (the whole battle's first kill, seconds, absent if none), fire.wipes (enemy kills that took half a squad in one tick).",
 	"tropes": [
 		{"id": "flatline", "text": "Morale barely moves: drift too strong or flows too weak.",
 			"all": [{"feature": "share.morale.neutral", "op": ">=", "value": 0.9}]},
@@ -14,6 +14,12 @@
 		{"id": "stalemate", "text": "Nobody gets ahead before the turn limit.",
 			"all": [{"feature": "decided", "op": "==", "value": 0}, {"feature": "vp_gap", "op": "<=", "value": 2}]},
 		{"id": "surge_rush", "text": "Squads surge often.",
-			"all": [{"feature": "surges.morale", "op": ">=", "value": 3}]}
+			"all": [{"feature": "surges.morale", "op": ">=", "value": 3}]},
+		{"id": "pile_on", "text": "Fire piles onto units already doomed: 35% or more of the damage that got through is overkill (U1 D6).",
+			"all": [{"feature": "overkill_pct", "op": ">=", "value": 35}]},
+		{"id": "spray", "text": "Fire spreads thin: few kills per 100 damage, and the first kill comes late (U1 D6). The kill-rate floor is a placeholder until calibrated against the granularity floor.",
+			"all": [{"feature": "kills_per_100", "op": "<=", "value": 1.5}, {"feature": "first_kill_s", "op": ">=", "value": 4}]},
+		{"id": "volley_wipe", "text": "Half of a squad dies in a single tick (U1 D6).",
+			"all": [{"feature": "fire.wipes", "op": ">=", "value": 1}]}
 	]
 }

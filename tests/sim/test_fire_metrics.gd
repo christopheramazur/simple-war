@@ -60,3 +60,14 @@ func test_rifle_squad_against_passive_no_armour_squad() -> void:
 	assert_eq(v["fire.first_kill_ticks|1"], 60.0)
 	assert_eq(v["fire.dealt|1"] + v["fire.overkill|1"] + v["fire.wasted_damage|1"] + v["fire.mitigation|1"],
 		v["fire.raw|1"], "every queued point is dealt, overkill, wasted or mitigated")
+
+
+func test_kills_and_wipes_count_enemy_units_only() -> void:
+	# U1 D6: every unit the attacker killed is a kill; a wipe is a tick in
+	# which half or more of a squad's start members die. Nothing is killed
+	# on the attacker's side, so player 1 owns all the kills.
+	var v := _duel()
+	var members := float(_rules().sq_members[_rules().squad_index("rifle_squad")].size())
+	assert_eq(v["fire.kills|1"], members, "the passive squad's units all die")
+	assert_eq(v["fire.kills|2"], 0.0, "the passive squad kills nothing")
+	assert_true(v["fire.wipes|1"] >= 0.0 and v["fire.wipes|1"] <= 1.0, "at most one wipe per squad killed")

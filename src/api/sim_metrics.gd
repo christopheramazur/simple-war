@@ -25,7 +25,9 @@ extends RefCounted
 ##   per volley), victims_per_volley (victims / volleys); raw (queued damage
 ##   before defence), dealt (HP and temp HP lost), overkill (post-defence
 ##   damage past what a killing hit needed), mitigation (raw - through the
-##   defence), wasted_hits / wasted_damage (queued on a unit already dead).
+##   defence), wasted_hits / wasted_damage (queued on a unit already dead),
+##   kills (enemy units killed), wipes (enemy kills that took half or more
+##   of a squad's start members in one tick: the volley wipe, U1 D6).
 ##   Per battle: fire.first_kill_ticks (battles only, not summed: ticks from
 ##   the player's first engagement to its first kill of an enemy, -1 = none;
 ##   player 0 = the whole battle).
@@ -48,7 +50,7 @@ const VICTIMS := ["player", "neutral", "civilian"]
 const THREAT_RANGE := 2
 ## Fire counters summed per attacking player (fire.<name>, U1 D1).
 const FIRE := ["volleys", "shots", "hits", "victims", "raw", "dealt", "overkill",
-	"mitigation", "wasted_hits", "wasted_damage"]
+	"mitigation", "wasted_hits", "wasted_damage", "kills", "wipes"]
 
 var rows: Array = []
 ## Per-turn series rows: {"metric", "player", "turn", "value"}.
@@ -418,6 +420,7 @@ class _BattleWatch extends RefCounted:
 	var fire: Dictionary = {}  # "player|metric" -> fire counter (U1 D1)
 	var fire_engage: Dictionary = {}  # player -> first engagement tick of its squads
 	var fire_kill: Dictionary = {}  # player -> first kill of an enemy unit by its squads
+	var tick_kills: Dictionary = {}  # "tick|squad" -> enemy units killed in that tick (fire.wipes)
 	var first_contact := -1
 	var first_casualty := -1
 	var first_capture := -1
@@ -487,6 +490,12 @@ class _BattleWatch extends RefCounted:
 					victim[key] = int(victim.get(key, 0)) + Fixed.round_div(state.rules.sq_value[st], state.rules.sq_members[st].size())
 					if not fire_kill.has(sq.player[krow]):
 						fire_kill[sq.player[krow]] = e.tick
+					_add_fire(sq.player[krow], "kills", 1)
+					var skey := "%d|%d" % [e.tick, int(e.data["squad"])]
+					var n := int(tick_kills.get(skey, 0)) + 1
+					tick_kills[skey] = n
+					if (n - 1) * 2 < state.rules.sq_members[sq.tmpl[vrow]].size() and n * 2 >= state.rules.sq_members[sq.tmpl[vrow]].size():
+						_add_fire(sq.player[krow], "wipes", 1)
 			&"squad_fired":
 				var frow := sq.row_of(int(e.data["squad"]))
 				if frow >= 0:
