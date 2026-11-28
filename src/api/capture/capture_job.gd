@@ -353,9 +353,12 @@ func truth_at(turn: int, frame: int) -> Dictionary:
 
 
 ## The playback record of a turn (1-based) as `viewer` saw it
-## (OverworldSession.playback_view).
+## (OverworldSession.playback_entry); {} when the viewer did not fight in it.
 func playback(turn: int, viewer: int) -> Dictionary:
-	return OverworldSession.playback_view(turns[turn - 1], viewer)
+	var rec: Dictionary = turns[turn - 1]
+	if viewer > 0 and not (rec["players"] as PackedInt64Array).has(viewer):
+		return {}
+	return OverworldSession.playback_entry(rec, viewer)
 
 
 ## truth/<shot>.json: the shot and a BattleProbe snapshot per frame, with

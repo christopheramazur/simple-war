@@ -16,8 +16,10 @@ extends RefCounted
 ## Battles:  every engagement becomes a battle at the start of the next
 ##           turn (OverworldBattles) and runs one battle turn per overworld
 ##           turn on the same pulse: submit_battle_orders, reinforce,
-##           submit_battle_deployment (while the battle is deploying) and
-##           leave_battle in Planning; observe_battle shows one;
+##           submit_battle_deployment (while the battle is deploying),
+##           submit_arrival (placing squads that arrive at the next Reveal,
+##           a joining side's included; arrival shows that player its area)
+##           and leave_battle in Planning; observe_battle shows one;
 ##           forecast_battle previews drafted orders (intent ghosts).
 ## Clock:    the shared PulseClock (R2Q3). Reveal sends reinforcements in
 ##           and applies every battle's orders. While any battle runs (and
@@ -283,15 +285,15 @@ func set_convoy_route(player: int, detachment_id: int, plots: PackedInt64Array) 
 	return err
 
 
-## What a detachment of `player` can enter this turn: {"budget" (the map's
-## convoy movement points), "reach" (plot -> cost)}; {} if not its own or
-## in a battle.
+## What a detachment of `player` can enter this turn: {"budget" (its
+## movement points as a caravan, which sending it makes it), "reach"
+## (plot -> cost)}; {} if not its own or in a battle.
 func convoy_reach(player: int, detachment_id: int) -> Dictionary:
 	var row := state.detachments.row_of(detachment_id)
 	if row < 0 or state.detachments.player[row] != player or state.detachments.engagement[row] >= 0:
 		return {}
-	return {"budget": rules.convoy_mp,
-		"reach": OverworldPath.reach(state, state.detachments.plot[row], rules.convoy_mp, player)}
+	var mp := OverworldStats.movement_of(state, OverworldStats.BAND, detachment_id, rules.band_caravan)
+	return {"budget": mp, "reach": OverworldPath.reach(state, state.detachments.plot[row], mp, player)}
 
 
 ## The cheapest way for a detachment to plot `to`, as the player knows the
@@ -448,8 +450,21 @@ func submit_battle_deployment(player: int, engagement_id: int, placements: Array
 	var c := BattleDeploy.check(b.state, player, placements)
 	b.deploys[player] = c["kept"]
 	_deploy_draft_changed(engagement_id)
+	_sync_deploying()
 	_log(player, "battle_deploy", {"engagement": engagement_id, "placements": c["kept"]})
 	return c["errors"]
+
+
+## Tells the clock how many battles each player deploys in this Planning
+## (a non-empty draft), for the deployment bonus (GDD 02 §2.2 Time).
+func _sync_deploying() -> void:
+	for p in _players:
+		var n := 0
+		for eid: int in battles:
+			var b: OverworldBattle = battles[eid]
+			if b.state.players.has(p) and not (b.deploys.get(p, []) as Array).is_empty():
+				n += 1
+		clock.set_deploying(p, n)
 
 
 ## A deployment draft changed: the battle's cached reaction-window forecasts
@@ -466,7 +481,7 @@ func forecast_battle(player: int, engagement_id: int, orders: Array) -> Dictiona
 	var b: OverworldBattle = battles.get(engagement_id)
 	if clock.phase != PulseClock.Phase.PLANNING or b == null or not b.state.players.has(player):
 		return {}
-	return IntentForecast.run(b.state, _battle_sim, player, orders)
+	return IntentForecast.run(b.state, _battle_sim, player, orders, b.deploys.get(player, []))
 
 
 ## forecast_battle as a job for a worker thread (IntentForecast.job): an
@@ -476,22 +491,109 @@ func forecast_job(player: int, engagement_id: int, orders: Array) -> Callable:
 	var b: OverworldBattle = battles.get(engagement_id)
 	if clock.phase != PulseClock.Phase.PLANNING or b == null or not b.state.players.has(player):
 		return Callable()
-	return IntentForecast.job(b.state, player, orders)
+	return IntentForecast.job(b.state, player, orders, b.deploys.get(player, []))
 
 
-## Sends a squad from a staying commander's army into its battle.
-func reinforce(player: int, commander_id: int, squad_id: int) -> String:
+## Sends a squad from a staying commander's army into its battle. `place`
+## ({x, y, facing}, optional) is where it arrives, inside the player's area
+## (OverworldBattles.place_error); without one it arrives at the automatic
+## place. A bad place refuses the whole order.
+func reinforce(player: int, commander_id: int, squad_id: int, place: Dictionary = {}) -> String:
 	var err := _planning(player)
+	var b: OverworldBattle = null
 	if err.is_empty():
 		var eid := state.commanders.get_value(commander_id, &"engagement") if state.commanders.is_alive(commander_id) else -1
-		var b: OverworldBattle = battles.get(eid)
+		b = battles.get(eid)
 		if b == null:
 			err = "is not in a battle"
-		else:
+		elif not place.is_empty():
+			err = OverworldBattles.place_error(state, b, player, squad_id, place)
+		if err.is_empty():
 			err = OverworldOrders.reinforce(state, player, commander_id, squad_id, _in_field(b, commander_id))
 	if err.is_empty():
-		_log(player, "reinforce", {"commander": commander_id, "squad": squad_id})
+		var payload := {"commander": commander_id, "squad": squad_id}
+		if not place.is_empty():
+			b.places[squad_id] = {"x": place["x"], "y": place["y"], "facing": place["facing"]}
+			payload["place"] = b.places[squad_id].duplicate()
+		_log(player, "reinforce", payload)
 	return err
+
+
+## Places the player's squads arriving in a battle at the next Reveal (a
+## joining side's battleforce, reinforcements on the way):
+## [{squad (overworld ID), x, y, facing}], inside the player's area
+## (arrival). Replaces the player's earlier placements there; valid ones
+## are kept and squads not placed arrive at their automatic places. Returns
+## errors. Planning only.
+func submit_arrival(player: int, engagement_id: int, placements: Array) -> PackedStringArray:
+	var errs := PackedStringArray()
+	var err := _planning(player)
+	var b: OverworldBattle = battles.get(engagement_id)
+	var mine := {}
+	if err.is_empty() and b != null:
+		for id: int in OverworldBattles.arriving(state, b):
+			if OverworldArmies.player_of(state, id) == player:
+				mine[id] = true
+	if err.is_empty() and mine.is_empty():
+		err = "nothing of yours arrives in that battle"
+	if not err.is_empty():
+		errs.append(err)
+		return errs
+	for id: int in mine:
+		b.places.erase(id)
+	var kept := []
+	for i in placements.size():
+		var pc: Variant = placements[i]
+		var e := ""
+		if typeof(pc) != TYPE_DICTIONARY or typeof((pc as Dictionary).get("squad")) != TYPE_INT:
+			e = "squad must be an int"
+		elif not mine.has(pc["squad"]):
+			e = "not a squad of yours arriving there"
+		elif b.places.has(pc["squad"]):
+			e = "squad placed twice"
+		else:
+			e = OverworldBattles.place_error(state, b, player, pc["squad"], pc)
+		if not e.is_empty():
+			errs.append("placement %d: %s" % [i, e])
+			continue
+		var d := {"x": pc["x"], "y": pc["y"], "facing": pc["facing"]}
+		b.places[pc["squad"]] = d
+		var k := d.duplicate()
+		k["squad"] = pc["squad"]
+		kept.append(k)
+	_log(player, "arrival", {"engagement": engagement_id, "placements": kept})
+	return errs
+
+
+## Where the player's squads arrive in a battle at the next Reveal, for that
+## player only ({} if nothing of theirs arrives): {"facing", "area" [x, y,
+## w, h] (fixed), "joining" (the player becomes a new side), "squads":
+## [{"squad" (overworld ID), "tmpl" (battle squad template), "x", "y",
+## "facing", "placed"}]} with each squad's placement or automatic place.
+func arrival(player: int, engagement_id: int) -> Dictionary:
+	var b: OverworldBattle = battles.get(engagement_id)
+	if b == null or player <= 0:
+		return {}
+	var ids := []
+	for id: int in OverworldBattles.arriving(state, b):
+		if OverworldArmies.player_of(state, id) == player:
+			ids.append(id)
+	if ids.is_empty():
+		return {}
+	var a := OverworldBattles.arrival_area_of(state, b, player)
+	var d: PackedInt64Array = a["deploy"]
+	var joining := not b.state.players.has(player)
+	var squads := []
+	for i in ids.size():
+		var id: int = ids[i]
+		var st := b.rules.squad_index(rules.squad_ids[state.squads.get_value(id, &"tmpl")])
+		var spot := OverworldBattles.default_spot(d, i, ids.size() if joining else 0)
+		var e := {"squad": id, "tmpl": st, "x": spot[0], "y": spot[1], "facing": a["facing"], "placed": false}
+		var pc: Dictionary = b.places.get(id, {})
+		if not pc.is_empty():
+			e.merge({"x": pc["x"], "y": pc["y"], "facing": pc["facing"], "placed": true}, true)
+		squads.append(e)
+	return {"facing": a["facing"], "area": Array(d), "joining": joining, "squads": squads}
 
 
 ## Reaction opportunities for the player during the reaction window, across
@@ -693,6 +795,7 @@ func _pump() -> void:
 		last_events = OverworldTurn.resolve(state)
 		PerfRecorder.end(&"sim_overworld")
 		_start_battles()
+		_plan_arrivals()
 		if rules.triggers != null:
 			rules.triggers.run(state, state.events.all(), false)  # battles starting, guards dispersed
 		_count_battles()
@@ -722,6 +825,14 @@ func _reveal_battles() -> void:
 		for p in b.state.players:
 			BattleOrders.apply(b.state, p, b.orders.get(p, []))
 		b.orders = {}
+
+
+## Planning starts: fix where each joining side arrives (C12).
+func _plan_arrivals() -> void:
+	var ids: Array = battles.keys()
+	ids.sort()
+	for eid: int in ids:
+		OverworldBattles.plan_arrivals(state, battles[eid])
 
 
 ## Each player's battle count drives its bonus time (R3Q1).
@@ -765,7 +876,7 @@ func _record_turn(eid: int, b: OverworldBattle) -> void:
 
 
 ## Runs one turn of `state` on `sim` and returns its playback record (the
-## format `playback_view` reads): {"rules", "players", "frames", "shots",
+## format `playback_entry` reads): {"rules", "players", "frames", "shots",
 ## "volleys", "hits", "start" (BattleCursor.capture)}. The sim's own tick
 ## hook still runs, before each frame is taken. Also the capture runner's
 ## recorder (sw-tho3.9), for battles outside an overworld.
@@ -862,6 +973,11 @@ func playback_relation(player: int, eid: int, frame: int, a: int, b: int) -> Arr
 ## hold-fire reason (BattleActivity.Hold), squad activity (BattleActivity.
 ## Squad, raw), reload left, cooldown left, ammo (sw-ll4.27.2).
 const PLAYBACK_STRIDE: int = 16
+## One playback frame of `state` (PLAYBACK_STRIDE ints per unit); read-only.
+static func playback_frame(st: BattleState) -> PackedInt64Array:
+	return _frame(st)
+
+
 static func _frame(st: BattleState) -> PackedInt64Array:
 	var u := st.units
 	var sq := st.squads
@@ -894,20 +1010,21 @@ func playback(player: int) -> Dictionary:
 	PerfRecorder.begin(&"playback_build")
 	var out := {}
 	for eid: int in _playback:
-		var v := playback_view(_playback[eid], player)
-		if not v.is_empty():
-			out[eid] = v
+		var rec: Dictionary = _playback[eid]
+		if player > 0 and not (rec["players"] as PackedInt64Array).has(player):
+			continue
+		out[eid] = playback_entry(rec, player)
 	PerfRecorder.end(&"playback_build")
 	return out
 
 
-## One `record_turn` record as `player` saw it (0 or less: all-seeing), in
-## the `playback` entry format; {} when the player did not fight in it.
-static func playback_view(rec: Dictionary, player: int) -> Dictionary:
+## One recorded battle as `player` saw it (0 or less: all-seeing), in
+## playback's entry format. `rec` holds "rules", "frames" (playback_frame
+## per tick), "shots", "volleys" and "hits" as _record_turn keeps them; the
+## behaviour workshop (WorkshopRun.playback) builds one for a whole run.
+static func playback_entry(rec: Dictionary, player: int) -> Dictionary:
 	var all_seeing := player <= 0  # the replay's all-seeing view
 	var me := 0 if all_seeing else BattleSquads.bit(player)
-	if not all_seeing and not (rec["players"] as PackedInt64Array).has(player):
-		return {}
 	var r: BattleRules = rec["rules"]
 	var frames := []
 	# Per frame, the unit IDs the player saw.
@@ -1121,7 +1238,8 @@ func _allies(b: OverworldBattle, player: int) -> PackedInt64Array:
 ## its output goes: {"plot", "commander"} or {})}], "commanders": [{"id",
 ## "player", "squads" (own: army size, else -1), "engagement"}],
 ## "detachments": [{"id", "player", "convoy", "squads" (own: names)}],
-## "battle" (an engagement there)}. Read-only, any phase.
+## "battle" (an engagement there)}. Read-only, any phase. Each feature is
+## inspect_feature's facts without its plot, visible and turn keys.
 func inspect_plot(player: int, plot: int) -> Dictionary:
 	var out := {"plot": plot, "known": false, "visible": false, "cost": -1, "features": [], "commanders": [], "detachments": [], "battle": false}
 	if plot < 0 or plot >= rules.plot_count() or not _players.has(player):
@@ -1133,42 +1251,10 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 	out["known"] = true
 	out["visible"] = bool(entry.get("visible", false))
 	out["cost"] = OverworldVision.known_costs(state, player)[plot]
-	var production: Dictionary = obs.get("production", {})
-	var lines: Dictionary = obs.get("supply_lines", {})
 	for f: Dictionary in entry.get("features", []):
-		var t := int(f["tmpl"])
-		if t < 0 or t >= rules.hf_names.size():
-			continue
-		var fid := int(f["id"])
-		var guard := PackedStringArray()
-		for g in rules.hf_guard[t]:
-			var gi := rules.squad_index(g)
-			guard.append(rules.sq_names[gi] if gi >= 0 else g)
-		var acts := PackedStringArray()
-		for i in OverworldRules.ACTIVITIES.size():
-			if rules.hf_activities[t] & (1 << i) != 0:
-				acts.append(OverworldRules.ACTIVITIES[i])
-		var recruits := []
-		for i in range(0, rules.hf_recruits[t].size(), 2):
-			recruits.append({"id": rules.squad_ids[rules.hf_recruits[t][i]], "name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
-		var hires := []
-		for i in range(0, rules.hf_hires[t].size(), 2):
-			var cm := rules.hf_hires[t][i]
-			hires.append({"id": rules.commander_ids[cm], "name": rules.cm_names[cm], "cost": rules.hf_hires[t][i + 1]})
-		var produces := []
-		var opts := rules.hf_produces[t]
-		var made: Dictionary = production.get(fid, {})
-		@warning_ignore("integer_division")
-		for i in opts.size() / OverworldRules.PRODUCTION_STRIDE:
-			var o := i * OverworldRules.PRODUCTION_STRIDE
-			var what := rules.sq_names[opts[o]] if opts[o] >= 0 else "%d × %s" % [opts[o + 4], rules.it_names[opts[o + 3]] if opts[o + 3] >= 0 else "item"]
-			var chosen: bool = not made.is_empty() and int(made["output"]) == i
-			produces.append({"name": what, "turns": opts[o + 1], "cost": opts[o + 2], "selected": chosen,
-				"progress": int(made["progress"]) if chosen else -1})
-		out["features"].append({"id": fid, "name": rules.hf_names[t], "owner": int(f.get("owner", 0)),
-			"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
-			"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "hires": hires, "produces": produces,
-			"line": (lines.get(fid, {}) as Dictionary).duplicate()})
+		var fact := _feature_facts(obs, int(f["id"]), int(f["tmpl"]), int(f.get("owner", 0)))
+		if not fact.is_empty():
+			out["features"].append(fact)
 	for c: Dictionary in obs.get("commanders", []):
 		if int(c["plot"]) == plot:
 			out["commanders"].append({"id": c["id"], "player": c["player"], "engagement": c["engagement"],
@@ -1183,6 +1269,73 @@ func inspect_plot(player: int, plot: int) -> Dictionary:
 		if int(b["plot"]) == plot:
 			out["battle"] = true
 	return out
+
+
+## One feature as `player` knows it (feature_id, from its observation `obs`):
+## the facts inspect_plot lists, plus "plot", "visible" (in sight now) and
+## "turn" (now if visible, else the turn it was last seen, from memory).
+## Dead features (despawned), unknown IDs and features the player never saw
+## give {}. Enemy features carry no progress, selected output or supply line:
+## those come only from the owner's own production and lines.
+func inspect_feature(player: int, feature_id: int) -> Dictionary:
+	if not _players.has(player):
+		return {}
+	var row := state.features.row_of(feature_id)
+	if row < 0:
+		return {}
+	var plot := state.features.plot[row]
+	var obs := OverworldVision.observe(state, player)
+	var entry: Dictionary = (obs["plots"] as Dictionary).get(plot, {})
+	for f: Dictionary in entry.get("features", []):
+		if int(f["id"]) != feature_id:
+			continue
+		var out := _feature_facts(obs, feature_id, int(f["tmpl"]), int(f.get("owner", 0)))
+		if out.is_empty():
+			return {}
+		out["plot"] = plot
+		out["visible"] = bool(entry.get("visible", false))
+		out["turn"] = int(entry.get("turn", -1))
+		return out
+	return {}
+
+
+## One feature's facts (see inspect_plot), from the observation `obs` of the
+## player: its template `t` and the owner it is known to have. {} if the
+## template is unknown.
+func _feature_facts(obs: Dictionary, fid: int, t: int, owner: int) -> Dictionary:
+	if t < 0 or t >= rules.hf_names.size():
+		return {}
+	var production: Dictionary = obs.get("production", {})
+	var lines: Dictionary = obs.get("supply_lines", {})
+	var guard := PackedStringArray()
+	for g in rules.hf_guard[t]:
+		var gi := rules.squad_index(g)
+		guard.append(rules.sq_names[gi] if gi >= 0 else g)
+	var acts := PackedStringArray()
+	for i in OverworldRules.ACTIVITIES.size():
+		if rules.hf_activities[t] & (1 << i) != 0:
+			acts.append(OverworldRules.ACTIVITIES[i])
+	var recruits := []
+	for i in range(0, rules.hf_recruits[t].size(), 2):
+		recruits.append({"id": rules.squad_ids[rules.hf_recruits[t][i]], "name": rules.sq_names[rules.hf_recruits[t][i]], "cost": rules.hf_recruits[t][i + 1]})
+	var hires := []
+	for i in range(0, rules.hf_hires[t].size(), 2):
+		var cm := rules.hf_hires[t][i]
+		hires.append({"id": rules.commander_ids[cm], "name": rules.cm_names[cm], "cost": rules.hf_hires[t][i + 1]})
+	var produces := []
+	var opts := rules.hf_produces[t]
+	var made: Dictionary = production.get(fid, {})
+	@warning_ignore("integer_division")
+	for i in opts.size() / OverworldRules.PRODUCTION_STRIDE:
+		var o := i * OverworldRules.PRODUCTION_STRIDE
+		var what := rules.sq_names[opts[o]] if opts[o] >= 0 else "%d × %s" % [opts[o + 4], rules.it_names[opts[o + 3]] if opts[o + 3] >= 0 else "item"]
+		var chosen: bool = not made.is_empty() and int(made["output"]) == i
+		produces.append({"name": what, "turns": opts[o + 1], "cost": opts[o + 2], "selected": chosen,
+			"progress": int(made["progress"]) if chosen else -1})
+	return {"id": fid, "name": rules.hf_names[t], "owner": owner,
+		"controllable": rules.hf_controllable[t] == 1, "guard": guard, "value_per_turn": rules.hf_value_per_turn[t],
+		"cache_value": rules.hf_cache_value[t], "activities": acts, "recruits": recruits, "hires": hires, "produces": produces,
+		"line": (lines.get(fid, {}) as Dictionary).duplicate()}
 
 
 ## A commander's movement this turn, as the player knows the map:
@@ -1274,6 +1427,8 @@ static func load_save(bytes: PackedByteArray, templates: TemplateTable, hash_hex
 	var bd: Dictionary = data.get("battles", {})
 	for eid: int in bd:
 		var b := OverworldBattles.from_dict(templates, hash_hex, bd[eid])
+		if not (bd[eid] as Dictionary).has("arrivals") and s.clock.phase == PulseClock.Phase.PLANNING:
+			OverworldBattles.plan_arrivals(s.state, b)  # a save from before C12
 		s.battles[eid] = b
 		s.bus.register_context(b.state)
 	s._next_context = data.get("next_context", 100)
@@ -1372,7 +1527,9 @@ func _replay(inputs: Array) -> void:
 				# never logged, so it leaves no effect on replay.
 				submit_battle_deployment(i["player"], p["engagement"], p["placements"])
 			"reinforce":
-				reinforce(i["player"], p["commander"], p["squad"])
+				reinforce(i["player"], p["commander"], p["squad"], p.get("place", {}))
+			"arrival":
+				submit_arrival(i["player"], p["engagement"], p["placements"])
 			"leave":
 				leave_battle(i["player"], p["commander"])
 			"reaction":
