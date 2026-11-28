@@ -509,6 +509,9 @@ const KINDS: Dictionary = {
 		"value": {"type": "int", "required": true, "min": 0},
 		"capture_rate": {"type": "int", "min": 0},
 		"sight": {"type": "fixed", "required": true},
+		## Overworld stats this squad adds to its band's payload while it is
+		## in the band (U1Q27, sw-63wt.3): stat -> amount (BAND_STATS).
+		"overworld": {"type": "map:int", "keys": BAND_STATS},
 		"formation": {"type": "obj:formation"},
 		"pools": {"type": "map:obj:pool", "keys": SIMPL},
 		"abilities": {"type": "list:ref:ability"},
@@ -642,6 +645,9 @@ const KINDS: Dictionary = {
 		"defense": {"type": "ref:defense"},
 		"bundles": {"type": "list:ref:bundle"},
 		"fits": {"type": "list:string"},
+		## Overworld stats each equipped copy adds to its squad's band's
+		## payload (sw-63wt.3): stat -> amount (BAND_STATS).
+		"overworld": {"type": "map:int", "keys": BAND_STATS},
 	},
 	## A declarative trigger (GDD 03 §3.5, R3Q9, R6Q17): on an event, where
 	## its data matches, if every check holds, do the actions. See

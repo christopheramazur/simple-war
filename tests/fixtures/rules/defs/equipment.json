@@ -105,6 +105,9 @@
 			"defense": "carapace", "fits": ["humanity"]}},
 		{"id": "camo_netting", "kind": "item", "values": {
 			"name": "Camo netting", "icon": "kit", "tags": ["kit"], "value": 10,
-			"text": "Harder to hit.", "bundles": ["camo_netting_cover"]}}
+			"text": "Harder to hit.", "bundles": ["camo_netting_cover"]}},
+		{"id": "scout_glass", "kind": "item", "values": {
+			"name": "Scout glass", "icon": "kit", "tags": ["kit"], "value": 5,
+			"overworld": {"sight": 1}}}
 	]
 }

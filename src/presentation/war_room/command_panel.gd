@@ -264,7 +264,7 @@ func _detachment_info(obs: Dictionary) -> void:
 	else:
 		add_child(_dim_label("Holding this hex."))
 	if me.has("sight"):
-		add_child(_dim_label("Sees %d hex%s." % [int(me["sight"]["value"]), "" if int(me["sight"]["value"]) == 1 else "es"]))
+		add_child(_dim_label(sight_text(me["sight"])))
 	add_child(_dim_label("Moves %d points a turn. Right click a hex to send it; it keeps going on later turns. Convoys take no hexes and do no activities." % r.convoy_mp))
 	if convoy and int(me["engagement"]) < 0 and session.clock.phase == PulseClock.Phase.PLANNING:
 		var halt := Button.new()
@@ -414,6 +414,19 @@ func _title(text: String) -> GlossaryLabel:
 	l.theme_type_variation = &"DimLabel"
 	l.set_linked(text)
 	return l
+
+
+## "Sight 4 (caravan 3, scout team +1)": a band's sight with its terms
+## (OverworldStats.sight); payload terms carry a sign.
+static func sight_text(sight: Dictionary) -> String:
+	var parts := PackedStringArray()
+	for t: Dictionary in sight.get("terms", []):
+		var name := String(t["name"]).to_lower()
+		parts.append("%s +%d" % [name, int(t["amount"])] if bool(t.get("payload", false)) else "%s %d" % [name, int(t["amount"])])
+	var text := "Sight %d" % int(sight["value"])
+	if not parts.is_empty():
+		text += " (%s)" % ", ".join(parts)
+	return text + "."
 
 
 ## "convoy" for a caravan (moving or halted, U1Q27), else "garrison".

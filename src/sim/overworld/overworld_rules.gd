@@ -89,6 +89,9 @@ var sq_tags: Array[PackedStringArray] = []
 ## Per member slot (leaders first, then template order, as battles spawn
 ## them): the keys an item's `fits` matches (unit ID, unit tags, faction).
 var sq_member_keys: Array[Array] = []
+## Overworld stat contributions a squad adds to its band's payload, per
+## BAND_STATS index (sw-63wt.3).
+var sq_ow: Array[PackedInt64Array] = []
 
 # --- items (War Chest, R4Q10) ---
 var item_ids: PackedStringArray = PackedStringArray()
@@ -102,6 +105,8 @@ var it_weapon: PackedStringArray = PackedStringArray()
 var it_defense: PackedStringArray = PackedStringArray()
 var it_bundles: Array[PackedStringArray] = []
 var it_fits: Array[PackedStringArray] = []
+## Overworld stat contributions per equipped copy, per BAND_STATS index.
+var it_ow: Array[PackedInt64Array] = []
 
 # --- commanders ---
 var commander_ids: PackedStringArray = PackedStringArray()
@@ -279,6 +284,7 @@ func _compile(t: TemplateTable, map: String) -> void:
 		_compile_members(t, v)
 		squad_ids.append(tid)
 		sq_names.append(String(v.get("name", tid)))
+		sq_ow.append(_overworld_of(tid, v))
 		sq_value.append(int(v.get("value", 0)))
 		var size := 0
 		for m: Dictionary in v.get("members", []):
@@ -478,6 +484,20 @@ func _compile_item(tid: String, v: Dictionary) -> void:
 	it_defense.append(d)
 	it_bundles.append(PackedStringArray(v.get("bundles", [])))
 	it_fits.append(PackedStringArray(v.get("fits", [])))
+	it_ow.append(_overworld_of(tid, v))
+
+
+## A squad's or item's `overworld` contributions as BAND_STATS indices.
+## Contributions only add: a negative one is an error.
+func _overworld_of(tid: String, v: Dictionary) -> PackedInt64Array:
+	var given: Dictionary = v.get("overworld", {})
+	var out := PackedInt64Array()
+	for stat in BAND_STATS:
+		var amount := int(given.get(stat, 0))
+		if amount < 0:
+			errors.append("%s: overworld %s must be 0 or more" % [tid, stat])
+		out.append(amount)
+	return out
 
 
 ## Member slots in battle order (leaders first, BattleRules._compile_squads)
