@@ -53,6 +53,8 @@ static func plan_for(session: OverworldSession, p: int, controller: Object) -> v
 				session.set_output(p, e["feature"], e["output"])
 			if e.has("commander"):
 				session.set_supply_line(p, e["feature"], -1, e["commander"])
+			if e.has("buy"):  # a remote buy (sw-63wt.11); the session logs it for replay, a refused one does nothing
+				session.set_owner_action(p, e["feature"], "buy", e["buy"])
 	var eids: Array = session.battles.keys()
 	eids.sort()
 	if controller.has_method("deploy"):

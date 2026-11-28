@@ -8,6 +8,8 @@ extends RefCounted
 ##   - with nothing known to take, it explores toward the nearest
 ##     unexplored hex;
 ##   - commanders never share a target. Ties go to the lower plot index.
+## Its economy buys squads at owned features (OwnerBuys, sw-63wt.11): the
+## remote buy a human can make from anywhere.
 
 var player: int
 var _fighter: ZoneController
@@ -21,6 +23,14 @@ func _init(player_id: int) -> void:
 ## Battles are fought by a ZoneController profile.
 func battle_orders(obs: Dictionary) -> Array:
 	return _fighter.orders(obs)
+
+
+## Remote buys at owned features (OwnerBuys.plan), applied by HeadlessOverworld.
+func economy(obs: Dictionary, session: OverworldSession) -> Array:
+	var out := []
+	for b: Dictionary in OwnerBuys.plan(obs, session.rules):
+		out.append({"feature": b["feature"], "buy": b["option"]})
+	return out
 
 
 func plan(obs: Dictionary, session: OverworldSession) -> Array:

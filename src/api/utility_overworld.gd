@@ -32,13 +32,15 @@ extends RefCounted
 ## output (the squad worth most Value per turn of production, preferring ones
 ## we can afford; a running option is kept unless the best is twice as good or
 ## nothing has been invested) and sends its output along a supply line to the
-## nearest own commander with room, keeping a line that still works.
+## nearest own commander with room, keeping a line that still works. It also
+## makes remote buys at owned features (OwnerBuys, sw-63wt.11).
 ##
 ## Params: outcome_weight (1.0), risk (1.0, multiplies guessed enemy
 ## strength), explore (6, unexplored hexes considered per commander),
 ## cache_scale (10, Value at which a cache counts half of the economy
-## gain), search (1; 0 turns the search fallback off). Reads only its player's observation, the public rules and
-## session.path.
+## gain), search (1; 0 turns the search fallback off), buys (1; 0 turns the
+## remote buys off). Reads only its player's observation, the public rules
+## and session.path.
 
 var player: int
 var mask: SimCriteria.Mask
@@ -53,6 +55,8 @@ var search := true
 ## then estimated with the whole army (the reserves replace casualties)
 ## rather than the battleforce alone (sw-884.14).
 var reinforcing := false
+## Whether the economy makes remote buys at owned features (OwnerBuys).
+var buys := true
 
 
 func _init(player_id: int, mask_in: SimCriteria.Mask, params: Dictionary = {}, fuzz_in: float = 0.0, rng_in: SimRng = null) -> void:
@@ -65,6 +69,7 @@ func _init(player_id: int, mask_in: SimCriteria.Mask, params: Dictionary = {}, f
 	explore = int(params.get("explore", explore))
 	cache_scale = float(params.get("cache_scale", cache_scale))
 	search = float(params.get("search", 1.0)) > 0.0
+	buys = float(params.get("buys", 1.0)) > 0.0
 
 
 func plan(obs: Dictionary, session: OverworldSession) -> Array:
@@ -167,6 +172,9 @@ func economy(obs: Dictionary, session: OverworldSession) -> Array:
 			o["commander"] = target
 		if o.size() > 1:
 			out.append(o)
+	if buys:
+		for b: Dictionary in OwnerBuys.plan(obs, session.rules):
+			out.append({"feature": b["feature"], "buy": b["option"]})
 	return out
 
 

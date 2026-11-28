@@ -202,8 +202,13 @@ func overworld(x: OverworldSession, events: Array = []) -> Array:
 			&"feature_captured":
 				_mark("capture", int(e["data"]["player"]), int(e["turn"]))
 	var plots := s.rules.plot_count()
+	var bought := {}  # remote buys made, from the session log (sw-63wt.11)
+	for entry: Dictionary in x.input_log:
+		if entry["kind"] == "owner_action" and String(entry["payload"].get("action", "")) == "buy":
+			bought[int(entry["player"])] = int(bought.get(int(entry["player"]), 0)) + 1
 	for p in x.players():
 		var explored: int = (s.memory.get(p, {}) as Dictionary).size()
+		out.append(_row("owner_buys", p, bought.get(p, 0)))
 		out.append(_row("value", p, s.value_of(p)))
 		out.append(_row("value_earned", p, earned.get(p, 0)))
 		out.append(_row("hexes_explored", p, explored))
