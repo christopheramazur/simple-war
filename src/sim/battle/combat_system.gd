@@ -18,7 +18,8 @@ extends SimSystem
 ## - Every Nth hit is a crit (crit_every / crit_bonus_pct) (R5Q5).
 ## - Hits are queued; HealthSystem applies the tick's hits together (E2Q2), so
 ##   fire is simultaneous. Units spread fire: a target whose queued damage
-##   already covers its HP is skipped while another is in reach.
+##   already covers its HP is skipped while another is in reach. The victim
+##   rule is the squad's targeting policy (TargetPolicy: nearest or focus).
 ## - Floats: Prowess for ambush and intercept on a new engagement (R6Q1);
 ##   Legend for archetypal actions (R5Q6). Sinks: Instinct for firing on the
 ##   move (R4Q6), per squad per second (instinct_fire_moving_per_s, sw-txnj.8).
@@ -183,6 +184,9 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 	var fired_moving := false
 	# unit row -> damage already queued on it this volley
 	var pending := {}
+	# The squad's targeting policy, expected-damage memo and area plan
+	# (TargetPolicy, sw-pd2l.4).
+	var volley := TargetPolicy.begin_volley(state, row, targets)
 	for urow in Centroids.units_of(state, row):
 		if u.hp[urow] <= 0:
 			continue
@@ -193,13 +197,13 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		var m := fire_mode(state, urow, is_moving)
 		if m < 0:
 			continue
-		if is_moving and TargetPolicy.pick(state, urow, targets, w, m, pending) >= 0:
+		if is_moving and TargetPolicy.pick(state, urow, targets, w, m, pending, volley) >= 0:
 			fired_moving = true
 		# Readiness gate: the timer pass already ticked this tick; a timer
 		# that reached 0 means the unit may fire now. Never tick here too.
 		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
-		var victim := TargetPolicy.pick(state, urow, targets, w, m, pending)
+		var victim := TargetPolicy.pick(state, urow, targets, w, m, pending, volley)
 		if victim < 0:
 			continue
 		var accuracy := Stats.unit(state, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m])
@@ -210,7 +214,7 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
 		for _s in r.md_shots[m]:
 			if TargetPolicy.covered(u, victim, pending):
-				var next := TargetPolicy.pick(state, urow, targets, w, m, pending)
+				var next := TargetPolicy.pick(state, urow, targets, w, m, pending, volley)
 				if next >= 0:
 					victim = next
 			shots_total += 1

@@ -31,7 +31,7 @@ const VICTIM_KEYS: Array[String] = ["distinct", "max_per_victim", "overkill"]
 const FIRE_CODES: Array[String] = ["out_of_range", "shot", "blocked", "min_range", "no_target"]
 const RELS: Array[String] = [">=", "<=", ">", "<", "=="]
 ## Patch stats: per unit (hp fixed, ammo whole) or a squad pool (fixed).
-const PATCH_STATS: Array[String] = ["hp", "ammo", "stamina", "instinct", "morale", "prowess", "legend"]
+const PATCH_STATS: Array[String] = ["hp", "ammo", "stamina", "instinct", "morale", "prowess", "legend", "fire_policy"]
 const ORDER_KEYS: Array[String] = ["squad", "type", "x", "y", "target", "run", "abilities", "unchecked"]
 const VARIANT_KEYS: Array[String] = ["script", "patch", "place", "doc"]
 
@@ -321,6 +321,14 @@ func _read_patch(v: Variant, f: String) -> Dictionary:
 	for k: String in v:
 		if not k in PATCH_STATS:
 			_err("%s.%s" % [f, k], "unknown stat (known: %s)" % ", ".join(PATCH_STATS))
+		elif k == "fire_policy":
+			# The squad's targeting policy (TargetPolicy, sw-pd2l.4), stored
+			# as its index in DataSchema.FIRE_POLICIES.
+			var i := DataSchema.FIRE_POLICIES.find(str(v[k])) if typeof(v[k]) == TYPE_STRING else -1
+			if i < 0:
+				_err("%s.%s" % [f, k], "must be one of %s" % ", ".join(DataSchema.FIRE_POLICIES))
+			else:
+				out[k] = i
 		elif k == "ammo":
 			if not _is_whole(v[k]) or int(v[k]) < 0:
 				_err("%s.%s" % [f, k], "must be a whole number >= 0")

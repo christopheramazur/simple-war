@@ -85,6 +85,10 @@ const HOOK_EVENTS: Array[String] = ["attack", "hit", "damaged", "kill", "casualt
 const ACC_EVENTS: Array[String] = ["second", "attack", "hit", "damaged", "casualty", "distance"]
 const SELECTS: Array[String] = ["self", "source", "other", "allies", "enemies", "squads"]
 const STACKING: Array[String] = ["refresh", "stack", "independent", "strongest"]
+## Targeting policies (ruleset fire.policy, GDD 02 §2.6 Fire distribution):
+## nearest (the default) and focus (kill priority, sw-pd2l.4). TargetPolicy
+## dispatches on the index.
+const FIRE_POLICIES: Array[String] = ["nearest", "focus"]
 ## What loses a readying or readied ability state (E3Q6).
 const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 
@@ -131,6 +135,11 @@ const OBJECTS: Dictionary = {
 	"squad_member": {
 		"unit": {"type": "ref:unit", "required": true},
 		"count": {"type": "int", "required": true, "min": 1, "stat": false},
+	},
+	## Ruleset fire distribution (GDD 02 §2.6): which targeting policy picks
+	## each shot's victim (default nearest).
+	"fire": {
+		"policy": {"type": "string", "enum": FIRE_POLICIES},
 	},
 	"pool": {
 		"capacity": {"type": "int", "min": 1},
@@ -530,6 +539,7 @@ const KINDS: Dictionary = {
 		## relation (SquadRelation; default one second of ticks).
 		"relation_recent_fire_ticks": {"type": "int", "min": 1},
 		"pool_defaults": {"type": "map:obj:pool"},
+		"fire": {"type": "obj:fire"},
 		"sinks": {"type": "dict"},
 		"floats": {"type": "dict"},
 	},

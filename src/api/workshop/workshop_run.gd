@@ -167,7 +167,8 @@ func _build(squads: Array) -> bool:
 
 
 ## Patch stats: hp (every unit, and its maximum), ammo (every armed unit),
-## pools (raises the cap when the value is above it).
+## fire_policy (the squad's targeting policy override), pools (raises the cap
+## when the value is above it).
 func _patch(sid: int, patch: Dictionary) -> void:
 	var row := state.squads.row_of(sid)
 	for k: String in patch:
@@ -175,6 +176,8 @@ func _patch(sid: int, patch: Dictionary) -> void:
 		match k:
 			"hp":
 				ScenarioBuilder.set_hp(state, sid, v)
+			"fire_policy":
+				state.squads.set_value(sid, &"fire_policy", v)
 			"ammo":
 				for urow in Centroids.units_of(state, row):
 					if state.units.weapon[urow] >= 0:

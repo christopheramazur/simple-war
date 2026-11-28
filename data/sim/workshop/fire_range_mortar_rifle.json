@@ -71,5 +71,15 @@
 			"target": "targets",
 			"waste": 0.369
 		}
-	]
+	],
+	"variants": {
+		"focus": {
+			"doc": "The shooters use the focus targeting policy (kill priority, best fit, AoE scoring; sw-pd2l.4).",
+			"patch": {
+				"shooters": {
+					"fire_policy": "focus"
+				}
+			}
+		}
+	}
 }

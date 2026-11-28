@@ -34,6 +34,9 @@ var morale_gen: int = 0
 var morale_leech_pct: int = 10
 var sinks: Dictionary = {}
 var floats: Dictionary = {}
+## Targeting policy, an index in DataSchema.FIRE_POLICIES (ruleset
+## fire.policy, default nearest). A squad's fire_policy column overrides it.
+var fire_policy: int = 0
 
 # --- features / terrain ---
 var feature_ids: PackedStringArray = PackedStringArray()
@@ -806,6 +809,8 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	recent_fire_ticks = int(rs.get("relation_recent_fire_ticks", tps))
 	sinks = rs.get("sinks", {})
 	floats = rs.get("floats", {})
+	var fire: Dictionary = rs.get("fire", {})
+	fire_policy = maxi(0, DataSchema.FIRE_POLICIES.find(str(fire.get("policy", "nearest"))))
 	_pool_defaults = rs.get("pool_defaults", {})
 
 

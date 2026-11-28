@@ -43,7 +43,7 @@ All positions are metres; `at` is `[x, y]` with x east and y south. Unknown fiel
 - `key`: the name orders, probes and patches use. `player`: a side of `map` (1, 2). `squad`: a squad template ID in the package.
 - `facing`: degrees, 0 = east, 90 = south, 180 = west. Default 0.
 - `dummy`: `{"armed": bool (default true; false takes every weapon away), "hp": number (every unit's HP and maximum), "stationary": bool (it takes no orders; scripting one is an error)}`.
-- `patch`: `{stat: value}` set on placement. `hp` (every unit's HP and maximum), `ammo` (whole; every armed unit), `stamina`, `instinct`, `morale`, `prowess`, `legend` (the pool; the cap rises to it if needed). A patch applies after `dummy`.
+- `patch`: `{stat: value}` set on placement. `hp` (every unit's HP and maximum), `ammo` (whole; every armed unit), `stamina`, `instinct`, `morale`, `prowess`, `legend` (the pool; the cap rises to it if needed), `fire_policy` (a targeting policy ID, `nearest` or `focus`: overrides the ruleset's `fire.policy` for this squad, GDD 02 §2.6 Fire distribution). A patch applies after `dummy`.
 
 ### Orders
 
