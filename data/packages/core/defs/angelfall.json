@@ -47,6 +47,7 @@
 			"name": "CR-0 patrol", "faction": "planetary_ai", "value": 90, "capture_rate": 0, "sight": 50,
 			"formation": {"shape": "line", "spacing": 3}, "abilities": ["halt", "retarget"],
 			"keywords": ["robot"], "legend_archetype": "tank",
+			"fire": {"coordination_pct": 100, "datalink": true},
 			"members": [{"unit": "cr0_unit", "count": 3}]}},
 		{"id": "angel_base", "kind": "squad", "abstract": true, "values": {
 			"faction": "angel", "capture_rate": 10, "sight": 50,

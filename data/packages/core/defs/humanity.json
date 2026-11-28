@@ -106,6 +106,7 @@
 
 		{"id": "hf_militia", "parent": "rifle_squad", "values": {
 			"name": "Humanity First militia", "doctrine": "humanity_first", "value": 75,
+			"fire": {"discipline_pct": 30},
 			"members": [{"unit": "trooper", "count": 10}]}},
 		{"id": "chi_operatives", "parent": "rifle_squad", "values": {"icon": "unit_chi_operative", 
 			"name": "CHI operatives", "doctrine": "chi", "value": 140,

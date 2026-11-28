@@ -205,7 +205,10 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		# that reached 0 means the unit may fire now. Never tick here too.
 		if u.reload[urow] > 0 or u.cooldown[urow] > 0:
 			continue
-		var victim := TargetPolicy.pick(state, urow, targets, w, m, pending, volley)
+		# What this unit sees of the squad's queued hits (prowess coordination;
+		# every other policy sees them all).
+		var view := TargetPolicy.view(state, urow, pending, volley)
+		var victim := TargetPolicy.pick(state, urow, targets, w, m, view, volley)
 		if victim < 0:
 			continue
 		var accuracy := Stats.unit(state, urow, &"weapon.modes.*.accuracy", r.md_accuracy[m])
@@ -215,8 +218,8 @@ func _fire_squad(state: BattleState, row: int, trow: int) -> void:
 		if is_moving:
 			acc = Fixed.mul(acc, Pools.efficacy(state, row, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
 		for _s in r.md_shots[m]:
-			if TargetPolicy.covered(u, victim, pending):
-				var next := TargetPolicy.pick(state, urow, targets, w, m, pending, volley)
+			if TargetPolicy.covered(u, victim, view):
+				var next := TargetPolicy.pick(state, urow, targets, w, m, view, volley)
 				if next >= 0:
 					victim = next
 			shots_total += 1

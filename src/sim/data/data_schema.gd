@@ -86,9 +86,10 @@ const ACC_EVENTS: Array[String] = ["second", "attack", "hit", "damaged", "casual
 const SELECTS: Array[String] = ["self", "source", "other", "allies", "enemies", "squads"]
 const STACKING: Array[String] = ["refresh", "stack", "independent", "strongest"]
 ## Targeting policies (ruleset fire.policy, GDD 02 §2.6 Fire distribution):
-## nearest (the default) and focus (kill priority, sw-pd2l.4). TargetPolicy
-## dispatches on the index.
-const FIRE_POLICIES: Array[String] = ["nearest", "focus"]
+## nearest (the default), focus (kill priority, sw-pd2l.4) and prowess
+## (focus quality and coordination scaled by Prowess efficacy, sw-pd2l.5).
+## TargetPolicy dispatches on the index.
+const FIRE_POLICIES: Array[String] = ["nearest", "focus", "prowess"]
 ## What loses a readying or readied ability state (E3Q6).
 const LOSE_EVENTS: Array[String] = ["move", "attack", "damaged", "casualty"]
 
@@ -140,6 +141,19 @@ const OBJECTS: Dictionary = {
 	## each shot's victim (default nearest).
 	"fire": {
 		"policy": {"type": "string", "enum": FIRE_POLICIES},
+		## Defaults of the squad fire stats below (60 and 70).
+		"discipline_pct": {"type": "int", "min": 0, "max": 100},
+		"coordination_pct": {"type": "int", "min": 0, "max": 100},
+	},
+	## A squad's fire discipline (GDD 02 §2.8 Prowess, sw-pd2l.5), read by
+	## the prowess policy: discipline (focus quality) and coordination (the
+	## share of volleys that see the squad's queued hits), both scaled by
+	## Prowess efficacy. Unset fields take the ruleset's fire defaults.
+	## datalink: coordination ignores Prowess efficacy (CR-0 robots).
+	"squad_fire": {
+		"discipline_pct": {"type": "int", "min": 0, "max": 100},
+		"coordination_pct": {"type": "int", "min": 0, "max": 100},
+		"datalink": {"type": "bool"},
 	},
 	"pool": {
 		"capacity": {"type": "int", "min": 1},
@@ -503,6 +517,7 @@ const KINDS: Dictionary = {
 		## concealed squads within its radius.
 		"concealment_pct": {"type": "int", "min": 0, "max": 100},
 		"detection_radius": {"type": "fixed", "min": 0},
+		"fire": {"type": "obj:squad_fire"},
 		"keywords": {"type": "list:string"},
 		"bundles": {"type": "list:ref:bundle"},
 		"legend_archetype": {"type": "string", "enum": ["damage", "tank", "scout", "sapper", "support"]},

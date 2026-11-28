@@ -65,6 +65,13 @@ static func efficacy(state: BattleState, row: int, pool: int, lo: int = 0, hi: i
 	return Fixed.clamp_fixed(Fixed.div(value(state, row, pool), n), lo, hi)
 
 
+## capacity / neutral (fixed): the highest efficacy a pool can reach, the
+## `hi` of efficacies that rise above 1 (Prowess fire discipline, sw-pd2l.5).
+static func headroom(state: BattleState, row: int, pool: int) -> int:
+	var n := neutral(state, row, pool)
+	return Fixed.ONE if n <= 0 else Fixed.div(capacity(state, row, pool), n)
+
+
 ## Adds `amount` (fixed, negative = sink) to a pool. Returns what applied.
 static func flow(state: BattleState, row: int, pool: int, amount: int, source: StringName) -> int:
 	if amount == 0:

@@ -18,6 +18,16 @@ extends RefCounted
 ##   picks the victim whose radius holds the most units the hit would finish,
 ##   then the most useful damage (damage up to each unit's remaining HP).
 ##   With nothing uncovered in reach it falls back to nearest.
+## - prowess: focus, as good as the squad's fire discipline (GDD 02 §2.8
+##   Prowess, sw-pd2l.5). Efficacy e = Prowess / Neutral, 0 up to
+##   capacity / Neutral. Focus quality q = discipline x e, 0-1: the unit fires
+##   at the nearest of the first K candidates in kill priority (area modes:
+##   in area score), K = 1 + (1 - q) x (candidates - 1), the fraction of K
+##   carried by the unit's acc_focus. Coordination c = coordination x e
+##   (datalink: no e), 0-100%: each unit volley adds c to acc_coord; at 100
+##   the unit sees the squad's queued hits this volley (and follows the area
+##   plan), else it sees only HP already lost and may overkill. q = 1 and
+##   c = 100% (Surging, by default) is exactly focus.
 ##
 ## Area plan (focus): one splash finishing five units can strand a tougher
 ## unit that needs two. So at the start of a volley the squad's ready
@@ -36,6 +46,8 @@ extends RefCounted
 
 const NEAREST: int = 0
 const FOCUS: int = 1
+const PROWESS: int = 2
+const _PCT: int = 100 * Fixed.ONE
 const PLAN_PASSES: int = 2
 ## Area score: kills above this bit, useful damage (fixed) below it.
 const _KILL_SHIFT: int = 40
@@ -50,6 +62,12 @@ class Volley extends RefCounted:
 	## splash reaches, itself first}. Hits apply after fire, so the set of
 	## living targets is fixed for the volley.
 	var near: Dictionary = {}
+	## Prowess: the squad's focus quality (fixed, 0-ONE) and coordination
+	## (fixed percent), and whether the unit being resolved (view) sees the
+	## squad's queued hits.
+	var q: int = Fixed.ONE
+	var coord: int = _PCT
+	var sees: bool = true
 
 
 ## The targeting policy of the squad at row: its fire_policy override, else
@@ -64,9 +82,52 @@ static func squad_policy(state: BattleState, row: int) -> int:
 static func begin_volley(state: BattleState, row: int, targets: PackedInt64Array) -> Volley:
 	var v := Volley.new()
 	v.policy = squad_policy(state, row)
-	if v.policy == FOCUS:
+	if v.policy == PROWESS:
+		v.q = focus_quality(state, row)
+		v.coord = coordination(state, row)
+	if v.policy != NEAREST:
 		_plan_area(state, row, targets, v)
 	return v
+
+
+## Prowess efficacy of the squad at row (fixed): Prowess / Neutral, from 0
+## up to capacity / Neutral (it rises above 1, unlike Instinct's).
+static func prowess_efficacy(state: BattleState, row: int) -> int:
+	return Pools.efficacy(state, row, BattleSquads.PROWESS, 0, Pools.headroom(state, row, BattleSquads.PROWESS))
+
+
+## Focus quality q of the squad at row (fixed, 0-ONE): discipline x efficacy.
+static func focus_quality(state: BattleState, row: int) -> int:
+	var st := state.squads.tmpl[row]
+	var disc := Stats.squad(state, row, &"squad.fire.discipline_pct", state.rules.sq_fire_discipline[st])
+	return Fixed.clamp_fixed(Fixed.mul_ratio(disc, prowess_efficacy(state, row), _PCT), 0, Fixed.ONE)
+
+
+## Coordination c of the squad at row (fixed percent, 0-100): coordination
+## x efficacy, or the stat alone for a datalinked squad.
+static func coordination(state: BattleState, row: int) -> int:
+	var st := state.squads.tmpl[row]
+	var c := Stats.squad(state, row, &"squad.fire.coordination_pct", state.rules.sq_fire_coordination[st])
+	if state.rules.sq_fire_datalink[st] == 0:
+		c = Fixed.mul(c, prowess_efficacy(state, row))
+	return Fixed.clamp_fixed(c, 0, _PCT)
+
+
+## What the shooter at urow sees of the squad's queued damage this volley:
+## `pending` itself, or (prowess, an uncoordinated volley) nothing. Call once
+## per unit volley, before its first pick: under prowess it advances the
+## unit's acc_coord. Other policies always see pending.
+static func view(state: BattleState, urow: int, pending: Dictionary, volley: Volley) -> Dictionary:
+	if volley == null or volley.policy != PROWESS:
+		return pending
+	var u := state.units
+	var col: PackedInt64Array = u.take_column(&"acc_coord")
+	col[urow] += volley.coord
+	volley.sees = col[urow] >= _PCT
+	if volley.sees:
+		col[urow] -= _PCT
+	u.put_column(&"acc_coord", col)
+	return pending if volley.sees else {}
 
 
 ## The victim for the shooter at urow among `targets` (unit rows of one
@@ -74,14 +135,18 @@ static func begin_volley(state: BattleState, row: int, targets: PackedInt64Array
 ## policy is resolved and nothing is planned (read models, tests).
 static func pick(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary, volley: Volley = null) -> int:
 	var policy := volley.policy if volley != null else squad_policy(state, state.squads.row_of(state.units.squad[urow]))
-	if policy != FOCUS:
+	if policy == NEAREST:
 		return nearest(state, urow, targets, w, m, pending)
 	var r := state.rules
+	if policy == PROWESS:
+		var q := volley.q if volley != null else focus_quality(state, state.squads.row_of(state.units.squad[urow]))
+		if q < Fixed.ONE:
+			return _prowess(state, urow, targets, w, m, pending, q, volley)
 	if r.md_aoe[m] <= 0:
 		return _focus(state, urow, targets, w, m, pending)
 	var dmg := hit_damage(state, urow, m)
 	var reach := _reach(state, volley, targets, r.md_aoe[m])
-	if volley != null and volley.plan.has(urow):
+	if volley != null and volley.plan.has(urow) and volley.sees:
 		var pv: int = volley.plan[urow]
 		if reach.has(pv) and _area_score(state, reach[pv], dmg, r.wp_type[w], pending) > 0:
 			return pv
@@ -185,6 +250,74 @@ static func _focus(state: BattleState, urow: int, targets: PackedInt64Array, w: 
 	if best >= 0 or skipped.is_empty():
 		return best
 	return nearest(state, urow, skipped, w, m, pending)
+
+
+## Prowess below full focus quality: the nearest of the first K candidates
+## in kill priority (single-target: finishing hits by least overshoot, then
+## lowest remaining HP; area: area score), ties to the lowest unit ID. A
+## candidate is a living target in reach (range and shot gate) on which the
+## hit does useful damage. K = 1 + (1 - q) x (N - 1); its fraction is carried
+## by acc_focus, advanced only with a volley (read models peek). With no
+## candidate, nearest over the targets skipped as covered or immune.
+static func _prowess(state: BattleState, urow: int, targets: PackedInt64Array, w: int, m: int, pending: Dictionary, q: int, volley: Volley) -> int:
+	var u := state.units
+	var r := state.rules
+	var dtype := r.wp_type[w]
+	var area := r.md_aoe[m] > 0
+	var dmg := -1
+	var reach := {}
+	var cands: Array = []  # [priority key, unit id, distance, row]
+	var skipped := PackedInt64Array()
+	for t in targets:
+		if u.hp[t] <= 0:
+			continue
+		var d := Fixed.distance(u.x[urow], u.y[urow], u.x[t], u.y[t])
+		if not _in_range(r, w, d):
+			continue
+		if dmg < 0:
+			dmg = hit_damage(state, urow, m)
+			if area:
+				reach = _reach(state, volley, targets, r.md_aoe[m])
+		var key := 0
+		if area:
+			var score := _area_score(state, reach[t], dmg, dtype, pending)
+			if score <= 0:
+				skipped.append(t)
+				continue
+			key = -score
+		else:
+			var rem := u.hp[t] - int(pending.get(t, 0))
+			var e := _expected(state, t, dmg, dtype) if rem > 0 else 0
+			if e <= 0:
+				skipped.append(t)
+				continue
+			# Finishing hits first (by overshoot), then by what is left.
+			key = (e - rem) if e >= rem else (1 << 50) + rem
+		if CombatSystem.shot_gate(state, urow, t, w, m, d) != CombatSystem.GATE_OK:
+			continue
+		cands.append([key, u.id_at(t), d, t])
+	var n := cands.size()
+	if n == 0:
+		return -1 if skipped.is_empty() else nearest(state, urow, skipped, w, m, pending)
+	cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
+	var kf := Fixed.ONE + (Fixed.ONE - q) * (n - 1)
+	var k := kf / Fixed.ONE
+	var frac := kf % Fixed.ONE
+	if frac > 0:
+		var acc := u.acc_focus[urow] + frac
+		if acc >= Fixed.ONE:
+			k += 1
+			acc -= Fixed.ONE
+		if volley != null:
+			var col: PackedInt64Array = u.take_column(&"acc_focus")
+			col[urow] = acc
+			u.put_column(&"acc_focus", col)
+	k = mini(k, n)
+	var best := 0
+	for i in range(1, k):
+		if cands[i][2] < cands[best][2]:
+			best = i
+	return cands[best][3]
 
 
 ## The range half of CombatSystem.shot_gate (no line of sight).

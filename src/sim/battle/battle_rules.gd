@@ -40,6 +40,10 @@ var preview_memo: Dictionary = {}
 ## Targeting policy, an index in DataSchema.FIRE_POLICIES (ruleset
 ## fire.policy, default nearest). A squad's fire_policy column overrides it.
 var fire_policy: int = 0
+## Ruleset defaults of the squad fire stats (fire.discipline_pct,
+## fire.coordination_pct; sw-pd2l.5), whole percent.
+var fire_discipline_pct: int = 60
+var fire_coordination_pct: int = 70
 
 # --- features / terrain ---
 var feature_ids: PackedStringArray = PackedStringArray()
@@ -230,6 +234,12 @@ var sq_abilities: Array[PackedInt64Array] = []
 ## Bases for the concealment and detection stats (R7Q4), fixed.
 var sq_concealment: PackedInt64Array = PackedInt64Array()
 var sq_detection: PackedInt64Array = PackedInt64Array()
+## Fire discipline per squad template (prowess policy, sw-pd2l.5): the bases
+## of squad.fire.discipline_pct and squad.fire.coordination_pct (fixed
+## percent), and datalink (1: coordination ignores Prowess efficacy).
+var sq_fire_discipline: PackedInt64Array = PackedInt64Array()
+var sq_fire_coordination: PackedInt64Array = PackedInt64Array()
+var sq_fire_datalink: PackedByteArray = PackedByteArray()
 ## Pool parameters per squad template, [squad * 5 + system], fixed points.
 var sq_pool_cap: PackedInt64Array = PackedInt64Array()
 var sq_pool_start: PackedInt64Array = PackedInt64Array()
@@ -815,6 +825,8 @@ func _compile_ruleset(rs: Dictionary) -> void:
 	floats = rs.get("floats", {})
 	var fire: Dictionary = rs.get("fire", {})
 	fire_policy = maxi(0, DataSchema.FIRE_POLICIES.find(str(fire.get("policy", "nearest"))))
+	fire_discipline_pct = int(fire.get("discipline_pct", 60))
+	fire_coordination_pct = int(fire.get("coordination_pct", 70))
 	_pool_defaults = rs.get("pool_defaults", {})
 
 
@@ -1009,6 +1021,10 @@ func _compile_squads(t: TemplateTable, ids: PackedStringArray, ut: Dictionary, a
 		sq_abilities.append(abl)
 		sq_concealment.append(DataSchema.to_fixed(v.get("concealment_pct", 0)))
 		sq_detection.append(DataSchema.to_fixed(v.get("detection_radius", 0)))
+		var sfire: Dictionary = v.get("fire", {})
+		sq_fire_discipline.append(Fixed.from_int(int(sfire.get("discipline_pct", fire_discipline_pct))))
+		sq_fire_coordination.append(Fixed.from_int(int(sfire.get("coordination_pct", fire_coordination_pct))))
+		sq_fire_datalink.append(1 if sfire.get("datalink", false) else 0)
 		var pools: Dictionary = v.get("pools", {})
 		for s in SYSTEMS:
 			var d: Dictionary = _pool_defaults.get(s, {})
