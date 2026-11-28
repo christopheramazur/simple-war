@@ -21,6 +21,9 @@ extends SceneTree
 ## A strip is rendered one cell at a time (each its own frame, captioned
 ## with its tick by the view's title) and the cells are put side by side;
 ## its size keeps it near CaptureJob.STRIP_TOKENS vision tokens.
+## The camera of each shot (manifest "camera": zoom and centre, metres) is
+## framed on the squads its viewer sees, over all the shot's frames
+## (CaptureJob.frame_camera), so the squads are big enough to read.
 ##
 ## Needs a real renderer for the PNGs, so it opens a window briefly, like
 ## mock_runner.gd. It only reads the source: the job re-simulates it.
@@ -152,6 +155,8 @@ func _show_cell() -> void:
 	v.size = Vector2(size)
 	v.title = ("%s · tick %d" % [shot["stage"], shot["ticks"][_cell]]) if shot["form"] == "still" \
 		else "tick %d" % shot["ticks"][_cell]
+	var cam: Dictionary = shot["camera"]
+	v.set_camera(float(cam["zoom"]), Vector2(float(cam["centre"][0]), float(cam["centre"][1])))
 	root.size = size
 	DisplayServer.window_set_size(size)
 	root.add_child(v)

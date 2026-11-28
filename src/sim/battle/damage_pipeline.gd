@@ -52,32 +52,7 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 			out["blocked"] = b
 			terms.append(["block", -b])
 
-	var res := Fixed.to_int_round(Stats.unit(state, row, r.resist_stats[dtype], Fixed.from_int(r.df_resist[prof * nt + dtype])))
-	if res != 0:
-		var rv := Fixed.round_div(d * res, 100)
-		d -= rv
-		out["resisted"] = rv
-		terms.append(["resistance", -rv])
-
-	var flat := mini(Stats.unit(state, row, &"defense.flat", r.df_flat[prof]), d)
-	if flat > 0:
-		d -= flat
-		out["flat"] = flat
-		terms.append(["flat", -flat])
-
-	var pct := r.df_percent[prof]
-	if pct > 0:
-		var pv := Fixed.round_div(d * pct, 100)
-		d -= pv
-		out["percent"] = pv
-		terms.append(["percentage", -pv])
-
-	var floor_v := r.df_floor[prof * nt + dtype]
-	if d < floor_v:
-		out["floored"] = floor_v - d
-		terms.append(["floor", floor_v - d])
-		d = floor_v
-	d = maxi(d, 0)
+	d = _mitigate(state, row, d, dtype, out, terms)
 	out["through"] = d
 
 	var tmp: PackedInt64Array = u.take_column(&"temp_hp")
@@ -105,3 +80,50 @@ static func apply(state: BattleState, row: int, damage: int, dtype: int, cover_p
 			terms.append(["absorption", heal])
 	u.put_column(&"hp", hp)
 	return out
+
+
+## Expected effective damage of one hit, through every defence except the
+## chance-based ones (evasion, block; R2Q6): the `through` that apply would
+## report with both at zero. Pure: reads state, writes nothing. Fire
+## distribution sums these per victim (GDD 02 §2.6 Remaining HP), so a
+## shooter stops on a unit only once its expected damage covers it.
+## Temporary HP and absorption are not counted (they are not part of "through").
+static func preview(state: BattleState, row: int, damage: int, dtype: int) -> int:
+	return _mitigate(state, row, damage, dtype, {}, [])
+
+
+## Resistance, flat, percentage and floor (R7Q1 steps 3-6), in that order.
+## Returns the damage left, never below 0. Writes each step into `out` and
+## appends its [step, value] term to `terms` (preview discards both).
+static func _mitigate(state: BattleState, row: int, damage: int, dtype: int, out: Dictionary, terms: Array) -> int:
+	var r := state.rules
+	var prof := state.units.defense[row]
+	var nt := r.damage_types.size()
+	var d := damage
+
+	var res := Fixed.to_int_round(Stats.unit(state, row, r.resist_stats[dtype], Fixed.from_int(r.df_resist[prof * nt + dtype])))
+	if res != 0:
+		var rv := Fixed.round_div(d * res, 100)
+		d -= rv
+		out["resisted"] = rv
+		terms.append(["resistance", -rv])
+
+	var flat := mini(Stats.unit(state, row, &"defense.flat", r.df_flat[prof]), d)
+	if flat > 0:
+		d -= flat
+		out["flat"] = flat
+		terms.append(["flat", -flat])
+
+	var pct := r.df_percent[prof]
+	if pct > 0:
+		var pv := Fixed.round_div(d * pct, 100)
+		d -= pv
+		out["percent"] = pv
+		terms.append(["percentage", -pv])
+
+	var floor_v := r.df_floor[prof * nt + dtype]
+	if d < floor_v:
+		out["floored"] = floor_v - d
+		terms.append(["floor", floor_v - d])
+		d = floor_v
+	return maxi(d, 0)

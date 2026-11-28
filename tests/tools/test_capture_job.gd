@@ -211,3 +211,65 @@ func test_match_source_replays_hash_checked_and_reads_only() -> void:
 	var again := CaptureJob.prepare({"kind": "match", "path": dir})
 	assert_eq(CaptureJob.to_json(again.manifest()), CaptureJob.to_json(job.manifest()))
 	assert_false(CaptureJob.prepare({"kind": "match", "path": dir, "battle": 99999}).is_ok())
+
+
+func test_frame_camera_frames_the_points_and_is_pure() -> void:
+	var field := Vector2(1000, 600)
+	var view := Vector2(960, 640)
+	var pts := [Vector2(400, 300), Vector2(430, 320), Vector2(410, 280)]
+	var a := CaptureJob.frame_camera(pts, field, view)
+	assert_eq(a, CaptureJob.frame_camera(pts, field, view), "same points, same camera")
+	var z := float(a["zoom"])
+	assert_true(z >= CaptureJob.ZOOM_MIN and z <= CaptureJob.ZOOM_MAX, str(a))
+	assert_eq(CaptureJob.ZOOM_MAX, ViewContexts.BATTLE_ZOOM_MAX, "the camera's zoom range is the battle view's")
+	# The view's visible half-widths (ContextView: fit, zoom, PAD of 16 px).
+	var k := minf((view.x - 32.0) / field.x, (view.y - 32.0) / field.y) * z
+	var c := Vector2(float(a["centre"][0]), float(a["centre"][1]))
+	var half := Vector2((view.x / 2.0 - 16.0) / k, (view.y / 2.0 - 16.0) / k)
+	for p: Vector2 in pts:
+		assert_true(absf(p.x - c.x) <= half.x and absf(p.y - c.y) <= half.y, "%s in the window at %s" % [p, c])
+	# A lone squad is not blown up to fill the view (the minimum framed span caps the zoom).
+	var lone := CaptureJob.frame_camera([Vector2(500, 300)], field, view)
+	assert_true(float(lone["zoom"]) < CaptureJob.ZOOM_MAX, str(lone))
+	var none := CaptureJob.frame_camera([], field, view)
+	assert_eq(float(none["zoom"]), 1.0)
+	assert_eq(none["centre"], [-1.0, -1.0], "no squads: the whole field")
+
+
+func test_shot_camera_holds_its_visible_squads_in_the_view() -> void:
+	var job := CaptureJob.prepare(_src(), {"views": [0, 1], "forms": ["still", "strip"]})
+	assert_true(job.is_ok(), str(job.errors))
+	assert_false(job.shots.is_empty())
+	var checked := 0
+	for shot: Dictionary in job.shots:
+		assert_true(shot.has("camera"), shot["id"])
+		var cam: Dictionary = shot["camera"]
+		var viewer := int(shot["viewer"])
+		var turn := int(shot["turn"])
+		var cell: Array = shot["cell"]
+		var v := ContextView.new()
+		v.size = Vector2(cell[0], cell[1])
+		var rec := job.playback(turn, viewer)
+		v.set_camera(float(cam["zoom"]), Vector2(float(cam["centre"][0]), float(cam["centre"][1])))
+		var rect := Rect2(Vector2.ZERO, v.size)
+		for f: int in shot["frames"]:
+			var at := job.truth_at(turn, f)
+			var obs: Dictionary = (at.get("obs", {}) as Dictionary).get(viewer, {})
+			v.show_playback_frame(rec, f, obs)
+			var probe: Dictionary = (at.get("probe", {}) as Dictionary).get(viewer, {})
+			for d: Dictionary in probe.get("squads", []):
+				if int(d["alive"]) <= 0 or d["destroyed"] or d["withdrawn"]:
+					continue
+				var p := v.to_view(Vector2(float(d["x"]), float(d["y"])) / float(Fixed.ONE))
+				assert_true(rect.has_point(p), "%s frame %d squad %d at %s" % [shot["id"], f, d["id"], p])
+				checked += 1
+		v.free()
+	assert_true(checked > 0, "some squads were framed")
+
+
+func test_shot_manifest_records_the_camera() -> void:
+	var job := CaptureJob.prepare(_src())
+	assert_true(job.is_ok(), str(job.errors))
+	for shot: Dictionary in job.manifest()["shots"]:
+		assert_true((shot["camera"] as Dictionary).has("zoom"), shot["id"])
+		assert_eq((shot["camera"]["centre"] as Array).size(), 2, shot["id"])

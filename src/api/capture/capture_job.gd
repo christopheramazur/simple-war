@@ -30,6 +30,10 @@ extends RefCounted
 ## ("still", "strip"), "stages" (a subset of CaptureStages.ORDER),
 ## "strip_frames", "strip_stride", "size" ([w, h] of a still).
 ##
+## Camera: each shot carries the battle camera it is drawn with (zoom and
+## centre in metres), framed on the squads its viewer sees over all the
+## shot's frames (frame_camera), so a strip holds still and fog stays fog.
+##
 ## FX determinism: BattleFx is a pure function of the playback record and
 ## the frame, and the runner shows every frame exactly
 ## (ContextView.show_playback_frame), so the effects in a capture are a
@@ -45,6 +49,17 @@ const FORMS: PackedStringArray = ["still", "strip"]
 ## A strip is kept to about this many vision tokens (28 x 28 px patches).
 const STRIP_TOKENS: int = 1024
 const PATCH: int = 28
+## Camera framing (sw-tho3.19): the box of the visible squads over all of a
+## shot's frames, grown by FRAME_MARGIN of the field's longer side, never
+## narrower than FRAME_MIN of the field on either axis (a lone squad is not
+## blown up to fill the view: this caps the zoom), and zoomed as far as it
+## fits within ZOOM_MIN..ZOOM_MAX (ZOOM_MAX = ViewContexts.BATTLE_ZOOM_MAX;
+## the view's PAD = ContextView's margin round a fitted field, not compact).
+const FRAME_MARGIN: float = 0.1
+const FRAME_MIN: float = 0.3
+const ZOOM_MIN: float = 1.0
+const ZOOM_MAX: float = 6.0
+const PAD: float = 16.0
 const DEFAULTS: Dictionary = {
 	"views": [0], "kinds": ["game", "control"], "forms": ["still", "strip"], "stages": [],
 	"strip_frames": 5, "strip_stride": 2, "size": [960, 640],
@@ -107,6 +122,7 @@ static func prepare(src: Dictionary, opts: Dictionary = {}) -> CaptureJob:
 	job.turn_hashes = two["turn_hashes"]
 	job.turns = second.turns.get(job.battle, [])
 	job.truth = second.truth.get(job.battle, {})
+	job._frame_cameras()
 	return job
 
 
@@ -331,6 +347,49 @@ func _plan() -> void:
 					"turn": at["turn"], "frames": Array(frames), "ticks": ticks, "truth": "truth/%s.json" % id,
 					"cell": [cell.x, cell.y], "image_size": [cell.x * frames.size(), cell.y],
 					"images": images, "layout": layout})
+
+
+## Each shot's camera (shot["camera"]): framed on the squads its viewer
+## sees in its truth probes, over every frame of the shot, so a strip holds
+## still. Fog-safe: a viewer's camera comes from its own probe only.
+func _frame_cameras() -> void:
+	for s: Dictionary in shots:
+		var viewer := int(s["viewer"])
+		var turn := int(s["turn"])
+		var rules: BattleRules = turns[turn - 1]["rules"]
+		var field := Vector2(rules.width, rules.height)
+		var pts: Array = []
+		for f: int in s["frames"]:
+			var probe: Dictionary = (truth_at(turn, f).get("probe", {}) as Dictionary).get(viewer, {})
+			for d: Dictionary in probe.get("squads", []):
+				if int(d["alive"]) > 0 and not d["destroyed"] and not d["withdrawn"]:
+					pts.append(Vector2(float(d["x"]), float(d["y"])) / float(Fixed.ONE))
+		s["camera"] = frame_camera(pts, field, Vector2(float(s["cell"][0]), float(s["cell"][1])))
+
+
+## The battle camera (ContextView.set_camera: zoom over the fitted field,
+## centre in metres) that frames `points` (metres) on a field of `field`
+## metres shown in a view of `view` px. Pure: the same points give the same
+## camera. No points: the whole field (centre -1, -1 = NO_CENTRE).
+static func frame_camera(points: Array, field: Vector2, view: Vector2) -> Dictionary:
+	if points.is_empty() or field.x <= 0.0 or field.y <= 0.0 or view.x <= 2.0 * PAD or view.y <= 2.0 * PAD:
+		return {"zoom": 1.0, "centre": [-1.0, -1.0], "squads": points.size()}
+	var lo: Vector2 = points[0]
+	var hi: Vector2 = points[0]
+	for p: Vector2 in points:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var c := (lo + hi) / 2.0
+	var margin := FRAME_MARGIN * maxf(field.x, field.y)
+	var half := Vector2(maxf(c.x - lo.x, hi.x - c.x), maxf(c.y - lo.y, hi.y - c.y)) + Vector2(margin, margin)
+	half = half.max(field * FRAME_MIN / 2.0)
+	# ContextView fits the field to the view, then zooms by z about the
+	# centre: its visible half-width is (view / 2 - PAD) / (fit * z) metres.
+	var fit := minf((view.x - 2.0 * PAD) / field.x, (view.y - 2.0 * PAD) / field.y)
+	var z := minf((view.x / 2.0 - PAD) / (fit * half.x), (view.y / 2.0 - PAD) / (fit * half.y))
+	z = clampf(z, ZOOM_MIN, ZOOM_MAX)
+	return {"zoom": snappedf(z, 0.0001), "centre": [snappedf(c.x, 0.01), snappedf(c.y, 0.01)],
+		"squads": points.size()}
 
 
 func _battle_players() -> PackedInt64Array:
