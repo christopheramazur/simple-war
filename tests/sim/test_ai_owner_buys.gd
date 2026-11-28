@@ -148,3 +148,14 @@ func test_headless_overworld_applies_buys() -> void:
 	assert_eq((x.observe(1)["owner_orders"] as Dictionary).keys(), [village], "the buy is planned")
 	var logged := x.input_log.filter(func(e: Dictionary) -> bool: return e["kind"] == "owner_action")
 	assert_eq(logged.size(), 1, "and logged for replay")
+
+
+func test_a_buy_keeps_at_least_half_the_value() -> void:
+	var s := _s()
+	var village := _own(s, 1, 6, "hex_village")
+	s.value[1] = 12
+	var plan := OwnerBuys.plan(OverworldVision.observe(s, 1), _rules())
+	var t := _rules().feature_index("hex_village")
+	for b: Dictionary in plan:
+		assert_true(_rules().buy_option(t, b["option"])[3] * 2 <= 12, "%s leaves half the Value" % b["option"])
+	assert_eq(_options_of(plan, village), ["scout_team"], "rifle squads (8) are over the reserve, scouts (5) are not")

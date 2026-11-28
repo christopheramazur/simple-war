@@ -8,15 +8,24 @@ extends RefCounted
 ## A candidate is one recruits squad that an owned feature with the buy
 ## action sells. Its weight is the squad's Value, times (1 + the garrison
 ## threat at the feature), times the share of the Value held that is left
-## after paying (so a buy that takes nearly all of the Value weighs little).
+## after paying. A buy is only a candidate while it costs at most KEEP_SHARE
+## of the Value held, so a single buy never empties the bank. Without that
+## reserve the AI spent its Value on squads every turn and drew battles it
+## used to win (sw-63wt.11 sim runs: 8 battles and 34 buys against 1 battle
+## and no buys on skirmish_mirror, utility variant). The reserve is per buy,
+## not cumulative: a cumulative reserve cost the cautious variant its win.
 ## Garrison threat is the hostile Value within THREAT_RANGE of the feature
 ## as a share of that and the player's own Value there. Items (sells) are not
 ## bought: SimCriteria values no items.
 ##
 ## Candidates are taken best first while the Value held covers them and the
-## feature is under its purchases-per-turn limit. Skipped: a feature whose hex
+## feature is under its purchases-per-turn limit (the plan itself may spend up
+## to all the Value held; the resolver then pays in order). Skipped: a feature whose hex
 ## has an engagement or a hostile commander or detachment on it (the resolver
 ## would cancel the buy). Ties go to the lower feature ID, then the option ID.
+
+## The share of the Value held a buy must leave (0.5: a buy costs at most half).
+const KEEP_SHARE := 0.5
 
 ## Planned buys, best first: [{"feature": fid, "option": squad ID, "score"}].
 ## Plans against the observation's Value; the session still checks each buy
@@ -49,7 +58,7 @@ static func plan(obs: Dictionary, rules: OverworldRules) -> Array:
 				var sq: int = rules.hf_recruits[t][i]
 				var option := rules.squad_ids[sq]
 				var buy := rules.buy_option(t, option)
-				if buy.is_empty() or buy[3] > value:
+				if buy.is_empty() or float(buy[3]) > KEEP_SHARE * float(value):
 					continue
 				var left := float(value - buy[3]) / float(value)
 				cands.append({"feature": fid, "tmpl": t, "option": option, "price": buy[3],
