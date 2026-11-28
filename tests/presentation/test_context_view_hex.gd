@@ -159,3 +159,21 @@ func test_zoom_constants() -> void:
 	assert_eq(ViewContexts.ZOOM_MIN, 0.25)
 	assert_eq(ViewContexts.ZOOM_MAX, 3.0)
 	assert_eq(ViewContexts.ZOOM_ENTER, 2.5)
+
+
+## Hit-test priority (sw-63wt.7): a mover token under the cursor wins over a
+## site (pick_at gives -1, so the war room selects the mover by its hex); a
+## site wins over open ground.
+func test_pick_at_prefers_a_mover_token_over_a_site() -> void:
+	var z := ViewContexts.ZOOM_DEFAULT
+	var sites := [{"id": "hex_mine", "priority": 2}, {"id": "hex_village", "priority": 3}, {"id": "hex_depot", "priority": 2}]
+	var obs := {"width": W, "height": H, "plots": _plots(), "commanders": [{"id": 7, "player": 1, "plot": THREE, "engagement": -1}]}
+	var v := _view(z, obs)
+	var village := _site(THREE, z, sites, PackedInt32Array(), 1)
+	assert_eq(v.pick_at(village), 52, "a site away from the lane is picked")
+	var lane: Array = HexLayout.compute(sites, PackedInt32Array())["lane"]
+	var token := _at(THREE, z) + Vector2(lane[ContextView._lane_order(0, lane.size())]) * (ContextView.HEX_SIZE * z / 1000.0)
+	assert_true(v.mover_at(token), "the commander stands in its lane")
+	assert_eq(v.pick_at(token), -1, "the token wins over anything under it")
+	assert_false(v.mover_at(village))
+	assert_eq(v.pick_at(_at(9, z)), -1, "open ground picks no site")

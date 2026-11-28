@@ -5,9 +5,13 @@ extends Control
 ## Stateless projection (GDD 04 §4.8): it keeps only the last observation it
 ## was given, and reports clicks and zooms as signals for its owner.
 
-signal hex_clicked(plot: int, button: int, shift: bool)
+## An overworld click: the plot, and the site picked there (pick_at; -1
+## when a mover token or open ground is under the cursor).
+signal hex_clicked(plot: int, button: int, shift: bool, feature: int)
 ## The plot under the cursor changed (-1 = none); overworld only.
 signal hex_hovered(plot: int)
+## The site under the cursor changed (pick_at, -1 = none); overworld only.
+signal feature_hovered(feature: int)
 ## The squad under the cursor changed (-1 = none); battles only.
 signal squad_hovered(squad: int)
 ## A click in a battle at a battlefield point (metres).
@@ -80,6 +84,10 @@ var _selected_det: int = -1
 ## Own steered convoys' routes: detachment ID -> plots.
 var _convoy_routes: Dictionary = {}
 var _selected_plot: int = -1
+## The selected site (ViewContexts.selected_feature) and the hovered one:
+## under the cursor, or its row hovered in the panel (set_hover_feature).
+var _selected_feature: int = -1
+var _hover_feature: int = -1
 var _battles: Dictionary = {}
 ## Own commanders' planned routes: commander ID -> plots.
 var _routes: Dictionary = {}
@@ -236,6 +244,7 @@ func show_overworld(obs: Dictionary, names: PackedStringArray, ctx: ViewContexts
 	_selected = ctx.selected
 	_selected_det = ctx.selected_detachment
 	_selected_plot = ctx.selected_plot
+	_selected_feature = ctx.selected_feature
 	_battles = {}
 	for eid in ctx.battles():
 		_battles[ctx.battle_plot(eid)] = eid
@@ -534,6 +543,8 @@ func _draw_sites(entry: Dictionary, lay: Dictionary, c: Vector2, s: float, k: fl
 		if s < _glyph_below:
 			var r := maxf(s * 0.38, 3.0)
 			_draw_site(feats[sites[order[0]]], c, r, shade)
+			for i: int in sites:
+				_site_mark(int(feats[i]["id"]), c, r)
 			if sites.size() > 1 and s >= 12.0:
 				draw_string(font, c + Vector2(r * 0.6, r * 1.6), str(sites.size()), HORIZONTAL_ALIGNMENT_LEFT, -1, 8, TEXT)
 		else:
@@ -543,6 +554,7 @@ func _draw_sites(entry: Dictionary, lay: Dictionary, c: Vector2, s: float, k: fl
 				var f: Dictionary = feats[sites[i]]
 				var at := c + Vector2(points[i]) * k
 				_draw_site(f, at, r, shade)
+				_site_mark(int(f["id"]), at, r)
 				if s >= _rings_from:
 					var owner := int(f.get("owner", 0))
 					if owner > 0:
@@ -571,6 +583,21 @@ func _draw_site(f: Dictionary, at: Vector2, r: float, shade: float) -> void:
 			return
 	draw_circle(at, r, _shaded(_info_of(tmpl)["color"], shade))
 	draw_arc(at, r, 0, TAU, 16, BG, 1.0)
+
+
+## The selected site gets the selection ring; the hovered one a pale ring.
+func _site_mark(fid: int, at: Vector2, r: float) -> void:
+	if fid == _selected_feature:
+		draw_arc(at, r + 4.0, 0, TAU, 24, SELECT, 2.5)
+	elif fid == _hover_feature:
+		draw_arc(at, r + 3.5, 0, TAU, 24, Color(1, 1, 1, 0.7), 1.5)
+
+
+## Highlights a site from outside (its panel row hovered; -1 clears).
+func set_hover_feature(fid: int) -> void:
+	if fid != _hover_feature:
+		_hover_feature = fid
+		queue_redraw()
 
 
 ## A site's owner: a ring of the side's colour; side 2 a square, so sides
@@ -886,6 +913,32 @@ func feature_at(pos: Vector2) -> int:
 			best_d = d
 			best = int(feats[sites[i]]["id"])
 	return best
+
+
+## Whether a mover token (commander, garrison or caravan standing in its
+## lane) is under a point of this view: tokens are drawn over sites.
+func mover_at(pos: Vector2) -> bool:
+	if mode != "overworld" or _width == 0:
+		return false
+	var o := _origin()
+	var k := _hex_size() / 1000.0
+	var reach := _token_radius(k) * 1.3 + 2.0
+	for cmd: Dictionary in _obs.get("commanders", []):
+		var slot: int = _lane_cmd.get(cmd["id"], -1)
+		if slot >= 0 and (o + _lane_point(int(cmd["plot"]), slot, k)).distance_to(pos) <= reach:
+			return true
+	for det: Dictionary in _obs.get("detachments", []):
+		var slot: int = _lane_det.get(det["id"], -1)
+		if slot >= 0 and (o + _lane_point(int(det["plot"]), slot, k)).distance_to(pos) <= reach:
+			return true
+	return false
+
+
+## What a click picks (sw-63wt.7, U1Q23): a mover token under the point
+## wins (-1: the owner selects by its hex as before), else the site under
+## it (feature_at), else -1 (open ground: the hex).
+func pick_at(pos: Vector2) -> int:
+	return -1 if mover_at(pos) else feature_at(pos)
 
 
 # --- battle ------------------------------------------------------------------
@@ -1667,6 +1720,10 @@ func _notification(what: int) -> void:
 ## No hex is under the cursor any more: it left the view, or the view stopped
 ## showing the overworld (sw-3zs).
 func _clear_hover() -> void:
+	if _hover_feature >= 0:
+		_hover_feature = -1
+		feature_hovered.emit(-1)
+		queue_redraw()
 	if _hover_plot < 0:
 		return
 	_hover_plot = -1
@@ -1728,6 +1785,11 @@ func _gui_input(event: InputEvent) -> void:
 				_hover_plot = p
 				hex_hovered.emit(p)
 				queue_redraw()
+			var f := pick_at(mm.position)
+			if f != _hover_feature:
+				_hover_feature = f
+				feature_hovered.emit(f)
+				queue_redraw()
 		elif mode == "battle" and not compact:
 			# Playback too: the hover card follows the squad under the cursor
 			# (sw-bafi.1); the owner rebuilds it only on a change.
@@ -1787,7 +1849,7 @@ func _gui_input(event: InputEvent) -> void:
 			zoomed.emit(0.8)
 		MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
 			if mode == "overworld":
-				hex_clicked.emit(plot_at(mb.position), mb.button_index, mb.shift_pressed)
+				hex_clicked.emit(plot_at(mb.position), mb.button_index, mb.shift_pressed, pick_at(mb.position))
 			else:
 				battle_pressed.emit(to_battle(mb.position), mb.button_index, mb.shift_pressed, mb.ctrl_pressed, mb.alt_pressed, false)
 		_:
