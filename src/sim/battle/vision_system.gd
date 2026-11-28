@@ -48,19 +48,69 @@ func _compute(state: BattleState) -> void:
 			conceal[row] = concealment_pct(state, row)
 	var seen: PackedInt64Array = sq.take_column(&"seen_by")
 	var old := seen.duplicate()
+	# Per observer, once per tick (sw-arse): its sight and its detection
+	# reach (-1 none), and a grid of observers by centroid with cells as wide
+	# as the longest reach, so a squad only tests observers in the 3 x 3
+	# cells around it. The old pair loop read both stats for every pair of
+	# squads: quadratic, and most of a 160-squad battle's tick. Each pair
+	# still gets the same test, so seen_by is the same.
+	var sight := PackedInt64Array()
+	sight.resize(n)
+	var detect := PackedInt64Array()
+	detect.resize(n)
+	detect.fill(-1)
+	var far := Fixed.ONE
+	var observers := PackedInt64Array()
+	for o in n:
+		if not sq.is_active(o) or sq.alive[o] == 0:
+			continue
+		observers.append(o)
+		sight[o] = Stats.squad(state, o, &"squad.sight", r.sq_sight[sq.tmpl[o]])
+		far = maxi(far, sight[o])
+		var det := Stats.squad(state, o, DETECT, r.sq_detection[sq.tmpl[o]])
+		if det > 0:
+			detect[o] = Fixed.mul(det, Pools.efficacy(state, o, BattleSquads.INSTINCT, Fixed.ONE / 2, Fixed.ONE))
+			far = maxi(far, detect[o])
+	var cx := sq.cx
+	var cy := sq.cy
+	var player := sq.player
+	var gw := maxi(1, (r.width * Fixed.ONE + far - 1) / far)
+	var gh := maxi(1, (r.height * Fixed.ONE + far - 1) / far)
+	var grid := {}
+	for o in observers:
+		var k := clampi(cy[o] / far, 0, gh - 1) * gw + clampi(cx[o] / far, 0, gw - 1)
+		var bucket: PackedInt64Array = grid.get(k, PackedInt64Array())
+		bucket.append(o)
+		grid[k] = bucket
 	for t in n:
 		if not sq.is_active(t):
 			seen[t] = 0
 			continue
-		var mask := BattleSquads.bit(sq.player[t])
-		for o in n:
-			if o == t or not sq.is_active(o) or sq.alive[o] == 0 or sq.player[o] == sq.player[t]:
-				continue
-			var pbit := BattleSquads.bit(sq.player[o])
-			if mask & pbit != 0:
-				continue
-			if _sees(state, o, t, conceal[t]):
-				mask |= pbit
+		var mask := BattleSquads.bit(player[t])
+		var tx := clampi(cx[t] / far, 0, gw - 1)
+		var ty := clampi(cy[t] / far, 0, gh - 1)
+		var ct := conceal[t]
+		for gy in range(maxi(ty - 1, 0), mini(ty + 2, gh)):
+			for gx in range(maxi(tx - 1, 0), mini(tx + 2, gw)):
+				var bucket: PackedInt64Array = grid.get(gy * gw + gx, PackedInt64Array())
+				for o in bucket:
+					if o == t or player[o] == player[t]:
+						continue
+					var pbit := BattleSquads.bit(player[o])
+					if mask & pbit != 0:
+						continue
+					var reach := Fixed.round_div(sight[o] * (100 - ct), 100)
+					if ct > 0 and detect[o] >= 0:
+						reach = maxi(reach, detect[o])
+					# Fixed.distance(o, t) <= reach without the square root:
+					# it rounds to nearest, so it is <= A exactly when the
+					# squared length is <= A * A + A.
+					var dx := cx[t] - cx[o]
+					var dy := cy[t] - cy[o]
+					if reach < 0 or dx * dx + dy * dy > reach * reach + reach:
+						continue
+					if r.los(cx[o], cy[o], cx[t], cy[t]):
+						mask |= pbit
 		mask |= _revealed(state, t)
 		seen[t] = mask
 	sq.put_column(&"seen_by", seen)
@@ -89,6 +139,9 @@ func _revealed(state: BattleState, t: int) -> int:
 	return bits
 
 
+## Whether squad o sees squad t (t's concealment `conceal`), pair by pair:
+## the rule _compute applies with its per-tick observer columns and grid
+## (test_vision_grid_matches_the_pair_rule).
 func _sees(state: BattleState, o: int, t: int, conceal: int) -> bool:
 	var r := state.rules
 	var sq := state.squads

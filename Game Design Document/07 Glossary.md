@@ -138,3 +138,4 @@ Not yet terms: each moves into the lists above, and into `glossary.json`, with t
 | Band | A squad group on the overworld without a commander: a garrison or a caravan. | U1Q27 | E2 |
 | Caravan | A band made to travel, with its own sight and movement; the name for today's convoy, with "convoy" as an alias. | U1Q27 | E2 |
 | Owner action | Something a feature's owner does with it without a commander: buy, set its rally point, choose its output. | U1Q24 | E8 |
+| Line of sight | Clear between two points unless more than two sight-blocking cells (forest, ruins, walls) lie strictly between their cells; always clear within 8 m. Sight and direct fire need it; indirect fire doesn't. | R3Q8, R8Q1 | sw-arse (review) |
