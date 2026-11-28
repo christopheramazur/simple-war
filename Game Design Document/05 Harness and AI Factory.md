@@ -69,9 +69,13 @@ A harness mode for tuning SIMPL parameters (drift, distribution, bands, sensitiv
   - **death spiral:** one side breaks and collapses.
   - **stalemate:** nobody gets ahead before the turn limit.
   - **surge rush:** squads surge often.
+  - **pile on:** 35% or more of the damage that got through is overkill (U1 D6).
+  - **spray:** few kills per 100 damage and a late first kill (U1 D6).
+  - **volley wipe:** half of a squad dies in one tick (U1 D6).
 - **The table:** per setting, win rate, turns, Morale's neutral share, Morale breaks, and how often each trope showed. `hx sim tropes [--batch]` re-evaluates a batch after the rules change.
-- **Labs shipped:** `morale_drift` and `band_floors`.
+- **Labs shipped:** `morale_drift`, `band_floors` and `fire_distribution` (U1 D6, sw-pd2l.6: prowess fire policy against nearest over Prowess start, discipline and coordination; fire features `overkill_pct` (overkill over damage through the defences), `kills_per_100` and `first_kill_s`).
 - **First finding** (`morale_drift` on the duel): slow drift with a fast Morale exchange turns into a pressure cooker with no breaks; a slow exchange gives rout cascades at any drift.
+- **First finding** (`fire_distribution`, 108 runs, one seed): Prowess start moves Morale (neutral share 0.11 to 0.92) but leaves kills and overkill alone. Discipline and coordination move overkill: the prowess policy runs 12 to 17% overkill against nearest's 17%, with 7.6 to 8.6 kills per 100 damage against nearest's 7.6. Neither `pile_on` (35%) nor `spray` fires, and the first kill comes at 2.5 s in every run. Player 2 wins every run, so win rates say nothing yet.
 - **Caveat:** duel outcomes don't vary with the seed (sw-884.5), so seeds don't diversify runs yet.
 
 ## 5.4 AI factory
