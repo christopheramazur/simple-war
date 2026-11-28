@@ -15,6 +15,10 @@ extends SceneTree
 ##
 ## Run: harness/bin/hx godot run docs/design/u1/scripts/fp/los_scale.gd --timeout 1800 -- \
 ##   [--squads 40,80,160] [--battles 1,2,4] [--ticks 300] [--trace] [--reps 1]
+##   [--fp-scale N] (ruleset fp_search_scale_squads) [--quality] (shots, damage,
+##   losses and the share of armed unit-ticks holding a firing position, on
+##   battle 0; it costs time, so compare timings without it). --reps takes the
+##   median wall time.
 
 const ONE := Fixed.ONE
 const MIX := ["rifle_squad", "rifle_squad", "heavy_weapons_team", "marksman_team", "scout_team"]
@@ -73,6 +77,8 @@ const TAGS := ["effects", "fp", "move", "centroids", "vision", "reactions", "com
 
 var loader: PackageLoader
 var save_dir := ""
+var fp_scale := 0
+var quality := false
 
 
 func _initialize() -> void:
@@ -101,6 +107,11 @@ func _initialize() -> void:
 				i += 1
 			"--trace":
 				trace = true
+			"--fp-scale":
+				fp_scale = int(args[i + 1])
+				i += 1
+			"--quality":
+				quality = true
 			"--save-trace":
 				save_dir = args[i + 1]
 				trace = true
@@ -109,12 +120,15 @@ func _initialize() -> void:
 	print("config            wall ms/t  ms/battle-t  ms/battle-s   fp   move  vision combat other   hash(b0)")
 	for n in squads:
 		for k in battles:
-			var best: Dictionary = {}
+			var runs := []
 			for rep in reps:
-				var res := _run(n, k, ticks, trace and k == 1 and rep == 0)
-				if best.is_empty() or res["wall"] < best["wall"]:
-					best = res
-			_print(n, k, ticks, best)
+				runs.append(_run(n, k, ticks, trace and k == 1 and rep == 0))
+			runs.sort_custom(func(a, b): return a["wall"] < b["wall"])
+			var med: Dictionary = runs[runs.size() / 2]
+			for x in runs:
+				if x.has("replay"):
+					med["replay"] = x["replay"]
+			_print(n, k, ticks, med)
 	quit(0)
 
 
@@ -137,7 +151,7 @@ func _rules(n: int, traced: bool) -> BattleRules:
 		for p in base.get_property_list():
 			if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 				r.set(p.name, base.get(p.name))
-		r.los_memo = {}
+		r.los_cache = PackedInt64Array()
 	var t := _tiles(n)
 	if t != Vector2i(1, 1):
 		var w := base.width
@@ -155,6 +169,7 @@ func _rules(n: int, traced: bool) -> BattleRules:
 		r.facing = fac
 		r.routes = BattleRoute.new()
 	r.clear_los_memo()
+	r.fp_search_scale = fp_scale
 	Stats.warm(r)
 	r.routes.warm(r)
 	return r
@@ -215,6 +230,7 @@ func _run(n: int, k: int, ticks: int, traced: bool) -> Dictionary:
 		sims.append(_sim(t))
 		timers.append(t)
 		states[b].begin_turn()
+	var q := {"shots": 0, "has": 0, "armed": 0, "hp0": _hp(states[0])}
 	var t0 := Time.get_ticks_usec()
 	for tick in ticks:
 		for b in k:
@@ -222,6 +238,8 @@ func _run(n: int, k: int, ticks: int, traced: bool) -> Dictionary:
 			if tick > 0 and tick % s.rules.ticks_per_turn == 0:
 				s.begin_turn()
 			sims[b].runner.step(s)
+			if quality and b == 0:
+				_observe(s, q)
 	var wall := Time.get_ticks_usec() - t0
 	var split := {"fp": 0, "move": 0, "vision": 0, "combat": 0, "all": 0}
 	for t: Array in timers:
@@ -239,6 +257,10 @@ func _run(n: int, k: int, ticks: int, traced: bool) -> Dictionary:
 					split["combat"] += x.us
 	var out := {"wall": wall, "split": split, "hash": states[0].state_hash().hex_encode().substr(0, 12),
 		"units": states[0].units.count(), "tps": states[0].rules.tps, "k": k}
+	if quality:
+		var hp1 := _hp(states[0])
+		out["quality"] = "  quality: shots %d  damage dealt p1 %.0f p2 %.0f  HAS %.1f%% of armed unit-ticks under attack orders" % [
+			q["shots"], (q["hp0"][2] - hp1[2]) / float(ONE), (q["hp0"][1] - hp1[1]) / float(ONE), 100.0 * q["has"] / maxi(q["armed"], 1)]
 	if traced:
 		out["replay"] = _replay(states[0].rules as TraceRules, ticks)
 		if save_dir != "":
@@ -257,6 +279,8 @@ func _print(n: int, k: int, ticks: int, res: Dictionary) -> void:
 	print("n=%-3d (%3d units) k=%d  %7.2f  %9.2f  %10.1f  %5.2f %5.2f %5.2f %5.2f %5.2f   %s" % [
 		n, res["units"], k, res["wall"] / (ticks * 1000.0), per, per * res["tps"],
 		sp["fp"] / bt, sp["move"] / bt, sp["vision"] / bt, sp["combat"] / bt, other, res["hash"]])
+	if res.has("quality"):
+		print(res["quality"])
 	if res.has("replay"):
 		print(res["replay"])
 
@@ -274,12 +298,13 @@ func _replay(r: TraceRules, ticks: int) -> String:
 		aware += tr[10 * i + 5]
 	var lines := PackedStringArray()
 	lines.append("  los() calls %d over %d ticks (%.0f/t), awareness %.0f%%, by caller %s" % [m, ticks, m / float(ticks), 100.0 * aware / maxi(m, 1), by_tag])
-	# Through los() with a fresh memo, as the sim saw them.
+	# Through los() with a fresh cache, as the sim saw them.
 	var base := BattleRules.new()
 	for p in r.get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and p.name != "trace" and p.name != "tag":
 			base.set(p.name, r.get(p.name))
-	base.los_memo = {}
+	base.los_cache = PackedInt64Array()
+	base.los_dist = PackedByteArray()
 	var ref := PackedByteArray()
 	ref.resize(m)
 	var t0 := Time.get_ticks_usec()
@@ -298,8 +323,31 @@ func _replay(r: TraceRules, ticks: int) -> String:
 		if tr[10 * i + 5] == 0:
 			distinct[((tr[10 * i + 2] * r.width + tr[10 * i + 1]) * r.width * r.height) + tr[10 * i + 4] * r.width + tr[10 * i + 3]] = true
 	lines.append("  walks needed %d, distinct cell pairs %d (best possible memo hit %.0f%%)" % [walks, distinct.size(), 100.0 - 100.0 * distinct.size() / maxi(walks, 1)])
-	lines.append("  replay: los() with memo %.3f ms/t (%.2f us/call), every walk uncached %.3f ms/t (%.2f us/walk)" % [
+	lines.append("  replay: los() as built %.3f ms/t (%.2f us/call), every walk uncached %.3f ms/t (%.2f us/walk)" % [
 		t_memo / 1000.0 / ticks, t_memo / float(maxi(m, 1)), t_walk / 1000.0 / ticks, t_walk / float(maxi(walks, 1))])
 	if base.has_method("los_field_stats"):
 		lines.append("  " + base.call("los_field_stats"))
 	return "\n".join(lines)
+
+
+func _observe(s: BattleState, q: Dictionary) -> void:
+	var u := s.units
+	for urow in u.count():
+		if u.hp[urow] <= 0:
+			continue
+		if u.fired_tick[urow] == s.tick - 1:
+			q["shots"] += 1
+		if u.weapon[urow] >= 0 and u.fpos[urow] != FiringPositions.NONE:
+			q["armed"] += 1
+			if u.fpos[urow] == FiringPositions.HAS:
+				q["has"] += 1
+
+
+## Living HP per player [0, p1, p2].
+func _hp(s: BattleState) -> Array:
+	var out := [0, 0, 0]
+	for urow in s.units.count():
+		var row := s.squads.row_of(s.units.squad[urow])
+		if s.units.hp[urow] > 0 and row >= 0:
+			out[s.squads.player[row]] += s.units.hp[urow]
+	return out
